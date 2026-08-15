@@ -31,13 +31,16 @@ into this monorepo (base: CyberDrain CIPP monorepo v10.8.5, Craft container runt
 
 | Phase | Status | Notes |
 |-------|--------|-------|
-| 0 — Foundation | in progress | upstream remote added; sync tooling/docs ported; local container smoke pending |
-| 1 — Branding & identity | pending | |
-| 2 — Feature verticals (all A–I selected) | pending | Order: E, F, H, B, G, D, C, A, I |
-| 3 — Cross-cutting UI | pending | |
-| 4 — Hooked logic | pending | |
-| 5 — Cutover | pending | production migration is a separate operational step |
+| 0 — Foundation | done | upstream remote added; sync tooling/docs ported; local container stack validated (Craft :5196, Azurite, dev auth, core pages 200) |
+| 1 — Branding & identity | done | cerulean theme, logos/manifest/titles, dual versioning 6.0.0 / upstream 10.8.5 (`5d9f17d5`) |
+| 2 — Feature verticals (all A–I) | done | all verticals landed in one pass — see tranche log (`0801ea60` backend, `08ff84fe` frontend) |
+| 3 — Cross-cutting UI | done | fork had already rebased card views onto upstream's virtualized `CippDataTable` at the 10.8.5 sync, so the sweep carried them; organized nav merged with monorepo-only entries |
+| 4 — Hooked logic | done | BEC/Ninja/quarantine match fork tip; `Test-CIPPAccess`, `Set-CIPPUser`, `Invoke-ExecMcp` kept as monorepo versions, which contain the fork semantics (fail-closed roles, scheduled edits, MCPAllowed) plus newer hardening |
+| 5 — Cutover | runbook ready | see `CUTOVER_RUNBOOK_20260815.md`; staging deploy, production migration (`deployment/Invoke-CippMigration.ps1`), and fork-repo archiving are operational steps to run at cutover time — do **not** archive the forks while production still runs on them |
 
 ## Tranche log
 
-(filled in as tranches land)
+- 2026-08-15 `1bad0c7b` — Phase 0: sync process/tooling/history ported to monorepo.
+- 2026-08-15 `5d9f17d5` — Phase 1: Manage365 identity (logos, icons, theme, titles, dual versioning).
+- 2026-08-15 `0801ea60` — Phase 2/4 backend: 691-file modified sweep + 128 fork-only endpoints/helpers/standards, Sherweb removal, config merges (standards 207 entries, SAMManifest +10 perms/+3 resource apps, IntegrationTemplates), Craft adaptations, Pester tests. All PowerShell parses clean.
+- 2026-08-15 `08ff84fe` — Phase 2/3 frontend: 418-file modified sweep + 93 fork-only pages/components, 98 deletions (dead template sections, Sherweb pages), nav merge, standards.json synced with backend. Kept monorepo versions of auth flow, onboarding wizard, super-admin pages, and the refactored PDF/report suite (fork's report buttons predate upstream's `CippPdf` primitives). Build green: 406 static pages, no import warnings; new routes smoke-tested 200 on the local stack.
