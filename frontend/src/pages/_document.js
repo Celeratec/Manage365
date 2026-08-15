@@ -20,14 +20,14 @@ class CustomDocument extends Document {
           <script
             dangerouslySetInnerHTML={{
               __html:
-                "(function(){try{var m='light';var s=null;try{s=JSON.parse(localStorage.getItem('app.settings')||'null')}catch(e){}var v=s&&s.currentTheme&&s.currentTheme.value;if(v==='dark'){m='dark'}else if(!v||v==='browser'){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){m='dark'}}document.documentElement.style.colorScheme=m;if(m==='dark'){var st=document.createElement('style');st.id='cipp-color-init';st.textContent='html{background-color:#0A0F18}body{background-color:#0A0F18!important;visibility:hidden}';document.head.appendChild(st);setTimeout(function(){var e=document.getElementById('cipp-color-init');if(e){e.textContent='html{background-color:#0A0F18}body{background-color:#0A0F18!important}'}},4000)}}catch(e){}})()",
+                "(function(){try{var m='light';var s=null;try{s=JSON.parse(localStorage.getItem('app.settings')||'null')}catch(e){}var v=s&&s.currentTheme&&s.currentTheme.value;if(v==='dark'){m='dark'}else if(!v||v==='browser'){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){m='dark'}}document.documentElement.style.colorScheme=m;if(m==='dark'){var st=document.createElement('style');st.id='cipp-color-init';st.textContent='html{background-color:#121212}body{background-color:#121212!important;visibility:hidden}';document.head.appendChild(st);setTimeout(function(){var e=document.getElementById('cipp-color-init');if(e){e.textContent='html{background-color:#121212}body{background-color:#121212!important}'}},4000)}}catch(e){}})()",
             }}
           />
           <link rel="manifest" href="/manifest.json" />
           <meta name="theme-color" content="#ffffff" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          <meta name="apple-mobile-web-app-title" content="CIPP" />
+          <meta name="apple-mobile-web-app-title" content="Manage365" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           <link
             rel="preconnect"

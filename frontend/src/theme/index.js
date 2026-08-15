@@ -23,9 +23,10 @@ export const createTheme = (config) => {
           styleOverrides: {
             // Set global custom scrollbar variables
             html: {
-              "--sb-track-color": "#232E33",
-              "--sb-thumb-color": "#6BAF8D",
-              "--sb-size": "7px",
+              // Material Design dark theme scrollbar colors
+              "--sb-track-color": "#1E1E1E",
+              "--sb-thumb-color": "rgba(255, 255, 255, 0.38)",
+              "--sb-size": "8px",
             },
             // Apply global scrollbar styles to every element
             "html, body, *": {

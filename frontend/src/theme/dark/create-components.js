@@ -12,6 +12,13 @@ import { alpha } from "@mui/material/styles";
 
 export const createComponents = ({ palette }) => {
   return {
+    MuiCssBaseline: {
+      styleOverrides: {
+        "#nprogress .bar": {
+          backgroundColor: palette.primary.main,
+        },
+      },
+    },
     MuiAutocomplete: {
       styleOverrides: {
         paper: {
@@ -32,8 +39,27 @@ export const createComponents = ({ palette }) => {
     MuiButton: {
       styleOverrides: {
         root: {
+          transition: "all 150ms ease-out",
           "&:focus": {
             boxShadow: `${alpha(palette.primary.main, 0.25)} 0 0 0 0.2rem`,
+          },
+        },
+        contained: {
+          boxShadow: `0 1px 3px ${alpha(palette.common?.black || "#000", 0.3)}`,
+          "&:hover": {
+            boxShadow: `0 2px 6px ${alpha(palette.common?.black || "#000", 0.4)}`,
+          },
+        },
+        outlined: {
+          borderColor: alpha(palette.neutral[500], 0.3),
+          "&:hover": {
+            backgroundColor: alpha(palette.neutral[400], 0.08),
+            borderColor: alpha(palette.neutral[400], 0.5),
+          },
+        },
+        text: {
+          "&:hover": {
+            backgroundColor: alpha(palette.neutral[400], 0.1),
           },
         },
       },
@@ -70,24 +96,26 @@ export const createComponents = ({ palette }) => {
       styleOverrides: {
         root: {
           backgroundColor: palette.background.paper,
-          borderColor: palette.neutral[600],
-          boxShadow: `0px 1px 2px 0px ${alpha(palette.neutral[900], 0.08)}`,
+          borderColor: alpha(palette.neutral[500], 0.2),
+          boxShadow: "none",
+          transition: "border-color 150ms ease-out, box-shadow 150ms ease-out",
           "&:hover": {
             backgroundColor: palette.action.hover,
+            borderColor: alpha(palette.neutral[400], 0.4),
           },
           [`&.${filledInputClasses.disabled}`]: {
             backgroundColor: palette.action.disabledBackground,
-            borderColor: palette.neutral[800],
+            borderColor: alpha(palette.neutral[700], 0.2),
             boxShadow: "none",
           },
           [`&.${filledInputClasses.focused}`]: {
             backgroundColor: "transparent",
             borderColor: palette.primary.main,
-            boxShadow: `${alpha(palette.primary.main, 0.25)} 0 0 0 0.2rem`,
+            boxShadow: `${alpha(palette.primary.main, 0.25)} 0 0 0 3px`,
           },
           [`&.${filledInputClasses.error}`]: {
             borderColor: palette.error.main,
-            boxShadow: `${alpha(palette.error.main, 0.25)} 0 0 0 0.2rem`,
+            boxShadow: `${alpha(palette.error.main, 0.25)} 0 0 0 3px`,
           },
         },
       },

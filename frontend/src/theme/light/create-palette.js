@@ -6,20 +6,23 @@ import { getPrimary } from '../utils';
 export const createPalette = (config) => {
   const { colorPreset, contrast } = config;
 
+  // Material Design light theme guidelines
+  // https://m2.material.io/design/color/dark-theme.html#properties
   return {
     action: {
-      active: neutral[400],
-      disabled: alpha(neutral[900], 0.38),
-      disabledBackground: alpha(neutral[900], 0.12),
-      focus: alpha(neutral[900], 0.16),
-      hover: alpha(neutral[900], 0.04),
-      selected: alpha(neutral[900], 0.12)
+      active: alpha(common.black, 0.54),
+      disabled: alpha(common.black, 0.26),
+      disabledBackground: alpha(common.black, 0.12),
+      focus: alpha(common.black, 0.12),
+      hover: alpha(common.black, 0.04),
+      selected: alpha(common.black, 0.08)
     },
     background: {
-      default: contrast === 'high' ? '#F4F5F7' : '#F0F2F5',
-      paper: '#FAFBFC'
+      // Material Design light theme surfaces
+      default: contrast === 'high' ? '#F5F5F5' : '#FAFAFA',
+      paper: '#FFFFFF'
     },
-    divider: alpha(neutral[400], 0.2),
+    divider: alpha(common.black, 0.12),
     error,
     info,
     mode: 'light',
@@ -27,9 +30,10 @@ export const createPalette = (config) => {
     primary: getPrimary(colorPreset),
     success,
     text: {
-      primary: neutral[900],
-      secondary: neutral[500],
-      disabled: alpha(neutral[900], 0.38)
+      // Material Design: High emphasis 87%, Medium 60%, Disabled 38%
+      primary: alpha(common.black, 0.87),
+      secondary: alpha(common.black, 0.60),
+      disabled: alpha(common.black, 0.38)
     },
     warning
   };

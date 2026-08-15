@@ -270,7 +270,7 @@ const App = (props) => {
   return (
     <CacheProvider value={emotionCache}>
       <Head>
-        <title>CIPP</title>
+        <title>Manage365</title>
         <meta name="viewport" content="initial-scale=1, width=device-width" />
       </Head>
       <ReduxProvider store={store}>
@@ -281,7 +281,7 @@ const App = (props) => {
                 {(settings) => {
                   // Create theme even while initializing to avoid blank screen
                   const theme = createTheme({
-                    colorPreset: 'orange',
+                    colorPreset: 'cerulean',
                     direction: settings.direction || 'ltr',
                     paletteMode:
                       settings.currentTheme?.value !== 'browser'
