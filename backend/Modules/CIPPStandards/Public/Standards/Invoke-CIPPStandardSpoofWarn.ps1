@@ -40,7 +40,7 @@ function Invoke-CIPPStandardSpoofWarn {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -70,7 +70,7 @@ function Invoke-CIPPStandardSpoofWarn {
     # Test if all entries in the AllowListAdd variable are in the AllowList
     $AllowListCorrect = $true
 
-    if ($null -eq $AllowListAdd -or $AllowListAdd.Count -eq 0) {
+    if ($AllowListAdd -eq $null -or $AllowListAdd.Count -eq 0) {
         $AllowListAdd = @{'@odata.type' = '#Exchange.GenericHashTable'; Add = @() }
     } else {
         $AllowListAddEntries = foreach ($entry in $AllowListAdd) {

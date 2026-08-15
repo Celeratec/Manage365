@@ -4,8 +4,6 @@ function Invoke-ListUserSettings {
         Entrypoint,AnyTenant
     .ROLE
         Identity.User.Read
-    .DESCRIPTION
-        Retrieves the current CIPP user's personal settings and preferences.
     #>
     param($Request, $TriggerMetadata)
     $Headers = $Request.Headers
@@ -56,11 +54,15 @@ function Invoke-ListUserSettings {
 
         if (!$UserSettings) {
             $UserSettings = [pscustomobject]@{
-                direction    = 'ltr'
-                paletteMode  = 'light'
-                currentTheme = @{ value = 'light'; label = 'light' }
-                pinNav       = $true
-                showDevtools = $false
+                direction      = 'ltr'
+                paletteMode    = 'light'
+                currentTheme   = @{ value = 'light'; label = 'light' }
+                pinNav         = $true
+                showDevtools   = $false
+                customBranding = @{
+                    colour = '#F77F00'
+                    logo   = $null
+                }
             }
         }
 
@@ -97,8 +99,14 @@ function Invoke-ListUserSettings {
             Write-Warning "Failed to convert UserBookmarks JSON: $($_.Exception.Message)"
         }
 
-        # Branding is served by Invoke-ListBrandingSettings, not from here: it carries inline
-        # images and its migration writes, neither of which belong on every page load.
+        #Get branding settings
+        if ($UserSettings) {
+            $brandingTable = Get-CippTable -tablename 'Config'
+            $BrandingSettings = Get-CIPPAzDataTableEntity @brandingTable -Filter "PartitionKey eq 'BrandingSettings' and RowKey eq 'BrandingSettings'"
+            if ($BrandingSettings) {
+                $UserSettings | Add-Member -MemberType NoteProperty -Name 'customBranding' -Value $BrandingSettings -Force | Out-Null
+            }
+        }
 
         if ($UserSpecificSettings) {
             $UserSettings | Add-Member -MemberType NoteProperty -Name 'UserSpecificSettings' -Value $UserSpecificSettings -Force | Out-Null

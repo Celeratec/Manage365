@@ -35,9 +35,7 @@ function Set-CIPPAuthenticationPolicy {
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         Write-LogMessage -headers $Headers -API $APIName -tenant $Tenant -message "Could not get CurrentInfo for $AuthenticationMethodId. Error:$($ErrorMessage.NormalizedError)" -sev Error -LogData $ErrorMessage
-        # Throw rather than return: callers treat any returned string as a successful write, so returning
-        # here made a failed read look like a completed remediation in both the audit log and the API response.
-        throw "Could not get CurrentInfo for $AuthenticationMethodId. Error:$($ErrorMessage.NormalizedError)"
+        return "Could not get CurrentInfo for $AuthenticationMethodId. Error:$($ErrorMessage.NormalizedError)"
     }
 
     switch ($AuthenticationMethodId) {

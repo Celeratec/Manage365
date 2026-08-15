@@ -14,20 +14,12 @@ function Invoke-CippTestCIS_5_2_3_4 {
             return
         }
 
-        $Members = $Users.Where({ $_.userType -eq 'Member' -and $_.accountEnabled -eq $true })
-        $RegById = @{}
-        $RegByUpn = @{}
-        foreach ($R in $Reg) {
-            if ($R.id) { $RegById[$R.id] = $R }
-            if ($R.userPrincipalName) { $RegByUpn[$R.userPrincipalName] = $R }
-        }
-        $NotCapable = [System.Collections.Generic.List[object]]::new()
+        $Members = $Users | Where-Object { $_.userType -eq 'Member' -and $_.accountEnabled -eq $true }
+        $NotCapable = @()
         foreach ($U in $Members) {
-            $R = $null
-            if ($U.id -and $RegById.ContainsKey($U.id)) { $R = $RegById[$U.id] }
-            elseif ($U.userPrincipalName -and $RegByUpn.ContainsKey($U.userPrincipalName)) { $R = $RegByUpn[$U.userPrincipalName] }
+            $R = $Reg | Where-Object { $_.id -eq $U.id -or $_.userPrincipalName -eq $U.userPrincipalName } | Select-Object -First 1
             if (-not $R -or $R.isMfaCapable -ne $true) {
-                $NotCapable.Add($U)
+                $NotCapable += $U
             }
         }
 

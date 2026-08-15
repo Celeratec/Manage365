@@ -153,14 +153,9 @@ function New-CippAuditLogSearch {
         } catch {
             $AuditLogError = $null
             $AuditLogErrorMessage = [string]$_.Exception.Message
-            $RawErrorBody = $_.Exception.Data['RawErrorBody']
-            if ($RawErrorBody) {
-                $AuditLogError = [string]$RawErrorBody | ConvertFrom-Json -ErrorAction SilentlyContinue
-            } else {
-                $TrimmedAuditLogErrorMessage = $AuditLogErrorMessage.TrimStart()
-                if ($TrimmedAuditLogErrorMessage.StartsWith('{') -or $TrimmedAuditLogErrorMessage.StartsWith('[')) {
-                    $AuditLogError = $AuditLogErrorMessage | ConvertFrom-Json -ErrorAction SilentlyContinue
-                }
+            $TrimmedAuditLogErrorMessage = $AuditLogErrorMessage.TrimStart()
+            if ($TrimmedAuditLogErrorMessage.StartsWith('{') -or $TrimmedAuditLogErrorMessage.StartsWith('[')) {
+                $AuditLogError = $AuditLogErrorMessage | ConvertFrom-Json -ErrorAction SilentlyContinue
             }
 
             # The AuditingDisabledTenant status can appear either at the top level or nested
@@ -208,12 +203,7 @@ function New-CippAuditLogSearch {
             # Handle HTML error pages (e.g. Azure Front Door 502/504 gateway timeouts)
             if ($TrimmedAuditLogErrorMessage -match '<!DOCTYPE|<html' -and $TrimmedAuditLogErrorMessage -match '<title>([^<]+)</title>') {
                 $HtmlTitle = $Matches[1].Trim()
-                $GatewayLogData = [PSCustomObject]@{
-                    HtmlTitle         = $HtmlTitle
-                    NormalizedMessage = $AuditLogErrorMessage
-                    RawResponseBody   = if ($RawErrorBody) { [string]$RawErrorBody } else { $AuditLogErrorMessage }
-                }
-                Write-LogMessage -API 'Audit Logs' -tenant $TenantFilter -message "Audit log search creation failed with gateway error for tenant $TenantFilter ($HtmlTitle)" -sev Warning -LogData $GatewayLogData
+                Write-LogMessage -API 'Audit Logs' -tenant $TenantFilter -message "Audit log search creation failed with gateway error for tenant $TenantFilter ($HtmlTitle)" -sev Warning
                 return [PSCustomObject]@{
                     id          = $null
                     displayName = [string]$DisplayName
@@ -226,17 +216,7 @@ function New-CippAuditLogSearch {
             # Handle Microsoft-side timeouts / transient errors (e.g. UnknownError with empty message)
             $ErrorCode = $AuditLogError.error.code ?? $AuditLogError.code
             if ($ErrorCode -in @('UnknownError', 'ServiceUnavailable', 'RequestTimeout', 'GatewayTimeout', 'TooManyRequests')) {
-                $TransientLogData = [PSCustomObject]@{
-                    ErrorCode         = $ErrorCode
-                    ErrorMessage      = $AuditLogError.error.message ?? $AuditLogError.message
-                    InnerRequestId    = $AuditLogError.error.innerError.'request-id' ?? $AuditLogError.error.innererror.'request-id'
-                    InnerClientReqId  = $AuditLogError.error.innerError.'client-request-id' ?? $AuditLogError.error.innererror.'client-request-id'
-                    InnerErrorDate    = $AuditLogError.error.innerError.date ?? $AuditLogError.error.innererror.date
-                    NormalizedMessage = $AuditLogErrorMessage
-                    RawResponseBody   = if ($RawErrorBody) { [string]$RawErrorBody } else { $AuditLogErrorMessage }
-                    ParsedError       = $AuditLogError
-                }
-                Write-LogMessage -API 'Audit Logs' -tenant $TenantFilter -message "Audit log search creation failed for tenant $TenantFilter - Microsoft returned $ErrorCode" -sev Warning -LogData $TransientLogData
+                Write-LogMessage -API 'Audit Logs' -tenant $TenantFilter -message "Audit log search creation failed with transient error for tenant $TenantFilter ($ErrorCode)" -sev Warning
                 return [PSCustomObject]@{
                     id          = $null
                     displayName = [string]$DisplayName

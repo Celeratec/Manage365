@@ -168,6 +168,6 @@ function New-ExoRequest {
             return $ReturnedData.value
         }
     } else {
-        Write-Error (Get-AuthorisedRequestError -TenantID $tenantid -Context 'Exchange request')
+        Write-Error 'Not allowed. You cannot manage your own tenant or tenants not under your scope'
     }
 }

@@ -11,18 +11,33 @@
     Write-Host "PowerShell queue trigger function processed work item: $($Tenant.defaultDomainName)"
 
     try {
+        $Query = Build-CIPPQuarantineQueryParams -QueryInput @{
+            days     = 30
+            pageSize = 1000
+        } -ApplyDefaultDateRange
+
+        $AllMessages = [System.Collections.Generic.List[object]]::new()
         $Page = 1
-        $PageSize = 1000
-        $quarantineMessages = [System.Collections.Generic.List[object]]::new()
+        $MaxPages = 5
         do {
-            $Results = New-ExoRequest -tenantid $domainName -cmdlet 'Get-QuarantineMessage' -cmdParams @{ PageSize = $PageSize; Page = $Page } | Select-Object -ExcludeProperty *data.type*
-            if ($Results) { $quarantineMessages.AddRange(@($Results)) }
+            $Query.CmdParams.Page = $Page
+            $quarantineMessages = @(Invoke-CippQuarantineExoRequest -TenantId $domainName -Cmdlet 'Get-QuarantineMessage' -CmdParams $Query.CmdParams |
+                Select-Object -ExcludeProperty *data.type*)
+            if ($quarantineMessages) { $AllMessages.AddRange($quarantineMessages) }
             $Page++
-        } while (@($Results).Count -eq $PageSize)
-        foreach ($message in $quarantineMessages) {
+        } while ($quarantineMessages.Count -eq $Query.CmdParams.PageSize -and $Page -le $MaxPages)
+
+        foreach ($message in $AllMessages) {
+            # Deterministic RowKey (hash of tenant + quarantine Identity) so re-running
+            # the sync upserts existing rows instead of inserting duplicates that the
+            # 30-minute cache window would then return twice.
+            $RowKeySource = '{0}|{1}' -f $domainName, ([string]$message.Identity)
+            $RowKey = [System.Convert]::ToHexString(
+                [System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($RowKeySource))
+            )
             $messageData = @{
                 QuarantineMessage = [string]($message | ConvertTo-Json -Depth 10 -Compress)
-                RowKey            = [string](New-Guid).Guid
+                RowKey            = $RowKey
                 PartitionKey      = 'QuarantineMessage'
                 Tenant            = [string]$domainName
             }

@@ -19,12 +19,12 @@ function Invoke-CippTestCIS_2_1_10 {
 
         if (-not $Failing -or $Failing.Count -eq 0) {
             $Status = 'Passed'
-            $Result = [System.Text.StringBuilder]::new("All $($Results.Count) domain(s) have a DMARC record with p=quarantine or p=reject.")
+            $Result = "All $($Results.Count) domain(s) have a DMARC record with p=quarantine or p=reject."
         } else {
             $Status = 'Failed'
-            $Result = [System.Text.StringBuilder]::new("$($Failing.Count) of $($Results.Count) domain(s) are missing a compliant DMARC record:`n`n| Domain | DMARCPresent | DMARCActionPolicy |`n| :----- | :----------- | :---------------- |`n")
+            $Result = "$($Failing.Count) of $($Results.Count) domain(s) are missing a compliant DMARC record:`n`n| Domain | DMARCPresent | DMARCActionPolicy |`n| :----- | :----------- | :---------------- |`n"
             foreach ($D in ($Failing | Select-Object -First 25)) {
-                $null = $Result.Append("| $($D.Domain) | $($D.DMARCPresent) | $($D.DMARCActionPolicy) |`n")
+                $Result += "| $($D.Domain) | $($D.DMARCPresent) | $($D.DMARCActionPolicy) |`n"
             }
         }
 

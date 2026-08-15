@@ -49,6 +49,7 @@ function Push-ExecOnboardTenantQueue {
             @{ Name = 'Authentication Policy Administrator'; Id = '0526716b-113d-4c15-b2c8-68e3c22b9f80' },
             @{ Name = 'Privileged Role Administrator'; Id = 'e8611ab8-c189-46e8-94e1-60213ab1f814' },
             @{ Name = 'Privileged Authentication Administrator'; Id = '7be44c8a-adaf-4e2a-84d6-ab2649e08a13' },
+            @{ Name = 'Power Platform Administrator'; Id = '11648597-926c-4cf3-9c36-bcebb0ba8dcc' },
             @{ Name = 'Billing Administrator'; Id = 'b0f54661-2d74-4c50-afa3-1ec803f12efe'; Optional = $true },
             @{ Name = 'Global Reader'; Id = 'f2ef992c-3afb-46b9-b7cf-a126ee74c451'; Optional = $true },
             @{ Name = 'Domain Name Administrator'; Id = '8329153b-31d0-4727-b945-745eb3bc5f31'; Optional = $true }

@@ -55,15 +55,18 @@ function Add-CIPPApplicationPermission {
 
     Write-Information "Adding application permissions to application $ApplicationId in tenant $TenantFilter"
 
+    # Only fetch the service principals we actually reference (our app + resource apps) instead of
+    # enumerating every SP in the tenant.
+    $NeededAppIds = @(@($ApplicationId) + @($RequiredResourceAccess.resourceAppId) | Where-Object { $_ } | Sort-Object -Unique)
     $ServicePrincipalList = [System.Collections.Generic.List[object]]::new()
-    $SPList = New-GraphGETRequest -uri "https://graph.microsoft.com/beta/servicePrincipals?`$select=AppId,id,displayName&`$top=999" -skipTokenCache $true -tenantid $TenantFilter -NoAuthCheck $true
+    $SPList = Get-CippServicePrincipalsByAppId -AppIds $NeededAppIds -TenantFilter $TenantFilter -SkipTokenCache
     foreach ($SP in $SPList) { $ServicePrincipalList.Add($SP) }
     $ourSVCPrincipal = $ServicePrincipalList | Where-Object -Property AppId -EQ $ApplicationId
     if (!$ourSVCPrincipal) {
         #Our Service Principal isn't available yet. We do a sleep and reexecute after 3 seconds.
         Start-Sleep -Seconds 5
         $ServicePrincipalList.Clear()
-        $SPList = New-GraphGETRequest -uri "https://graph.microsoft.com/beta/servicePrincipals?`$select=AppId,id,displayName&`$top=999" -skipTokenCache $true -tenantid $TenantFilter -NoAuthCheck $true
+        $SPList = Get-CippServicePrincipalsByAppId -AppIds $NeededAppIds -TenantFilter $TenantFilter -SkipTokenCache
         foreach ($SP in $SPList) { $ServicePrincipalList.Add($SP) }
         $ourSVCPrincipal = $ServicePrincipalList | Where-Object -Property AppId -EQ $ApplicationId
     }
@@ -160,11 +163,6 @@ function Add-CIPPApplicationPermission {
         } catch {
             $Results.add("Failed to grant permissions in bulk: $(Get-NormalizedError -message $_.Exception.Message)")
         }
-    }
-    if ($counter -gt 0) {
-        # App-only scopes changed; a cached client_credentials token still carries the old
-        # roles, so drop it rather than wait out its TTL.
-        $null = Clear-CippTokenCache -TenantFilter $TenantFilter
     }
     "Added $counter Application permissions to $($ourSVCPrincipal.displayName)"
     return $Results

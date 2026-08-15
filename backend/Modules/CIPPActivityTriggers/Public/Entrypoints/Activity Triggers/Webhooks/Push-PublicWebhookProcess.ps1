@@ -18,7 +18,16 @@ function Push-PublicWebhookProcess {
     } catch {
         Write-Host "Webhook Exception: $($_.Exception.Message)"
     } finally {
-        $Entity = $Webhook | Select-Object -Property RowKey, PartitionKey
-        Remove-CIPPAzDataTableEntity -Force @Table -Entity $Entity
+        if ($Webhook) {
+            try {
+                $Entity = $Webhook | Select-Object -Property RowKey, PartitionKey
+                Remove-CIPPAzDataTableEntity -Force @Table -Entity $Entity
+            } catch {
+                # Row may have already been deleted by a concurrent execution - this is expected
+                Write-Information "Webhook cleanup for RowKey '$($Item.RowKey)': $($_.Exception.Message)"
+            }
+        } else {
+            Write-Warning "Webhook row not found for RowKey '$($Item.RowKey)' - skipping cleanup"
+        }
     }
 }

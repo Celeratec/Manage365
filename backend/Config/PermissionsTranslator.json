@@ -5364,15 +5364,6 @@
     "value": "TeamsTelephoneNumber.ReadWrite.All"
   },
   {
-    "description": "Read Teams user configurations",
-    "displayName": "Read Teams user configurations",
-    "id": "5c469ce4-dab5-4afd-b9de-14f1ba4004a7",
-    "Origin": "Delegated",
-    "userConsentDescription": "Allows the app to read your tenant's user configurations on behalf of the signed-in admin user. User configuration may include attributes related to user, such as telephone number, assigned policies, etc.",
-    "userConsentDisplayName": "Read Teams user configurations",
-    "value": "TeamsUserConfiguration.Read.All"
-  },
-  {
     "description": "Read and Modify Tenant-Acquired Telephone Number Details",
     "displayName": "Read and Modify Tenant-Acquired Telephone Number Details",
     "id": "0a42382f-155c-4eb1-9bdc-21548ccaa387",
@@ -5382,13 +5373,25 @@
     "value": "TeamsTelephoneNumber.ReadWrite.All"
   },
   {
-    "description": "Read Teams user configurations",
-    "displayName": "Read Teams user configurations",
-    "id": "a91eadaf-2c3c-4362-908b-fb172d208fc6",
-    "Origin": "Application",
-    "userConsentDescription": "Allows the app to read your tenant's user configurations, without a signed-in user. User configuration may include attributes related to user, such as telephone number, assigned policies, etc.",
-    "userConsentDisplayName": "Read Teams user configurations",
-    "value": "TeamsUserConfiguration.Read.All"
+    "description": "Allows the app to access Dynamics CRM / Dataverse Web API on behalf of the signed-in user.",
+    "displayName": "Dynamics CRM user_impersonation",
+    "id": "78ce3f0f-a1ce-49c2-8cde-64b5c0896db4",
+    "origin": "Delegated (Dynamics CRM)",
+    "value": "user_impersonation"
+  },
+  {
+    "description": "Allows the app to read Power Platform application packages on behalf of the signed-in user.",
+    "displayName": "Power Platform API - Read Application Packages",
+    "id": "9dafb9c1-c236-48b1-b142-20dcaab58675",
+    "origin": "Delegated (Power Platform API)",
+    "value": "AppManagement.ApplicationPackages.Read"
+  },
+  {
+    "description": "Allows the app to access Power Apps Service API on behalf of the signed-in user.",
+    "displayName": "Power Apps Service - User",
+    "id": "0eb56b90-a7b5-43b5-9402-8137a8083e90",
+    "origin": "Delegated (Power Apps Service)",
+    "value": "User"
   },
   {
     "description": "Allows the app to read and write Copilot policy settings for the organization, on behalf of the signed-in user.",

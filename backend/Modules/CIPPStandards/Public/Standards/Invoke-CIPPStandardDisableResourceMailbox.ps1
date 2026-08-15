@@ -35,7 +35,7 @@ function Invoke-CIPPStandardDisableResourceMailbox {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -54,6 +54,7 @@ function Invoke-CIPPStandardDisableResourceMailbox {
             ($null -eq $_.assignedLicenses -or $_.assignedLicenses.Count -eq 0) -and
             $_.userType -eq 'Member'
         }
+        $AllUsers = $null
         $ResourceMailboxList = New-ExoRequest -tenantid $Tenant -cmdlet 'Get-Mailbox' -cmdParams @{ Filter = "RecipientTypeDetails -eq 'RoomMailbox' -or RecipientTypeDetails -eq 'EquipmentMailbox'" } -Select 'UserPrincipalName,DisplayName,RecipientTypeDetails,ExternalDirectoryObjectId' |
             Where-Object { $_.ExternalDirectoryObjectId -in $UserList.id }
     } catch {

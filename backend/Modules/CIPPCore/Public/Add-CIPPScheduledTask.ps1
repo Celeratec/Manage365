@@ -63,39 +63,6 @@ function Add-CIPPScheduledTask {
             }
 
             $RequestedCommand = $task.Command.value ?? $task.Command
-
-            # Validate the command exists — on HttpOnly workers sibling modules aren't loaded,
-            # so import them temporarily for validation (actual execution runs on activity workers)
-            $Command = Get-Command $RequestedCommand -ErrorAction SilentlyContinue
-            $ImportedModules = [System.Collections.Generic.List[string]]::new()
-            if (-not $Command) {
-                try {
-                    foreach ($SiblingModule in @('CIPPStandards', 'CIPPAlerts', 'CIPPTests', 'CIPPDB', 'CippExtensions', 'CIPPActivityTriggers')) {
-                        if (-not (Get-Module -Name $SiblingModule)) {
-                            Import-Module $SiblingModule -ErrorAction SilentlyContinue
-                            if (Get-Module -Name $SiblingModule) {
-                                $ImportedModules.Add($SiblingModule)
-                            }
-                        }
-                    }
-                    $Command = Get-Command $RequestedCommand -ErrorAction SilentlyContinue
-                } finally {
-                    foreach ($Imported in $ImportedModules) {
-                        Remove-Module $Imported -ErrorAction SilentlyContinue
-                    }
-                }
-            }
-
-            if (!$Command) {
-                Write-LogMessage -headers $Headers -API 'ScheduledTask' -message "Blocked attempt to schedule non-existent command: $RequestedCommand" -Sev 'Warning'
-                return "Error - The command '$RequestedCommand' does not exist and cannot be scheduled."
-            }
-
-            if ($Command.Module -notin @('CIPPCore', 'CIPPAlerts', 'CIPPStandards', 'CIPPTests', 'CIPPDB', 'CippExtensions', 'CIPPActivityTriggers')) {
-                Write-LogMessage -headers $Headers -API 'ScheduledTask' -message "Blocked attempt to schedule command from unauthorized module: $($Command.ModuleName)\$RequestedCommand" -Sev 'Warning'
-                return "Error - The command '$RequestedCommand' is not permitted to run as a scheduled task."
-            }
-
             if ($RequestedCommand -in (Get-CIPPSchedulerBlockedCommands)) {
                 Write-LogMessage -headers $Headers -API 'ScheduledTask' -message "Blocked attempt to schedule restricted command: $RequestedCommand" -Sev 'Warning'
                 return "Error - The command '$RequestedCommand' is not permitted to run as a scheduled task."
@@ -188,15 +155,8 @@ function Add-CIPPScheduledTask {
                     $task.ScheduledTime = [int64](([datetime]::UtcNow) - (Get-Date '1/1/1970')).TotalSeconds
                 }
             }
-            # Split exclusions by type (same pattern as Tenant/TenantGroup): plain tenants are
-            # comma-joined, groups are stored as JSON and expanded at runtime by the orchestrator
-            $ExcludedEntries = @($task.excludedTenants | Where-Object { $_.value })
-            $excludedTenants = @($ExcludedEntries | Where-Object { $_.type -ne 'Group' }).value -join ','
-            $ExcludedGroupEntries = @($ExcludedEntries | Where-Object { $_.type -eq 'Group' } | ForEach-Object {
-                    [PSCustomObject]@{ value = $_.value; label = $_.label; type = 'Group' }
-                })
-            $excludedTenantGroups = if ($ExcludedGroupEntries.Count -gt 0) {
-                ConvertTo-Json -InputObject $ExcludedGroupEntries -Compress -Depth 5
+            $excludedTenants = if ($task.excludedTenants.value) {
+                $task.excludedTenants.value -join ','
             }
 
             # Handle tenant filter - support both single tenant and tenant groups
@@ -229,9 +189,8 @@ function Add-CIPPScheduledTask {
                 RowKey               = [string]$RowKey
                 Tenant               = [string]$tenantFilter
                 excludedTenants      = [string]$excludedTenants
-                excludedTenantGroups = [string]$excludedTenantGroups
                 Name                 = [string]$task.Name
-                Command              = [string]$RequestedCommand
+                Command              = [string]$task.Command.value
                 Parameters           = [string]$Parameters
                 ScheduledTime        = [string]$task.ScheduledTime
                 Recurrence           = [string]$Recurrence
@@ -274,14 +233,31 @@ function Add-CIPPScheduledTask {
                 $entity.Trigger = [string]($task.Trigger | ConvertTo-Json -Compress)
                 $TriggerType = $task.Trigger.Type.value ?? $task.Trigger.Type
                 if ($TriggerType -eq 'DeltaQuery') {
+                    $Parameters = @{}
+                    if ($task.Trigger.WatchedAttributes -and ($task.Trigger.WatchedAttributes | Measure-Object).Count -gt 0) {
+                        $Parameters.'$select' = $task.Trigger.WatchedAttributes | ForEach-Object { $_.value ?? $_ } -join ','
+                    }
+                    if ($task.Trigger.ResourceFilter) {
+                        $ResourceFilterValues = $task.Trigger.ResourceFilter | ForEach-Object { $_.value ?? $_ }
+                        $Parameters.'$filter' = "id eq '" + ($ResourceFilterValues -join "' or id eq '") + "'"
+                    }
                     $Resource = $task.Trigger.DeltaResource.value ?? $task.Trigger.DeltaResource
-                    $DeltaTenantFilter = if ($entity.TenantGroup) { $entity.TenantGroup | ConvertFrom-Json } else { $tenantFilter }
+
+                    if ($entity.TenantGroup) {
+                        $tenantFilter = $entity.TenantGroup | ConvertFrom-Json
+                    }
+                    $DeltaQuery = @{
+                        TenantFilter = $tenantFilter
+                        Resource     = $Resource
+                        Parameters   = $Parameters
+                        PartitionKey = $RowKey
+                    }
 
                     try {
-                        $null = New-CIPPTaskDeltaQuery -Trigger $task.Trigger -TenantFilter $DeltaTenantFilter -PartitionKey $RowKey
+                        $null = New-GraphDeltaQuery @DeltaQuery
                         Write-Information "Created delta query for resource $($Resource)"
                     } catch {
-                        throw "Failed to create delta query for resource $($Resource): $($_.Exception.Message)"
+                        Write-Warning "Failed to create delta query for resource $($Resource): $($_.Exception.Message)"
                     }
                 }
             }

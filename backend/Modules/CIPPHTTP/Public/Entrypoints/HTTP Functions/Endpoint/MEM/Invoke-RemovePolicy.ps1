@@ -18,7 +18,17 @@ function Invoke-RemovePolicy {
     $UrlName = $Request.Query.URLName ?? $Request.body.URLName
     # App protection policy lists expose the singular @odata.type as the URLName, but a Graph
     # DELETE needs the plural collection segment under deviceAppManagement. Normalize here.
-    $GraphPath = Get-CIPPIntunePolicyGraphPath -UrlName $UrlName
+    $GraphPath = switch ($UrlName) {
+        'androidManagedAppProtection' { 'deviceAppManagement/androidManagedAppProtections' }
+        'iosManagedAppProtection' { 'deviceAppManagement/iosManagedAppProtections' }
+        'windowsManagedAppProtection' { 'deviceAppManagement/windowsManagedAppProtections' }
+        'mdmWindowsInformationProtectionPolicy' { 'deviceAppManagement/mdmWindowsInformationProtectionPolicies' }
+        'windowsInformationProtectionPolicy' { 'deviceAppManagement/windowsInformationProtectionPolicies' }
+        'targetedManagedAppConfiguration' { 'deviceAppManagement/targetedManagedAppConfigurations' }
+        'managedAppPolicies' { 'deviceAppManagement/managedAppPolicies' }
+        'mobileAppConfigurations' { 'deviceAppManagement/mobileAppConfigurations' }
+        default { "deviceManagement/$UrlName" }
+    }
     if (!$PolicyId) { exit }
 
     try {

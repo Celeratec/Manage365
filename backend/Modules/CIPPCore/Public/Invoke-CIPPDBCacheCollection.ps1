@@ -15,7 +15,6 @@ function Invoke-CIPPDBCacheCollection {
         - ConditionalAccess:  CA policies and registration details
         - IdentityProtection: Risky users/SPs, risk detections, PIM
         - Intune:             Managed devices, policies, app protection
-        - Defender:           Defender Vulnerabilities
 
     .PARAMETER CollectionType
         The group of cache functions to execute
@@ -32,7 +31,7 @@ function Invoke-CIPPDBCacheCollection {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [ValidateSet('Graph', 'ExchangeConfig', 'ExchangeData', 'ConditionalAccess', 'IdentityProtection', 'Intune', 'Compliance', 'CopilotUsage', 'SharePoint', 'Teams', 'Defender')]
+        [ValidateSet('Graph', 'ExchangeConfig', 'ExchangeData', 'ConditionalAccess', 'IdentityProtection', 'Intune', 'Compliance', 'CopilotUsage', 'SharePoint', 'Teams')]
         [string]$CollectionType,
 
         [Parameter(Mandatory = $true)]
@@ -92,13 +91,13 @@ function Invoke-CIPPDBCacheCollection {
             'ExoProtectionAlert'
             'OwaMailboxPolicy'
             'ReportSubmissionPolicy'
-            'ExoTransportConfig'
         )
         ExchangeData       = @(
             'CASMailboxes'
             'MailboxUsage'
+            'OneDriveUsage'
+            'SharePointSiteUsage'
             'OfficeActivations'
-            'HVEAccounts'
         )
         ConditionalAccess  = @(
             'ConditionalAccessPolicies'
@@ -117,15 +116,9 @@ function Invoke-CIPPDBCacheCollection {
         Intune             = @(
             'ManagedDevices'
             'IntunePolicies'
-            'IntuneApplications'
-            'IntuneAssignmentFilters'
-            'IntuneCompliancePolicies'
             'ManagedDeviceEncryptionStates'
             'IntuneAppProtectionPolicies'
-            'IntuneScripts'
-            'IntuneReusableSettings'
             'DetectedApps'
-            'IntuneAppInstallStatus'
             'MDEOnboarding'
         )
         Compliance         = @(
@@ -141,9 +134,7 @@ function Invoke-CIPPDBCacheCollection {
         SharePoint         = @(
             'SPOTenant'
             'SPOTenantSyncClientRestriction'
-            'SharePointSiteUsage'
             'SiteActivity'
-            'OneDriveUsage'
         )
         Teams              = @(
             'CsTeamsMeetingPolicy'
@@ -153,12 +144,6 @@ function Invoke-CIPPDBCacheCollection {
             'CsTeamsMessagingPolicy'
             'CsTeamsMessagingConfiguration'
             'CsTeamsAppPermissionPolicy'
-            'Teams'
-            'TeamsActivity'
-            'TeamsVoice'
-        )
-        Defender           = @(
-            'DefenderCVEs'
         )
     }
 
@@ -190,13 +175,13 @@ function Invoke-CIPPDBCacheCollection {
             Write-Information "  [$CollectionType] Collecting $CacheType for $TenantFilter"
             & $FullFunctionName @Params
             $ItemStopwatch.Stop()
-            $ElapsedSeconds = '{0:N3}' -f $ItemStopwatch.Elapsed.TotalSeconds
+            $ElapsedSeconds = [math]::Round($ItemStopwatch.Elapsed.TotalSeconds, 3)
             $Timings.Add("$CacheType : ${ElapsedSeconds}s")
             Write-Information "  [$CollectionType] Completed $CacheType for $TenantFilter - Took ${ElapsedSeconds} seconds"
             $SuccessCount++
         } catch {
             $ItemStopwatch.Stop()
-            $ElapsedSeconds = '{0:N3}' -f $ItemStopwatch.Elapsed.TotalSeconds
+            $ElapsedSeconds = [math]::Round($ItemStopwatch.Elapsed.TotalSeconds, 3)
             $FailedCount++
             $Errors.Add("$CacheType : $($_.Exception.Message)")
             $Timings.Add("$CacheType : ${ElapsedSeconds}s (FAILED)")
@@ -205,7 +190,7 @@ function Invoke-CIPPDBCacheCollection {
     }
 
     $CollectionStopwatch.Stop()
-    $TotalElapsed = '{0:N3}' -f $CollectionStopwatch.Elapsed.TotalSeconds
+    $TotalElapsed = [math]::Round($CollectionStopwatch.Elapsed.TotalSeconds, 3)
     $Summary = "$CollectionType collection for $TenantFilter completed in ${TotalElapsed} seconds - $SuccessCount succeeded, $FailedCount failed out of $($CacheTypes.Count)"
     Write-Information $Summary
     Write-Information "  Timings: $($Timings -join ' | ')"

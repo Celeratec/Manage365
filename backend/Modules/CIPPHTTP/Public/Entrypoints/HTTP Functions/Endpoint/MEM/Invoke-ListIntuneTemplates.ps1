@@ -4,8 +4,6 @@ function Invoke-ListIntuneTemplates {
         Entrypoint,AnyTenant
     .ROLE
         Endpoint.MEM.Read
-    .DESCRIPTION
-        Lists the saved Intune policy templates. On first call the templates shipped with CIPP are imported into the templates table. These are CIPP templates, not a tenant's deployed policies.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -33,136 +31,56 @@ function Invoke-ListIntuneTemplates {
     $RawTemplates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter)
     if ($Request.query.View) {
         $Templates = $RawTemplates | ForEach-Object {
-            $Row = $_
             try {
-                $JSONData = $Row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
-                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
-                if ($null -eq $data) { throw 'RAWJson is empty or not valid JSON' }
+                $JSONData = $_.JSON | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
+                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
                 $data | Add-Member -NotePropertyName 'displayName' -NotePropertyValue $JSONData.Displayname -Force
                 $data | Add-Member -NotePropertyName 'description' -NotePropertyValue $JSONData.Description -Force
                 $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
-                $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $Row.RowKey -Force
-                $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $Row.Package -Force
-                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($Row.SHA)) -Force
-                $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $Row.Source -Force
+                $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
+                $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
+                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
+                $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
                 $data | Add-Member -NotePropertyName 'reusableSettings' -NotePropertyValue $JSONData.ReusableSettings -Force
                 $data
             } catch {
-                # A row that fails to parse used to be dropped from this list entirely, so a corrupt
-                # template stayed selectable in the deploy pickers (which use the raw list) while
-                # being invisible here. Surface a stub so the broken row can be found and deleted.
-                [PSCustomObject]@{
-                    displayName = "$($JSONData.Displayname ?? $Row.RowKey) [corrupt template: $($_.Exception.Message)]"
-                    description = 'This template row failed to parse and cannot be deployed. Delete it from the template list and recreate it.'
-                    Type        = $JSONData.Type
-                    GUID        = $Row.RowKey
-                    package     = $Row.Package
-                    isSynced    = (![string]::IsNullOrEmpty($Row.SHA))
-                    source      = $Row.Source
-                    corrupt     = $true
-                }
+
             }
 
         } | Sort-Object -Property displayName
-
-        # Build a lookup of which standards templates reference each Intune template (by GUID or package)
-        $UsageByGuid = @{}
-        $UsageByPackage = @{}
-        $StdTemplates = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'StandardsTemplateV2'"
-        foreach ($StdRaw in $StdTemplates) {
-            try {
-                $StdData = $StdRaw.JSON | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
-                if (-not $StdData -or -not $StdData.standards) { continue }
-                $IsDrift = $StdData.type -eq 'drift'
-                $StdInfo = [pscustomobject]@{
-                    templateName = $StdData.templateName
-                    templateId   = $StdRaw.RowKey
-                    isDrift      = $IsDrift
-                    cippLink     = "/tenant/standards/templates/template?id=$($StdRaw.RowKey)$(if ($IsDrift) { '&type=drift' })"
-                }
-                $IntuneEntries = $StdData.standards.IntuneTemplate
-                if (-not $IntuneEntries) { continue }
-                $Items = if ($IntuneEntries -is [System.Collections.IEnumerable] -and $IntuneEntries -isnot [string]) { $IntuneEntries } else { @($IntuneEntries) }
-                foreach ($Item in $Items) {
-                    if ($Item.TemplateList.value) {
-                        $Guid = $Item.TemplateList.value
-                        if (-not $UsageByGuid.ContainsKey($Guid)) { $UsageByGuid[$Guid] = [System.Collections.Generic.List[object]]::new() }
-                        $UsageByGuid[$Guid].Add($StdInfo)
-                    }
-                    if ($Item.'TemplateList-Tags'.value) {
-                        $Pkg = $Item.'TemplateList-Tags'.value
-                        if (-not $UsageByPackage.ContainsKey($Pkg)) { $UsageByPackage[$Pkg] = [System.Collections.Generic.List[object]]::new() }
-                        $UsageByPackage[$Pkg].Add($StdInfo)
-                    }
-                }
-            } catch {}
-        }
-
-        # Attach usage list to each Intune template
-        foreach ($Tpl in $Templates) {
-            $Usage = [System.Collections.Generic.List[object]]::new()
-            if ($Tpl.GUID -and $UsageByGuid.ContainsKey($Tpl.GUID)) {
-                foreach ($U in $UsageByGuid[$Tpl.GUID]) {
-                    $Entry = $U | Select-Object *
-                    $Entry | Add-Member -NotePropertyName 'matchType' -NotePropertyValue 'direct' -Force
-                    $Usage.Add($Entry)
-                }
-            }
-            if ($Tpl.package -and $UsageByPackage.ContainsKey($Tpl.package)) {
-                foreach ($U in $UsageByPackage[$Tpl.package]) {
-                    # Avoid duplicates when the same template matches both GUID and package
-                    if (-not ($Usage | Where-Object { $_.templateId -eq $U.templateId })) {
-                        $Entry = $U | Select-Object *
-                        $Entry | Add-Member -NotePropertyName 'matchType' -NotePropertyValue 'package' -Force
-                        $Entry | Add-Member -NotePropertyName 'package' -NotePropertyValue $Tpl.package -Force
-                        $Usage.Add($Entry)
-                    }
-                }
-            }
-            $Tpl | Add-Member -NotePropertyName 'usage' -NotePropertyValue @($Usage) -Force
-        }
     } else {
         if ($Request.query.mode -eq 'Tag') {
             #when the mode is tag, show all the potential tags, return the object with: label: tag, value: tag, count: number of templates with that tag, unique only
             $Templates = @($RawTemplates | Where-Object { $_.Package } | Group-Object -Property Package | ForEach-Object {
-                    $package = $_.Name
-                    $packageTemplates = @($_.Group)
-                    $templateCount = $packageTemplates.Count
-                    [pscustomobject]@{
-                        label         = "$($package) ($templateCount Templates)"
-                        value         = $package
-                        type          = 'tag'
-                        templateCount = $templateCount
-                        templates     = @($packageTemplates | ForEach-Object {
-                                try {
-                                    $JSONData = $_.JSON | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
-                                    $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
-                                    $data | Add-Member -NotePropertyName 'displayName' -NotePropertyValue $JSONData.Displayname -Force
-                                    $data | Add-Member -NotePropertyName 'description' -NotePropertyValue $JSONData.Description -Force
-                                    $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
-                                    $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
-                                    $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
-                                    $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
-                                    $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
-                                    $data | Add-Member -NotePropertyName 'reusableSettings' -NotePropertyValue $JSONData.ReusableSettings -Force
-                                    $data
-                                } catch {
+                $package = $_.Name
+                $packageTemplates = @($_.Group)
+                $templateCount = $packageTemplates.Count
+                [pscustomobject]@{
+                    label         = "$($package) ($templateCount Templates)"
+                    value         = $package
+                    type          = 'tag'
+                    templateCount = $templateCount
+                    templates     = @($packageTemplates | ForEach-Object {
+                            try {
+                                $JSONData = $_.JSON | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
+                                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
+                                $data | Add-Member -NotePropertyName 'displayName' -NotePropertyValue $JSONData.Displayname -Force
+                                $data | Add-Member -NotePropertyName 'description' -NotePropertyValue $JSONData.Description -Force
+                                $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
+                                $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
+                                $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
+                                $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
+                                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
+                                $data | Add-Member -NotePropertyName 'reusableSettings' -NotePropertyValue $JSONData.ReusableSettings -Force
+                                $data
+                            } catch {
 
-                                }
-                            })
-                    }
-                } | Sort-Object -Property label)
+                            }
+                        })
+                }
+            } | Sort-Object -Property label)
         } else {
-            # Force GUID to the table RowKey (the authoritative key the standards engine
-            # resolves against). The JSON-embedded GUID can drift out of sync with the
-            # RowKey after a community-repo re-sync, so never surface it as the selectable value.
-            $Templates = $RawTemplates | ForEach-Object {
-                try {
-                    $Parsed = ConvertFrom-Json -InputObject $_.JSON -Depth 100 -ErrorAction SilentlyContinue
-                    if ($Parsed) { $Parsed | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force }
-                    $Parsed
-                } catch {}
-            }
+            $Templates = $RawTemplates.JSON | ForEach-Object { try { ConvertFrom-Json -InputObject $_ -Depth 20 -ErrorAction SilentlyContinue } catch {} }
 
         }
     }
@@ -174,7 +92,7 @@ function Invoke-ListIntuneTemplates {
 
     return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK
-            Body       = ConvertTo-Json -Depth 100 -InputObject @($Templates)
+            Body       = ConvertTo-Json -Depth 20 -InputObject @($Templates)
         })
 
 }

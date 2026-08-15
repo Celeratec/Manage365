@@ -4,7 +4,7 @@ function Set-CIPPDBCacheCsTeamsAppPermissionPolicy {
         Caches the Teams App Permission Policy (all policies)
 
     .DESCRIPTION
-        Calls Get-CsTeamsAppPermissionPolicy via New-TeamsRequestV2 and writes
+        Calls Get-CsTeamsAppPermissionPolicy via New-TeamsRequest and writes
         the result into the CippReportingDB under Type
         'CsTeamsAppPermissionPolicy'. Used by CIS test 8.4.1.
 
@@ -28,7 +28,8 @@ function Set-CIPPDBCacheCsTeamsAppPermissionPolicy {
 
         if ($AppPermissionPolicies) {
             $Data = @($AppPermissionPolicies)
-            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsAppPermissionPolicy' -Data $Data -AddCount
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsAppPermissionPolicy' -Data $Data
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsAppPermissionPolicy' -Data $Data -Count
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Cached $($Data.Count) Teams App Permission Policies" -sev Debug
         }
         $AppPermissionPolicies = $null

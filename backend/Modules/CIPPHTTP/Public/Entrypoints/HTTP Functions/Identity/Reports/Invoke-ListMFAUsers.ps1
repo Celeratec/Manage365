@@ -4,18 +4,16 @@ function Invoke-ListMFAUsers {
         Entrypoint
     .ROLE
         Identity.User.Read
-    .DESCRIPTION
-        Lists users and their MFA registration status for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     # Interact with query parameters or the body of the request.
     $TenantFilter = $Request.Query.tenantFilter
-    # Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.
-    $UseReportDB = $Request.Query.UseReportDB -eq $true
+    $UseReportDB = $Request.Query.UseReportDB
+
     try {
         # If UseReportDB is specified, retrieve from report database
-        if ($UseReportDB) {
+        if ($UseReportDB -eq 'true') {
             try {
                 $GraphRequest = Get-CIPPMFAStateReport -TenantFilter $TenantFilter -ErrorAction Stop
                 $StatusCode = [HttpStatusCode]::OK

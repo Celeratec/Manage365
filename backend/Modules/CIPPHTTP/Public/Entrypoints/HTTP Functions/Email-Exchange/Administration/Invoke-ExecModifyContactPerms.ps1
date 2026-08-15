@@ -87,10 +87,10 @@ function Invoke-ExecModifyContactPerms {
                     UserID                 = $UserId
                     folderName             = $FolderName
                     UserToGetPermissions   = $TargetUser
-                    # TargetUser may be a recipient id, so log the display name the caller saw
-                    LoggingName            = $Permission.DisplayName ?? $TargetUser
+                    LoggingName            = $TargetUser
                     Permissions            = $PermissionLevel
                     SendNotificationToUser = $SendNotificationToUser
+                    AclUserName            = ($Permission.UserAclName ?? $Permission.AclUserName ?? $null)
                 }
 
                 # Write-Host "Request params: $($Params | ConvertTo-Json)"
@@ -99,7 +99,7 @@ function Invoke-ExecModifyContactPerms {
                 $Results.Add($Result)
             } catch {
                 $HasErrors = $true
-                $Results.Add("$($_.Exception.Message)")
+                $Results.Add("$((Get-CippException -Exception $_).NormalizedError)")
             }
         }
     }

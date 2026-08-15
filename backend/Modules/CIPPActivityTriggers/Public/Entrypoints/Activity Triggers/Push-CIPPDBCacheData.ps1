@@ -75,7 +75,7 @@ function Push-CIPPDBCacheData {
 
         $SharePointCapable = $false
         try {
-            $SharePointCapable = Test-CIPPStandardLicense -StandardName 'SharePointLicenseCheck' -TenantFilter $TenantFilter -Preset SharePoint -SkipLog
+            $SharePointCapable = Test-CIPPStandardLicense -StandardName 'SharePointLicenseCheck' -TenantFilter $TenantFilter -RequiredCapabilities @('SHAREPOINTWAC', 'SHAREPOINTSTANDARD', 'SHAREPOINTENTERPRISE', 'SHAREPOINTENTERPRISE_EDU', 'ONEDRIVE_BASIC', 'ONEDRIVE_ENTERPRISE') -SkipLog
         } catch {
             $ErrorMessage = Get-CippException -Exception $_
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "SharePoint license check failed: $($_.Exception.Message)" -sev Warning -LogData $ErrorMessage
@@ -111,7 +111,6 @@ function Push-CIPPDBCacheData {
                 QueueId        = $QueueId
                 QueueName      = "DB Cache Graph - $TenantFilter"
             })
-
         # MFAState runs as its own activity — it makes 6+ API calls, bulk group/role member
         # resolution, and O(users × policies) CPU work that can take minutes on large tenants
         $Tasks.Add(@{

@@ -17,12 +17,12 @@ function Invoke-CippTestCIS_1_3_1 {
 
         if (-not $Failing -or $Failing.Count -eq 0) {
             $Status = 'Passed'
-            $Result = [System.Text.StringBuilder]::new("All $($Domains.Count) domain(s) have password expiration disabled (passwordValidityPeriodInDays = 2147483647).")
+            $Result = "All $($Domains.Count) domain(s) have password expiration disabled (passwordValidityPeriodInDays = 2147483647)."
         } else {
             $Status = 'Failed'
-            $Result = [System.Text.StringBuilder]::new("$($Failing.Count) domain(s) still expire passwords:`n`n| Domain | Validity (days) |`n| :----- | :-------------- |`n")
+            $Result = "$($Failing.Count) domain(s) still expire passwords:`n`n| Domain | Validity (days) |`n| :----- | :-------------- |`n"
             foreach ($D in $Failing) {
-                $null = $Result.Append("| $($D.id) | $($D.passwordValidityPeriodInDays) |`n")
+                $Result += "| $($D.id) | $($D.passwordValidityPeriodInDays) |`n"
             }
         }
 

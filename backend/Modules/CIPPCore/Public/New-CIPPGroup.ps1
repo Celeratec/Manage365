@@ -58,8 +58,17 @@ function New-CIPPGroup {
             }
         }
 
+        # Extract groupType value - handle both string and object with .value property
+        $GroupTypeValue = if ($GroupObject.groupType.value) {
+            $GroupObject.groupType.value
+        } elseif ($GroupObject.groupType -is [string]) {
+            $GroupObject.groupType
+        } else {
+            [string]$GroupObject.groupType
+        }
+
         # Normalize group type for consistent handling (accept camelCase from templates)
-        $NormalizedGroupType = switch -Wildcard ($GroupObject.groupType.ToLower()) {
+        $NormalizedGroupType = switch -Wildcard ($GroupTypeValue.ToLower()) {
             'mail-enabled security' { 'Security'; break }
             '*dynamicdistribution*' { 'DynamicDistribution'; break }  # Check this first before *dynamic* and *distribution*
             '*dynamic*' { 'Dynamic'; break }
@@ -71,7 +80,7 @@ function New-CIPPGroup {
             '*microsoft*' { 'M365'; break }
             '*distribution*' { 'Distribution'; break }
             '*mail*' { 'Distribution'; break }
-            default { $GroupObject.groupType }
+            default { $GroupTypeValue }
         }
 
         # Determine if this group type needs an email address
@@ -94,14 +103,31 @@ function New-CIPPGroup {
             $null
         }
 
-        # Determine if we should generate a mailNickname with a GUID, or use the username field
-        if (-not $GroupObject.Username -or $NormalizedGroupType -in @('Generic', 'AzureRole')) {
-            $MailNickname = (New-Guid).guid.substring(0, 10)
-        } else {
-            $MailNickname = ($GroupObject.Username -split '@')[0] -replace '[^a-zA-Z0-9_-]', ''
-            if ([String]::IsNullOrEmpty($MailNickname)) {
-                $MailNickname = (New-Guid).guid
+        # Extract local part of username if exists and remove special characters for mailNickname
+        # If no username provided, fall back to displayName for the mailNickname (required by Graph API for all groups)
+        $SourceForNickname = if ($GroupObject.username) {
+            if ($GroupObject.username -like '*@*') {
+                ($GroupObject.username -split '@')[0]
+            } else {
+                $GroupObject.username
             }
+        } else {
+            # Use displayName as fallback for groups that don't need email (security groups)
+            $GroupObject.displayName
+        }
+
+        # Remove forbidden characters per Microsoft 365 mailNickname requirements:
+        # ASCII 0-127 only, excluding: @ () / [] ' ; : <> , SPACE and any non-ASCII
+        $MailNickname = $SourceForNickname -replace "[@()\[\]/'`;:<>,\s]|[^\x00-\x7F]", ''
+
+        # Ensure max length of 64 characters
+        if ($MailNickname.Length -gt 64) {
+            $MailNickname = $MailNickname.Substring(0, 64)
+        }
+
+        # Ensure mailNickname is not empty (use a GUID suffix if displayName resulted in empty string)
+        if ([string]::IsNullOrWhiteSpace($MailNickname)) {
+            $MailNickname = "group-$(New-Guid)".Substring(0, 64)
         }
 
         Write-LogMessage -API $APIName -tenant $TenantFilter -message "Creating group $($GroupObject.displayName) of type $NormalizedGroupType$(if ($NeedsEmail) { " with email $Email" })" -Sev Info -User $ExecutingUser
@@ -248,7 +274,7 @@ function New-CIPPGroup {
                     Alias                              = $MailNickname
                     Description                        = $GroupObject.description
                     PrimarySmtpAddress                 = $Email
-                    Type                               = $GroupObject.groupType
+                    Type                               = $NormalizedGroupType
                     RequireSenderAuthenticationEnabled = [bool]!$GroupObject.allowExternal
                 }
 

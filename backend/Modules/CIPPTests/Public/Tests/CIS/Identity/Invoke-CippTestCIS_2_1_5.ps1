@@ -20,10 +20,10 @@ function Invoke-CippTestCIS_2_1_5 {
             EnableSafeDocs             = $true
             AllowSafeDocsOpen          = $false
         }
-        $Failures = [System.Collections.Generic.List[string]]::new()
+        $Failures = @()
         foreach ($key in $Required.Keys) {
             if ($Cfg.$key -ne $Required[$key]) {
-                $Failures.Add("$key = $($Cfg.$key) (expected $($Required[$key]))")
+                $Failures += "$key = $($Cfg.$key) (expected $($Required[$key]))"
             }
         }
 

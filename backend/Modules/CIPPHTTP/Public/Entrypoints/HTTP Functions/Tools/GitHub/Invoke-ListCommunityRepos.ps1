@@ -14,10 +14,10 @@ function Invoke-ListCommunityRepos {
 
     $Table = Get-CIPPTable -TableName CommunityRepos
 
-    if ($Request.Query.WriteAccess -eq $true) {
+    if ($Request.Query.WriteAccess -eq 'true') {
         $Filter = "PartitionKey eq 'CommunityRepos' and WriteAccess eq true"
     } else {
-        $Filter = ''
+        $Filter = "PartitionKey eq 'CommunityRepos'"
     }
 
     $Repos = Get-CIPPAzDataTableEntity @Table -Filter $Filter
@@ -26,11 +26,9 @@ function Invoke-ListCommunityRepos {
         $CommunityRepos = Join-Path $env:CIPPRootPath 'Config\CommunityRepos.json'
         $DefaultCommunityRepos = [System.IO.File]::ReadAllText($CommunityRepos) | ConvertFrom-Json
 
-        $DefaultsChanged = $false
+        $DefaultsMissing = $false
         foreach ($Repo in $DefaultCommunityRepos) {
-            $TemplateTypesJson = [string](ConvertTo-Json -InputObject @($Repo.TemplateTypes) -Compress)
-            $Existing = $Repos | Where-Object { $_.URL -eq $Repo.URL } | Select-Object -First 1
-            if (!$Existing) {
+            if ($Repos.Url -notcontains $Repo.Url -or $Repos.Buitin -notcontains $Repo.BuiltIn) {
                 $Entity = [PSCustomObject]@{
                     PartitionKey  = 'CommunityRepos'
                     RowKey        = $Repo.Id
@@ -44,23 +42,14 @@ function Invoke-ListCommunityRepos {
                     WriteAccess   = $Repo.WriteAccess
                     DefaultBranch = $Repo.DefaultBranch
                     UploadBranch  = $Repo.DefaultBranch
-                    TemplateTypes = $TemplateTypesJson
                     Permissions   = [string]($Repo.RepoPermissions | ConvertTo-Json -ErrorAction SilentlyContinue -Compress)
                 }
                 Add-CIPPAzDataTableEntity @Table -Entity $Entity -Force
-                $DefaultsChanged = $true
-            } elseif ($Existing.TemplateTypes -ne $TemplateTypesJson -or $Existing.BuiltIn -ne $Repo.BuiltIn -or $Existing.Description -ne $Repo.Description -or $Existing.Name -ne $Repo.Name) {
-                # Upgrade path: sync built-in metadata onto rows seeded by older versions
-                $Existing | Add-Member -NotePropertyName 'TemplateTypes' -NotePropertyValue $TemplateTypesJson -Force
-                $Existing | Add-Member -NotePropertyName 'BuiltIn' -NotePropertyValue $Repo.BuiltIn -Force
-                $Existing | Add-Member -NotePropertyName 'Description' -NotePropertyValue $Repo.Description -Force
-                $Existing | Add-Member -NotePropertyName 'Name' -NotePropertyValue $Repo.Name -Force
-                Add-CIPPAzDataTableEntity @Table -Entity $Existing -Force
-                $DefaultsChanged = $true
+                $DefaultsMissing = $true
             }
         }
-        if ($DefaultsChanged) {
-            $Repos = Get-CIPPAzDataTableEntity @Table
+        if ($DefaultsMissing) {
+            $Repos = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'CommunityRepos'"
         }
     }
 
@@ -77,7 +66,6 @@ function Invoke-ListCommunityRepos {
             WriteAccess     = $_.WriteAccess
             DefaultBranch   = $_.DefaultBranch
             UploadBranch    = $_.UploadBranch ?? $_.DefaultBranch
-            TemplateTypes   = @(($_.TemplateTypes | ConvertFrom-Json -ErrorAction SilentlyContinue) ?? @())
             RepoPermissions = ($_.Permissions | ConvertFrom-Json -ErrorAction SilentlyContinue) ?? @{}
         }
     }

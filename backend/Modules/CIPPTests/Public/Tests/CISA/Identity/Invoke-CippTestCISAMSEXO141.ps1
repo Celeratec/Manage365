@@ -26,14 +26,14 @@ function Invoke-CippTestCISAMSEXO141 {
         $FailedPolicies = $SpamPolicies | Where-Object { $_.HighConfidenceSpamAction -ne 'Quarantine' }
 
         if ($FailedPolicies.Count -eq 0) {
-            $Result = [System.Text.StringBuilder]::new("✅ **Pass**: All $($SpamPolicies.Count) anti-spam policy/policies quarantine high confidence spam.")
+            $Result = "✅ **Pass**: All $($SpamPolicies.Count) anti-spam policy/policies quarantine high confidence spam."
             $Status = 'Passed'
         } else {
-            $Result = [System.Text.StringBuilder]::new("❌ **Fail**: $($FailedPolicies.Count) of $($SpamPolicies.Count) anti-spam policy/policies do not quarantine high confidence spam:`n`n")
-            $null = $Result.Append("| Policy Name | Current Action | Expected |`n")
-            $null = $Result.Append("| :---------- | :------------- | :------- |`n")
+            $Result = "❌ **Fail**: $($FailedPolicies.Count) of $($SpamPolicies.Count) anti-spam policy/policies do not quarantine high confidence spam:`n`n"
+            $Result += "| Policy Name | Current Action | Expected |`n"
+            $Result += "| :---------- | :------------- | :------- |`n"
             foreach ($Policy in $FailedPolicies) {
-                $null = $Result.Append("| $($Policy.Name) | $($Policy.HighConfidenceSpamAction) | Quarantine |`n")
+                $Result += "| $($Policy.Name) | $($Policy.HighConfidenceSpamAction) | Quarantine |`n"
             }
             $Status = 'Failed'
         }

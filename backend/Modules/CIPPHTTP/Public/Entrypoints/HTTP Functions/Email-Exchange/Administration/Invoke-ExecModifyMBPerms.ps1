@@ -47,6 +47,31 @@ function Invoke-ExecModifyMBPerms {
     $TenantFilter = $Request.Body.tenantFilter
     Write-LogMessage -headers $Headers -API $APIName -message "Processing permission changes for $($MailboxRequests.Count) mailboxes" -Sev 'Info' -tenant $TenantFilter
 
+    # Manage365: guests and unresolvable-by-email users throw InvalidExternalUserIdException from
+    # EXO. Retrying with the Entra object ID in place of the email succeeds, so each direct
+    # execution path funnels through this helper.
+    function Invoke-ExoRequestWithGuestRetry {
+        param($Mailbox, $TenantFilter, $CmdletName, $CmdletParams, $TargetUser)
+        try {
+            $null = New-ExoRequest -Anchor $Mailbox -tenantid $TenantFilter -cmdlet $CmdletName -cmdParams $CmdletParams
+        } catch {
+            $ExoError = Get-CippException -Exception $_
+            if ($ExoError.NormalizedError -match 'InvalidExternalUserIdException' -and $TargetUser -match '@') {
+                $ResolvedUser = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/users/$TargetUser" -tenantid $TenantFilter -NoAuthCheck $true
+                if ($ResolvedUser.id) {
+                    $RetryParams = @{} + $CmdletParams
+                    if ($RetryParams.ContainsKey('user')) { $RetryParams['user'] = $ResolvedUser.id }
+                    if ($RetryParams.ContainsKey('Trustee')) { $RetryParams['Trustee'] = $ResolvedUser.id }
+                    $null = New-ExoRequest -Anchor $Mailbox -tenantid $TenantFilter -cmdlet $CmdletName -cmdParams $RetryParams
+                } else {
+                    throw
+                }
+            } else {
+                throw
+            }
+        }
+    }
+
     # Build cmdlet array for processing
     $CmdletArray = [System.Collections.ArrayList]::new()
     $CmdletMetadataArray = [System.Collections.ArrayList]::new()
@@ -201,8 +226,28 @@ function Invoke-ExecModifyMBPerms {
 
                             if ($result.error) {
                                 $ErrorMessage = try { (Get-CippException -Exception $result.error).NormalizedError } catch { $result.error }
-                                $null = $Results.Add("Error processing $($metadata.Permission) for $($metadata.TargetUser) on $($metadata.Mailbox): $ErrorMessage")
-                                Write-LogMessage -headers $Headers -API $APIName -message "Error for operation $operationGuid`: $ErrorMessage" -Sev 'Error' -tenant $TenantFilter
+
+                                # Manage365: retry guest/unresolvable users individually with their Entra object ID
+                                $Retried = $false
+                                if ($ErrorMessage -match 'InvalidExternalUserIdException' -and $metadata.TargetUser -match '@') {
+                                    try {
+                                        $OriginalCmdlet = $CmdletArray | Where-Object { $_.OperationGuid -eq $operationGuid } | Select-Object -First 1
+                                        if ($OriginalCmdlet) {
+                                            Invoke-ExoRequestWithGuestRetry -Mailbox $metadata.Mailbox -TenantFilter $TenantFilter -CmdletName $OriginalCmdlet.CmdletInput.CmdletName -CmdletParams $OriginalCmdlet.CmdletInput.Parameters -TargetUser $metadata.TargetUser
+                                            $null = $Results.Add($metadata.ExpectedResult)
+                                            $null = $SuccessfulOps.Add($metadata)
+                                            Write-LogMessage -headers $Headers -API $APIName -message "Retry succeeded for $($metadata.TargetUser) using Entra object ID" -Sev 'Info' -tenant $TenantFilter
+                                            $Retried = $true
+                                        }
+                                    } catch {
+                                        Write-LogMessage -headers $Headers -API $APIName -message "Retry also failed for $($metadata.TargetUser): $($_.Exception.Message)" -Sev 'Warning' -tenant $TenantFilter
+                                    }
+                                }
+
+                                if (-not $Retried) {
+                                    $null = $Results.Add("Error processing $($metadata.Permission) for $($metadata.TargetUser) on $($metadata.Mailbox): $ErrorMessage")
+                                    Write-LogMessage -headers $Headers -API $APIName -message "Error for operation $operationGuid`: $ErrorMessage" -Sev 'Error' -tenant $TenantFilter
+                                }
                             } else {
                                 $null = $Results.Add($metadata.ExpectedResult)
                                 $null = $SuccessfulOps.Add($metadata)
@@ -240,11 +285,11 @@ function Invoke-ExecModifyMBPerms {
                 $CmdletObj = $CmdletArray[$i]
                 $CmdletMetadata = $CmdletMetadataArray[$i]
                 try {
-                    $null = New-ExoRequest -Anchor $CmdletMetadata.Mailbox -tenantid $TenantFilter -cmdlet $CmdletObj.CmdletInput.CmdletName -cmdParams $CmdletObj.CmdletInput.Parameters
+                    Invoke-ExoRequestWithGuestRetry -Mailbox $CmdletMetadata.Mailbox -TenantFilter $TenantFilter -CmdletName $CmdletObj.CmdletInput.CmdletName -CmdletParams $CmdletObj.CmdletInput.Parameters -TargetUser $CmdletMetadata.TargetUser
                     $null = $Results.Add($CmdletMetadata.ExpectedResult)
                     $null = $SuccessfulOps.Add($CmdletMetadata)
                 } catch {
-                    $null = $Results.Add("Error processing $($CmdletMetadata.Permission) for $($CmdletMetadata.TargetUser) on $($CmdletMetadata.Mailbox): $($_.Exception.Message)")
+                    $null = $Results.Add("Error processing $($CmdletMetadata.Permission) for $($CmdletMetadata.TargetUser) on $($CmdletMetadata.Mailbox): $((Get-CippException -Exception $_).NormalizedError)")
                 }
             }
         }
@@ -253,13 +298,13 @@ function Invoke-ExecModifyMBPerms {
         $CmdletObj = $CmdletArray[0]
         $CmdletMetadata = $CmdletMetadataArray[0]
         try {
-            $null = New-ExoRequest -Anchor $CmdletMetadata.Mailbox -tenantid $TenantFilter -cmdlet $CmdletObj.CmdletInput.CmdletName -cmdParams $CmdletObj.CmdletInput.Parameters
+            Invoke-ExoRequestWithGuestRetry -Mailbox $CmdletMetadata.Mailbox -TenantFilter $TenantFilter -CmdletName $CmdletObj.CmdletInput.CmdletName -CmdletParams $CmdletObj.CmdletInput.Parameters -TargetUser $CmdletMetadata.TargetUser
             $null = $Results.Add($CmdletMetadata.ExpectedResult)
             $null = $SuccessfulOps.Add($CmdletMetadata)
             Write-LogMessage -headers $Headers -API $APIName -message "Executed $($CmdletMetadata.Permission) permission modification" -Sev 'Info' -tenant $TenantFilter
         } catch {
             Write-LogMessage -headers $Headers -API $APIName -message "Permission modification failed: $($_.Exception.Message)" -Sev 'Error' -tenant $TenantFilter
-            $null = $Results.Add("Error processing $($CmdletMetadata.Permission) for $($CmdletMetadata.TargetUser) on $($CmdletMetadata.Mailbox): $($_.Exception.Message)")
+            $null = $Results.Add("Error processing $($CmdletMetadata.Permission) for $($CmdletMetadata.TargetUser) on $($CmdletMetadata.Mailbox): $((Get-CippException -Exception $_).NormalizedError)")
         }
     }
 

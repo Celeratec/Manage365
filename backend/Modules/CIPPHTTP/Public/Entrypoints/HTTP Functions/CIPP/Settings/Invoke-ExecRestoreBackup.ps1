@@ -9,12 +9,13 @@ function Invoke-ExecRestoreBackup {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
+    $StatusCode = [HttpStatusCode]::OK
 
     # Types natively supported by Azure Table Storage — preserve these as-is
     $AzureTableTypes = @(
         [string], [int], [long], [double], [bool], [datetime], [guid], [byte[]]
     )
-    $RestrictedTables = @('AccessRoleGroups', 'AccessIPRanges', 'CustomRoles', 'DevSecrets') # tables that require superadmin to restore
+    $RestrictedTables = @('AccessRoleGroups', 'AccessIPRanges', 'CustomRoles') # tables that require superadmin to restore
 
     # Resolve the calling user's roles, including Entra group-based roles
     $CallingUser = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Request.Headers.'x-ms-client-principal')) | ConvertFrom-Json
@@ -24,7 +25,7 @@ function Invoke-ExecRestoreBackup {
     $IsSuperAdmin = $CallingUser.userRoles -contains 'superadmin'
 
     try {
-        if ($Request.Body.BackupName -like 'CippBackup_*') {
+        if ($Request.Body.BackupName -like 'CIPPBackup_*') {
             # Use Get-CIPPBackup which already handles fetching from blob storage
             $Backup = Get-CIPPBackup -Type 'CIPP' -Name $Request.Body.BackupName
             if ($Backup) {
@@ -77,13 +78,14 @@ function Invoke-ExecRestoreBackup {
                     $RestoredCount++
                 }
                 Write-LogMessage -headers $Request.Headers -API $APINAME -message "Restored backup $($Request.Body.BackupName) - $RestoredCount rows restored" -Sev 'Info'
-                $body = [pscustomobject]@{
+                $body = @{
                     'Results' = "Successfully restored $RestoredCount rows from backup."
-                }
+                } | ConvertTo-Json -Compress
             } else {
-                $body = [pscustomobject]@{
-                    'Results' = 'Backup not found.'
-                }
+                $StatusCode = [HttpStatusCode]::NotFound
+                $body = @{
+                    error = "Backup not found: $($Request.Body.BackupName)"
+                } | ConvertTo-Json -Compress
             }
         } else {
             $RestoredCount = 0
@@ -110,19 +112,28 @@ function Invoke-ExecRestoreBackup {
             }
             Write-LogMessage -headers $Request.Headers -API $APINAME -message "Restored backup - $RestoredCount rows restored" -Sev 'Info'
 
-            $body = [pscustomobject]@{
+            $body = @{
                 'Results' = "Successfully restored $RestoredCount rows from backup."
-            }
+            } | ConvertTo-Json -Compress
         }
     } catch {
-        Write-LogMessage -headers $Request.Headers -API $APINAME -message "Failed to restore backup: $($_.Exception.Message)" -Sev 'Error'
-        $body = [pscustomobject]@{'Results' = "Backup restore failed: $($_.Exception.Message)" }
+        $ErrorMessage = Get-CippException -Exception $_
+        Write-LogMessage -headers $Request.Headers -API $APINAME -message "Failed to restore backup: $($ErrorMessage.NormalizedError)" -Sev 'Error' -LogData $ErrorMessage
+        $StatusCode = [HttpStatusCode]::InternalServerError
+        $body = @{
+            error   = "Backup restore failed: $($ErrorMessage.NormalizedError)"
+            details = @{
+                operation      = 'RestoreBackup'
+                backupName     = $Request.Body.BackupName
+                innerException = $_.Exception.Message
+            }
+        } | ConvertTo-Json -Depth 5 -Compress
     }
 
-
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
-            Body       = $body
+            StatusCode  = $StatusCode
+            ContentType = 'application/json'
+            Body        = $body
         })
 
 }

@@ -7,7 +7,7 @@ function Set-CIPPMailboxAccess {
         $TenantFilter,
         $APIName = 'Manage Shared Mailbox Access',
         $Headers,
-        [array]$AccessRights # Retained for caller compatibility; this helper grants FullAccess
+        [array]$AccessRights
     )
 
     # Ensure AccessUser is always an array
@@ -22,12 +22,34 @@ function Set-CIPPMailboxAccess {
 
     $Results = [system.collections.generic.list[string]]::new()
 
-    # Delegate each grant to Set-CIPPMailboxPermission so the permission-level -> EXO cmdlet mapping,
-    # logging, cache sync, and error handling all live in one place. This helper grants FullAccess.
+    # Process each access user
     foreach ($User in $AccessUser) {
-        $Results.Add(
-            (Set-CIPPMailboxPermission -UserId $userid -AccessUser $User -PermissionLevel 'FullAccess' -Action 'Add' -AutoMap $Automap -TenantFilter $TenantFilter -APIName $APIName -Headers $Headers)
-        )
+        try {
+            try {
+                $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Add-MailboxPermission' -cmdParams @{Identity = $userid; user = $User; AutoMapping = $Automap; accessRights = $AccessRights; InheritanceType = 'all' } -Anchor $userid
+            } catch {
+                $ExoError = Get-CippException -Exception $_
+                if ($ExoError.NormalizedError -match 'InvalidExternalUserIdException' -and $User -match '@') {
+                    $ResolvedUser = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/users/$User" -tenantid $TenantFilter -NoAuthCheck $true
+                    if ($ResolvedUser.id) {
+                        $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Add-MailboxPermission' -cmdParams @{Identity = $userid; user = $ResolvedUser.id; AutoMapping = $Automap; accessRights = $AccessRights; InheritanceType = 'all' } -Anchor $userid
+                    } else {
+                        throw
+                    }
+                } else {
+                    throw
+                }
+            }
+
+            $Message = "Successfully added $($User) to $($userid) Shared Mailbox $($Automap ? 'with' : 'without') AutoMapping, with the following permissions: $AccessRights"
+            Write-LogMessage -headers $Headers -API $APIName -message $Message -Sev 'Info' -tenant $TenantFilter
+            $Results.Add($Message)
+        } catch {
+            $ErrorMessage = Get-CippException -Exception $_
+            $Message = "Failed to add mailbox permissions for $($User) on $($userid). Error: $($ErrorMessage.NormalizedError)"
+            Write-LogMessage -headers $Headers -API $APIName -message $Message -Sev 'Error' -tenant $TenantFilter -LogData $ErrorMessage
+            $Results.Add($Message)
+        }
     }
 
     return $Results

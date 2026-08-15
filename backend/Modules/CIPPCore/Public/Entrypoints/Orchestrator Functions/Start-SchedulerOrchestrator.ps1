@@ -12,18 +12,7 @@ function Start-SchedulerOrchestrator {
     $Table = Get-CIPPTable -TableName SchedulerConfig
     $Tenants = Get-CIPPAzDataTableEntity @Table | Where-Object -Property PartitionKey -NE 'WebhookAlert'
 
-    $ValidTypes = @('CIPPNotifications', 'webhookcreation')
-
     $Tasks = foreach ($Tenant in $Tenants) {
-        if ($Tenant.type -notin $ValidTypes) {
-            if ($Tenant.PartitionKey -eq 'Alert') {
-                Write-Information "Scheduler: removing legacy classic-alert row for '$($Tenant.tenant)'"
-                Remove-CIPPAzDataTableEntity -Force @Table -Entity $Tenant
-            } else {
-                Write-Information "Scheduler: skipping row $($Tenant.PartitionKey)/$($Tenant.RowKey) - no handler for type '$($Tenant.type)'"
-            }
-            continue
-        }
         if ($Tenant.tenant -ne 'AllTenants') {
             [pscustomobject]@{
                 Tenant   = $Tenant.tenant
@@ -54,6 +43,12 @@ function Start-SchedulerOrchestrator {
     $Queue = New-CippQueueEntry -Name 'Scheduler' -TotalTasks ($Tasks | Measure-Object).Count
 
     $Batch = foreach ($Task in $Tasks) {
+        $TargetFunction = "Push-Scheduler$($Task.Type)"
+        if (-not (Get-Command -Name $TargetFunction -ErrorAction SilentlyContinue)) {
+            Write-Information "SchedulerOrchestrator: Skipping task type '$($Task.Type)' for tenant '$($Task.Tenant)' - function $TargetFunction not found"
+            Write-LogMessage -API 'SchedulerOrchestrator' -tenant $Task.Tenant -message "Scheduler type '$($Task.Type)' has no matching function ($TargetFunction). Remove this entry from SchedulerConfig or create the function." -Sev 'Warning'
+            continue
+        }
         [pscustomobject]@{
             Tenant       = $task.tenant
             Tenantid     = $task.tenantid

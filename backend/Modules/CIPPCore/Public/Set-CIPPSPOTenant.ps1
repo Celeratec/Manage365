@@ -25,11 +25,6 @@ function Set-CIPPSPOTenant {
     .PARAMETER SharepointPrefix
     Prefix for the sharepoint tenant
 
-    .PARAMETER SharepointDomain
-    SharePoint domain that goes with the prefix (sharepoint.com, sharepoint.de, ...). Supplied by
-    Get-CIPPSPOTenant over the pipeline; without it the prefix alone is re-resolved rather than
-    assumed to be sharepoint.com.
-
     .EXAMPLE
     $Properties = @{
         'EnableAIPIntegration' = $true
@@ -65,10 +60,7 @@ function Set-CIPPSPOTenant {
         [array]$MethodParameters,
         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Properties')]
         [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Method')]
-        [string]$SharepointPrefix,
-        [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Properties')]
-        [Parameter(ValueFromPipelineByPropertyName = $true, ParameterSetName = 'Method')]
-        [string]$SharepointDomain
+        [string]$SharepointPrefix
     )
 
     process {
@@ -76,13 +68,9 @@ function Set-CIPPSPOTenant {
             # get sharepoint admin site
             $SharePointInfo = Get-SharePointAdminLink -Public $false -tenantFilter $TenantFilter
             $AdminUrl = $SharePointInfo.AdminUrl
-        } elseif ($SharepointDomain) {
-            # Prefix and domain both came off the pipeline (Get-CIPPSPOTenant) - rebuild from them.
-            $AdminUrl = "https://$($SharepointPrefix)-admin.$SharepointDomain"
         } else {
-            # A prefix with no domain cannot be trusted to be sharepoint.com, and this object may
-            # have come from a cache row predating SharepointDomain. Resolve the real one.
-            $AdminUrl = (Get-SharePointAdminLink -Public $false -tenantFilter $TenantFilter).AdminUrl
+            $tenantName = $SharepointPrefix
+            $AdminUrl = "https://$($tenantName)-admin.sharepoint.com"
         }
         $Identity = $Identity -replace "`n", '&#xA;'
 

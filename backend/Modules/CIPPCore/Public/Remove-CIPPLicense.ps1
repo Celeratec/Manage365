@@ -100,8 +100,9 @@ function Remove-CIPPLicense {
                             Write-LogMessage -headers $Headers -API $APIName -message "Removed $($User.displayName) from license group $GroupName" -Sev 'Info' -tenant $TenantFilter
                             "Removed $($User.displayName) from license group $GroupName"
                         } else {
-                            Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove $($User.displayName) from license group $GroupName. This is likely because its a Dynamic Group or synced with active directory." -Sev 'Error' -tenant $TenantFilter
-                            "Failed to remove $($User.displayName) from license group $GroupName. This is likely because its a Dynamic Group or synced with active directory."
+                            # Manage365: actionable remediation guidance instead of upstream's generic message
+                            Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove $($User.displayName) from license group $GroupName. If this is a Dynamic Group, update the membership rules. If it is AD Sync enabled, make this change on your local domain controller instead." -Sev 'Error' -tenant $TenantFilter
+                            "Failed to remove $($User.displayName) from license group $GroupName. If this is a Dynamic Group, update the membership rules. If it is AD Sync enabled, make this change on your local domain controller instead."
                         }
                     }
                 }
@@ -114,7 +115,7 @@ function Remove-CIPPLicense {
                             Write-LogMessage -headers $Headers -API $APIName -message "Removed $($User.displayName) from mail-enabled license group $($ExoGroup.displayName)" -Sev 'Info' -tenant $TenantFilter
                             "Removed $($User.displayName) from mail-enabled license group $($ExoGroup.displayName)"
                         } else {
-                            Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove $($User.displayName) from mail-enabled license group $($ExoGroup.displayName). This is likely because its a Dynamic Group or synced with active directory." -Sev 'Error' -tenant $TenantFilter
+                            Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove $($User.displayName) from mail-enabled license group $($ExoGroup.displayName). If this is a Dynamic Group, update the membership rules. If it is AD Sync enabled, make this change on your local domain controller instead." -Sev 'Error' -tenant $TenantFilter
                             "Failed to remove $($User.displayName) from mail-enabled license group $($ExoGroup.displayName)."
                         }
                     }

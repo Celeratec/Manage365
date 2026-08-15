@@ -15,6 +15,9 @@ function Invoke-CippTestCIS_1_1_4 {
             return
         }
 
+        # SkuPartNumbers that are acceptable for admin accounts: Entra ID P1/P2 only
+        $AcceptableSkus = @('AAD_PREMIUM', 'AAD_PREMIUM_P2', 'EMS', 'EMSPREMIUM')
+
         $PrivilegedRoleIds = [System.Collections.Generic.HashSet[string]]::new()
         $PrivilegedUserIds = [System.Collections.Generic.HashSet[string]]::new()
 
@@ -37,17 +40,17 @@ function Invoke-CippTestCIS_1_1_4 {
             }
         }
 
-        $PrivilegedUsers = $Users.Where({ $PrivilegedUserIds.Contains($_.id) })
+        $PrivilegedUsers = $Users | Where-Object { $PrivilegedUserIds.Contains($_.id) }
 
-        $LicensedAdmins = $PrivilegedUsers.Where({
-                $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
-            })
+        $LicensedAdmins = $PrivilegedUsers | Where-Object {
+            $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
+        }
 
-        $ProductivityServices = [System.Collections.Generic.HashSet[string]]::new([string[]]@('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI'))
-        $NonCompliant = $LicensedAdmins.Where({
-                $hasProductivity = $_.assignedPlans.Where({ $ProductivityServices.Contains($_.service) -and $_.capabilityStatus -eq 'Enabled' }, 'First', 1)
-                [bool]$hasProductivity.Count
-            })
+        $NonCompliant = $LicensedAdmins | Where-Object {
+            $skus = ($_.assignedPlans | ForEach-Object { $_.servicePlanId }) -join ','
+            $hasProductivity = $_.assignedPlans | Where-Object { $_.service -in @('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI') -and $_.capabilityStatus -eq 'Enabled' }
+            [bool]$hasProductivity
+        }
 
         if (-not $LicensedAdmins) {
             $Status = 'Passed'

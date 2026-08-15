@@ -4,14 +4,12 @@ function Invoke-ListPendingWebhooks {
         Entrypoint
     .ROLE
         CIPP.Alert.Read
-    .DESCRIPTION
-        Lists pending incoming webhook events that have not yet been processed by CIPP.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     try {
         $Table = Get-CIPPTable -TableName 'WebhookIncoming'
-        $Webhooks = Get-CIPPAzDataTableEntity @Table
+        $Webhooks = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'Webhook'"
         $Results = $Webhooks | Select-Object -ExcludeProperty RowKey, PartitionKey, ETag, Timestamp
         $PendingWebhooks = foreach ($Result in $Results) {
             foreach ($Property in $Result.PSObject.Properties.Name) {

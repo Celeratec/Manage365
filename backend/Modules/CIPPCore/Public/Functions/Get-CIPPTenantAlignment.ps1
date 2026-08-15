@@ -36,7 +36,7 @@ function Get-CIPPTenantAlignment {
             try {
                 $RowKey = $_.RowKey
                 if ([string]::IsNullOrWhiteSpace($JSON)) { return }
-                $Data = $JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+                $Data = $JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
             } catch {
                 Write-Warning "$($RowKey) standard could not be loaded: $($_.Exception.Message)"
                 return
@@ -78,16 +78,6 @@ function Get-CIPPTenantAlignment {
                     $TemplatesByPackage[$t.Package] = [System.Collections.Generic.List[object]]::new()
                 }
                 $TemplatesByPackage[$t.Package].Add($t)
-            }
-        }
-        $CATagTemplates = Get-CIPPAzDataTableEntity @TemplateTable -Filter "PartitionKey eq 'CATemplate'"
-        $CATemplatesByPackage = @{}
-        foreach ($t in $CATagTemplates) {
-            if ($t.Package) {
-                if (-not $CATemplatesByPackage.ContainsKey($t.Package)) {
-                    $CATemplatesByPackage[$t.Package] = [System.Collections.Generic.List[object]]::new()
-                }
-                $CATemplatesByPackage[$t.Package].Add($t)
             }
         }
         # Build tenant standards data structure
@@ -260,8 +250,7 @@ function Get-CIPPTenantAlignment {
                                 Write-Host "Processing CA Tag: $($Tag.value)"
                                 $CAActions = if ($CATemplate.action) { $CATemplate.action } else { @() }
                                 $CAReportingEnabled = ($CAActions | Where-Object { $_.value -and ($_.value.ToLower() -eq 'report' -or $_.value.ToLower() -eq 'remediate') }).Count -gt 0
-                                $TagValue = if ($Tag.value) { $Tag.value } else { $Tag }
-                                $TagTemplate = if ($CATemplatesByPackage.ContainsKey($TagValue)) { $CATemplatesByPackage[$TagValue] } else { @() }
+                                $TagTemplate = $TagTemplates | Where-Object -Property package -EQ $Tag.value
                                 $TagTemplate | ForEach-Object {
                                     # RowKey, not the GUID column - must match the id the standards engine
                                     # deploys with and writes the compare row under (see Intune block above)
@@ -473,7 +462,8 @@ function Get-CIPPTenantAlignment {
                                 $DeniedDeviationsCount++
                             }
                         }
-                    } elseif ($item.ComplianceStatus -eq 'License Missing') { $LicenseMissingStandards++ }
+                    }
+                    elseif ($item.ComplianceStatus -eq 'License Missing') { $LicenseMissingStandards++ }
                     if ($item.ReportingDisabled) { $ReportingDisabledStandardsCount++ }
                 }
 

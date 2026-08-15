@@ -1,9 +1,9 @@
-function Invoke-EditIntunePolicy {
+Function Invoke-EditIntunePolicy {
     <#
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Endpoint.MEM.ReadWrite
+        Endpoint.MEM.Read
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)

@@ -41,7 +41,7 @@ function Invoke-CIPPStandardsharingDomainRestriction {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -121,13 +121,13 @@ function Invoke-CIPPStandardsharingDomainRestriction {
 
         $CurrentValue = @{
             sharingDomainRestrictionMode = $CurrentState.sharingDomainRestrictionMode
-            sharingAllowedDomainList     = @($CurrentState.sharingAllowedDomainList ?? @())
-            sharingBlockedDomainList     = @($CurrentState.sharingBlockedDomainList ?? @())
+            sharingAllowedDomainList     = $CurrentState.sharingAllowedDomainList
+            sharingBlockedDomainList     = $CurrentState.sharingBlockedDomainList
         }
         $ExpectedValue = @{
             sharingDomainRestrictionMode = $mode
-            sharingAllowedDomainList     = @(if ($mode -eq 'allowList') { $SelectedDomains } else { @() })
-            sharingBlockedDomainList     = @(if ($mode -eq 'blockList') { $SelectedDomains } else { @() })
+            sharingAllowedDomainList     = if ($mode -eq 'allowList') { $SelectedDomains } else { @() }
+            sharingBlockedDomainList     = if ($mode -eq 'blockList') { $SelectedDomains } else { @() }
         }
         Set-CIPPStandardsCompareField -FieldName 'standards.sharingDomainRestriction' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -Tenant $Tenant
     }

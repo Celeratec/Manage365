@@ -27,7 +27,7 @@ function Invoke-ExecOffboardTenant {
         } elseif ($TenantId -eq $env:TenantID) {
             $Errors.Add('You cannot offboard the CSP tenant')
         } else {
-            if ($Request.Body.RemoveCSPGuestUsers -eq $true) {
+            if ($request.body.RemoveCSPGuestUsers -eq $true) {
                 # Delete guest users who's domains match the CSP tenants
                 try {
                     try {
@@ -59,7 +59,7 @@ function Invoke-ExecOffboardTenant {
                 }
             }
 
-            if ($Request.Body.RemoveCSPnotificationContacts -eq $true) {
+            if ($request.body.RemoveCSPnotificationContacts -eq $true) {
                 # Remove all email addresses that match the CSP tenants domains from the contact properties in /organization
                 try {
                     try {
@@ -104,7 +104,7 @@ function Invoke-ExecOffboardTenant {
 
             }
 
-            if ($Request.Body.RemoveDomainAnalyserData -eq $true) {
+            if ($request.body.RemoveDomainAnalyserData -eq $true) {
                 # Remove all Domain Analyser data for this tenant
                 try {
                     $DomainTable = Get-CIPPTable -Table 'Domains'
@@ -135,13 +135,12 @@ function Invoke-ExecOffboardTenant {
                         Write-LogMessage -headers $Headers -API $APIName -message "App $($_.label) was removed" -Sev 'Info' -tenant $TenantFilter
                     } catch {
                         $Errors.Add("Failed to removed app $($_.label)")
-                        Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove app $($_.label)" -Sev 'Error' -tenant $TenantFilter
                     }
                 }
             }
 
             # All customer tenant specific actions ALWAYS have to be completed before this action!
-            if ($Request.Body.RemoveMultitenantCSPApps -eq $true) {
+            if ($request.body.RemoveMultitenantCSPApps -eq $true) {
                 # Remove multi-tenant apps with the CSP tenant as origin
                 try {
                     $MultiTenantCSPApps = (New-GraphGETRequest -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$count=true&`$select=displayName,appId,id,appOwnerOrganizationId&`$filter=appOwnerOrganizationId eq $($env:TenantID)" -tenantid $TenantFilter -ComplexFilter)
@@ -162,7 +161,7 @@ function Invoke-ExecOffboardTenant {
                 }
             }
             $ClearCache = $false
-            if ($Request.Body.TerminateGDAP -eq $true) {
+            if ($request.body.TerminateGDAP -eq $true) {
                 # Terminate GDAP relationships
                 $ClearCache = $true
                 try {
@@ -186,7 +185,7 @@ function Invoke-ExecOffboardTenant {
                 }
             }
 
-            if ($Request.Body.TerminateContract -eq $true) {
+            if ($request.body.TerminateContract -eq $true) {
                 # Terminate contract relationship
                 try {
                     $null = (New-GraphPostRequest -type 'PATCH' -body '{ "relationshipToPartner": "none" }' -Uri "https://api.partnercenter.microsoft.com/v1/customers/$TenantFilter" -ContentType 'application/json' -scope 'https://api.partnercenter.microsoft.com/user_impersonation' -tenantid $env:TenantID)
@@ -199,20 +198,9 @@ function Invoke-ExecOffboardTenant {
             }
         }
 
-        if ($ClearCache -eq $true) {
-            try {
-                $TenantsTable = Get-CippTable -tablename 'Tenants'
-                $TenantRow = Get-CIPPAzDataTableEntity @TenantsTable -Filter "PartitionKey eq 'Tenants' and RowKey eq '$TenantId'" -Property RowKey, PartitionKey, customerId, displayName
-                if ($TenantRow) {
-                    Remove-CIPPAzDataTableEntity -Force @TenantsTable -Entity $TenantRow
-                    $Results.Add("$($Tenant.displayName) ($TenantId) has been deleted from CIPP")
-                    Write-LogMessage -headers $Headers -API $APIName -message "Tenant $($Tenant.displayName) ($TenantId) deleted from CIPP" -Sev 'Info' -tenant $TenantFilter
-                } else {
-                    $Results.Add("Tenant $TenantId was not found in CIPP tenant list")
-                }
-            } catch {
-                $Errors.Add("Failed to delete tenant from CIPP: $($_.Exception.message)")
-            }
+        if ($ClearCache) {
+            $null = Get-Tenants -CleanOld
+            $Results.Add('Tenant cache has been cleared')
         }
 
         Write-LogMessage -headers $Headers -API $APIName -message 'Offboarding completed' -Sev 'Info' -tenant $TenantFilter

@@ -4,8 +4,6 @@ function Invoke-ExecAlertsList {
         Entrypoint
     .ROLE
         Security.Alert.Read
-    .DESCRIPTION
-        Lists Microsoft 365 Defender security alerts for a tenant. tenantFilter=AllTenants reads the cached alert table instead of querying each tenant live, so those results are as fresh as the last cache run.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)

@@ -13,6 +13,20 @@ function Write-LogMessage {
         $sev,
         $LogData = ''
     )
+
+    # Early exit for Debug logs when not in debug mode - BEFORE any expensive operations
+    if ($sev -eq 'Debug' -and $env:DebugMode -ne $true) {
+        return
+    }
+
+    # Early exit for Info severity in background/activity context to reduce storage writes
+    # These informational messages from orchestrators and activities generate high write volume
+    # but are not critical for troubleshooting. Errors and Warnings are always written.
+    if ($sev -eq 'Info' -and $env:CIPP_LOW_LOG_MODE -eq 'true') {
+        Write-Information "[LOG-SKIP] $API | $tenant | $message"
+        return
+    }
+
     if ($Headers.'x-ms-client-principal-idp' -eq 'azureStaticWebApps' -or !$Headers.'x-ms-client-principal-idp') {
         $user = $headers.'x-ms-client-principal'
         $username = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($user)) | ConvertFrom-Json).userDetails
@@ -41,9 +55,6 @@ function Write-LogMessage {
 
     if (!$tenant) { $tenant = 'None' }
     if (!$username) { $username = 'CIPP' }
-    if ($sev -eq 'Debug' -and $env:DebugMode -ne $true) {
-        return
-    }
     $TzId = if ($env:CIPP_TIMEZONE) { $env:CIPP_TIMEZONE } else { 'UTC' }
     $LocalNow = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow, $TzId)
     $PartitionKey = $LocalNow.ToString('yyyyMMdd')
@@ -81,9 +92,6 @@ function Write-LogMessage {
     }
     if ($script:CippScheduledTaskIdStorage.Value) {
         $TableRow.ScheduledTaskId = [string]$script:CippScheduledTaskIdStorage.Value
-    }
-    if ($script:CippBaselineRunIdStorage.Value) {
-        $TableRow.BaselineRunId = [string]$script:CippBaselineRunIdStorage.Value
     }
 
     $Table.Entity = $TableRow

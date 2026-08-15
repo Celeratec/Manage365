@@ -17,34 +17,21 @@ function Set-CIPPSAMAdminRoles {
 
     $ActionLogs = [System.Collections.Generic.List[object]]::new()
 
-    # Default roles always assigned for all tenants
-    $DefaultRoles = @(
-        [PSCustomObject]@{ value = '17315797-102d-40b4-93e0-432062caca18'; label = 'Compliance Administrator' }
-    )
-
     $SAMRolesTable = Get-CIPPTable -tablename 'SAMRoles'
     $Roles = Get-CIPPAzDataTableEntity @SAMRolesTable
 
     try {
-        $SAMRoles = @($Roles.Roles | ConvertFrom-Json -ErrorAction Stop)
+        $SAMRoles = $Roles.Roles | ConvertFrom-Json -ErrorAction Stop
         $Tenants = $Roles.Tenants | ConvertFrom-Json -ErrorAction Stop
         if ($Tenants.value) {
             $Tenants = $Tenants.value
         }
     } catch {
-        $SAMRoles = @()
-        $Tenants = @()
+        $ActionLogs.Add('CIPP-SAM roles not configured')
+        return $ActionLogs
     }
 
-    # Merge default roles with user-configured roles, avoiding duplicates
-    $ExistingValues = @($SAMRoles | ForEach-Object { $_.value })
-    foreach ($DefaultRole in $DefaultRoles) {
-        if ($DefaultRole.value -notin $ExistingValues) {
-            $SAMRoles = @($SAMRoles) + @($DefaultRole)
-        }
-    }
-
-    if (($SAMRoles | Measure-Object).Count -gt 0 -and ($Tenants -contains $TenantFilter -or $Tenants -contains 'AllTenants' -or ($Tenants | Measure-Object).Count -eq 0)) {
+    if (($SAMRoles | Measure-Object).count -gt 0 -and $Tenants -contains $TenantFilter -or $Tenants -contains 'AllTenants') {
         $InitialRequests = @(
             [PSCustomObject]@{
                 id     = 'memberOf'
@@ -104,27 +91,12 @@ function Set-CIPPSAMAdminRoles {
 
             Write-Verbose ($Requests | ConvertTo-Json -Depth 5)
             $Results = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($Requests)
-            $MissingRoles = [System.Collections.Generic.List[object]]::new()
-            foreach ($Result in $Results) {
-                if ($Result.status -eq 204) {
-                    $ActionLogs.Add("Added service principal to directory role $($Result.id)")
-                } elseif ($Result.status -eq 404) {
-                    # 404 means the role template was never activated in this tenant
-                    $Role = $SAMRoles | Where-Object { $_.label -eq $Result.id } | Select-Object -First 1
-                    if ($Role) { $MissingRoles.Add($Role) }
+            $Results | ForEach-Object {
+                if ($_.status -eq 204) {
+                    $ActionLogs.Add("Added service principal to directory role $($_.id)")
                 } else {
-                    $ActionLogs.Add("Failed to add service principal to directoryRole $($Result.id):  $($Result | ConvertTo-Json -Depth 5)")
-                    Write-Verbose ($Result | ConvertTo-Json -Depth 5)
-                    $HasFailures = $true
-                }
-            }
-            foreach ($Role in $MissingRoles) {
-                try {
-                    $null = New-GraphPOSTRequest -uri 'https://graph.microsoft.com/v1.0/directoryRoles' -tenantid $TenantFilter -body (@{ roleTemplateId = $Role.value } | ConvertTo-Json -Compress)
-                    $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/directoryRoles(roleTemplateId='$($Role.value)')/members/`$ref" -tenantid $TenantFilter -body (@{ '@odata.id' = "https://graph.microsoft.com/v1.0/directoryObjects/$($id)" } | ConvertTo-Json -Compress)
-                    $ActionLogs.Add("Activated directory role $($Role.label) from its template and added service principal")
-                } catch {
-                    $ActionLogs.Add("Failed to activate directory role $($Role.label): $($_.Exception.Message)")
+                    $ActionLogs.Add("Failed to add service principal to directoryRole $($_.id)")
+                    Write-Verbose ($_ | ConvertTo-Json -Depth 5)
                     $HasFailures = $true
                 }
             }

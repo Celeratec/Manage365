@@ -4,8 +4,6 @@ function Invoke-ListUserMailboxDetails {
         Entrypoint
     .ROLE
         Exchange.Mailbox.Read
-    .DESCRIPTION
-        Retrieves detailed Exchange Online mailbox properties for a specific user, including quotas, archive status, and protocols.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -13,9 +11,6 @@ function Invoke-ListUserMailboxDetails {
     $TenantFilter = $Request.Query.tenantFilter
     $UserID = $Request.Query.UserID
     $UserMail = $Request.Query.userMail
-    Write-Host "TenantFilter: $TenantFilter"
-    Write-Host "UserID: $UserID"
-    Write-Host "UserMail: $UserMail"
 
     try {
         $Requests = @(
@@ -61,9 +56,9 @@ function Invoke-ListUserMailboxDetails {
                 }
             }
         )
-        $usernames = New-GraphGetRequest -tenantid $TenantFilter -uri 'https://graph.microsoft.com/beta/users?$select=id,userPrincipalName,displayName,mailNickname&$top=999'
-        $Results = New-ExoBulkRequest -TenantId $TenantFilter -CmdletArray $Requests -returnWithCommand $true -Anchor $username
-        Write-Host "First line of usernames is $($usernames[0] | ConvertTo-Json)"
+        # Use a deterministic mailbox anchor for EXO routing; $username is not defined here.
+        $AnchorIdentity = if ($UserMail) { $UserMail } else { $UserID }
+        $Results = New-ExoBulkRequest -TenantId $TenantFilter -CmdletArray $Requests -returnWithCommand $true -Anchor $AnchorIdentity
 
         # Assign variables from $Results
         $MailboxDetailedRequest = $Results.'Get-Mailbox'
@@ -85,9 +80,12 @@ function Invoke-ListUserMailboxDetails {
                 $ArchiveEnabled = $false
             }
 
-            $AutoExpandingArchiveState = Get-CIPPAutoExpandingArchiveState -MailboxAutoExpandingArchiveEnabled $MailboxDetailedRequest.AutoExpandingArchiveEnabled -OrgAutoExpandingArchiveEnabled $OrgConfig.AutoExpandingArchiveEnabled
-            $AutoExpandingArchiveEnabled = $AutoExpandingArchiveState.AutoExpandingArchive
-            $AutoExpandingArchiveScope = $AutoExpandingArchiveState.AutoExpandingArchiveScope
+            # Get organization config of auto-expanding archive if it's disabled on user level
+            if (-not $MailboxDetailedRequest.AutoExpandingArchiveEnabled -and $ArchiveEnabled) {
+                $AutoExpandingArchiveEnabled = $OrgConfig.AutoExpandingArchiveEnabled
+            } else {
+                $AutoExpandingArchiveEnabled = $MailboxDetailedRequest.AutoExpandingArchiveEnabled
+            }
         } catch {
             $ArchiveEnabled = $false
             $ArchiveSizeRequest = @{
@@ -103,8 +101,47 @@ function Invoke-ListUserMailboxDetails {
         } else {
             $BlockedForSpam = $false
         }
+
+        # Check if user is blocked for external outbound via transport rule
+        $BlockExternalOutbound = $false
+        try {
+            $AllTransportRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -useSystemMailbox $true
+            $OutboundRule = $AllTransportRules | Where-Object -Property Identity -EQ 'Manage365 - Block External Outbound'
+            if ($OutboundRule -and $OutboundRule.From) {
+                $RuleFromList = @($OutboundRule.From | ForEach-Object { $_ })
+                if ($UserMail -in $RuleFromList -or $UserID -in $RuleFromList) {
+                    $BlockExternalOutbound = $true
+                }
+            }
+        } catch {
+            Write-Verbose "Could not check outbound transport rule: $($_.Exception.Message)"
+        }
     } catch {
-        Write-Error "Failed Fetching Data $($_.Exception.message): $($_.InvocationInfo.ScriptLineNumber)"
+        # Without the mailbox data every downstream section would run against unset
+        # variables and return a misleading empty-but-OK payload. Surface the failure.
+        $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
+        Write-LogMessage -headers $Request.Headers -API $Request.Params.CIPPEndpoint -tenant $TenantFilter -message "Failed fetching mailbox details for $($UserID): $($_.Exception.Message)" -Sev 'Error' -LogData $_
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::InternalServerError
+                Body       = @{ Results = "Failed to fetch mailbox details: $ErrorMessage" }
+            })
+    }
+
+    # Resolve display names only when something actually references other users;
+    # fetching the whole tenant user list on every request is expensive.
+    $usernames = @()
+    $RawForwardingAddress = $MailboxDetailedRequest.ForwardingAddress
+    $NeedsUserLookup = [bool]$MailboxDetailedRequest.GrantSendOnBehalfTo -or (
+        -not $MailboxDetailedRequest.ForwardingSmtpAddress -and
+        $RawForwardingAddress -and
+        $RawForwardingAddress -notmatch '@'
+    )
+    if ($NeedsUserLookup) {
+        try {
+            $usernames = New-GraphGetRequest -tenantid $TenantFilter -uri 'https://graph.microsoft.com/beta/users?$select=id,userPrincipalName,displayName,mailNickname&$top=999'
+        } catch {
+            Write-LogMessage -headers $Request.Headers -API $Request.Params.CIPPEndpoint -tenant $TenantFilter -message "Could not resolve user display names: $($_.Exception.Message)" -Sev 'Warning'
+        }
     }
 
     # Parse permissions
@@ -233,38 +270,39 @@ function Invoke-ListUserMailboxDetails {
 
     # Build the GraphRequest object
     $GraphRequest = [ordered]@{
-        ForwardAndDeliver                = $MailboxDetailedRequest.DeliverToMailboxAndForward
-        ForwardingAddress                = $ForwardingAddress
-        LitigationHold                   = $MailboxDetailedRequest.LitigationHoldEnabled
-        RetentionHold                    = $MailboxDetailedRequest.RetentionHoldEnabled
-        ComplianceTagHold                = $MailboxDetailedRequest.ComplianceTagHoldApplied
-        InPlaceHold                      = $InPlaceHold
-        EDiscoveryHold                   = $EDiscoveryHold
-        PurviewRetentionHold             = $PurviewRetentionHold
-        ExcludedFromOrgWideHold          = $ExcludedFromOrgWideHold
-        HiddenFromAddressLists           = $MailboxDetailedRequest.HiddenFromAddressListsEnabled
-        EWSEnabled                       = $CASRequest.EwsEnabled
-        MailboxMAPIEnabled               = $CASRequest.MAPIEnabled
-        MailboxOWAEnabled                = $CASRequest.OWAEnabled
-        MailboxImapEnabled               = $CASRequest.ImapEnabled
-        MailboxPopEnabled                = $CASRequest.PopEnabled
-        MailboxActiveSyncEnabled         = $CASRequest.ActiveSyncEnabled
+        ForwardAndDeliver        = $MailboxDetailedRequest.DeliverToMailboxAndForward
+        ForwardingAddress        = $ForwardingAddress
+        LitigationHold           = $MailboxDetailedRequest.LitigationHoldEnabled
+        RetentionHold            = $MailboxDetailedRequest.RetentionHoldEnabled
+        ComplianceTagHold        = $MailboxDetailedRequest.ComplianceTagHoldApplied
+        InPlaceHold              = $InPlaceHold
+        EDiscoveryHold           = $EDiscoveryHold
+        PurviewRetentionHold     = $PurviewRetentionHold
+        ExcludedFromOrgWideHold  = $ExcludedFromOrgWideHold
+        HiddenFromAddressLists   = $MailboxDetailedRequest.HiddenFromAddressListsEnabled
+        BlockExternalInbound     = ($MailboxDetailedRequest.RequireSenderAuthenticationEnabled -eq $true)
+        BlockExternalOutbound    = $BlockExternalOutbound
+        EWSEnabled               = $CASRequest.EwsEnabled
+        MailboxMAPIEnabled       = $CASRequest.MAPIEnabled
+        MailboxOWAEnabled        = $CASRequest.OWAEnabled
+        MailboxImapEnabled       = $CASRequest.ImapEnabled
+        MailboxPopEnabled        = $CASRequest.PopEnabled
+        MailboxActiveSyncEnabled = $CASRequest.ActiveSyncEnabled
         SmtpClientAuthenticationDisabled = $CASRequest.SmtpClientAuthenticationDisabled
-        Permissions                      = @($ParsedPerms)
-        ProhibitSendQuota                = $ProhibitSendQuota
-        ProhibitSendReceiveQuota         = $ProhibitSendReceiveQuota
-        ItemCount                        = [math]::Round($StatsRequest.ItemCount, 2)
-        TotalItemSize                    = $TotalItemSize
-        TotalArchiveItemSize             = $TotalArchiveItemSize
-        TotalArchiveItemCount            = $TotalArchiveItemCount
-        BlockedForSpam                   = $BlockedForSpam
-        ArchiveMailBox                   = $ArchiveEnabled
-        AutoExpandingArchive             = $AutoExpandingArchiveEnabled
-        AutoExpandingArchiveScope        = $AutoExpandingArchiveScope
-        RecipientTypeDetails             = $MailboxDetailedRequest.RecipientTypeDetails
-        Mailbox                          = $MailboxDetailedRequest
-        RetentionPolicy                  = $MailboxDetailedRequest.RetentionPolicy
-        MailboxActionsData               = ($MailboxDetailedRequest | Select-Object id, ExchangeGuid, ArchiveGuid, WhenSoftDeleted,
+        Permissions              = @($ParsedPerms)
+        ProhibitSendQuota        = $ProhibitSendQuota
+        ProhibitSendReceiveQuota = $ProhibitSendReceiveQuota
+        ItemCount                = [math]::Round($StatsRequest.ItemCount, 2)
+        TotalItemSize            = $TotalItemSize
+        TotalArchiveItemSize     = $TotalArchiveItemSize
+        TotalArchiveItemCount    = $TotalArchiveItemCount
+        BlockedForSpam           = $BlockedForSpam
+        ArchiveMailBox           = $ArchiveEnabled
+        AutoExpandingArchive     = $AutoExpandingArchiveEnabled
+        RecipientTypeDetails     = $MailboxDetailedRequest.RecipientTypeDetails
+        Mailbox                  = $MailboxDetailedRequest
+        RetentionPolicy          = $MailboxDetailedRequest.RetentionPolicy
+        MailboxActionsData       = ($MailboxDetailedRequest | Select-Object id, ExchangeGuid, ArchiveGuid, WhenSoftDeleted,
             @{ Name = 'UPN'; Expression = { $_.'UserPrincipalName' } },
             @{ Name = 'displayName'; Expression = { $_.'DisplayName' } },
             @{ Name = 'primarySmtpAddress'; Expression = { $_.'PrimarySMTPAddress' } },

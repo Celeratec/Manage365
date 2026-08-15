@@ -32,7 +32,7 @@ function Invoke-CIPPStandardTransportRuleTemplate {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
     param($Tenant, $Settings)
     $TestResult = Test-CIPPStandardLicense -StandardName 'TransportRuleTemplate' -TenantFilter $Tenant -Preset Exchange #No Foundation because that does not allow powershell access

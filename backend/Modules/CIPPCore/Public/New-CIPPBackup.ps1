@@ -54,7 +54,6 @@ function New-CIPPBackup {
                         'Extensions'
                         'WebhookRules'
                         'ScheduledTasks'
-                        'DeltaQueries'
                         'TenantProperties'
                         'TenantGroups'
                         'TenantGroupMembers'
@@ -71,16 +70,8 @@ function New-CIPPBackup {
                         }
                         $Entities | Select-Object * -ExcludeProperty DomainAnalyser, table, Timestamp, ETag, Results | Select-Object *, @{l = 'table'; e = { $CSVTable } }
                     }
-                    # Back up excluded tenant rows (user-configured exclusion state only)
-                    $TenantsTable = Get-CippTable -tablename 'Tenants'
-                    $ExcludedTenants = Get-AzDataTableEntity @TenantsTable -Filter "PartitionKey eq 'Tenants' and Excluded eq true"
-                    if ($ExcludedTenants) {
-                        $CSVfile = @($CSVfile) + @(
-                            $ExcludedTenants | Select-Object PartitionKey, RowKey, customerId, defaultDomainName, displayName, Excluded, ExcludeDate, ExcludeUser | Select-Object *, @{l = 'table'; e = { 'Tenants' } }
-                        )
-                    }
                     $RowKey = 'CIPPBackup' + '_' + (Get-Date).ToString('yyyy-MM-dd-HHmm')
-                    $BackupData = [string]($CSVfile | ConvertTo-Json -Compress -Depth 100)
+                    $BackupData = [string]($CSVfile | ConvertTo-Json -Compress -Depth 20)
                     $TableName = 'CIPPBackup'
                     $PartitionKey = 'CIPPBackup'
                     $ContainerName = 'cipp-backups'
@@ -109,7 +100,7 @@ function New-CIPPBackup {
                             Write-Information "Failed to create backup for $ScheduledBackup - $($_.Exception.Message)"
                         }
                     }
-                    $BackupData = $entity | ConvertTo-Json -Compress -Depth 100
+                    $BackupData = $entity | ConvertTo-Json -Compress -Depth 20
                     $TableName = 'ScheduledBackup'
                     $PartitionKey = 'ScheduledBackup'
                     $ContainerName = 'scheduled-backups'
@@ -126,7 +117,7 @@ function New-CIPPBackup {
         try {
             $containers = @()
             try { $containers = New-CIPPAzStorageRequest -Service 'blob' -Component 'list' -ConnectionString $ConnectionString } catch { $containers = @() }
-            $exists = $null -ne ($containers | Where-Object { $_.Name -eq $ContainerName })
+            $exists = ($containers | Where-Object { $_.Name -eq $ContainerName }) -ne $null
             if (-not $exists) {
                 $null = New-CIPPAzStorageRequest -Service 'blob' -Resource $ContainerName -Method 'PUT' -QueryParams @{ restype = 'container' } -ConnectionString $ConnectionString
                 Start-Sleep -Milliseconds 500

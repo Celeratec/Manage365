@@ -4,13 +4,11 @@ function Invoke-ListAlertsQueue {
         Entrypoint
     .ROLE
         CIPP.Alert.Read
-    .DESCRIPTION
-        Lists configured alert rules including webhook rules and scheduled alert tasks, showing their configuration and tenant scope.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $WebhookTable = Get-CIPPTable -TableName 'WebhookRules'
-    $WebhookRules = Get-CIPPAzDataTableEntity @WebhookTable
+    $WebhookRules = Get-CIPPAzDataTableEntity @WebhookTable -Filter "PartitionKey eq 'Webhookv2'"
 
     $ScheduledTasks = Get-CIPPTable -TableName 'ScheduledTasks'
     $ScheduledTasks = Get-CIPPAzDataTableEntity @ScheduledTasks | Where-Object { $_.hidden -eq $true -and $_.command -like 'Get-CippAlert*' }
@@ -88,14 +86,6 @@ function Invoke-ListAlertsQueue {
             $ExcludedTenants = @($Task.excludedTenants -split ',' | Where-Object { $_ })
         } else {
             $ExcludedTenants = @()
-        }
-        # Excluded tenant groups are stored separately as JSON — surface them as objects so the
-        # frontend renders a single named chip and can round-trip the group on edit
-        if ($Task.excludedTenantGroups) {
-            $ExcludedGroups = @($Task.excludedTenantGroups | ConvertFrom-Json -ErrorAction SilentlyContinue)
-            if ($ExcludedGroups) {
-                $ExcludedTenants = @($ExcludedTenants + $ExcludedGroups)
-            }
         }
 
         # Handle tenant display information for alerts

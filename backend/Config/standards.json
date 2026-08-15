@@ -8299,5 +8299,326 @@
       "warn": false,
       "remediate": false
     }
+  },
+  {
+    "name": "standards.AutomaticUserConsent",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether users automatically redeem invitations when accessing external organizations or when external users access your resources. When enabled, users don't see a consent prompt for first-time access.",
+    "docsDescription": "Controls the automatic user consent settings in the cross-tenant access policy defaults. Inbound automatic consent means external users will automatically redeem invitations without a consent prompt. Outbound automatic consent means your users will automatically redeem invitations from other organizations. This is commonly used to streamline B2B collaboration and B2B Direct Connect experiences.",
+    "executiveText": "Controls automatic invitation redemption for cross-tenant collaboration. Enabling automatic consent provides a smoother experience for B2B collaborators by removing the manual invitation acceptance step, while disabling it ensures users explicitly agree before accessing external resources.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Inbound automatic redemption",
+        "name": "standards.AutomaticUserConsent.inboundAllowed",
+        "options": [
+          {
+            "label": "Enabled",
+            "value": "true"
+          },
+          {
+            "label": "Disabled",
+            "value": "false"
+          }
+        ]
+      },
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Outbound automatic redemption",
+        "name": "standards.AutomaticUserConsent.outboundAllowed",
+        "options": [
+          {
+            "label": "Enabled",
+            "value": "true"
+          },
+          {
+            "label": "Disabled",
+            "value": "false"
+          }
+        ]
+      }
+    ],
+    "label": "Sets automatic invitation redemption for cross-tenant access",
+    "impact": "Low Impact",
+    "impactColour": "info",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.B2BCollaborationInbound",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether external users from other organizations can be invited to access your resources through B2B collaboration (guest access) by default. This applies to all external organizations without a partner-specific configuration.",
+    "docsDescription": "Controls whether external users from other organizations can be invited to access your resources through B2B collaboration (guest access) by default. When set to blocked, no external users can collaborate unless a partner-specific override is configured.",
+    "executiveText": "Manages the default inbound B2B collaboration policy, controlling whether external users from partner organizations can access company resources as guests. Restricting this to specific organizations reduces the attack surface while allowing necessary business collaboration.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Default inbound B2B collaboration access",
+        "name": "standards.B2BCollaborationInbound.accessType",
+        "options": [
+          {
+            "label": "Allow (all external users)",
+            "value": "allowed"
+          },
+          {
+            "label": "Block (no external users)",
+            "value": "blocked"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the default inbound B2B collaboration access policy",
+    "impact": "Medium Impact",
+    "impactColour": "warning",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.B2BCollaborationOutbound",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether your users can be invited to access resources in other organizations through B2B collaboration by default. This applies to all external organizations without a partner-specific configuration.",
+    "docsDescription": "Controls whether your users can be invited to access resources in other organizations through B2B collaboration by default. When set to blocked, users cannot collaborate externally unless a partner-specific override is configured.",
+    "executiveText": "Manages the default outbound B2B collaboration policy, controlling whether company employees can accept invitations to collaborate in external organizations. This helps prevent data leakage by controlling where users can share information.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Default outbound B2B collaboration access",
+        "name": "standards.B2BCollaborationOutbound.accessType",
+        "options": [
+          {
+            "label": "Allow (all users)",
+            "value": "allowed"
+          },
+          {
+            "label": "Block (no users)",
+            "value": "blocked"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the default outbound B2B collaboration access policy",
+    "impact": "Medium Impact",
+    "impactColour": "warning",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.B2BDirectConnectInbound",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether external users can access your Teams shared channels through B2B Direct Connect by default. Direct Connect enables seamless collaboration without creating guest accounts.",
+    "docsDescription": "Controls whether external users can access your Teams shared channels through B2B Direct Connect by default. When blocked, no external users can join shared channels unless a partner-specific override is configured. B2B Direct Connect is commonly used for Teams shared channels.",
+    "executiveText": "Controls whether external users can seamlessly join Teams shared channels through B2B Direct Connect. Blocking this by default and only allowing specific partner organizations reduces unauthorized access to sensitive team collaboration spaces.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Default inbound B2B Direct Connect access",
+        "name": "standards.B2BDirectConnectInbound.accessType",
+        "options": [
+          {
+            "label": "Allow (all external users)",
+            "value": "allowed"
+          },
+          {
+            "label": "Block (no external users)",
+            "value": "blocked"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the default inbound B2B Direct Connect access policy",
+    "impact": "Medium Impact",
+    "impactColour": "warning",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.B2BDirectConnectOutbound",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether your users can access external Teams shared channels through B2B Direct Connect by default. This applies to all external organizations without a partner-specific configuration.",
+    "docsDescription": "Controls whether your users can access external Teams shared channels through B2B Direct Connect by default. When blocked, users cannot join external shared channels unless a partner-specific override is configured.",
+    "executiveText": "Controls whether employees can join external Teams shared channels through B2B Direct Connect. Blocking outbound Direct Connect by default and only allowing specific partners prevents uncontrolled data sharing through external collaboration channels.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Default outbound B2B Direct Connect access",
+        "name": "standards.B2BDirectConnectOutbound.accessType",
+        "options": [
+          {
+            "label": "Allow (all users)",
+            "value": "allowed"
+          },
+          {
+            "label": "Block (no users)",
+            "value": "blocked"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the default outbound B2B Direct Connect access policy",
+    "impact": "Medium Impact",
+    "impactColour": "warning",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.BlockMSNSignIn",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Controls whether personal Microsoft accounts (MSN/Outlook.com/Hotmail) can be used to sign in. Blocking MSN sign-in prevents users from using personal accounts to access organizational resources.",
+    "docsDescription": "Controls whether personal Microsoft accounts (MSN/Outlook.com/Hotmail) can be used to sign in to the tenant. When enabled, users cannot use personal Microsoft accounts to access organizational resources, improving security by ensuring only managed accounts are used.",
+    "executiveText": "Prevents users from signing in with personal Microsoft accounts (Outlook.com, Hotmail, etc.), ensuring that only organizational or approved external accounts can access company resources. This reduces shadow IT risks and maintains compliance with identity governance policies.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Block MSN sign-in",
+        "name": "standards.BlockMSNSignIn.state",
+        "options": [
+          {
+            "label": "Enabled (block personal accounts)",
+            "value": "true"
+          },
+          {
+            "label": "Disabled (allow personal accounts)",
+            "value": "false"
+          }
+        ]
+      }
+    ],
+    "label": "Block personal Microsoft account (MSN) sign-in",
+    "impact": "Low Impact",
+    "impactColour": "info",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.CrossTenantTrustCompliant",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Sets the state of the Cross-tenant access setting to trust compliant devices from external organizations. This allows guest users to satisfy your device compliance Conditional Access policies using their home tenant's Intune compliance status.",
+    "docsDescription": "Sets the state of the Cross-tenant access setting to trust compliant devices from external organizations. When enabled, your Conditional Access policies that require compliant devices will accept device compliance claims from partner organizations managed through Intune.",
+    "executiveText": "Enables trusting device compliance status from partner organizations, allowing external collaborators with Intune-managed compliant devices to access company resources without additional device enrollment. This streamlines cross-organization collaboration while maintaining device security requirements.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Trust compliant devices from external tenants",
+        "name": "standards.CrossTenantTrustCompliant.state",
+        "options": [
+          {
+            "label": "Enabled",
+            "value": "true"
+          },
+          {
+            "label": "Disabled",
+            "value": "false"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the Cross-tenant access setting to trust compliant devices",
+    "impact": "Low Impact",
+    "impactColour": "info",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.CrossTenantTrustHybridJoin",
+    "cat": "Entra (AAD) Standards",
+    "tag": [],
+    "helpText": "Sets the state of the Cross-tenant access setting to trust Microsoft Entra hybrid joined devices from external organizations. This allows guest users to satisfy your Conditional Access policies that require hybrid joined devices using their home tenant's device status.",
+    "docsDescription": "Sets the state of the Cross-tenant access setting to trust Microsoft Entra hybrid joined devices from external organizations. When enabled, your Conditional Access policies that require hybrid Azure AD joined devices will accept claims from partner organizations.",
+    "executiveText": "Enables trusting hybrid Azure AD joined device claims from partner organizations, allowing external collaborators with domain-joined devices to access company resources without additional requirements. This supports cross-organization collaboration for enterprises using hybrid identity.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "multiple": false,
+        "creatable": false,
+        "label": "Trust hybrid Azure AD joined devices from external tenants",
+        "name": "standards.CrossTenantTrustHybridJoin.state",
+        "options": [
+          {
+            "label": "Enabled",
+            "value": "true"
+          },
+          {
+            "label": "Disabled",
+            "value": "false"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the Cross-tenant access setting to trust hybrid Azure AD joined devices",
+    "impact": "Low Impact",
+    "impactColour": "info",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyCrossTenantAccessPolicyDefault",
+    "recommendedBy": []
+  },
+  {
+    "name": "standards.GuestUserRole",
+    "cat": "Entra (AAD) Standards",
+    "tag": [
+      "\"EIDSCA.AP14\""
+    ],
+    "helpText": "Sets the default access level for guest users in the directory. Choose between member-level access, default guest access, or the most restrictive setting that blocks directory enumeration. This is a more flexible alternative to the DisableGuestDirectory standard.",
+    "docsDescription": "Controls what permissions guest users have in the directory. The most restrictive option prevents guests from enumerating users and group memberships. The default option limits guest access but allows basic directory browsing. The least restrictive option gives guests the same access as member users.",
+    "executiveText": "Controls the level of directory access granted to external guest users, balancing collaboration needs with security requirements. Setting appropriate guest permissions prevents unauthorized discovery of organizational structure and employee information.",
+    "addedComponent": [
+      {
+        "type": "autoComplete",
+        "required": true,
+        "multiple": false,
+        "creatable": false,
+        "label": "Guest user access level",
+        "name": "standards.GuestUserRole.guestUserRoleId",
+        "options": [
+          {
+            "label": "Same access as member users (least restrictive)",
+            "value": "a0b1b346-4d3e-4e8b-98f8-753987be4970"
+          },
+          {
+            "label": "Limited access - default guest access",
+            "value": "10dae51f-b6af-4016-8d66-8c2a99b929b3"
+          },
+          {
+            "label": "Restricted access - cannot enumerate directory (most restrictive)",
+            "value": "2af84b1e-32c8-42b7-82bc-daa82404023b"
+          }
+        ]
+      }
+    ],
+    "label": "Sets the guest user default access level",
+    "impact": "Medium Impact",
+    "impactColour": "warning",
+    "addedDate": "2026-02-13",
+    "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
+    "recommendedBy": []
   }
 ]

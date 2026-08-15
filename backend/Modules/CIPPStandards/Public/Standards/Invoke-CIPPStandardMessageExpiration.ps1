@@ -30,7 +30,7 @@ function Invoke-CIPPStandardMessageExpiration {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -41,8 +41,7 @@ function Invoke-CIPPStandardMessageExpiration {
     } #we're done.
 
     try {
-        $TransportConfig = New-CIPPDbRequest -TenantFilter $Tenant -Type 'ExoTransportConfig' | Select-Object -First 1
-        $MessageExpiration = $TransportConfig.messageExpiration
+        $MessageExpiration = (New-ExoRequest -tenantid $Tenant -cmdlet 'Get-TransportConfig').messageExpiration
     } catch {
         $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
         Write-LogMessage -API 'Standards' -Tenant $Tenant -Message "Could not get the MessageExpiration state for $Tenant. Error: $ErrorMessage" -Sev Error

@@ -14,24 +14,22 @@ function Invoke-CippTestCIS_2_1_9 {
             return
         }
 
-        $Sending = $Accepted.Where({ -not $_.SendingFromDomainDisabled -and $_.DomainName -notlike '*onmicrosoft.com' })
-        $DkimByDomain = $Dkim | Group-Object Domain -AsHashTable -AsString
-        $Failed = [System.Collections.Generic.List[object]]::new()
+        $Sending = $Accepted | Where-Object { -not $_.SendingFromDomainDisabled -and $_.DomainName -notlike '*onmicrosoft.com' }
+        $Failed = @()
         foreach ($D in $Sending) {
-            $Cfg = $null
-            if ($DkimByDomain.ContainsKey($D.DomainName)) { $Cfg = @($DkimByDomain[$D.DomainName])[0] }
+            $Cfg = $Dkim | Where-Object { $_.Domain -eq $D.DomainName } | Select-Object -First 1
             if (-not $Cfg -or $Cfg.Enabled -ne $true) {
-                $Failed.Add([PSCustomObject]@{ Domain = $D.DomainName; Enabled = $Cfg.Enabled })
+                $Failed += [PSCustomObject]@{ Domain = $D.DomainName; Enabled = $Cfg.Enabled }
             }
         }
 
         if ($Failed.Count -eq 0) {
             $Status = 'Passed'
-            $Result = [System.Text.StringBuilder]::new("DKIM is enabled for all $($Sending.Count) sending domain(s).")
+            $Result = "DKIM is enabled for all $($Sending.Count) sending domain(s)."
         } else {
             $Status = 'Failed'
-            $Result = [System.Text.StringBuilder]::new("DKIM is not enabled for $($Failed.Count) sending domain(s):`n`n| Domain | DKIM Enabled |`n| :----- | :----------- |`n")
-            foreach ($F in $Failed) { $null = $Result.Append("| $($F.Domain) | $($F.Enabled) |`n") }
+            $Result = "DKIM is not enabled for $($Failed.Count) sending domain(s):`n`n| Domain | DKIM Enabled |`n| :----- | :----------- |`n"
+            foreach ($F in $Failed) { $Result += "| $($F.Domain) | $($F.Enabled) |`n" }
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_2_1_9' -TestType 'Identity' -Status $Status -ResultMarkdown $Result -Risk 'Medium' -Name 'DKIM is enabled for all Exchange Online Domains' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Email Authentication'

@@ -4,8 +4,6 @@ Function Invoke-ListUsers {
         Entrypoint
     .ROLE
         Identity.User.Read
-    .DESCRIPTION
-        Lists Entra ID users for a tenant with license and sign-in details, or retrieves a specific user by ID. For AllTenants or cached data, consider using ListDBCache with type=Users for significantly better performance.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -83,10 +81,11 @@ Function Invoke-ListUsers {
             $_ | Add-Member -MemberType NoteProperty -Name 'primDomain' -Value @{value = ($_.userPrincipalName -split '@' | Select-Object -Last 1); label = ($_.userPrincipalName -split '@' | Select-Object -Last 1); } -Force
             $_
         }
-    } elseif ((Get-CippRequestContext).AllowedTenants) {
+    } elseif ($null -ne (Get-CippRequestContext).AllowedTenants) {
         # Deprecated cacheusers blob has no reliable per-tenant column, so it cannot be safely
-        # narrowed for a tenant-restricted caller. Return the deprecation message instead of
-        # leaking every tenant's users. Unrestricted callers keep the legacy behavior below.
+        # narrowed for a tenant-restricted caller (including zero allowed tenants). Return the
+        # deprecation message instead of leaking every tenant's users. Unrestricted callers keep
+        # the legacy behavior below ($null AllowedTenants).
         [PSCustomObject]@{
             Message = 'This function has been deprecated for all users, please use ListGraphRequest instead'
         }

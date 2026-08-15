@@ -34,7 +34,7 @@ function Invoke-AddJITAdminTemplate {
         $ExistingTemplates = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'JITAdminTemplate'"
         $ExistingNames = $ExistingTemplates | ForEach-Object {
             try {
-                $data = $_.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+                $data = $_.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
                 if ($data.tenantFilter -eq $TenantFilter -and $data.templateName -eq $TemplateName) {
                     $data
                 }
@@ -52,11 +52,11 @@ function Invoke-AddJITAdminTemplate {
             $ExistingTemplates | ForEach-Object {
                 try {
                     $row = $_
-                    $data = $row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+                    $data = $row.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
                     if ($data.tenantFilter -eq $TenantFilter -and $data.defaultForTenant -eq $true) {
                         # Unset the default flag
                         $data.defaultForTenant = $false
-                        $row.JSON = ($data | ConvertTo-Json -Depth 100 -Compress)
+                        $row.JSON = ($data | ConvertTo-Json -Depth 20 -Compress)
                         Add-CIPPAzDataTableEntity @Table -Entity $row -Force
                         Write-LogMessage -headers $Headers -API $APIName -message "Unset default flag for existing template: $($data.templateName)" -Sev 'Info'
                     }
@@ -132,7 +132,7 @@ function Invoke-AddJITAdminTemplate {
         $GUID = (New-Guid).GUID
 
         # Convert to JSON
-        $JSON = ConvertTo-Json -InputObject $TemplateObject -Depth 100 -Compress
+        $JSON = ConvertTo-Json -InputObject $TemplateObject -Depth 20 -Compress
 
         # Store in table
         $Table.Force = $true

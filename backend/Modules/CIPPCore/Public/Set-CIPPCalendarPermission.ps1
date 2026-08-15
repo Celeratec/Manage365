@@ -12,65 +12,105 @@ function Set-CIPPCalendarPermission {
         $Permissions,
         [bool]$CanViewPrivateItems,
         [bool]$SendNotificationToUser = $false,
-        [switch]$AutoResolveFolderName
+        [switch]$AutoResolveFolderName,
+        [string]$AclUserName
     )
 
     try {
-        # If a pretty logging name is not provided, use the ID instead
         if ([string]::IsNullOrWhiteSpace($LoggingName) -and $RemoveAccess) {
             $LoggingName = $RemoveAccess
         } elseif ([string]::IsNullOrWhiteSpace($LoggingName) -and $UserToGetPermissions) {
             $LoggingName = $UserToGetPermissions
         }
 
-        # When -AutoResolveFolderName is set, look up the locale-independent FolderId.
-        # FolderType -eq 'Calendar' is an internal Exchange enum, always English regardless of mailbox language.
-        # Callers that already supply the correct localized FolderName should NOT pass this switch.
-        if ($AutoResolveFolderName) {
-            $CalFolderStats = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderStatistics' -cmdParams @{
-                Identity    = $UserID
-                FolderScope = 'Calendar'
-            } -Anchor $UserID | Where-Object { $_.FolderType -eq 'Calendar' }
-            $FolderIdentity = if ($CalFolderStats) { "$($UserID):$($CalFolderStats.FolderId)" } else { "$($UserID):\$FolderName" }
+        $FolderMeta = Get-CIPPMailboxFolderIdentityCandidates -TenantFilter $TenantFilter -UserID $UserID -FolderName ($FolderName ?? 'Calendar') -FolderScope Calendar
+        $FolderIdentities = $FolderMeta.Identities
+        $FolderIdentity = $FolderIdentities | Select-Object -First 1
+
+        $TargetUser = if ($RemoveAccess) { $RemoveAccess } else { $UserToGetPermissions }
+        $Resolved = Resolve-CIPPFolderPermissionUser -User $TargetUser -TenantFilter $TenantFilter
+        # Keep remove candidate list short to stay under UI timeout
+        if ($RemoveAccess) {
+            $MergedCandidates = @(
+                $AclUserName
+                $RemoveAccess
+                $Resolved.UserEmail
+                $Resolved.UserId
+            ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+            if ($MergedCandidates.Count -eq 0) {
+                $MergedCandidates = @($Resolved.Candidates | Select-Object -First 4)
+            }
+        } elseif (-not [string]::IsNullOrWhiteSpace($AclUserName) -and $AclUserName -ne $TargetUser) {
+            $AclResolved = Resolve-CIPPFolderPermissionUser -User $AclUserName -TenantFilter $TenantFilter
+            $MergedCandidates = @($AclUserName) + @($Resolved.Candidates) + @($AclResolved.Candidates) | Select-Object -Unique
         } else {
-            $FolderIdentity = "$($UserID):\$FolderName"
+            $MergedCandidates = @($Resolved.Candidates)
+            if (-not [string]::IsNullOrWhiteSpace($AclUserName)) {
+                $MergedCandidates = @($AclUserName) + $MergedCandidates | Select-Object -Unique
+            }
         }
 
-        $CalParam = [PSCustomObject]@{
-            Identity               = $FolderIdentity
-            AccessRights           = @($Permissions)
-            User                   = $UserToGetPermissions
-            SendNotificationToUser = $SendNotificationToUser
+        if (-not [string]::IsNullOrWhiteSpace($AclUserName) -and ($LoggingName -eq $TargetUser -or [string]::IsNullOrWhiteSpace($LoggingName))) {
+            $LoggingName = $AclUserName
+        } elseif (-not [string]::IsNullOrWhiteSpace($Resolved.UserEmail) -and [string]::IsNullOrWhiteSpace($LoggingName)) {
+            $LoggingName = $Resolved.UserEmail
+        } elseif ($Resolved.User -and ($LoggingName -eq $TargetUser)) {
+            $LoggingName = $Resolved.User
         }
 
+        $SharingFlags = $null
         if ($CanViewPrivateItems) {
-            $CalParam | Add-Member -NotePropertyName 'SharingPermissionFlags' -NotePropertyValue 'Delegate,CanViewPrivateItems'
+            $SharingFlags = 'Delegate,CanViewPrivateItems'
         }
 
         if ($RemoveAccess) {
             if ($PSCmdlet.ShouldProcess("$UserID\$FolderName", "Remove permissions for $LoggingName")) {
-                $null = Remove-CIPPFolderPermission -TenantFilter $TenantFilter -FolderIdentity $FolderIdentity -User $RemoveAccess -AccessRights ($Permissions -join ', ') -Anchor $UserID
-                $Result = "Successfully removed access for $LoggingName from calendar $($CalParam.Identity)"
+                try {
+                    $Attempt = Invoke-CIPPMailboxFolderPermissionAttempt -Action Remove -TenantFilter $TenantFilter -FolderIdentities $FolderIdentities -Candidates $MergedCandidates -AclUserNames @($AclUserName) -Anchor $UserID
+                    $Result = "Successfully removed access for $LoggingName from calendar $($Attempt.UsedFolder)"
+                    if ($Attempt.UsedUser -and $Attempt.UsedUser -ne $RemoveAccess) {
+                        $Result += " (resolved as $($Attempt.UsedUser))"
+                    }
+                } catch {
+                    $ExoError = (Get-CippException -Exception $_).NormalizedError
+                    Write-Information "EXO calendar permission remove failed, trying Graph/collision fallbacks: $ExoError"
+
+                    $GraphResult = Remove-CIPPGraphCalendarPermission -TenantFilter $TenantFilter -MailboxUserId $UserID -MatchValues $MergedCandidates
+                    if ($GraphResult.Success) {
+                        $Result = $GraphResult.Message
+                    } else {
+                        Write-Information "Graph calendar permission remove: $($GraphResult.Message)"
+                        $Collision = Invoke-CIPPCalendarPermissionCollisionRemove -TenantFilter $TenantFilter -FolderIdentity ($FolderIdentities | Select-Object -First 1) -AclDisplayName ($AclUserName ?? $LoggingName) -ProtectedEmails $MergedCandidates -Anchor $UserID
+                        if ($Collision.Success) {
+                            $Result = $Collision.Message
+                        } else {
+                            throw "Failed after Exchange, Graph, and display-name collision remove attempts. EXO: $ExoError | Graph: $($GraphResult.Message) | Collision: $($Collision.Message). Manual workaround: temporarily rename the live account that shares this display name, remove the calendar permission, then rename it back."
+                        }
+                    }
+                }
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -sev Info
 
-                # Sync cache
-                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName $FolderName -User $RemoveAccess -Action 'Remove'
+                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $RemoveAccess -Action 'Remove'
+                if ($AclUserName) {
+                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $AclUserName -Action 'Remove'
+                }
+                if ($Resolved.UserEmail -and $Resolved.UserEmail -ne $RemoveAccess) {
+                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $Resolved.UserEmail -Action 'Remove'
+                }
             }
         } else {
             if ($PSCmdlet.ShouldProcess("$UserID\$FolderName", "Set permissions for $LoggingName to $Permissions")) {
                 try {
-                    $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxFolderPermission' -cmdParams $CalParam -Anchor $UserID
+                    $null = Invoke-CIPPMailboxFolderPermissionAttempt -Action Set -TenantFilter $TenantFilter -FolderIdentities $FolderIdentities -Candidates $MergedCandidates -Anchor $UserID -AccessRights @($Permissions) -SendNotificationToUser $SendNotificationToUser -SharingPermissionFlags $SharingFlags
                 } catch {
-                    # Set fails when there is no entry to update, so Add is the expected fallback.
-                    # Keep Set's error too, or an unrelated Add failure hides why Set failed.
-                    $SetError = $_
-                    try {
-                        $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Add-MailboxFolderPermission' -cmdParams $CalParam -Anchor $UserID
-                    } catch {
-                        throw "Set-MailboxFolderPermission failed ($($SetError.Exception.Message)) and Add-MailboxFolderPermission also failed: $($_.Exception.Message)"
+                    $SetError = Get-CippException -Exception $_
+                    if ($SetError.NormalizedError -match 'InvalidExternalUserIdException|Couldn.?t find user|not a valid Exchange recipient|isn.?t a valid user|not valid SMTP|no matching information') {
+                        throw
                     }
+                    $null = Invoke-CIPPMailboxFolderPermissionAttempt -Action Add -TenantFilter $TenantFilter -FolderIdentities $FolderIdentities -Candidates $MergedCandidates -Anchor $UserID -AccessRights @($Permissions) -SendNotificationToUser $SendNotificationToUser -SharingPermissionFlags $SharingFlags
                 }
-                $Result = "Successfully set permissions on folder $($CalParam.Identity). The user $LoggingName now has $Permissions permissions on this folder."
+
+                $Result = "Successfully set permissions on folder $FolderIdentity. The user $LoggingName now has $Permissions permissions on this folder."
                 if ($CanViewPrivateItems) {
                     $Result += ' The user can also view private items.'
                 }
@@ -79,15 +119,23 @@ function Set-CIPPCalendarPermission {
                 }
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -sev Info
 
-                # Sync cache
-                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName $FolderName -User $UserToGetPermissions -Permissions $Permissions -Action 'Add'
+                $CacheUser = $Resolved.UserEmail ?? $UserToGetPermissions
+                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $CacheUser -Permissions $Permissions -Action 'Add'
             }
         }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         Write-Warning "Error changing calendar permissions $($_.Exception.Message)"
         Write-Information $_.InvocationInfo.PositionMessage
-        $Result = "Failed to set calendar permissions for $LoggingName on $UserID : $($ErrorMessage.NormalizedError)"
+
+        if ($ErrorMessage.NormalizedError -match 'InvalidExternalUserIdException') {
+            $Result = "Failed to set calendar permissions for $LoggingName on $UserID : The user '$LoggingName' is not a valid Exchange recipient. Ensure they have an Exchange Online mailbox or are a valid mail-enabled object."
+        } elseif ($ErrorMessage.NormalizedError -match 'no existing permission entry|UserNotFoundInPermissionEntryException|Failed after trying identities|matches multiple entries') {
+            $Result = "Failed to set calendar permissions for $LoggingName on $UserID : $($ErrorMessage.NormalizedError)"
+        } else {
+            $Result = "Failed to set calendar permissions for $LoggingName on $UserID : $($ErrorMessage.NormalizedError)"
+        }
+
         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -sev Error -LogData $ErrorMessage
         throw $Result
     }

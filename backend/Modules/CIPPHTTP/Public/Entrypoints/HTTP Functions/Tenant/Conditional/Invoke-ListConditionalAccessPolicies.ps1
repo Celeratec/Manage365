@@ -4,8 +4,6 @@ function Invoke-ListConditionalAccessPolicies {
         Entrypoint
     .ROLE
         Tenant.ConditionalAccess.Read
-    .DESCRIPTION
-        Lists Conditional Access policies for a tenant with resolved display names for users, groups, applications, and locations.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -193,7 +191,7 @@ function Invoke-ListConditionalAccessPolicies {
                     builtInControls                             = ($cap.grantControls.builtInControls) -join ','
                     customAuthenticationFactors                 = ($cap.grantControls.customAuthenticationFactors) -join ','
                     termsOfUse                                  = ($cap.grantControls.termsOfUse) -join ','
-                    rawjson                                     = ($cap | ConvertTo-Json -Depth 100)
+                    rawjson                                     = ($cap | ConvertTo-Json -Depth 20)
                 }
             }
         } else {

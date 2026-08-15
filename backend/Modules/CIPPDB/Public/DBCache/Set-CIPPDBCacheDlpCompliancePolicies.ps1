@@ -30,7 +30,8 @@ function Set-CIPPDBCacheDlpCompliancePolicies {
         $Policies = New-ExoRequest -TenantId $Tenant.customerId -cmdlet 'Get-DlpCompliancePolicy' -Compliance -Select 'Name,DisplayName,Mode,Enabled,Workload,CreatedBy,WhenCreatedUTC,WhenChangedUTC'
 
         if ($Policies) {
-            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'DlpCompliancePolicies' -Data $Policies -AddCount
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'DlpCompliancePolicies' -Data $Policies
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'DlpCompliancePolicies' -Data $Policies -Count
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Cached $($Policies.Count) DLP compliance policies" -sev Debug
         }
 

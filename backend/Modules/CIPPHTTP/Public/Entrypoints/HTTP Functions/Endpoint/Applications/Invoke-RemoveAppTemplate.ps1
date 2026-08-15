@@ -29,7 +29,7 @@ function Invoke-RemoveAppTemplate {
         $StatusCode = [HttpStatusCode]::OK
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
-        $Result = "Failed to remove app template: $($ErrorMessage.NormalizedError)"
+        $Result = "Failed to remove app template: $($ErrorMessage.NormalizedMessage)"
         Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev 'Error' -LogData $ErrorMessage
         $StatusCode = [HttpStatusCode]::InternalServerError
     }

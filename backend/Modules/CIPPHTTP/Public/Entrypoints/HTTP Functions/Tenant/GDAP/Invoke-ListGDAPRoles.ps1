@@ -4,13 +4,11 @@ Function Invoke-ListGDAPRoles {
         Entrypoint,AnyTenant
     .ROLE
         Tenant.Relationship.Read
-    .DESCRIPTION
-        Lists the configured GDAP role-to-security-group mappings used for delegated admin access.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $Table = Get-CIPPTable -TableName 'GDAPRoles'
-    $Groups = Get-CIPPAzDataTableEntity @Table
+    $Groups = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'Roles'"
 
     $MappedGroups = foreach ($Group in $Groups) {
         [PSCustomObject]@{

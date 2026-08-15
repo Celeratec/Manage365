@@ -45,10 +45,11 @@ function Invoke-ExecGDAPInvite {
 
             try {
                 $Step = 'Creating GDAP relationship'
+                $UniqueRoles = @($RoleMappings | Select-Object roleDefinitionId -Unique)
                 $JSONBody = @{
                     'displayName'        = "CIPP_$((New-Guid).GUID)"
                     'accessDetails'      = @{
-                        'unifiedRoles' = @($RoleMappings | Select-Object roleDefinitionId)
+                        'unifiedRoles' = $UniqueRoles
                     }
                     'autoExtendDuration' = $AutoExtendDuration
                     'duration'           = 'P730D'
@@ -106,7 +107,7 @@ function Invoke-ExecGDAPInvite {
                 }
             } catch {
                 $Message = 'Error creating GDAP relationship, failed at step: ' + $Step
-                Write-Information "GDAP ERROR: on line $($_.InvocationInfo.PositionMessage) | $(($_ | ConvertTo-Json -Compress))"
+                Write-Host "GDAP ERROR: $($_.InvocationInfo.PositionMessage)"
 
                 if ($Step -eq 'Creating GDAP relationship' -and $_.Exception.Message -match 'The user (principal) does not have the required permissions to perform the specified action on the resource.') {
                     $Message = 'Error creating GDAP relationship, ensure that all users have MFA enabled and enforced without exception. Please see the Microsoft Partner Security Requirements documentation for more information. https://learn.microsoft.com/en-us/partner-center/security/partner-security-requirements'

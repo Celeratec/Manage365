@@ -3,10 +3,10 @@ function Set-CIPPOffloadFunctionTriggers {
     .SYNOPSIS
         Manages non-HTTP triggers on function apps based on offloading configuration.
     .DESCRIPTION
-        Automatically detects if running on an offloaded function app (name ends with a known
-        offload suffix). If this is the main function app, checks the offloading state from the
-        Config table and disables/enables timer, activity, orchestrator, and queue triggers
-        accordingly. Offloaded function apps are skipped as they should have triggers enabled.
+        Automatically detects if running on an offloaded function app (contains hyphen in name).
+        If this is the main function app (no hyphen), checks the offloading state from Config table
+        and disables/enables timer, activity, orchestrator, and queue triggers accordingly.
+        Offloaded function apps (with hyphen) are skipped as they should have triggers enabled.
     .EXAMPLE
         Set-CIPPOffloadFunctionTriggers
         Automatically manages triggers based on current function app context and offloading state.
@@ -17,9 +17,8 @@ function Set-CIPPOffloadFunctionTriggers {
     # Get current function app name
     $FunctionAppName = $env:WEBSITE_SITE_NAME
 
-    # Check if this is an offloaded function app (name ends with a known offload suffix).
-    # A dashed main-app name (e.g. 'compaction-01-z2ir2') is NOT offloaded.
-    if (Test-CippOffloadFunctionApp -SiteName $FunctionAppName) {
+    # Check if this is an offloaded function app (contains hyphen)
+    if ($FunctionAppName -match '-') {
         return $true
     }
 
@@ -39,7 +38,16 @@ function Set-CIPPOffloadFunctionTriggers {
     }
 
     # Determine resource group
-    $ResourceGroupName = Get-CIPPFunctionAppResourceGroup -SiteName $FunctionAppName
+    if ($env:WEBSITE_RESOURCE_GROUP) {
+        $ResourceGroupName = $env:WEBSITE_RESOURCE_GROUP
+    } else {
+        $Owner = $env:WEBSITE_OWNER_NAME
+        if ($env:WEBSITE_SKU -ne 'FlexConsumption' -and $Owner -match '^(?<SubscriptionId>[^+]+)\+(?<RGName>[^-]+(?:-[^-]+)*?)(?:-[^-]+webspace(?:-Linux)?)?$') {
+            $ResourceGroupName = $Matches.RGName
+        } else {
+            throw 'Could not determine resource group. Please provide ResourceGroupName parameter.'
+        }
+    }
 
     # Define the triggers to disable when offloading is enabled
     $TargetedTriggers = @(
@@ -77,7 +85,7 @@ function Set-CIPPOffloadFunctionTriggers {
                         Offloading   = $OffloadEnabled
                     }
                     Add-CIPPAzDataTableEntity @TriggerChangeTable -Entity $LastChange -Force | Out-Null
-                    Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $ResourceGroupName -AppSetting $AppSettings | Out-Null
+                    Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $ResourceGroupName -AppSetting $AppSettings -ErrorAction Stop | Out-Null
                     Write-Information "Successfully disabled $($AppSettings.Count) non-HTTP trigger(s) on $FunctionAppName"
                 }
             }
@@ -108,7 +116,7 @@ function Set-CIPPOffloadFunctionTriggers {
                         Offloading   = $OffloadEnabled
                     }
                     Add-CIPPAzDataTableEntity @TriggerChangeTable -Entity $LastChange -Force | Out-Null
-                    Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $ResourceGroupName -AppSetting @{} -RemoveKeys $RemoveKeys | Out-Null
+                    Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $ResourceGroupName -AppSetting @{} -RemoveKeys $RemoveKeys -ErrorAction Stop | Out-Null
                     Write-Information "Successfully re-enabled $($RemoveKeys.Count) non-HTTP trigger(s) on $FunctionAppName"
                 }
             }
@@ -116,8 +124,13 @@ function Set-CIPPOffloadFunctionTriggers {
 
         return $true
     } catch {
-        $ErrorMessage = Get-CippException -Exception $_
-        Write-Warning "Failed to update trigger settings: $($ErrorMessage.NormalizedError)"
+        # Gracefully handle errors - offloading management is non-critical
+        try {
+            $ErrorMessage = Get-CippException -Exception $_
+            Write-Warning "Failed to update trigger settings: $($ErrorMessage.NormalizedError)"
+        } catch {
+            Write-Warning "Failed to update trigger settings: $($_.Exception.Message)"
+        }
         return $false
     }
 }

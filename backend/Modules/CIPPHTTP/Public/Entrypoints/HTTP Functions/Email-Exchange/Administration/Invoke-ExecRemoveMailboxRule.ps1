@@ -10,19 +10,21 @@ Function Invoke-ExecRemoveMailboxRule {
 
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
+    Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message 'Accessed this API' -Sev 'Debug'
+
+    # Interact with the query or body of the request
     $TenantFilter = $Request.Query.TenantFilter ?? $Request.Body.TenantFilter
     $RuleName = $Request.Query.ruleName ?? $Request.Body.ruleName
     $RuleId = $Request.Query.ruleId ?? $Request.Body.ruleId
     $Username = $Request.Query.userPrincipalName ?? $Request.Body.userPrincipalName
     $MailboxObjectId = $RuleId.Split('\\')[0]
-    Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message 'Accessed this API' -Sev 'Debug'
 
     try {
         # Remove the rule
         $Results = Remove-CIPPMailboxRule -username $Username -TenantFilter $TenantFilter -APIName $APIName -Headers $Headers -RuleId $RuleId -RuleName $RuleName -MailboxObjectId $MailboxObjectId
         $StatusCode = [HttpStatusCode]::OK
     } catch {
-        $Results = $_.Exception.Message
+        $Results = "Failed to remove mailbox rule: $((Get-CippException -Exception $_).NormalizedError)"
         $StatusCode = [HttpStatusCode]::InternalServerError
     }
 

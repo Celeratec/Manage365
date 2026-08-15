@@ -4,40 +4,24 @@ function Invoke-listStandardTemplates {
         Entrypoint,AnyTenant
     .ROLE
         Tenant.Standards.Read
-    .DESCRIPTION
-        Lists saved standards templates that define sets of standards to apply to tenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     # Interact with query parameters or the body of the request.
     $ID = $Request.Query.id
+    $IntuneTemplatesCache = $null
+    $CATemplatesCache = $null
     $Table = Get-CippTable -tablename 'templates'
     $Filter = "PartitionKey eq 'StandardsTemplateV2'"
     $Templates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter) | ForEach-Object {
-        $RowKey = $_.RowKey
         $JSON = $_.JSON -replace '"Action":', '"action":'
         try {
-            $Data = $JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+            $RowKey = $_.RowKey
+            $Data = $JSON | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
+
         } catch {
-            try {
-                $RepairedJSON = Repair-CippStandardsTemplate -Json $JSON -Reference $RowKey
-            } catch {
-                Write-LogMessage -headers $Request.Headers -API 'Standards' -message "Standards template '$($RowKey)' was omitted from the response: $($_.Exception.Message)" -Sev 'Error'
-                return
-            }
-            $Data = $RepairedJSON | ConvertFrom-Json -Depth 100
-            try {
-                $null = Add-CIPPAzDataTableEntity @Table -Entity @{
-                    JSON         = "$RepairedJSON"
-                    RowKey       = "$RowKey"
-                    PartitionKey = 'StandardsTemplateV2'
-                    GUID         = "$RowKey"
-                } -Force
-                Write-LogMessage -headers $Request.Headers -API 'Standards' -message "Standards template '$($RowKey)' contained corrupt data (case-duplicate keys) and was automatically repaired and re-saved." -Sev 'Warning'
-            } catch {
-                Write-LogMessage -headers $Request.Headers -API 'Standards' -message "Standards template '$($RowKey)' was repaired but could not be re-saved, so it was omitted from the response: $($_.Exception.Message)" -Sev 'Error'
-                return
-            }
+            Write-Host "$($RowKey) standard could not be loaded: $($_.Exception.Message)"
+            return
         }
         if ($Data) {
             $Data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.GUID -Force
@@ -47,15 +31,23 @@ function Invoke-listStandardTemplates {
             if (!$Data.excludedTenants) {
                 $Data | Add-Member -NotePropertyName 'excludedTenants' -NotePropertyValue @() -Force
             } else {
-                if ($Data.excludedTenants -and $Data.excludedTenants -ne 'excludedTenants') {
-                    $Data.excludedTenants = @($Data.excludedTenants)
-                } else {
+                # Handle case where excludedTenants is the literal string 'excludedTenants' (data corruption)
+                if ($Data.excludedTenants -eq 'excludedTenants') {
                     $Data.excludedTenants = @()
+                } else {
+                    # Wrap in array and filter out any invalid entries
+                    $Data.excludedTenants = @($Data.excludedTenants) | Where-Object {
+                        $_ -and $_ -ne 'excludedTenants' -and $_ -ne 'tenantFilter'
+                    }
                 }
             }
 
-            # Re-expand TemplateList-Tags live so stale addedFields snapshots don't show removed templates
-            if ($Data.standards) {
+            # Ensure standards key always exists (prevents frontend crash on missing property)
+            if (!$Data.standards) {
+                $Data | Add-Member -NotePropertyName 'standards' -NotePropertyValue @{} -Force
+                Write-Host "Template '$($Data.templateName)' ($RowKey) was missing 'standards' key - auto-initialized"
+            } else {
+                # Re-expand TemplateList-Tags live so stale addedFields snapshots don't show removed templates
                 foreach ($StandardName in $Data.standards.PSObject.Properties.Name) {
                     $StandardConfig = $Data.standards.$StandardName
                     $Items = if ($StandardConfig -is [System.Collections.IEnumerable] -and $StandardConfig -isnot [string]) { $StandardConfig } else { @($StandardConfig) }
@@ -111,7 +103,7 @@ function Invoke-listStandardTemplates {
     if ($ID) { $Templates = $Templates | Where-Object GUID -EQ $ID }
     return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK
-            Body       = @($Templates)
+            Body       = @{ Results = @($Templates) }
         })
 
 }

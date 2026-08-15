@@ -31,7 +31,7 @@ function Invoke-CIPPStandardDisableSharedMailbox {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -42,6 +42,7 @@ function Invoke-CIPPStandardDisableSharedMailbox {
             $_.accountEnabled -eq $true -and
             $_.onPremisesSyncEnabled -ne $true
         }
+        $AllUsers = $null
         $SharedMailboxList = (New-GraphGetRequest -uri "https://outlook.office365.com/adminapi/beta/$($Tenant)/Mailbox" -Tenantid $Tenant -scope ExchangeOnline | Where-Object { $_.RecipientTypeDetails -eq 'SharedMailbox' -or $_.RecipientTypeDetails -eq 'SchedulingMailbox' -and $_.UserPrincipalName -in $UserList.UserPrincipalName })
     } catch {
         $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message

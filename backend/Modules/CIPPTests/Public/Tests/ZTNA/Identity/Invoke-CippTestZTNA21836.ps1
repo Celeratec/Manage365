@@ -42,24 +42,24 @@ function Invoke-CippTestZTNA21836 {
         }
 
         $Passed = 'Passed'
-        $ResultMarkdown = [System.Text.StringBuilder]::new()
+        $ResultMarkdown = ''
 
         if ($WorkloadIdentitiesWithPrivilegedRoles.Count -gt 0) {
             $Passed = 'Failed'
-            $ResultMarkdown = [System.Text.StringBuilder]::new("**Found workload identities assigned to privileged roles.**`n")
-            $null = $ResultMarkdown.Append("| Service Principal Name | Privileged Role | Assignment Type |`n")
-            $null = $ResultMarkdown.Append("| :--- | :--- | :--- |`n")
+            $ResultMarkdown = "**Found workload identities assigned to privileged roles.**`n"
+            $ResultMarkdown += "| Service Principal Name | Privileged Role | Assignment Type |`n"
+            $ResultMarkdown += "| :--- | :--- | :--- |`n"
 
             $SortedAssignments = $WorkloadIdentitiesWithPrivilegedRoles | Sort-Object -Property PrincipalDisplayName
 
             foreach ($Assignment in $SortedAssignments) {
                 $SPLink = "https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/~/Overview/objectId/$($Assignment.PrincipalId)/appId/$($Assignment.AppId)"
-                $null = $ResultMarkdown.Append("| [$($Assignment.PrincipalDisplayName)]($SPLink) | $($Assignment.RoleDisplayName) | $($Assignment.AssignmentType) |`n")
+                $ResultMarkdown += "| [$($Assignment.PrincipalDisplayName)]($SPLink) | $($Assignment.RoleDisplayName) | $($Assignment.AssignmentType) |`n"
             }
-            $null = $ResultMarkdown.Append("`n")
-            $null = $ResultMarkdown.Append("`n**Recommendation:** Review and remove privileged role assignments from workload identities unless absolutely necessary. Use least-privilege principles and consider alternative approaches like managed identities with specific API permissions instead of directory roles.`n")
+            $ResultMarkdown += "`n"
+            $ResultMarkdown += "`n**Recommendation:** Review and remove privileged role assignments from workload identities unless absolutely necessary. Use least-privilege principles and consider alternative approaches like managed identities with specific API permissions instead of directory roles.`n"
         } else {
-            $ResultMarkdown = [System.Text.StringBuilder]::new("✅ **No workload identities found with privileged role assignments.**`n")
+            $ResultMarkdown = "✅ **No workload identities found with privileged role assignments.**`n"
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status $Passed -ResultMarkdown $ResultMarkdown -Risk 'High' -Name 'Workload Identities are not assigned privileged roles' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Application management'

@@ -1,11 +1,9 @@
-function Invoke-ListCalendarPermissions {
+Function Invoke-ListCalendarPermissions {
     <#
     .FUNCTIONALITY
         Entrypoint
     .ROLE
         Exchange.Mailbox.Read
-    .DESCRIPTION
-        Lists calendar permissions for mailboxes in a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -13,13 +11,12 @@ function Invoke-ListCalendarPermissions {
     $APIName = $Request.Params.CIPPEndpoint
     $UserID = $Request.Query.UserID
     $TenantFilter = $Request.Query.tenantFilter
-    # Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.
-    $UseReportDB = $Request.Query.UseReportDB -eq $true
+    $UseReportDB = $Request.Query.UseReportDB
     $ByUser = $Request.Query.ByUser
 
     try {
         # If UseReportDB is specified and no specific UserID, retrieve from report database
-        if ($UseReportDB -and -not $UserID) {
+        if ($UseReportDB -eq 'true' -and -not $UserID) {
 
             # Call the report function with proper parameters
             $ReportParams = @{
@@ -42,23 +39,44 @@ function Invoke-ListCalendarPermissions {
                 })
         }
 
-        # Original live query logic for specific user.
-        # -Select everywhere: Get-Mailbox alone is 340 properties (~15 KB) and MailboxInfo repeats
-        # on every permission row.
+        # Original live query logic for specific user
         $GetCalParam = @{Identity = $UserID; FolderScope = 'Calendar' }
-        $CalendarFolders = @(New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderStatistics' -anchor $UserID -cmdParams $GetCalParam -Select 'Name,FolderType')
-        # FolderType is an internal enum and stays English whatever the mailbox language, so it
-        # finds the calendar root where the folder name cannot.
-        $CalendarFolder = $CalendarFolders | Where-Object { $_.FolderType -eq 'Calendar' } | Select-Object -First 1
-        if (-not $CalendarFolder) { $CalendarFolder = $CalendarFolders | Select-Object -First 1 }
+        $CalendarFolders = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderStatistics' -anchor $UserID -cmdParams $GetCalParam | Select-Object -ExcludeProperty *data.type*
+        $CalendarFolder = @($CalendarFolders) | Where-Object { $_.FolderType -eq 'Calendar' } | Select-Object -First 1
+        if (-not $CalendarFolder) {
+            $CalendarFolder = @($CalendarFolders) | Select-Object -First 1
+        }
         $CalParam = @{Identity = "$($UserID):\$($CalendarFolder.name)" }
-        $MailboxSelect = 'DisplayName,UserPrincipalName,PrimarySmtpAddress,Alias,Identity,Guid,ExchangeGuid,ExternalDirectoryObjectId,RecipientType,RecipientTypeDetails'
-        $Mailbox = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-Mailbox' -cmdParams @{Identity = $UserID } -Select $MailboxSelect
-        $Permissions = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderPermission' -anchor $UserID -cmdParams $CalParam -UseSystemMailbox $true -Select 'Identity,User,AccessRights,FolderName'
-        # UserId is what the remove action sends back; without it Exchange only has a display name,
-        # which it cannot resolve when two recipients share one.
-        $Permissions = Resolve-CIPPFolderPermissionUser -TenantFilter $TenantFilter -FolderIdentity $CalParam.Identity -Permissions $Permissions
-        $GraphRequest = $Permissions | Select-Object Identity, User, UserId, AccessRights, FolderName, @{ Name = 'MailboxInfo'; Expression = { $Mailbox } }
+        $Mailbox = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-Mailbox' -cmdParams @{Identity = $UserID }
+        $RawPermissions = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderPermission' -anchor $UserID -cmdParams $CalParam -UseSystemMailbox $true
+
+        $ResolveCache = @{}
+        $GraphRequest = foreach ($Perm in @($RawPermissions)) {
+            $UserKey = [string]$Perm.User
+            if (-not $ResolveCache.ContainsKey($UserKey)) {
+                $ResolveCache[$UserKey] = Resolve-CIPPFolderPermissionUser -User $Perm.User -TenantFilter $TenantFilter
+            }
+            $Resolved = $ResolveCache[$UserKey]
+
+            [PSCustomObject]@{
+                Identity          = $Perm.Identity
+                User              = $Resolved.User ?? $(if ($Perm.User -is [string]) { $Perm.User } else { $Perm.User.DisplayName ?? [string]$Perm.User })
+                UserEmail         = $Resolved.UserEmail
+                UserId            = $Resolved.UserId
+                UserAmbiguous     = [bool]$Resolved.UserAmbiguous
+                CandidateEmails   = $Resolved.CandidateEmails
+                UserType          = $(
+                    if ($Perm.User -is [psobject] -and ($Perm.User.PSObject.Properties.Name -contains 'UserType')) {
+                        $Ut = $Perm.User.UserType
+                        if ($Ut -is [psobject] -and ($Ut.PSObject.Properties.Name -contains 'Value')) { $Ut.Value } else { [string]$Ut }
+                    } else { $null }
+                )
+                AccessRights      = $Perm.AccessRights
+                FolderName        = $Perm.FolderName
+                FolderIdentity    = $CalParam.Identity
+                MailboxInfo       = $Mailbox
+            }
+        }
 
         Write-LogMessage -API $APIName -tenant $TenantFilter -message "Calendar permissions listed for $($TenantFilter)" -sev Debug
         $StatusCode = [HttpStatusCode]::OK

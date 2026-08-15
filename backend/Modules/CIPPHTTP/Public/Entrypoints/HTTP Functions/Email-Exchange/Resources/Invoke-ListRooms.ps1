@@ -4,8 +4,6 @@ function Invoke-ListRooms {
         Entrypoint
     .ROLE
         Exchange.Room.Read
-    .DESCRIPTION
-        Lists room mailboxes (meeting rooms) in Exchange Online for a tenant, with optional detailed view by room ID.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -153,7 +151,7 @@ function Invoke-ListRooms {
                         mailNickname                  = $Room.Alias
                         accountDisabled               = $Room.AccountDisabled
                         hiddenFromAddressListsEnabled = $Room.HiddenFromAddressListsEnabled
-                        isDirSynced                   = $Room.IsDirSynced
+                        isDirSynced                   = $RoomMailbox.IsDirSynced
 
                         # Room Booking Settings
                         bookingType                   = $PlaceDetails.BookingType

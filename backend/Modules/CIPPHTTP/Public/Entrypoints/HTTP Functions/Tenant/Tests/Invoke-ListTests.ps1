@@ -55,19 +55,15 @@ function Invoke-ListTests {
             return @([string]$Value)
         }
 
-        $TestsRootPath = Join-Path $env:CIPPRootPath 'Modules\CIPPTests\Public\Tests'
-
         if ($ReportId) {
-            $ReportJsonFiles = [System.IO.Directory]::EnumerateFiles($TestsRootPath, 'report.json', [System.IO.SearchOption]::AllDirectories)
+            $ReportJsonFiles = Get-ChildItem 'Modules\CIPPCore\Public\Tests\*\report.json' -ErrorAction SilentlyContinue
             $ReportFound = $false
 
-            $MatchingReport = $ReportJsonFiles | Where-Object {
-                [System.IO.Path]::GetFileName([System.IO.Path]::GetDirectoryName($_)).ToLower() -eq $ReportId.ToLower()
-            } | Select-Object -First 1
+            $MatchingReport = $ReportJsonFiles | Where-Object { $_.Directory.Name.ToLower() -eq $ReportId.ToLower() } | Select-Object -First 1
 
             if ($MatchingReport) {
                 try {
-                    $ReportContent = [System.IO.File]::ReadAllText($MatchingReport) | ConvertFrom-Json
+                    $ReportContent = Get-Content $MatchingReport.FullName -Raw | ConvertFrom-Json
                     if ($ReportContent.IdentityTests) {
                         $IdentityTests = & $NormalizeTestIds $ReportContent.IdentityTests
                         $IdentityTotal = @($IdentityTests).Count
@@ -164,29 +160,22 @@ function Invoke-ListTests {
             }
         }
 
-        # Add descriptions from markdown files to each test result
-        $MdFileLookup = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-        foreach ($MdPath in [System.IO.Directory]::EnumerateFiles($TestsRootPath, '*.md', [System.IO.SearchOption]::AllDirectories)) {
-            $MdKey = [System.IO.Path]::GetFileNameWithoutExtension($MdPath)
-            if (-not $MdFileLookup.ContainsKey($MdKey)) {
-                $MdFileLookup[$MdKey] = $MdPath
-            }
-        }
-
-        foreach ($TestResult in $TestResultsData.TestResults) {
-            $MdFile = $null
-            [void]$MdFileLookup.TryGetValue(('Invoke-CippTest{0}' -f $TestResult.RowKey), [ref]$MdFile)
-
-            if ($MdFile) {
+        # Build a cached lookup of markdown files ONCE (not per test)
+        if (-not $global:CIPPTestDescriptionCache) {
+            $global:CIPPTestDescriptionCache = @{}
+            $AllMdFiles = Get-ChildItem -Path 'Modules\CIPPCore\Public\Tests' -Filter '*.md' -Recurse -ErrorAction SilentlyContinue
+            foreach ($MdFile in $AllMdFiles) {
+                # Extract test ID from filename (e.g., ZTNA21772.md -> ZTNA21772)
+                $TestId = $MdFile.BaseName
                 try {
-                    $MdContent = [System.IO.File]::ReadAllText($MdFile)
+                    $MdContent = Get-Content $MdFile.FullName -Raw -ErrorAction SilentlyContinue
                     if ($MdContent) {
                         $Description = ($MdContent -split '<!--- Results --->')[0].Trim()
                         $Description = ($Description -split '%TestResult%')[0].Trim()
-                        $TestResult | Add-Member -NotePropertyName 'Description' -NotePropertyValue $Description -Force
+                        $global:CIPPTestDescriptionCache[$TestId] = $Description
                     }
                 } catch {
-                    #Test
+                    # Skip files that can't be read
                 }
             }
 
@@ -198,6 +187,13 @@ function Invoke-ListTests {
                     $TestResult | Add-Member -NotePropertyName 'ReturnType' -NotePropertyValue ($CustomMetadata.ReturnType) -Force
                     $TestResult | Add-Member -NotePropertyName 'MarkdownTemplate' -NotePropertyValue ($CustomMetadata.MarkdownTemplate) -Force
                 }
+            }
+        }
+
+        # Add descriptions from cache (fast O(1) lookup)
+        foreach ($TestResult in $TestResultsData.TestResults) {
+            if ($global:CIPPTestDescriptionCache.ContainsKey($TestResult.RowKey)) {
+                $TestResult | Add-Member -NotePropertyName 'Description' -NotePropertyValue $global:CIPPTestDescriptionCache[$TestResult.RowKey] -Force
             }
         }
 

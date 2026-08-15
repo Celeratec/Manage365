@@ -23,7 +23,7 @@ Function Invoke-ExecEmailForward {
     }
     $ForwardingSMTPAddress = $Request.Body.ForwardExternal
     $ForwardOption = $Request.Body.forwardOption
-    [bool]$KeepCopy = if ($Request.Body.KeepCopy -eq $true) { $true } else { $false }
+    [bool]$KeepCopy = if ($Request.Body.KeepCopy -eq 'true') { $true } else { $false }
 
     # Process the forwarding option based on the type selected
     switch ($ForwardOption) {
@@ -33,7 +33,7 @@ Function Invoke-ExecEmailForward {
                 $Results = Set-CIPPForwarding -UserID $Username -TenantFilter $TenantFilter -APIName $APIName -Headers $Headers -Forward $ForwardingAddress -KeepCopy $KeepCopy
                 $StatusCode = [HttpStatusCode]::OK
             } catch {
-                $Results = $_.Exception.Message
+                $Results = "Failed to set internal forwarding: $((Get-CippException -Exception $_).NormalizedError)"
                 $StatusCode = [HttpStatusCode]::InternalServerError
             }
         }
@@ -43,7 +43,7 @@ Function Invoke-ExecEmailForward {
                 $Results = Set-CIPPForwarding -UserID $Username -TenantFilter $TenantFilter -APIName $APIName -Headers $Headers -ForwardingSMTPAddress $ForwardingSMTPAddress -KeepCopy $KeepCopy
                 $StatusCode = [HttpStatusCode]::OK
             } catch {
-                $Results = $_.Exception.Message
+                $Results = "Failed to set external forwarding: $((Get-CippException -Exception $_).NormalizedError)"
                 $StatusCode = [HttpStatusCode]::InternalServerError
             }
         }
@@ -53,7 +53,7 @@ Function Invoke-ExecEmailForward {
                 $Results = Set-CIPPForwarding -UserID $Username -Username $Username -TenantFilter $TenantFilter -Headers $Headers -APIName $APIName -Disable $true
                 $StatusCode = [HttpStatusCode]::OK
             } catch {
-                $Results = $_.Exception.Message
+                $Results = "Failed to disable forwarding: $((Get-CippException -Exception $_).NormalizedError)"
                 $StatusCode = [HttpStatusCode]::InternalServerError
             }
         }

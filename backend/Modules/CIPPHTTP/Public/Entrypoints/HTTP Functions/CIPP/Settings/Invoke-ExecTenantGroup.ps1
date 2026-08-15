@@ -22,7 +22,6 @@ function Invoke-ExecTenantGroup {
     $groupType = $Request.Body.groupType ?? 'static'
     $dynamicRules = $Request.Body.dynamicRules
     $ruleLogic = $Request.Body.ruleLogic ?? 'and'
-    $excludePartnerTenant = [bool]($Request.Body.excludePartnerTenant)
 
     # Validate dynamic rules to prevent code injection
     if ($groupType -eq 'dynamic' -and $dynamicRules) {
@@ -66,12 +65,10 @@ function Invoke-ExecTenantGroup {
                 }
                 $GroupEntity | Add-Member -NotePropertyName 'GroupType' -NotePropertyValue $groupType -Force
                 if ($groupType -eq 'dynamic' -and $dynamicRules) {
-                    $GroupEntity | Add-Member -NotePropertyName 'DynamicRules' -NotePropertyValue "$($dynamicRules | ConvertTo-Json -Depth 100 -Compress)" -Force
+                    $GroupEntity | Add-Member -NotePropertyName 'DynamicRules' -NotePropertyValue "$($dynamicRules | ConvertTo-Json -Depth 20 -Compress)" -Force
                     $GroupEntity | Add-Member -NotePropertyName 'RuleLogic' -NotePropertyValue $ruleLogic -Force
-                    $GroupEntity | Add-Member -NotePropertyName 'ExcludePartnerTenant' -NotePropertyValue $excludePartnerTenant -Force
                 } else {
                     $GroupEntity | Add-Member -NotePropertyName 'RuleLogic' -NotePropertyValue $null -Force
-                    $GroupEntity | Add-Member -NotePropertyName 'ExcludePartnerTenant' -NotePropertyValue $false -Force
                 }
                 Add-CIPPAzDataTableEntity @Table -Entity $GroupEntity -Force
             } else {
@@ -83,9 +80,8 @@ function Invoke-ExecTenantGroup {
                     GroupType    = $groupType
                 }
                 if ($groupType -eq 'dynamic' -and $dynamicRules) {
-                    $GroupEntity.DynamicRules = "$($dynamicRules | ConvertTo-Json -Depth 100 -Compress)"
+                    $GroupEntity.DynamicRules = "$($dynamicRules | ConvertTo-Json -Depth 20 -Compress)"
                     $GroupEntity.RuleLogic = $ruleLogic
-                    $GroupEntity.ExcludePartnerTenant = $excludePartnerTenant
                 }
                 Add-CIPPAzDataTableEntity @Table -Entity $GroupEntity -Force
             }
@@ -116,7 +112,7 @@ function Invoke-ExecTenantGroup {
                     $Adds.Add('Added member {0}' -f $member.label)
                 }
 
-                if ($CurrentMembers -and $null -ne $members) {
+                if ($CurrentMembers -and $members) {
                     foreach ($CurrentMember in $CurrentMembers) {
                         if ($members.value -notcontains $CurrentMember.customerId) {
                             Remove-CIPPAzDataTableEntity @MembersTable -Entity $CurrentMember -Force
@@ -159,12 +155,6 @@ function Invoke-ExecTenantGroup {
         default {
             $Body = @{ Results = 'Invalid action' }
         }
-    }
-
-    # Roles can be scoped to a tenant group, so changing membership changes what those roles
-    # resolve to and the cached scope rules have to be rebuilt
-    if ($Action -in @('AddEdit', 'Delete')) {
-        Clear-CippAccessScopeCache
     }
 
     return ([HttpResponseContext]@{

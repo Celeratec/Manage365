@@ -33,18 +33,18 @@ function Invoke-CippTestZTNA24548 {
         $Passed = $AssignedPolicies.Count -gt 0
 
         if ($Passed) {
-            $ResultMarkdown = [System.Text.StringBuilder]::new("✅ At least one iOS app protection policy exists and is assigned.`n`n")
+            $ResultMarkdown = "✅ At least one iOS app protection policy exists and is assigned.`n`n"
         } else {
-            $ResultMarkdown = [System.Text.StringBuilder]::new("❌ iOS app protection policies exist but none are assigned.`n`n")
+            $ResultMarkdown = "❌ iOS app protection policies exist but none are assigned.`n`n"
         }
 
-        $null = $ResultMarkdown.Append("## iOS App Protection Policies`n`n")
-        $null = $ResultMarkdown.Append("| Policy Name | Assigned |`n")
-        $null = $ResultMarkdown.Append("| :---------- | :------- |`n")
+        $ResultMarkdown += "## iOS App Protection Policies`n`n"
+        $ResultMarkdown += "| Policy Name | Assigned |`n"
+        $ResultMarkdown += "| :---------- | :------- |`n"
 
         foreach ($policy in $IosPolicies) {
             $assigned = if ($policy.assignments -and $policy.assignments.Count -gt 0) { '✅ Yes' } else { '❌ No' }
-            $null = $ResultMarkdown.Append("| $($policy.displayName) | $assigned |`n")
+            $ResultMarkdown += "| $($policy.displayName) | $assigned |`n"
         }
 
         $Status = if ($Passed) { 'Passed' } else { 'Failed' }

@@ -28,7 +28,7 @@ function Invoke-CIPPStandardAutoAddProxy {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
     param(
         $Tenant,
@@ -66,13 +66,13 @@ function Invoke-CIPPStandardAutoAddProxy {
     $MissingProxies = 0
     foreach ($Domain in $Domains) {
         $ProcessMailboxes = @($AllMailboxes | Where-Object {
-                $AllAddresses = @($_.primarySmtpAddress)
-                if (-not [string]::IsNullOrWhiteSpace($_.AdditionalEmailAddresses)) {
-                    $AllAddresses += @($_.AdditionalEmailAddresses -split ',\s*')
-                }
-                $HasDomain = $AllAddresses | Where-Object { $_ -like "*@$Domain" }
-                -not $HasDomain
-            })
+            $AllAddresses = @($_.primarySmtpAddress)
+            if (-not [string]::IsNullOrWhiteSpace($_.AdditionalEmailAddresses)) {
+                $AllAddresses += @($_.AdditionalEmailAddresses -split ',\s*')
+            }
+            $HasDomain = $AllAddresses | Where-Object { $_ -like "*@$Domain" }
+            -not $HasDomain
+        })
         $MissingProxies += $ProcessMailboxes.Count
     }
 
@@ -104,13 +104,13 @@ function Invoke-CIPPStandardAutoAddProxy {
         } else {
             foreach ($Domain in $Domains) {
                 $ProcessMailboxes = @($AllMailboxes | Where-Object {
-                        $AllAddresses = @($_.primarySmtpAddress)
-                        if (-not [string]::IsNullOrWhiteSpace($_.AdditionalEmailAddresses)) {
-                            $AllAddresses += @($_.AdditionalEmailAddresses -split ',\s*')
-                        }
-                        $HasDomain = $AllAddresses | Where-Object { $_ -like "*@$Domain" }
-                        -not $HasDomain
-                    })
+                    $AllAddresses = @($_.primarySmtpAddress)
+                    if (-not [string]::IsNullOrWhiteSpace($_.AdditionalEmailAddresses)) {
+                        $AllAddresses += @($_.AdditionalEmailAddresses -split ',\s*')
+                    }
+                    $HasDomain = $AllAddresses | Where-Object { $_ -like "*@$Domain" }
+                    -not $HasDomain
+                })
 
                 $bulkRequest = foreach ($Mailbox in $ProcessMailboxes) {
                     if ([string]::IsNullOrWhiteSpace($Mailbox.UPN)) { continue }

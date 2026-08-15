@@ -41,14 +41,14 @@ function Invoke-CIPPStandardColleagueImpersonationAlert {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
     $TestResult = Test-CIPPStandardLicense -StandardName 'ColleagueImpersonationAlert' -TenantFilter $Tenant -Preset Exchange
-
+    
     if ($TestResult -eq $false) {
-        return $true
+        return $true 
     } #we're done.
 
     $ruleHtml = $Settings.disclaimerHtml
@@ -135,8 +135,8 @@ function Invoke-CIPPStandardColleagueImpersonationAlert {
             $range    = $entry.Key
             $pattern  = $entry.Value
             $ruleName = "($range) Colleague Impersonation Alert"
-            $names    = @($displayNames | Where-Object { $_ -match $pattern } | ForEach-Object { [regex]::Escape($_) })
-            if ($names.Count -eq 0) { $names = @([regex]::Escape("($range)")) }
+            $names    = @($displayNames | Where-Object { $_ -match $pattern })
+            if ($names.Count -eq 0) { $names = @("($range)") }
             $existing = $Rules | Where-Object { $_.Name -eq $ruleName } | Select-Object -First 1
 
             $namesMatch    = $false

@@ -4,8 +4,6 @@ function Invoke-ListNewUserDefaults {
         Entrypoint,AnyTenant
     .ROLE
         Identity.User.Read
-    .DESCRIPTION
-        Lists default templates for new user creation, including default domain, usage location, and license assignments.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -16,7 +14,7 @@ function Invoke-ListNewUserDefaults {
     $TenantFilter = $Request.Query.TenantFilter
 
     # Get the includeAllTenants flag from query or body parameters (defaults to true)
-    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq $false -or $Request.Body.includeAllTenants -eq $false) {
+    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq 'false' -or $Request.Body.includeAllTenants -eq 'false') {
         $false
     } else {
         $true
@@ -30,7 +28,7 @@ function Invoke-ListNewUserDefaults {
     $Templates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter) | ForEach-Object {
         try {
             $row = $_
-            $data = $row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+            $data = $row.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
             $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $row.GUID -Force
             $data | Add-Member -NotePropertyName 'RowKey' -NotePropertyValue $row.RowKey -Force
             $data
@@ -64,7 +62,7 @@ function Invoke-ListNewUserDefaults {
         $Templates = $Templates | Where-Object -Property GUID -eq $Request.query.ID
     }
 
-    $Templates = ConvertTo-Json -InputObject @($Templates) -Depth 100
+    $Templates = ConvertTo-Json -InputObject @($Templates) -Depth 20
 
     return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK

@@ -4,13 +4,11 @@ Function Invoke-ListApplicationQueue {
         Entrypoint
     .ROLE
         Endpoint.Application.Read
-    .DESCRIPTION
-        Lists queued Intune application deployments that are pending assignment to tenants.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $Table = Get-CippTable -tablename 'apps'
-    $QueuedApps = (Get-CIPPAzDataTableEntity @Table)
+    $QueuedApps = (Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'apps'")
 
     $CurrentApps = foreach ($QueueFile in $QueuedApps) {
         Write-Host $QueueFile

@@ -38,7 +38,7 @@ function Invoke-CIPPStandardDisableBasicAuthSMTP {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -50,7 +50,7 @@ function Invoke-CIPPStandardDisableBasicAuthSMTP {
     ##$Rerun -Type Standard -Tenant $Tenant -Settings $Settings 'DisableBasicAuthSMTP'
 
     try {
-        $CurrentInfo = New-CIPPDbRequest -TenantFilter $Tenant -Type 'ExoTransportConfig' | Select-Object -First 1
+        $CurrentInfo = New-ExoRequest -tenantid $Tenant -cmdlet 'Get-TransportConfig'
         $SMTPusers = New-CippDbRequest -TenantFilter $Tenant -Type 'CASMailbox' | Where-Object { ($_.SmtpClientAuthenticationDisabled -eq $false) }
     } catch {
         $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message

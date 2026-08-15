@@ -41,7 +41,7 @@ function Invoke-CIPPStandardAutopilotStatusPage {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
     param($Tenant, $Settings)
     $TestResult = Test-CIPPStandardLicense -StandardName 'AutopilotStatusPage' -TenantFilter $Tenant -Preset Intune
@@ -52,7 +52,7 @@ function Invoke-CIPPStandardAutopilotStatusPage {
         return $true
     } #we're done.
     try {
-        $CurrentConfig = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/deviceManagement/deviceEnrollmentConfigurations?`$filter=deviceEnrollmentConfigurationType eq 'windows10EnrollmentCompletionPageConfiguration' and priority eq 0" -tenantid $Tenant |
+        $CurrentConfig = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/deviceManagement/deviceEnrollmentConfigurations?`$expand=assignments&orderBy=priority&`$filter=deviceEnrollmentConfigurationType eq 'windows10EnrollmentCompletionPageConfiguration' and priority eq 0" -tenantid $Tenant |
             Select-Object -Property id, displayName, priority, showInstallationProgress, blockDeviceSetupRetryByUser, allowDeviceResetOnInstallFailure, allowLogCollectionOnInstallFailure, customErrorMessage, installProgressTimeoutInMinutes, allowDeviceUseOnInstallFailure, trackInstallProgressForAutopilotOnly, installQualityUpdates
 
         # Compatibility for standards made in v8.3.0 or before, which did not have the InstallWindowsUpdates setting

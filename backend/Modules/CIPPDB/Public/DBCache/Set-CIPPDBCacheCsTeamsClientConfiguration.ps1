@@ -4,7 +4,7 @@ function Set-CIPPDBCacheCsTeamsClientConfiguration {
         Caches the Teams Client Configuration (Global)
 
     .DESCRIPTION
-        Calls Get-CsTeamsClientConfiguration via New-TeamsRequestV2 and writes
+        Calls Get-CsTeamsClientConfiguration via New-TeamsRequest and writes
         the result into the CippReportingDB under Type 'CsTeamsClientConfiguration'.
         Used by CIS tests 8.1.1 (external file sharing storage providers) and
         8.1.2 (channel email).
@@ -29,7 +29,8 @@ function Set-CIPPDBCacheCsTeamsClientConfiguration {
 
         if ($ClientConfig) {
             $Data = @($ClientConfig)
-            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsClientConfiguration' -Data $Data -AddCount
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsClientConfiguration' -Data $Data
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsClientConfiguration' -Data $Data -Count
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached Teams Client Configuration' -sev Debug
         }
         $ClientConfig = $null

@@ -64,7 +64,12 @@ function Invoke-ListMessageTrace {
                 MessageTraceId   = $Request.Body.ID
                 RecipientAddress = $Request.Body.recipient
             }
-            New-ExoRequest -TenantId $TenantFilter -Cmdlet 'Get-MessageTraceDetailV2' -CmdParams $CmdParams | Select-Object @{ Name = 'Date'; Expression = { $_.Date.ToString('u') } }, Event, Action, Detail
+            $DetailEvents = @(New-ExoRequest -TenantId $TenantFilter -Cmdlet 'Get-MessageTraceDetailV2' -CmdParams $CmdParams | Select-Object @{ Name = 'Date'; Expression = { $_.Date.ToString('u') } }, Event, Action, Detail)
+            $AuthSummary = ConvertTo-AuthenticationSummary -DetailEntries ($DetailEvents | ForEach-Object { $_.Detail } | Where-Object { $_ })
+            [PSCustomObject]@{
+                Events      = $DetailEvents
+                AuthSummary = $AuthSummary
+            }
         } else {
             Write-Information ($SearchParams | ConvertTo-Json)
 
@@ -74,7 +79,7 @@ function Invoke-ListMessageTrace {
         }
     } catch {
         Write-LogMessage -headers $Headers -API $APIName -tenant $($TenantFilter) -message "Failed executing Message Trace. Error: $($_.Exception.Message)" -Sev 'Error'
-        $Trace = @{Status = "Failed to retrieve message trace $($_.Exception.Message)" }
+        $Trace = @{Status = "Failed to retrieve message trace: $((Get-CippException -Exception $_).NormalizedError)" }
         $StatusCode = [HttpStatusCode]::InternalServerError
     }
 

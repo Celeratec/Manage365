@@ -4,8 +4,6 @@ function Invoke-ListJITAdminTemplates {
         Entrypoint,AnyTenant
     .ROLE
         Identity.Role.Read
-    .DESCRIPTION
-        Lists Just-in-Time admin role templates that define temporary admin role assignments.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -17,7 +15,7 @@ function Invoke-ListJITAdminTemplates {
     $TenantFilter = $Request.Query.TenantFilter
 
     # Get the includeAllTenants flag from query or body parameters (defaults to true)
-    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq $false -or $Request.Body.includeAllTenants -eq $false) {
+    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq 'false' -or $Request.Body.includeAllTenants -eq 'false') {
         $false
     } else {
         $true
@@ -31,7 +29,7 @@ function Invoke-ListJITAdminTemplates {
     $Templates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter) | ForEach-Object {
         try {
             $row = $_
-            $data = $row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+            $data = $row.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
             $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $row.GUID -Force
             $data | Add-Member -NotePropertyName 'RowKey' -NotePropertyValue $row.RowKey -Force
             $data
@@ -65,7 +63,7 @@ function Invoke-ListJITAdminTemplates {
         $Templates = $Templates | Where-Object -Property GUID -EQ $Request.query.GUID
     }
 
-    $Templates = ConvertTo-Json -InputObject @($Templates) -Depth 100
+    $Templates = ConvertTo-Json -InputObject @($Templates) -Depth 20
 
     return ([HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK

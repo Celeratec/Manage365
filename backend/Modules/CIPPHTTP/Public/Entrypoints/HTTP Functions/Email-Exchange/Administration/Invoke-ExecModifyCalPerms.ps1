@@ -25,6 +25,7 @@ function Invoke-ExecModifyCalPerms {
                 StatusCode = [HttpStatusCode]::BadRequest
                 Body       = @{'Results' = @('Username is required') }
             })
+        return
     }
 
     try {
@@ -42,6 +43,7 @@ function Invoke-ExecModifyCalPerms {
                 StatusCode = [HttpStatusCode]::NotFound
                 Body       = @{'Results' = @("Failed to get user ID: $($ErrorMessage.NormalizedError)") }
             })
+        return
     }
 
     $Results = [System.Collections.Generic.List[string]]::new()
@@ -85,11 +87,11 @@ function Invoke-ExecModifyCalPerms {
                     UserID                 = $UserId
                     folderName             = $FolderName
                     UserToGetPermissions   = $TargetUser
-                    # TargetUser may be a recipient id, so log the display name the caller saw
-                    LoggingName            = $Permission.DisplayName ?? $TargetUser
+                    LoggingName            = $TargetUser
                     Permissions            = $PermissionLevel
                     CanViewPrivateItems    = $CanViewPrivateItems
                     SendNotificationToUser = $SendNotificationToUser
+                    AclUserName            = ($Permission.UserAclName ?? $Permission.AclUserName ?? $null)
                 }
 
                 # Write-Host "Request params: $($Params | ConvertTo-Json)"
@@ -98,7 +100,7 @@ function Invoke-ExecModifyCalPerms {
                 $Results.Add($Result)
             } catch {
                 $HasErrors = $true
-                $Results.Add("$($_.Exception.Message)")
+                $Results.Add("$((Get-CippException -Exception $_).NormalizedError)")
             }
         }
     }

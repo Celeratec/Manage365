@@ -13,12 +13,12 @@ function Invoke-ListSharedMailboxAccountEnabled {
 
     $APIName = $Request.Params.CIPPEndpoint
     $TenantFilter = $Request.Query.tenantFilter
-    # Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.
-    $UseReportDB = $Request.Query.UseReportDB -eq $true
+    $UseReportDB = $Request.Query.UseReportDB
+
     # Get Shared Mailbox Stuff
     try {
         # If UseReportDB is specified, retrieve from the report database (cached Mailboxes + Users join)
-        if ($UseReportDB) {
+        if ($UseReportDB -eq 'true') {
             try {
                 $GraphRequest = Get-CIPPSharedMailboxAccountEnabledReport -TenantFilter $TenantFilter -ErrorAction Stop
                 $StatusCode = [HttpStatusCode]::OK

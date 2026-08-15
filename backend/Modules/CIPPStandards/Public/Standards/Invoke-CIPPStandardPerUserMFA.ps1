@@ -38,7 +38,7 @@ function Invoke-CIPPStandardPerUserMFA {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
     #>
 
     param($Tenant, $Settings)
@@ -50,6 +50,7 @@ function Invoke-CIPPStandardPerUserMFA {
             $_.accountEnabled -eq $true -and
             $_.displayName -ne 'On-Premises Directory Synchronization Service Account'
         }
+        $AllUsers = $null
     } catch {
         $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
         Write-LogMessage -API 'Standards' -Tenant $Tenant -Message "Could not get the PerUserMFA state for $Tenant. Error: $ErrorMessage" -Sev Error

@@ -3,7 +3,7 @@ using namespace Microsoft.Azure.Functions.PowerShellWorker
 function New-CippCoreRequest {
     <#
     .SYNOPSIS
-        Main entrypoint for all HTTP triggered functions in CIPP, this must live in the CIPPCore module
+        Main entrypoint for all HTTP triggered functions in CIPP
     .DESCRIPTION
         This function is the main entry point for all HTTP triggered functions in CIPP. It routes requests to the appropriate function based on the CIPPEndpoint parameter in the request.
     .FUNCTIONALITY
@@ -16,10 +16,24 @@ function New-CippCoreRequest {
     $HttpTimings = @{}
     $HttpTotalStopwatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-    # Initialize and reset the per-invocation context slots. This has to happen before anything
-    # reads them: workers are reused between requests, so whatever the previous invocation left
-    # behind is still in scope until it is explicitly cleared.
-    Initialize-CippRequestContext
+    # Initialize AsyncLocal storage for thread-safe per-invocation context
+    if (-not $script:CippInvocationIdStorage) {
+        $script:CippInvocationIdStorage = [System.Threading.AsyncLocal[string]]::new()
+    }
+    if (-not $script:CippAllowedTenantsStorage) {
+        $script:CippAllowedTenantsStorage = [System.Threading.AsyncLocal[object]]::new()
+    }
+    if (-not $script:CippAllowedGroupsStorage) {
+        $script:CippAllowedGroupsStorage = [System.Threading.AsyncLocal[object]]::new()
+    }
+    if (-not $script:CippUserRolesStorage) {
+        $script:CippUserRolesStorage = [System.Threading.AsyncLocal[hashtable]]::new()
+    }
+
+    # Initialize user roles cache for this request
+    if (-not $script:CippUserRolesStorage.Value) {
+        $script:CippUserRolesStorage.Value = @{}
+    }
 
     # Set InvocationId in AsyncLocal storage for console logging correlation
     if ($global:TelemetryClient -and $TriggerMetadata.InvocationId) {
@@ -29,39 +43,8 @@ function New-CippCoreRequest {
     $FunctionName = 'Invoke-{0}' -f $Request.Params.CIPPEndpoint
     Write-Information "API Endpoint: $($Request.Params.CIPPEndpoint) | Frontend Version: $($Request.Headers.'X-CIPP-Version' ?? 'Not specified')"
 
-    # For now, while we're in read-only we force the role of the MCP API cred.
-    # When we remove the feature flag, in NG, we move this to use the users role/ident.
-    if ($Request.Params.CIPPEndpoint -eq 'ExecMcp' -and
-        $Request.Headers.'x-ms-client-principal' -and
-        $Request.Headers.'x-ms-client-principal-name' -notmatch '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
-        try {
-            $McpPrincipal = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Request.Headers.'x-ms-client-principal')) | ConvertFrom-Json
-            $McpAppId = ($McpPrincipal.claims | Where-Object { $_.typ -in @('azp', 'appid') } | Select-Object -First 1).val
-            if ($McpAppId -and (Get-CippApiClient -AppId $McpAppId)) {
-                $Request.Headers | Add-Member -NotePropertyName 'x-ms-client-principal-name' -NotePropertyValue $McpAppId -Force
-                $Request.Headers | Add-Member -NotePropertyName 'x-ms-client-principal-idp' -NotePropertyValue 'aad' -Force
-                Write-Information "MCP request mapped to API client $McpAppId (running at the app's CIPP role)"
-            }
-        } catch {
-            Write-Information "MCP principal app resolution failed: $($_.Exception.Message)"
-        }
-    }
-
-    # Store action source + acting identity for outbound User-Agent attribution
-    Set-CippUserAgentContext -Headers $Request.Headers
-
     # Check if endpoint is disabled via feature flags
     $FeatureFlags = Get-CIPPFeatureFlag
-
-    # In CIPP-NG, force-enable SuperAdminNG regardless of the stored flag state.
-    if ($env:CIPPNG -eq 'true') {
-        foreach ($Flag in $FeatureFlags) {
-            if ($Flag.Id -eq 'SuperAdminNG') {
-                $Flag.Enabled = $true
-            }
-        }
-    }
-
     $DisabledEndpoint = $FeatureFlags | Where-Object {
         $_.Enabled -eq $false -and $_.Endpoints -contains $Request.Params.CIPPEndpoint
     } | Select-Object -First 1
@@ -72,15 +55,6 @@ function New-CippCoreRequest {
         return ([HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::ServiceUnavailable
                 Body       = "This feature has been disabled: $($DisabledEndpoint.Description)"
-            })
-    }
-
-    # Block all API calls except /api/me when subscription has ended
-    if ($env:cipp_hosted_subscription_ended -and $Request.Params.CIPPEndpoint -ne 'me') {
-        $HttpTotalStopwatch.Stop()
-        return ([HttpResponseContext]@{
-                StatusCode = [HttpStatusCode]::Forbidden
-                Body       = 'Your CIPP subscription has ended. Access to this instance is no longer available.'
             })
     }
 
@@ -144,21 +118,13 @@ function New-CippCoreRequest {
             $swGroups.Stop()
             $HttpTimings['AllowedGroups'] = $swGroups.Elapsed.TotalMilliseconds
 
-            # Assign on every path, including the unrestricted one. Only writing the slot when
-            # access is limited is what allowed a restricted user's scope to survive into the
-            # next request handled by the same worker, silently filtering results for someone
-            # entitled to see everything.
             if ($AllowedTenants -notcontains 'AllTenants') {
                 Write-Warning 'Limiting tenant access'
                 $script:CippAllowedTenantsStorage.Value = $AllowedTenants
-            } else {
-                $script:CippAllowedTenantsStorage.Value = $null
             }
             if ($AllowedGroups -notcontains 'AllGroups') {
                 Write-Warning 'Limiting group access'
                 $script:CippAllowedGroupsStorage.Value = $AllowedGroups
-            } else {
-                $script:CippAllowedGroupsStorage.Value = $null
             }
 
             try {
@@ -227,15 +193,26 @@ function New-CippCoreRequest {
                     }
                 }
             } catch {
-                Write-Warning "Exception occurred on HTTP trigger ($FunctionName): $($_.Exception.Message)"
+                $ErrorMessage = Get-CippException -Exception $_
+                Write-Warning "Exception occurred on HTTP trigger ($FunctionName): $($ErrorMessage.NormalizedError)"
                 $HttpTotalStopwatch.Stop()
                 $HttpTimings['Total'] = $HttpTotalStopwatch.Elapsed.TotalMilliseconds
                 $HttpTimingsRounded = [ordered]@{}
                 foreach ($Key in ($HttpTimings.Keys | Sort-Object)) { $HttpTimingsRounded[$Key] = [math]::Round($HttpTimings[$Key], 2) }
                 Write-Debug "#### HTTP Request Timings #### $($HttpTimingsRounded | ConvertTo-Json -Compress)"
                 return ([HttpResponseContext]@{
-                        StatusCode = [HttpStatusCode]::InternalServerError
-                        Body       = $_.Exception.Message
+                        StatusCode  = [HttpStatusCode]::InternalServerError
+                        ContentType = 'application/json'
+                        Body        = @{
+                            error   = $ErrorMessage.NormalizedError
+                            details = @{
+                                endpoint       = $Request.Params.CIPPEndpoint
+                                function       = $FunctionName
+                                innerException = $_.Exception.Message
+                                scriptName     = $_.InvocationInfo.ScriptName
+                                lineNumber     = $_.InvocationInfo.ScriptLineNumber
+                            }
+                        } | ConvertTo-Json -Depth 5 -Compress
                     })
             }
         } else {

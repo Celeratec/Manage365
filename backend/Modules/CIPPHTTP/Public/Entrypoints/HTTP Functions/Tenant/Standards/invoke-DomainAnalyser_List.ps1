@@ -7,17 +7,16 @@ Function Invoke-DomainAnalyser_List {
         Entrypoint,AnyTenant
     .ROLE
         Tenant.DomainAnalyser.Read
-    .DESCRIPTION
-        Returns the cached Domain Analyser results: the DNS health of each tenant's domains, covering MX, SPF, DKIM, DMARC and DNSSEC. Populated by a scheduled job, so this reads the last run rather than resolving DNS live. tenantFilter=AllTenants returns every tenant's domains.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $DomainTable = Get-CIPPTable -Table 'Domains'
 
-    # Get all the things
-
+    # Get all the things - always filter by PartitionKey for performance
     if ($Request.Query.tenantFilter -ne 'AllTenants') {
-        $DomainTable.Filter = "TenantId eq '{0}'" -f $Request.Query.tenantFilter
+        $DomainTable.Filter = "PartitionKey eq 'TenantDomains' and TenantId eq '{0}'" -f $Request.Query.tenantFilter
+    } else {
+        $DomainTable.Filter = "PartitionKey eq 'TenantDomains'"
     }
 
     try {
