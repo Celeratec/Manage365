@@ -2,15 +2,19 @@
   <img src="frontend/public/Main%20logo%20-CMYK.png" alt="Manage365 Logo" height="80">
 </p>
 
-<h1 align="center">Manage365</h1>
+<h1 align="center">Manage365 v2</h1>
 
 <p align="center">
   An enhanced Microsoft 365 multi-tenant management portal based on the <a href="https://cipp.app">CIPP</a> open-source project.
 </p>
 
+<p align="center">
+  <strong>v2</strong> (release 6.0.0) &nbsp;·&nbsp; CIPP baseline <strong>10.8.5</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+</p>
+
 ---
 
-> **Manage365 v6.0.0 — monorepo era.** This repository is based on the [CyberDrain CIPP monorepo](https://github.com/CyberDrain/CIPP) (baseline v**10.8.5**): frontend and backend in one repo, deployed as a single container on the Craft runtime. Manage365 customizations were migrated here from the previous two-repo forks (`Celeratec/CIPP` v5.33.0 / `Celeratec/CIPP-API`); see [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. First v2 release is **6.0.0** on CIPP baseline **10.8.5**. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -18,9 +22,24 @@
 
 Manage365 is a Microsoft 365 multi-tenant administration portal designed for Microsoft Partners and IT administrators. It provides a centralized interface for managing users, teams, SharePoint, Exchange, security, compliance, Intune, Dynamics 365, and more across all of your Microsoft 365 tenants.
 
-Manage365 inherits the full feature set of CIPP and extends it with additional capabilities focused on deeper Teams, SharePoint, OneDrive, and Dynamics 365 management, centralized cross-tenant access governance, external collaboration controls, and tenant-level SharePoint and Teams policy management -- areas where day-to-day administration often requires switching between multiple Microsoft portals.
+**v2** inherits the full CIPP feature set and every Manage365 customization from v1, and adds native container hosting: EasyAuth with in-app CIPP Users / SSO, container management, and Craft-bridged orchestration — capabilities that were deferred on v1 because they were incompatible with Azure Static Web Apps + Function App slots.
+
+Manage365 extends CIPP with deeper Teams, SharePoint, OneDrive, and Dynamics 365 management, centralized cross-tenant access governance, external collaboration controls, and tenant-level SharePoint and Teams policy management -- areas where day-to-day administration often requires switching between multiple Microsoft portals.
 
 For information about the upstream CIPP project, visit [cipp.app](https://cipp.app) and [docs.cipp.app](https://docs.cipp.app).
+
+## What's new in v2
+
+| v1 (5.33.0) | v2 (6.0.0) |
+|-------------|------------|
+| Two repos (`CIPP` frontend + `CIPP-API` backend) | One monorepo (`frontend/` + `backend/`) |
+| Azure Static Web App + Function App slots | Single Linux container (Azure App Service) on Craft |
+| SWA role management | EasyAuth + in-app `allowedUsers` / CIPP Users / SSO |
+| Processor-slot queues (`Start-CIPPProcessorQueue`) | Craft bridges (`Start-CIPPOrchestrator`, `Add-CippQueueMessage`) |
+| Container / worker-health UI deferred | Native Super Admin container management |
+| Local: SWA CLI + Azurite + multiple function hosts | `build/docker-compose-all.yml` (Azurite + Craft on :5196) |
+
+Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 
 ---
 
@@ -58,7 +77,7 @@ Manage365 includes the complete CIPP feature set:
 - GDAP relationship management with GDAP trace and AI Administrator role support
 - Tenant group management with usage reporting
 - Standards alignment and drift detection (including device registration local admin controls, CIS7 alignment, and CA template package tags)
-- **Baselines** (preview) — drift-first baseline engine parallel to Applied Standards; feature-flagged off by default (see [Baselines](#baselines-manage365-v5330) below)
+- **Baselines** (preview) — drift-first baseline engine parallel to Applied Standards; feature-flagged off by default (see [Baselines](#baselines-manage365-v2) below)
 - Standards with custom variable support, requiredCapabilities filtering, and license capability presets
 - Group-based licensing for security groups and templates
 - Alert-only license exclusions (exclude licenses from alerting without removing them from standards checks)
@@ -130,7 +149,7 @@ Manage365 includes the complete CIPP feature set:
 - Custom tests with result mode options (Auto, AlwaysPass, AlwaysInfo, AlwaysInvestigate)
 - Guest account disable support with sign-in audit fallback
 - Script editor improvements
-- Super admin pages relocated to /cipp/advanced/super-admin/
+- Super admin pages at `/cipp/advanced/super-admin/` plus native Authentication (CIPP Users / SSO) and Container Management
 
 ### Settings & Administration
 - Application settings and integrations (including PWPush with CloudFlare Tunnel and default passphrase support)
@@ -144,8 +163,8 @@ Manage365 includes the complete CIPP feature set:
 - PWA support with Chrome install option for desktop app experience
 - Logbook with severity color mapping
 - Custom data / directory extensions
-- Super admin tools (tenant mode, function offloading, time settings, CIPP roles, SAM app roles/permissions)
-- API client management with optional MCP access (feature-flagged; see [MCP Server](#mcp-server-manage365-v5320) below)
+- Super admin tools (tenant mode, function offloading, time settings, CIPP roles, SAM app roles/permissions, **SSO**, **CIPP Users**, **container management**)
+- API client management with optional MCP access (feature-flagged; see [MCP Server](#mcp-server-manage365-v2) below)
 
 ---
 
@@ -415,13 +434,13 @@ Manage365 extends the upstream quarantine list with a Defender-style portal expe
 - **Bulk actions** -- release, deny, release & allow, delete, submit to Microsoft, block deduplicated senders, export selected rows
 - **Preserved actions** -- EML preview, message trace, Threat Explorer deep link, preset column filters (Not Released / Released / Requested), and all row-level allow/block/release operations
 
-**Backend (CIPP-API):**
+**Backend:**
 
 - `Build-CIPPQuarantineQueryParams.ps1` -- shared filter mapper, post-filters, EXO retry/backoff, display normalization
 - `ListMailQuarantine`, `GetMailQuarantineMessage`, `ExportMailQuarantine`, extended `ExecQuarantineManagement`, `ExecEmailTroubleshoot`
 - `ExecMailboxSafeSender` -- backend endpoint for mailbox safe-sender list (API only; no UI yet)
 - AllTenants cache paginates up to 5 × 1,000 rows per tenant (30-day window)
-- Feature matrix and API limits: `CIPP-API/docs/QUARANTINE_FEATURES.md`
+- Feature matrix and API limits: [docs/upstream-sync/QUARANTINE_FEATURES.md](docs/upstream-sync/QUARANTINE_FEATURES.md)
 
 **Not supported / limitations** (honest API limits, not faked in UI):
 
@@ -487,36 +506,34 @@ A template-based system for creating app registrations in client tenants, design
 
 Located under Tenant Administration > Applications > Integration Templates.
 
-### MCP Server (Manage365 v5.32.0)
+### MCP Server (Manage365 v2)
 
-Model Context Protocol (MCP) support for internal team use — expose CIPP's read-only API surface as tools for AI clients, without Craft/SSO hosting changes.
+Model Context Protocol (MCP) support for internal team use — expose CIPP's read-only API surface as tools for AI clients.
 
 - **API client toggle** -- enable **MCP Access Allowed** per API client; warning copy explains the blast radius; table column shows which clients are MCP-enabled
 - **MCP URL chip** -- Application Settings / API clients surface `…/api/ExecMcp` for connector configuration
 - **Backend** -- `Invoke-ExecMcp` (Streamable-HTTP JSON-RPC), OpenAPI-projected `.Read` tools, `MCPAllowed` check against the ApiClients table, per-call RBAC via `New-CippCoreRequest`
 - **Feature flag** -- `MCPServer` ships **disabled**; enable in Feature Flags only after deploy smoke (`tools/list` + one `.Read` tools/call)
-- **SWA-safe auth** -- MCP client IDs added as EasyAuth audiences on the Function App host path; CIPPNG/SSO EasyAuth rewrite not taken
-- **Tab hygiene** -- removed 404 Super Admin tabs (CIPP Users, SSO, Container Management); full container UI remains deferred (Craft bridges)
+- **Auth** -- MCP runs on the container EasyAuth path (v1's SWA audience workaround is gone)
 
-Intake notes: [docs/upstream-sync/MCP_INTAKE_20260803.md](docs/upstream-sync/MCP_INTAKE_20260803.md).
+Intake notes: [docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md](docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md) (v1 intake; still applies).
 
-### Baselines (Manage365 v5.33.0)
+### Baselines (Manage365 v2)
 
-Drift-first **Baselines** engine from upstream 10.8.x — parallel to Applied Standards, not a replacement. SWA-safe (Durable Functions + Azure Tables; no Craft).
+Drift-first **Baselines** engine from upstream 10.8.x — parallel to Applied Standards, not a replacement. Native on Craft (orchestrator + Azure Tables).
 
-- **Pages** -- Fleet overview, alignment, and templates under `/tenant/baselines` (nav entry commented until smoke; open the URL directly)
-- **Backend** -- baseline modules, orchestrator (`Start-CIPPBaselineOrchestrator` on the standards processor), HTTP List/Add/Run/Stage/Override/Alignment APIs, and `Config/BaselineStandards/**` definitions
-- **Feature flag** -- `Baselines` ships **disabled**; flag gates the **scheduled 12h timer** only. Enable in Feature Flags after orchestrator smoke, then optionally uncomment the Standards & Drift nav item
-- **Preserved fork standards** -- Applied Standards / drift UI and Manage365 scoring workflows are unchanged
+- **Pages** -- Fleet overview, alignment, and templates under `/tenant/baselines`
+- **Backend** -- baseline modules, `Start-CIPPBaselineOrchestrator`, HTTP List/Add/Run/Stage/Override/Alignment APIs, and `backend/Config/BaselineStandards/**` definitions
+- **Feature flag** -- `Baselines` ships **disabled**; flag gates the **scheduled 12h timer** only. Enable in Feature Flags after orchestrator smoke
+- **Preserved Manage365 standards** -- Applied Standards / drift UI and license-aware scoring workflows are unchanged
 
-Intake notes: [docs/upstream-sync/BASELINES_INTAKE_20260814.md](docs/upstream-sync/BASELINES_INTAKE_20260814.md). Checkpoint: [docs/upstream-sync/SYNC_20260814.md](docs/upstream-sync/SYNC_20260814.md).
+Intake notes: [docs/upstream-sync/history-cipp/BASELINES_INTAKE_20260814.md](docs/upstream-sync/history-cipp/BASELINES_INTAKE_20260814.md). Checkpoint: [docs/upstream-sync/history-cipp/SYNC_20260814.md](docs/upstream-sync/history-cipp/SYNC_20260814.md).
 
 ### Backend Enhancements
 
 - **Stack overflow protection** in Intune policy comparison with depth-tracking recursion and O(1) index-based lookups
 - **Thorough mailNickname sanitization** in group creation (M365 spec compliance: extracts local part, removes forbidden characters, enforces 64-char limit)
-- **Enhanced CippEntrypoints** with function-existence validation before invocation, detailed error logging with stack traces, queue trigger support, and Premium SKU FanOut mode
-- **Durable SDK 2.2.0** with fan-out/fan-in/fan-out orchestration pattern for DB cache collection
+- **Craft orchestration** -- `Start-CIPPOrchestrator` / `Add-CippQueueMessage` replace the v1 processor-slot queue model; fan-out/fan-in for DB cache collection stays on Azure Tables
 - **Channel filesFolder batch-fetch** -- Teams detail API returns per-channel SharePoint siteId/driveId via Graph batch requests, enabling direct file browsing for private/shared channels with their own SharePoint sites
 - **SharePoint REST auto-elevation** -- when adding members to non-group-connected sites (Communication, classic Team), the delegated token may lack site-level permissions. The endpoint now auto-elevates the SAM user to site collection admin via CSOM `SetSiteAdmin` (app-only admin API) and retries, with a final Graph API `drive/root/invite` fallback if CSOM is unavailable. Eliminates the manual "run CPV Refresh" step for most SharePoint member operations
 - **Quarantine portal API (v5.13.0)** -- shared `Build-CIPPQuarantineQueryParams` helper with EXO retry/backoff, post-filter pagination metadata, export cap semantics, and Pester tests for query mapping and endpoint response shapes (`Tests/Tools`, `Tests/Endpoint`)
@@ -537,7 +554,7 @@ Manage365 tracks the [CyberDrain CIPP monorepo](https://github.com/CyberDrain/CI
 |---------|------|--------|
 | **Light delta** | Monthly | Low-risk bugfixes, JSON data, tests |
 | **Major cycle** | Quarterly | Full delta inventory + dependency review |
-| **Feature intake** | Backlog | New capabilities (e.g. SSO) — design first; MCP intaken in v5.32.0; Baselines intaken in v5.33.0 |
+| **Feature intake** | Backlog | New capabilities — design first; MCP and Baselines shipped in v1 and remain in v2 (flags off by default) |
 | **Hotfix** | As needed | Critical upstream security fixes |
 
 Start a cycle: `./Tools/Start-UpstreamSyncCycle.ps1` (single repo — frontend and backend move together).
@@ -549,19 +566,19 @@ All intakes are **selective** — upstream fixes and improvements are ported sur
 | Intake | What changed |
 |--------|----------------|
 | **Major delta 10.8.5** (v5.33.0) | Secure Score report API + AllTenants helpers; Intune MAA requests + BitLocker search page; nested ListRoles / TABL; `ExecSetDefaultMFAMethod` API; ConversionTable / M365Licenses; selective standards hardening |
-| **Baselines feature intake** (v5.33.0) | Full baselines engine + FE pages; FeatureFlags timer **off** by default — see [Baselines](#baselines-manage365-v5330) |
+| **Baselines feature intake** (v5.33.0) | Full baselines engine + FE pages; FeatureFlags timer **off** by default — see [Baselines](#baselines-manage365-v2) |
 | **Partial** | Branding list/presets APIs and community template catalog (Manage365 branding UI and full community-repos rewrite deferred) |
 
-**Still deferred from this cycle:** Node/jsdom engine bumps; full BEC/user-detail rewrite and Default MFA UI wire-up; full branding settings JSX replace; SSO / container / Craft family; Teams V2. Checkpoint: [docs/upstream-sync/SYNC_20260814.md](docs/upstream-sync/SYNC_20260814.md).
+**Still deferred from the last v1 cycle (now mostly native in v2):** Node/jsdom engine bumps; full BEC/user-detail rewrite and Default MFA UI wire-up; Teams V2. SSO, CIPP Users, and container management are **native in v2**. Checkpoint: [docs/upstream-sync/history-cipp/SYNC_20260814.md](docs/upstream-sync/history-cipp/SYNC_20260814.md).
 
 ### Taken from upstream (v10.7.5 + MCP — August 2026)
 
 | Intake | What changed |
 |--------|----------------|
 | **Light delta 10.7.5** (v5.31.0) | AzBobbyTables 3.6.2 + large-entity table wrappers; Intune template drift helpers; group `disableNesting`; device Add-to-Group; snooze reason; partner webhook hostname warning; audit log V2; SAM `RoleManagement.Read.Exchange` |
-| **MCP feature intake** (v5.32.0) | ExecMcp stack + OpenAPI tool projection; API client `MCPAllowed` UI/API; SWA-safe EasyAuth audiences; Super Admin 404 tab removal. Flag off by default — see [MCP Server](#mcp-server-manage365-v5320) |
+| **MCP feature intake** (v5.32.0) | ExecMcp stack + OpenAPI tool projection; API client `MCPAllowed` UI/API. Flag off by default — see [MCP Server](#mcp-server-manage365-v2) |
 
-**Still deferred:** Teams V2 module migration; container management / logs / worker health (Craft); instance SSO / CIPP Users pages (SWA-incompatible EasyAuth path). Checkpoint: [docs/upstream-sync/SYNC_20260803.md](docs/upstream-sync/SYNC_20260803.md), [docs/upstream-sync/MCP_INTAKE_20260803.md](docs/upstream-sync/MCP_INTAKE_20260803.md).
+**Still deferred:** Teams V2 module migration. Container management / logs / worker health and instance SSO / CIPP Users are **native in v2**. Checkpoint: [docs/upstream-sync/history-cipp/SYNC_20260803.md](docs/upstream-sync/history-cipp/SYNC_20260803.md), [docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md](docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md).
 
 ### Taken from upstream (v10.6.1 intake series — July 2026)
 
@@ -580,12 +597,10 @@ dedicated feature intakes (checkpoint docs in `docs/upstream-sync/`):
 | **Scheduled edit + dashboard alerts** (v5.24.0) | Dashboard Alerts card (active + snoozed alert instances with per-item snooze), schedulable user edits via new shared `Set-CIPPUser` (API), bulk API results rolled up per action with an X-of-Y summary alert |
 | **Odds & ends** (v5.25.0) | Menu section permission fixes (Device Management, Transport, Spam Filter, Resource Management), top-nav tooltips + shortcut hints, Next.js build-trace skip (~67s → ~24s builds), dependency bumps (react-query family, apexcharts, mui-tiptap, reduxjs/toolkit, dompurify as direct dep) |
 
-**Deferred from this cycle:** the SSO/CIPP-users family (architecturally
-incompatible — upstream's implementation depends on a container runtime and
-EasyAuth migration that don't exist in the fork's Static Web Apps + Function App
-deployment), Custom Test Alerting overhaul, Purview DLP standard,
+**Deferred from that v1 cycle:** Custom Test Alerting overhaul, Purview DLP standard,
 Intune policy sync, Sherweb client changes, and assorted small items listed in
-the checkpoint docs. (MCP was deferred here and later intaken in v5.32.0.)
+the checkpoint docs. The SSO/CIPP-users family and MCP were deferred then; both
+are in v2 (SSO native; MCP feature-flagged).
 
 ### Taken from upstream (v10.5 / v10.5.1 — June 2026)
 
@@ -613,7 +628,7 @@ the checkpoint docs. (MCP was deferred here and later intaken in v5.32.0.)
 
 ### Deferred (not merged)
 
-Full-file replacements for Applied Standards, CippDataTable, top-nav, and `package.json` were skipped where they would remove the items above. Worker health / container management UI and SSO migration repair remain deferred (Craft bridges / EasyAuth migration). MCP and Baselines were intaken with feature flags **off** (v5.32.0 / v5.33.0). From the 10.8.5 cycle, Node engine bumps, full BEC/user UI rewrite, Default MFA UI wire-up, and full branding JSX replace remain deferred Adapt work.
+Full-file replacements for Applied Standards, CippDataTable, top-nav, and `package.json` were skipped in v1 where they would remove the items above. In **v2**, worker health / container management and SSO / CIPP Users are native. MCP and Baselines remain feature-flagged **off**. Still deferred: Teams V2, Node engine bumps, full BEC/user UI rewrite, and Default MFA UI wire-up.
 
 ### Version tracking and out-of-date alerts
 
