@@ -26,6 +26,7 @@ const Page = () => {
       icon: <EyeIcon />,
       color: "success",
       target: "_self",
+      category: "view",
     },
     {
       label: "Edit Template",
@@ -34,6 +35,7 @@ const Page = () => {
       icon: <Edit />,
       color: "success",
       target: "_self",
+      category: "edit",
     },
     {
       label: "Clone & Edit Template",
@@ -41,6 +43,7 @@ const Page = () => {
       icon: <CopyAll />,
       color: "success",
       target: "_self",
+      category: "edit",
     },
     {
       label: "Save to GitHub",
@@ -85,6 +88,7 @@ const Page = () => {
       ],
       confirmText: "Are you sure you want to save this template to the selected repository?",
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
+      category: "manage",
     },
     {
       label: "Delete Template",
@@ -96,6 +100,7 @@ const Page = () => {
       icon: <Delete />,
       confirmText: "Are you sure you want to delete this template?",
       multiPost: false,
+      category: "danger",
     },
   ];
 

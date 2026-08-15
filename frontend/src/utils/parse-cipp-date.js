@@ -6,11 +6,11 @@
 // sorting and date-range filtering. Numeric / all-digit values are therefore treated
 // as epoch seconds and multiplied by 1000; everything else (ISO 8601 strings, etc.)
 // is passed through to the native Date parser.
-const allDigits = /^\d+$/
+const allDigits = /^\d+$/;
 
 export const parseCippDate = (data) => {
-  if (typeof data === 'number' || (typeof data === 'string' && allDigits.test(data))) {
-    return new Date(Number(data) * 1000)
+  if (typeof data === "number" || (typeof data === "string" && allDigits.test(data))) {
+    return new Date(Number(data) * 1000);
   }
-  return new Date(data)
-}
+  return new Date(data);
+};

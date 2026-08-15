@@ -20,6 +20,7 @@ const Page = () => {
       confirmText: "Are you sure you want to enable this rule?",
       color: "info",
       condition: (row) => row.State === "Disabled",
+      category: "edit",
     },
     {
       label: "Disable Rule",
@@ -33,18 +34,20 @@ const Page = () => {
       confirmText: "Are you sure you want to disable this rule?",
       color: "info",
       condition: (row) => row.State === "Enabled",
+      category: "edit",
     },
     // Commented out "Delete Rule" action from the original file as it was also commented in legacy code
     /*
     {
       label: "Delete Rule",
+      category: "danger",
       type: "GET",
       url: "/api/RemoveSafeAttachmentsFilter",
       data: {
         RuleName: "RuleName",
       },
       confirmText: "Are you sure you want to delete this rule?",
-      color: "danger",
+      color: "error",
     },
     */
   ];

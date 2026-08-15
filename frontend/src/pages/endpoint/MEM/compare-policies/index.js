@@ -26,7 +26,7 @@ import { Grid } from "@mui/system";
 import CippPageCard from "../../../../components/CippCards/CippPageCard";
 
 const sourceTypeOptions = [
-  { label: "CIPP Template", value: "template" },
+  { label: "Manage365 Template", value: "template" },
   { label: "Tenant Policy", value: "tenantPolicy" },
   { label: "Community Repository", value: "communityRepo" },
 ];

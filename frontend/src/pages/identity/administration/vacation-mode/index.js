@@ -17,6 +17,7 @@ const Page = () => {
       label: "View Task Details",
       link: "/cipp/scheduler/task?id=[RowKey]",
       icon: <EyeIcon />,
+      category: "view",
     },
     {
       label: "Cancel Vacation Mode",
@@ -27,6 +28,7 @@ const Page = () => {
         "Are you sure you want to cancel this vacation mode entry? This might mean the user will remain in vacation mode permanently.",
       icon: <Delete />,
       multiPost: false,
+      category: "danger",
     },
   ];
 

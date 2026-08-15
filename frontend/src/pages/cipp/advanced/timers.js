@@ -82,6 +82,7 @@ const Page = () => {
             confirmText: "Do you want to run this task now?",
             allowResubmit: true,
             icon: <PlayArrow />,
+            category: "manage",
           },
         ]}
       />

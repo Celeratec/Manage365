@@ -5,9 +5,7 @@ import { getCippTranslation } from "../../utils/get-cipp-translation";
 const CippDataTableButton = ({ data, title, tableTitle = "Data" }) => {
   const [openDialogs, setOpenDialogs] = useState([]);
 
-  const handleOpenDialog = (event) => {
-    event?.stopPropagation();
-
+  const handleOpenDialog = () => {
     let dataArray;
 
     if (Array.isArray(data)) {
@@ -23,8 +21,7 @@ const CippDataTableButton = ({ data, title, tableTitle = "Data" }) => {
     setOpenDialogs([...openDialogs, dataArray]);
   };
 
-  const handleCloseDialog = (index, event) => {
-    event?.stopPropagation?.();
+  const handleCloseDialog = (index) => {
     setOpenDialogs(openDialogs.filter((_, i) => i !== index));
   };
   const dataIsNotANullArray =
@@ -51,9 +48,7 @@ const CippDataTableButton = ({ data, title, tableTitle = "Data" }) => {
         <Dialog
           key={index}
           open={true}
-          onClose={(event) => handleCloseDialog(index, event)}
-          onMouseDown={(event) => event.stopPropagation()}
-          onClick={(event) => event.stopPropagation()}
+          onClose={() => handleCloseDialog(index)}
           fullWidth
           maxWidth="lg"
         >

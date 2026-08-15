@@ -254,18 +254,16 @@ const Page = () => {
               title="Tenant Details"
               actionButton={
                 <Tooltip title="Refresh">
-                  <span>
-                    <IconButton
-                      onClick={() => tenantDetails.refetch()}
-                      disabled={tenantDetails.isFetching}
-                      size="small"
-                      sx={{ mt: 0.25 }}
-                    >
-                      <SvgIcon fontSize="small">
-                        <Sync />
-                      </SvgIcon>
-                    </IconButton>
-                  </span>
+                  <IconButton
+                    onClick={() => tenantDetails.refetch()}
+                    disabled={tenantDetails.isFetching}
+                    size="small"
+                    sx={{ mt: 0.25 }}
+                  >
+                    <SvgIcon fontSize="small">
+                      <Sync />
+                    </SvgIcon>
+                  </IconButton>
                 </Tooltip>
               }
               propertyItems={[
@@ -348,7 +346,7 @@ const Page = () => {
                   type="textField"
                   name="Alias"
                   label="Tenant Alias"
-                  placeholder="Enter a custom alias for this tenant to be displayed in CIPP."
+                  placeholder="Enter a custom alias for this tenant to be displayed in Manage365."
                   formControl={formControl}
                   isFetching={tenantDetails.isFetching}
                   disabled={tenantDetails.isFetching}
@@ -405,6 +403,7 @@ const Page = () => {
                         confirmText: 'Remove this tenant from [Name]?',
                         customFunction: handleRemoveGroup,
                         condition: (row) => row.GroupType !== 'dynamic',
+                        category: 'danger',
                       },
                     ]}
                   />

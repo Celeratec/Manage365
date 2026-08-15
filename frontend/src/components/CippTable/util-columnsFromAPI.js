@@ -2,7 +2,9 @@ import { getCippFilterVariant } from '../../utils/get-cipp-filter-variant'
 import { getCippFormatting } from '../../utils/get-cipp-formatting'
 import { getCippTranslation } from '../../utils/get-cipp-translation'
 import { getCippColumnSize } from '../../utils/get-cipp-column-size'
-import { SKIP_RECURSION_KEYS as skipRecursion } from '../../utils/skip-recursion-keys'
+
+// Manage365: also skip standards/Standard/LogData to avoid huge recursive column expansion
+const skipRecursion = ['location', 'ScheduledBackupValues', 'Tenant', 'standards', 'Standard', 'LogData']
 
 // Number of rows to sample when measuring column content width.
 const MAX_SIZE_SAMPLE = 30
@@ -185,6 +187,9 @@ const getAtPath = (obj, path) => {
 // O(n * keys) traversal on large datasets.
 const MAX_MERGE_SAMPLE = 50
 
+// Keys that should never be merged to prevent prototype pollution
+const dangerousKeys = ['__proto__', 'constructor', 'prototype']
+
 const mergeKeys = (dataArray) => {
   const sample =
     dataArray.length > MAX_MERGE_SAMPLE ? dataArray.slice(0, MAX_MERGE_SAMPLE) : dataArray
@@ -195,6 +200,8 @@ const mergeKeys = (dataArray) => {
         return base
       }
       Object.keys(obj).forEach((key) => {
+        // Prevent prototype pollution
+        if (dangerousKeys.includes(key)) return
         if (
           typeof obj[key] === 'object' &&
           obj[key] !== null &&

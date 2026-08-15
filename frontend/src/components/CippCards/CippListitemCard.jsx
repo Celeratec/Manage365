@@ -34,7 +34,7 @@ const getContent = (notification, textKey) => {
         }
       />
       <ListItemSecondaryAction>
-        <IconButton size="small">
+        <IconButton size="small" aria-label="View item">
           <SvgIcon fontSize="small">
             <ArrowRightIcon />
           </SvgIcon>
@@ -81,7 +81,7 @@ export const CippListItemCard = ({
                   </Typography>
                 </ListItemText>
                 <ListItemSecondaryAction>
-                  <IconButton size="small">
+                  <IconButton size="small" aria-label="View item">
                     <SvgIcon fontSize="small">
                       <ArrowRightIcon />
                     </SvgIcon>

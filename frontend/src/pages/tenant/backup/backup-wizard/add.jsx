@@ -43,7 +43,7 @@ const CreateBackup = () => {
         const tenantFilter = values.tenantFilter || tenantDomain;
         const shippedValues = {
           TenantFilter: tenantFilter,
-          Name: `CIPP Backup - ${tenantFilter}`,
+          Name: `Manage365 Backup - ${tenantFilter}`,
           Command: { value: `New-CIPPBackup` },
           Parameters: { backupType: "Scheduled", ScheduledBackupValues: { ...omit(values, ['tenantFilter']) } },
           ScheduledTime: unixTime,
@@ -55,7 +55,7 @@ const CreateBackup = () => {
       allowResubmit={true}
     >
       <Typography variant="body1">
-        Backups are stored in CIPP's storage and can be restored using the CIPP Restore Backup
+        Backups are stored in Manage365's storage and can be restored using the Manage365 Restore Backup
         Wizard. Backups run daily or on demand by clicking the backup now button.
       </Typography>
       <Grid container spacing={2} sx={{ my: 2 }}>
@@ -150,7 +150,7 @@ const CreateBackup = () => {
         </Grid>
 
         <Grid size={{ xs: 12 }}>
-          <Typography variant="h6">CIPP</Typography>
+          <Typography variant="h6">Manage365</Typography>
         </Grid>
         <Grid size={{ md: 6, xs: 12 }}>
           <CippFormComponent

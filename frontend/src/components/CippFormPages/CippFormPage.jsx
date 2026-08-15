@@ -9,18 +9,39 @@ import {
   Card,
   CardContent,
   CardActions,
-} from '@mui/material'
-import ArrowLeftIcon from '@mui/icons-material/ArrowLeft'
-import { ApiPostCall } from '../../api/ApiCall'
-import { CippApiResults } from '../CippComponents/CippApiResults'
-import { createContext, useContext, useEffect } from 'react'
-import { useFormState } from 'react-hook-form'
-import { CippHead } from '../CippComponents/CippHead'
+  Tooltip,
+} from "@mui/material";
+import ArrowLeftIcon from "@mui/icons-material/ArrowLeft";
+import { ApiPostCall } from "../../api/ApiCall";
+import { CippApiResults } from "../CippComponents/CippApiResults";
+import { createContext, useContext, useEffect } from "react";
+import { useFormState } from "react-hook-form";
+import { CippHead } from "../CippComponents/CippHead";
 
 // Lets a page render its own Save button somewhere inside `children` (e.g. next to a
 // Run Test button) while reusing this component's submit pipeline. Pair with hideSubmit.
-const CippFormPageContext = createContext(null)
-export const useCippFormPageActions = () => useContext(CippFormPageContext)
+const CippFormPageContext = createContext(null);
+export const useCippFormPageActions = () => useContext(CippFormPageContext);
+
+const getSubmitTooltip = ({ isPending, isValid, isDirty, allowResubmit }) => {
+  if (isPending) return "Submitting...";
+  if (!isValid) return "Please fix the validation errors before submitting";
+  if (!allowResubmit && !isDirty) return "Make a change to the form to enable submission";
+  return "";
+};
+
+const SubmitButton = ({ disabled, isPending, isValid, isDirty, allowResubmit, onClick }) => {
+  const tooltip = getSubmitTooltip({ isPending, isValid, isDirty, allowResubmit });
+  return (
+    <Tooltip title={tooltip} arrow disableHoverListener={!disabled}>
+      <span>
+        <Button disabled={disabled} onClick={onClick} type="submit" variant="contained">
+          Submit
+        </Button>
+      </span>
+    </Tooltip>
+  );
+};
 
 const CippFormPage = (props) => {
   const {
@@ -89,43 +110,48 @@ const CippFormPage = (props) => {
     }
     const values = customDataformatter
       ? customDataformatter(formControl.getValues())
-      : formControl.getValues()
+      : formControl.getValues();
     //remove all empty values or blanks (recursively)
     //when preserveNullValues is set, explicit nulls are kept so the API can
     //distinguish "clear this field" from "field omitted"
     const isEmptyValue = (value) =>
-      value === '' || value === undefined || (!preserveNullValues && value === null)
+      value === "" || value === undefined || (!preserveNullValues && value === null);
     const removeEmpty = (obj) => {
       if (Array.isArray(obj)) {
         return obj
-          .map((item) => (item && typeof item === 'object' ? removeEmpty(item) : item))
-          .filter((item) => !isEmptyValue(item))
+          .map((item) => (item && typeof item === "object" ? removeEmpty(item) : item))
+          .filter((item) => {
+            if (isEmptyValue(item)) return false;
+            if (Array.isArray(item)) return item.length > 0;
+            if (item !== null && typeof item === "object") return Object.keys(item).length > 0;
+            return true;
+          });
       }
       Object.keys(obj).forEach((key) => {
         if (isEmptyValue(obj[key])) {
-          delete obj[key]
-        } else if (obj[key] !== null && typeof obj[key] === 'object') {
-          obj[key] = removeEmpty(obj[key])
-          if (!Array.isArray(obj[key]) && Object.keys(obj[key]).length === 0) {
-            delete obj[key]
+          delete obj[key];
+        } else if (obj[key] !== null && typeof obj[key] === "object") {
+          obj[key] = removeEmpty(obj[key]);
+          if (Array.isArray(obj[key]) ? obj[key].length === 0 : Object.keys(obj[key]).length === 0) {
+            delete obj[key];
           }
         }
-      })
-      return obj
-    }
-    removeEmpty(values)
+      });
+      return obj;
+    };
+    const cleanedValues = removeEmpty(values);
     postCall.mutate({
       url: postUrl,
-      data: values,
-    })
-  }
+      data: cleanedValues,
+    });
+  };
   const formPageActions = {
     submit: formControl.handleSubmit(handleSubmit),
     isSubmitting: postCall.isPending,
     isValid,
     isDirty,
     allowResubmit,
-  }
+  };
 
   return (
     <CippFormPageContext.Provider value={formPageActions}>
@@ -162,14 +188,14 @@ const CippFormPage = (props) => {
                 <CardActions sx={{ justifyContent: 'flex-end' }}>
                   <Stack spacing={2} direction="row">
                     {addedButtons && addedButtons}
-                    <Button
+                    <SubmitButton
                       disabled={postCall.isPending || !isValid || (!allowResubmit && !isDirty)}
+                      isPending={postCall.isPending}
+                      isValid={isValid}
+                      isDirty={isDirty}
+                      allowResubmit={allowResubmit}
                       onClick={formControl.handleSubmit(handleSubmit)}
-                      type="submit"
-                      variant="contained"
-                    >
-                      Submit
-                    </Button>
+                    />
                   </Stack>
                 </CardActions>
               )}

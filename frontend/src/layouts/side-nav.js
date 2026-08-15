@@ -1,67 +1,96 @@
-import { useState, useRef, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
-import PropTypes from 'prop-types'
-import { Box, Divider, Drawer, Stack } from '@mui/material'
-import { SideNavItem } from './side-nav-item'
-import { SideNavBookmarks } from './side-nav-bookmarks'
-import { ApiGetCall } from '../api/ApiCall.jsx'
-import { CippSponsor } from '../components/CippComponents/CippSponsor'
-import { useSettings } from '../hooks/use-settings'
-
+import { useState, useCallback, useEffect, memo } from "react";
+import { usePathname } from "next/navigation";
+import PropTypes from "prop-types";
 import {
-  BANNER_HEIGHT_VAR,
-  SIDE_NAV_COLLAPSED_WIDTH,
-  SIDE_NAV_WIDTH,
-  TOP_NAV_HEIGHT,
-} from './constants'
+  Box,
+  Divider,
+  Drawer,
+  Stack,
+} from "@mui/material";
+import { Scrollbar } from "../components/scrollbar";
+import { SideNavItem } from "./side-nav-item";
+import { SideNavBookmarks } from "./side-nav-bookmarks";
+import { useSettings } from "../hooks/use-settings";
 
-const isPathPrefix = (pathname, itemPath) => {
-  if (!pathname || !itemPath) return false
-  if (pathname === itemPath) return true
-  // Root "/" maps to /dashboardv2 under the hood
-  if (itemPath === '/') return pathname.startsWith('/dashboardv2')
-  return pathname.startsWith(itemPath + '/') || pathname.startsWith(itemPath + '?')
-}
+const SIDE_NAV_WIDTH = 270;
+const SIDE_NAV_COLLAPSED_WIDTH = 73; // icon size + padding + border right
+const TOP_NAV_HEIGHT = 64;
 
-const markOpenItems = (items, pathname) => {
-  return items.map((item) => {
-    const checkPath = !!(item.path && pathname)
-    const exactMatch = checkPath ? pathname === item.path : false
-    const partialMatch = checkPath ? isPathPrefix(pathname, item.path) : false
-
-    let openImmediately = exactMatch
-    let newItems = item.items || []
-
-    if (newItems.length > 0) {
-      newItems = markOpenItems(newItems, pathname)
-      const childOpen = newItems.some((child) => child.openImmediately)
-      openImmediately = openImmediately || childOpen || exactMatch // Ensure parent opens if child is open
-    } else {
-      openImmediately = openImmediately || partialMatch // Leaf items open on partial match
+// Find all parent menus that should be open based on current path
+// Returns an array of menu titles that form the path to the active item
+const findActiveMenuPath = (items, pathname, parentPath = []) => {
+  if (!items || !pathname) return [];
+  
+  for (const item of items) {
+    const hasChildren = item.items && item.items.length > 0;
+    
+    if (hasChildren) {
+      // Recursively check children
+      const childResult = findActiveMenuPath(item.items, pathname, [...parentPath, item.title]);
+      // If we found a match in children, return it (includes this parent)
+      if (childResult.length > 0) {
+        return childResult;
+      }
+    } else if (item.path) {
+      // This is a leaf item - check if it matches
+      const exactMatch = pathname === item.path;
+      // For partial match, ensure the path is followed by / or end of string
+      // This prevents /identity matching /identity-other
+      const partialMatch = item.path !== "/" && (
+        pathname.startsWith(item.path + "/") || pathname === item.path
+      );
+      
+      if (exactMatch || partialMatch) {
+        // Found matching leaf - return the parent path (not including this leaf)
+        return parentPath;
+      }
     }
+  }
+  
+  // No match found in this branch
+  return [];
+};
 
-    return {
-      ...item,
-      items: newItems,
-      openImmediately,
+const renderItems = ({ collapse = false, depth = 0, items, pathname, openMenus, onMenuToggle }) =>
+  items.reduce((acc, item) => reduceChildRoutes({ acc, collapse, depth, item, pathname, openMenus, onMenuToggle, siblings: items }), []);
+
+const reduceChildRoutes = ({ acc, collapse, depth, item, pathname, openMenus, onMenuToggle, siblings = [] }) => {
+  const hasChildren = item.items && item.items.length > 0;
+  
+  // Determine if this item is "active" (currently selected page)
+  let isActive = false;
+  if (item.path && pathname && !hasChildren) {
+    const exactMatch = pathname === item.path;
+    // More precise partial match - ensure path boundary
+    let partialMatch = item.path !== "/" && (
+      pathname.startsWith(item.path + "/") || pathname === item.path
+    );
+    // If partial match, check that no sibling has a longer/more-specific match
+    // This prevents /teams-share/onedrive from highlighting when /teams-share/onedrive/file-browser is the actual match
+    if (partialMatch && !exactMatch) {
+      const allLeafPaths = [];
+      const collectLeafPaths = (items) => {
+        for (const sibling of items) {
+          if (sibling.items && sibling.items.length > 0) {
+            collectLeafPaths(sibling.items);
+          } else if (sibling.path) {
+            allLeafPaths.push(sibling.path);
+          }
+        }
+      };
+      collectLeafPaths(siblings);
+      const hasMoreSpecificMatch = allLeafPaths.some(
+        (p) => p !== item.path && p.length > item.path.length && (pathname === p || pathname.startsWith(p + "/"))
+      );
+      if (hasMoreSpecificMatch) {
+        partialMatch = false;
+      }
     }
-  })
-}
-
-const renderItems = ({ collapse = false, depth = 0, items, pathname, category = '' }) =>
-  items.reduce(
-    (acc, item) => reduceChildRoutes({ acc, collapse, depth, item, pathname, category }),
-    []
-  )
-
-const reduceChildRoutes = ({ acc, collapse, depth, item, pathname, category }) => {
-  const checkPath = !!(item.path && pathname)
-  const exactMatch = checkPath && pathname === item.path
-  const partialMatch = checkPath ? isPathPrefix(pathname, item.path) : false
-
-  const hasChildren = item.items && item.items.length > 0
-  const isActive = exactMatch || (partialMatch && !hasChildren)
-  const currentCategory = depth === 0 && item.type === 'header' ? item.title : category
+    isActive = exactMatch || partialMatch;
+  }
+  
+  // Check if this menu should be open (works for all depths)
+  const isOpen = openMenus.includes(item.title);
 
   if (hasChildren) {
     acc.push(
@@ -72,18 +101,18 @@ const reduceChildRoutes = ({ acc, collapse, depth, item, pathname, category }) =
         external={item.external}
         icon={item.icon}
         key={item.title}
-        openImmediately={item.openImmediately}
+        open={isOpen}
+        onToggle={() => onMenuToggle(item.title, depth)}
         path={item.path}
         scope={item.scope}
         title={item.title}
         type={item.type}
-        category={currentCategory}
       >
         <Stack
           component="ul"
           spacing={0.5}
           sx={{
-            listStyle: 'none',
+            listStyle: "none",
             m: 0,
             p: 0,
           }}
@@ -93,11 +122,12 @@ const reduceChildRoutes = ({ acc, collapse, depth, item, pathname, category }) =
             depth: depth + 1,
             items: item.items,
             pathname,
-            category: currentCategory,
+            openMenus,
+            onMenuToggle,
           })}
         </Stack>
-      </SideNavItem>
-    )
+      </SideNavItem>,
+    );
   } else {
     acc.push(
       <SideNavItem
@@ -110,166 +140,122 @@ const reduceChildRoutes = ({ acc, collapse, depth, item, pathname, category }) =
         path={item.path}
         scope={item.scope}
         title={item.title}
-        category={currentCategory}
-      />
-    )
+      />,
+    );
   }
 
-  return acc
-}
+  return acc;
+};
 
-export const SideNav = (props) => {
-  const { items, onPin, pinned = false } = props
-  const pathname = usePathname()
-  const [hovered, setHovered] = useState(false)
-  const collapse = !(pinned || hovered)
-  const { data: profile } = ApiGetCall({ url: '/api/me', queryKey: 'authmecipp' })
-  const settings = useSettings()
-  const showSidebarBookmarks = settings.bookmarkSidebar !== false
-  const paperRef = useRef(null)
+export const SideNav = memo((props) => {
+  const { items, onPin, pinned = false } = props;
+  const pathname = usePathname();
+  const [hovered, setHovered] = useState(false);
+  const collapse = !(pinned || hovered);
+  const settings = useSettings();
+  const showSidebarBookmarks = settings.bookmarkSidebar !== false;
 
-  // Intercept wheel events on the side nav to fully isolate scroll.
-  // preventDefault stops wheel events from reaching the main content,
-  // and manual scrollTop has no momentum so it stops instantly when the cursor leaves.
-  // Uses RAF-based easing to smooth out discrete mouse wheel jumps.
+  // Track open menus - initialized empty, updated by effect when path changes
+  const [openMenus, setOpenMenus] = useState([]);
+
+  // Update open menus when pathname changes (e.g., navigating to Dashboard collapses all)
   useEffect(() => {
-    const el = paperRef.current
-    if (!el) return
+    const activeMenuPath = findActiveMenuPath(items, pathname);
+    setOpenMenus(activeMenuPath);
+  }, [pathname, items]);
 
-    let targetScrollTop = el.scrollTop
-    let animating = false
-    let lastWrite = null
-
-    const animate = () => {
-      if (!animating) {
-        return
+  // Handle menu toggle
+  // - Top-level (depth 0): accordion behavior - only one can be open, closes nested too
+  // - Nested (depth > 0): independent toggle
+  const handleMenuToggle = useCallback((title, depth) => {
+    setOpenMenus((prev) => {
+      if (depth === 0) {
+        if (prev.includes(title)) {
+          return [];
+        }
+        return [title];
+      } else {
+        if (prev.includes(title)) {
+          return prev.filter((t) => t !== title);
+        }
+        return [...prev, title];
       }
-      const diff = targetScrollTop - el.scrollTop
+    });
+  }, []);
 
-      // browsers can round to device pixels
-      if (Math.abs(diff) < 1) {
-        animating = false
-        return
-      }
-      const before = el.scrollTop
-      lastWrite = before + diff * 0.25
-      el.scrollTop = lastWrite
-      if (el.scrollTop === before) {
-        // write clamped or rounded to a no-op, stop instead of spinning the raf loop
-        targetScrollTop = before
-        animating = false
-        return
-      }
-      requestAnimationFrame(animate)
-    }
-
-    const handleWheel = (e) => {
-      e.preventDefault()
-      const maxScroll = el.scrollHeight - el.clientHeight
-      targetScrollTop = Math.max(0, Math.min(maxScroll, targetScrollTop + e.deltaY))
-      if (!animating) {
-        animating = true
-        requestAnimationFrame(animate)
-      }
-    }
-
-    // scrollbar drags, keyboard and touch move scrollTop outside the wheel path,
-    // resync the target so the easing loop doesn't fight them for the thumb.
-    // mid-animation, events matching our own write are the loop's echo, skip those
-    const handleScroll = () => {
-      if (animating && lastWrite !== null && Math.abs(el.scrollTop - lastWrite) < 1) {
-        return
-      }
-      targetScrollTop = el.scrollTop
-      animating = false
-    }
-
-    el.addEventListener('wheel', handleWheel, { passive: false })
-    el.addEventListener('scroll', handleScroll, { passive: true })
-    return () => {
-      // queued animate() exits on guard, stopping RAF chain
-      animating = false
-      el.removeEventListener('wheel', handleWheel)
-      el.removeEventListener('scroll', handleScroll)
-    }
-  }, [])
-
-  // Preprocess items to mark which should be open
-  const processedItems = markOpenItems(items, pathname)
   return (
-    <>
-      {profile?.clientPrincipal && profile?.clientPrincipal?.userRoles?.length > 2 && (
-        <Drawer
-          open
-          variant="permanent"
-          data-tutorial="side-nav"
-          PaperProps={{
-            ref: paperRef,
-            onMouseEnter: () => setHovered(true),
-            onMouseLeave: () => setHovered(false),
-            sx: {
-              backgroundColor: 'background.default',
-              height: `calc(100% - ${TOP_NAV_HEIGHT}px - ${BANNER_HEIGHT_VAR})`,
-              overflowX: 'hidden',
-              overflowY: 'auto',
-              scrollbarGutter: 'stable',
-              top: `calc(${TOP_NAV_HEIGHT}px + ${BANNER_HEIGHT_VAR})`,
-              transition: 'width 250ms ease-in-out',
-              width: collapse ? SIDE_NAV_COLLAPSED_WIDTH : SIDE_NAV_WIDTH,
-              zIndex: (theme) => theme.zIndex.appBar - 100,
-            },
+    <Drawer
+      open
+      variant="permanent"
+      PaperProps={{
+        onMouseEnter: () => {
+          setHovered(true);
+        },
+        onMouseLeave: () => {
+          setHovered(false);
+        },
+        sx: {
+          backgroundColor: "background.default",
+          height: `calc(100% - ${TOP_NAV_HEIGHT}px)`,
+          overflowX: "hidden",
+          top: TOP_NAV_HEIGHT,
+          transition: "width 250ms ease-in-out",
+          width: collapse ? SIDE_NAV_COLLAPSED_WIDTH : SIDE_NAV_WIDTH,
+          zIndex: (theme) => theme.zIndex.appBar - 100,
+        },
+      }}
+    >
+      <Scrollbar
+        sx={{
+          height: "100%",
+          overflowX: "hidden",
+          "& .simplebar-content": {
+            height: "100%",
+          },
+        }}
+      >
+        <Box
+          component="nav"
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            height: "100%",
+            p: 2,
           }}
         >
           <Box
-            component="nav"
+            component="ul"
             sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              height: '100%',
-              p: 2,
+              flexGrow: 1,
+              listStyle: "none",
+              m: 0,
+              p: 0,
             }}
           >
-            <Box
-              component="ul"
-              sx={{
-                flexGrow: 1,
-                listStyle: 'none',
-                m: 0,
-                p: 0,
-              }}
-            >
-              {/* Bookmarks section above Dashboard */}
-              {showSidebarBookmarks && (
-                <>
-                  <SideNavBookmarks collapse={collapse} />
-                  <Divider sx={{ my: 1 }} />
-                </>
-              )}
-              {/* Render all menu items */}
-              {renderItems({
-                collapse,
-                depth: 0,
-                items: processedItems,
-                pathname,
-              })}
-            </Box>{' '}
-            {/* Add this closing tag */}
-            {profile?.clientPrincipal && (
-              <Box
-                sx={{ position: 'sticky', bottom: 0, backgroundColor: 'background.default', pt: 1 }}
-              >
-                <CippSponsor />
-              </Box>
+            {showSidebarBookmarks && (
+              <>
+                <SideNavBookmarks collapse={collapse} />
+                <Divider sx={{ my: 1, transition: "opacity 250ms ease-in-out", ...(collapse && { opacity: 0 }) }} />
+              </>
             )}
-          </Box>{' '}
-          {/* Closing tag for the parent Box */}
-        </Drawer>
-      )}
-    </>
-  )
-}
+            {renderItems({
+              collapse,
+              depth: 0,
+              items,
+              pathname,
+              openMenus,
+              onMenuToggle: handleMenuToggle,
+            })}
+          </Box>
+        </Box>
+      </Scrollbar>
+    </Drawer>
+  );
+});
+
+SideNav.displayName = "SideNav";
 
 SideNav.propTypes = {
   onPin: PropTypes.func,
   pinned: PropTypes.bool,
-}
+};

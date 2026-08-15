@@ -5,7 +5,6 @@ import { GitHub } from "@mui/icons-material";
 import { ApiGetCall } from "../../../../api/ApiCall";
 import { CippPolicyImportDrawer } from "../../../../components/CippComponents/CippPolicyImportDrawer.jsx";
 import { CippDeployCompliancePolicyDrawer } from "../../../../components/CippComponents/CippDeployCompliancePolicyDrawer.jsx";
-import { CippSitTemplateDetails } from "../../../../components/CippComponents/CippSitTemplateDetails.jsx";
 import { PermissionButton } from "../../../../utils/permissions.js";
 
 const Page = () => {
@@ -59,6 +58,7 @@ const Page = () => {
       ],
       confirmText: "Are you sure you want to save this template to the selected repository?",
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
+      category: "manage",
     },
     {
       label: "Delete Template",
@@ -67,24 +67,22 @@ const Page = () => {
       data: { ID: "GUID" },
       confirmText: "Do you want to delete the template?",
       icon: <TrashIcon />,
-      color: "danger",
+      color: "error",
+      category: "danger",
     },
   ];
 
   const offCanvas = {
-    extendedInfoFields: ["name", "comments", "Description", "GUID"],
+    extendedInfoFields: ["name", "comments", "Pattern", "Confidence", "Locale", "GUID"],
     actions: actions,
-    children: (row) => <CippSitTemplateDetails row={row} />,
-    size: "lg",
   };
 
-  const simpleColumns = ["name", "comments", "Description", "GUID"];
+  const simpleColumns = ["name", "comments", "Pattern", "Confidence", "Locale", "GUID"];
 
   return (
     <CippTablePage
       title={pageTitle}
       apiUrl="/api/ListSensitiveInfoTypeTemplates"
-      queryKey="ListSensitiveInfoTypeTemplates"
       actions={actions}
       offCanvas={offCanvas}
       simpleColumns={simpleColumns}

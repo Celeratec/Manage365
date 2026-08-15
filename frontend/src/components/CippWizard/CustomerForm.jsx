@@ -11,7 +11,7 @@ export const CustomerForm = (props) => {
     { name: "FirstName", label: "First Name", type: "textField", required: true },
     { name: "LastName", label: "Last Name", type: "textField", required: true },
     { name: "Email", label: "Email", type: "email", required: true },
-    { name: "PhoneNumber", label: "Phone Number", type: "textField", required: true },
+    { name: "PhoneNumber", label: "Phone Number", type: "phone", required: true, defaultCountry: "US" },
     { name: "Country", label: "Country", type: "textField", required: true },
     { name: "City", label: "City", type: "textField", required: true },
     { name: "State", label: "State", type: "textField", required: true },

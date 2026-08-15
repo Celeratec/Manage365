@@ -16,6 +16,7 @@ const Page = () => {
         GUID: "id",
       },
       confirmText: "Are you sure you want to assign this incident to yourself?",
+      category: "edit",
     },
     {
       label: "Set status to active",
@@ -28,6 +29,7 @@ const Page = () => {
         Assigned: "assignedTo",
       },
       confirmText: "Are you sure you want to set the status to active?",
+      category: "edit",
     },
     {
       label: "Set status to in progress",
@@ -40,6 +42,7 @@ const Page = () => {
         Assigned: "assignedTo",
       },
       confirmText: "Are you sure you want to set the status to in progress?",
+      category: "edit",
     },
     {
       label: "Set status to resolved",
@@ -52,6 +55,7 @@ const Page = () => {
         Assigned: "assignedTo",
       },
       confirmText: "Are you sure you want to set the status to resolved?",
+      category: "edit",
     },
   ];
 

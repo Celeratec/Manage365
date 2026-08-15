@@ -21,6 +21,7 @@ const Page = () => {
         'Are you sure you want to allow the device [deviceFriendlyName] for [userPrincipalName]?',
       multiPost: false,
       condition: (row) => row.deviceAccessState !== 'Allowed',
+      category: 'security',
     },
     {
       label: 'Block Device',
@@ -38,6 +39,7 @@ const Page = () => {
         'Are you sure you want to block the device [deviceFriendlyName] for [userPrincipalName]?',
       multiPost: false,
       condition: (row) => row.deviceAccessState !== 'Blocked',
+      category: 'security',
     },
     {
       label: 'Delete Device',
@@ -54,6 +56,7 @@ const Page = () => {
       confirmText:
         'Are you sure you want to delete the device [deviceFriendlyName] for [userPrincipalName]? This action cannot be undone.',
       multiPost: false,
+      category: 'danger',
     },
   ]
 

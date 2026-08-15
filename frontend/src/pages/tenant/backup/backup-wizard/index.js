@@ -42,6 +42,7 @@ const Page = () => {
           url: "/api/RemoveScheduledItem",
           data: { ID: "RowKey" },
           confirmText: "Do you want to delete this job?",
+          category: "danger",
         },
       ]}
       offCanvas={{
@@ -53,6 +54,7 @@ const Page = () => {
             url: "/api/RemoveScheduledItem",
             data: { ID: "RowKey" },
             confirmText: "Do you want to delete this job?",
+            category: "danger",
           },
         ],
       }}

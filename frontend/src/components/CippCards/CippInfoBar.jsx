@@ -1,5 +1,4 @@
 import React, { useState, Fragment } from 'react'
-import { useRouter } from 'next/router'
 import { Box, Card, Stack, SvgIcon, Typography, Skeleton, Tooltip } from '@mui/material'
 import { Grid } from '@mui/system'
 import { CippOffCanvas } from '../CippComponents/CippOffCanvas'
@@ -7,7 +6,6 @@ import { CippPropertyListCard } from './CippPropertyListCard'
 
 export const CippInfoBar = ({ data, isFetching }) => {
   const [visibleIndex, setVisibleIndex] = useState(null)
-  const router = useRouter()
 
   return (
     <Card>
@@ -16,19 +14,9 @@ export const CippInfoBar = ({ data, isFetching }) => {
           <Fragment key={item.name}>
             <Grid
               size={{ md: 3, sm: 6, xs: 12 }}
-              onClick={
-                item.offcanvas
-                  ? () => setVisibleIndex(index)
-                  : item.link
-                    ? () => router.push(item.link)
-                    : undefined
-              }
+              onClick={item.offcanvas ? () => setVisibleIndex(index) : undefined}
               sx={{
-                cursor: item.offcanvas || item.link ? 'pointer' : 'default',
-                '&:hover':
-                  item.offcanvas || item.link
-                    ? { backgroundColor: (theme) => theme.palette.action.hover }
-                    : undefined,
+                cursor: item.offcanvas ? 'pointer' : 'default',
                 borderBottom: (theme) => ({
                   xs: `1px solid ${theme.palette.divider}`,
                   md: 'none',
@@ -48,12 +36,7 @@ export const CippInfoBar = ({ data, isFetching }) => {
                 },
               }}
             >
-              <Stack
-                alignItems="center"
-                direction="row"
-                spacing={2}
-                sx={{ p: 2, minWidth: 0 }}
-              >
+              <Stack alignItems="center" direction="row" spacing={2} sx={{ p: 2, minWidth: 0 }}>
                 {item?.icon && (
                   <SvgIcon
                     color={item.color ? item.color : 'primary'}
@@ -87,11 +70,7 @@ export const CippInfoBar = ({ data, isFetching }) => {
                       </Typography>
                       <Typography
                         variant="h6"
-                        sx={{
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
+                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                       >
                         {isFetching ? <Skeleton width={'100%'} /> : item.data}
                       </Typography>
@@ -120,11 +99,7 @@ export const CippInfoBar = ({ data, isFetching }) => {
                     </Typography>
                     <Typography
                       variant="h6"
-                      sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
+                      sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                     >
                       {isFetching ? <Skeleton width={'100%'} /> : item.data}
                     </Typography>

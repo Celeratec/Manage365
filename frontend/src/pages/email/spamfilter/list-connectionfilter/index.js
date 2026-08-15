@@ -17,6 +17,7 @@ const Page = () => {
       },
       icon: <Book />,
       confirmText: "Are you sure you want to create a template based on this filter?",
+      category: "manage",
     },
   ];
 

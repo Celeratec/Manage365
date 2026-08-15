@@ -14,6 +14,7 @@ const Page = () => {
       link: '/cipp/scheduler/task?id=[RowKey]',
       icon: <Visibility />,
       condition: (row) => row?.EventType === 'Scheduled Task',
+      category: 'view',
     },
     {
       label: 'Edit Alert',
@@ -21,6 +22,7 @@ const Page = () => {
       icon: <Edit />,
       color: 'success',
       target: '_self',
+      category: 'edit',
     },
     {
       label: 'Clone & Edit Alert',
@@ -28,6 +30,7 @@ const Page = () => {
       icon: <CopyAll />,
       color: 'success',
       target: '_self',
+      category: 'edit',
     },
     {
       label: 'Delete Alert',
@@ -41,6 +44,7 @@ const Page = () => {
       relatedQueryKeys: 'ListAlertsQueue',
       confirmText: 'Are you sure you want to delete this Alert?',
       multiPost: false,
+      category: 'danger',
     },
   ]
 

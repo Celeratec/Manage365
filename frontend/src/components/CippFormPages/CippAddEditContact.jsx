@@ -153,18 +153,20 @@ const ContactFormLayout = ({ formControl, formType = "add" }) => {
       {/* Phone Numbers */}
       <Grid size={{ md: 6, xs: 12 }}>
         <CippFormComponent
-          type="textField"
+          type="phone"
           label="Mobile Phone"
           name="mobilePhone"
           formControl={formControl}
+          defaultCountry="US"
         />
       </Grid>
       <Grid size={{ md: 6, xs: 12 }}>
         <CippFormComponent
-          type="textField"
+          type="phone"
           label="Business Phone"
           name="businessPhone"
           formControl={formControl}
+          defaultCountry="US"
         />
       </Grid>
 

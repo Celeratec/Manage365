@@ -1,200 +1,273 @@
 import { useRouter } from "next/router";
 import { Layout as DashboardLayout } from "../../../layouts/index.js";
 import { ApiGetCall } from "../../../api/ApiCall";
-import { Box, Container, Chip, TextField, Card, CardHeader, CardContent } from "@mui/material";
-import { Stack } from "@mui/system";
+import { Button, SvgIcon, Box, Container, Chip, Card, CardHeader, CardContent, Typography, Alert } from "@mui/material";
+import { Grid, Stack } from "@mui/system";
 import { CippPropertyListCard } from "../../../components/CippCards/CippPropertyListCard";
 import { CippInfoBar } from "../../../components/CippCards/CippInfoBar";
 import CippFormSkeleton from "../../../components/CippFormPages/CippFormSkeleton";
 import { getCippTranslation } from "../../../utils/get-cipp-translation";
+import { getCippFormatting } from "../../../utils/get-cipp-formatting";
+import {
+  ClockIcon,
+  ServerIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  ExclamationCircleIcon,
+  FireIcon,
+  BellAlertIcon,
+  BugAntIcon,
+  ArrowLeftIcon,
+  DocumentTextIcon,
+  UserIcon,
+  BuildingOfficeIcon,
+  GlobeAltIcon,
+  IdentificationIcon,
+  ChatBubbleLeftRightIcon,
+  CodeBracketIcon,
+  CubeIcon,
+} from "@heroicons/react/24/outline";
+import { CippHead } from "../../../components/CippComponents/CippHead";
+import Link from "next/link";
 
-const formatRawError = (rawError) => {
-  if (rawError == null || rawError === "") return "";
-  try {
-    if (typeof rawError === "object") {
-      return JSON.stringify(rawError, null, 2) || "";
-    }
-    const asString = String(rawError).trim();
-    if (!asString || asString === "null" || asString === "undefined" || asString === "Not available") {
-      return "";
-    }
-    try {
-      return JSON.stringify(JSON.parse(asString), null, 2) || asString;
-    } catch {
-      return asString;
-    }
-  } catch {
-    return "";
-  }
-};
-
-const formatLogDataValue = (value) => {
-  if (value == null || value === "") return "N/A";
-  try {
-    if (typeof value === "object") {
-      return JSON.stringify(value, null, 2) || "N/A";
-    }
-    const asString = String(value);
-    return asString || "N/A";
-  } catch {
-    return "Unable to display value";
-  }
+// Severity configuration
+const severityConfig = {
+  Info: { color: "info", icon: <InformationCircleIcon />, label: "Informational" },
+  Warn: { color: "warning", icon: <ExclamationTriangleIcon />, label: "Warning" },
+  Warning: { color: "warning", icon: <ExclamationTriangleIcon />, label: "Warning" },
+  Error: { color: "error", icon: <ExclamationCircleIcon />, label: "Error" },
+  Critical: { color: "error", icon: <FireIcon />, label: "Critical" },
+  CRITICAL: { color: "error", icon: <FireIcon />, label: "Critical" },
+  Alert: { color: "warning", icon: <BellAlertIcon />, label: "Alert" },
+  Debug: { color: "default", icon: <BugAntIcon />, label: "Debug" },
 };
 
 const Page = () => {
   const router = useRouter();
-  const { logentry, dateFilter } = router.query;
+  const { logentry, date } = router.query;
 
   const logRequest = ApiGetCall({
     url: `/api/Listlogs`,
     data: {
       logentryid: logentry,
-      dateFilter: dateFilter,
+      datefilter: date || null,
     },
-    queryKey: `GetLogEntry-${logentry}`,
+    queryKey: `GetLogEntry-${logentry}-${date}`,
     waiting: !!logentry,
   });
 
-  // Get the log data from array
   const logData = logRequest.data?.[0];
+  const sevConfig = severityConfig[logData?.Severity] || severityConfig.Info;
 
-  // Top info bar data like dashboard
+  // Top info bar data
   const logInfo = logData
     ? [
-        { name: "Log ID", data: logData.RowKey ?? "N/A" },
         {
           name: "Date & Time",
-          data: logData.DateTime ? new Date(logData.DateTime).toLocaleString() : "N/A",
+          data: getCippFormatting(logData.DateTime, "DateTime"),
+          icon: <ClockIcon />,
         },
-        { name: "API", data: logData.API ?? "N/A" },
+        {
+          name: "API Endpoint",
+          data: logData.API,
+          icon: <ServerIcon />,
+        },
         {
           name: "Severity",
           data: (
             <Chip
-              label={logData.Severity ?? "Unknown"}
-              color={
-                logData.Severity === "CRITICAL"
-                  ? "error"
-                  : logData.Severity === "Error"
-                    ? "error"
-                    : logData.Severity === "Warn"
-                      ? "warning"
-                      : logData.Severity === "Info"
-                        ? "info"
-                        : "default"
-              }
-              variant="filled"
+              label={logData.Severity}
+              color={sevConfig.color}
+              variant={logData.Severity === "Error" || logData.Severity === "Critical" || logData.Severity === "CRITICAL" ? "filled" : "outlined"}
+              size="small"
+              icon={sevConfig.icon}
             />
           ),
+          icon: <ExclamationTriangleIcon />,
+        },
+        {
+          name: "Log ID",
+          data: (
+            <Typography variant="body2" fontFamily="monospace" fontSize="0.75rem">
+              {logData.RowKey?.substring(0, 20)}...
+            </Typography>
+          ),
+          icon: <IdentificationIcon />,
         },
       ]
     : [];
 
-  // Main log properties
+  // Main log properties with icons
   const propertyItems = logData
     ? [
-        { label: "Tenant", value: logData.Tenant ?? "N/A" },
-        { label: "User", value: logData.User ?? "N/A" },
-        { label: "Message", value: logData.Message ?? "N/A" },
-        { label: "Tenant ID", value: logData.TenantID ?? "N/A" },
-        { label: "App ID", value: logData.AppId || "None" },
-        { label: "IP Address", value: logData.IP || "None" },
+        {
+          label: "Tenant",
+          value: logData.Tenant,
+          icon: <BuildingOfficeIcon style={{ width: 18, height: 18 }} />,
+        },
+        {
+          label: "User",
+          value: logData.User,
+          icon: <UserIcon style={{ width: 18, height: 18 }} />,
+        },
+        {
+          label: "Message",
+          value: logData.Message,
+          icon: <ChatBubbleLeftRightIcon style={{ width: 18, height: 18 }} />,
+        },
+        {
+          label: "Tenant ID",
+          value: logData.TenantID || "N/A",
+          icon: <IdentificationIcon style={{ width: 18, height: 18 }} />,
+        },
+        {
+          label: "App ID",
+          value: logData.AppId || "N/A",
+          icon: <CubeIcon style={{ width: 18, height: 18 }} />,
+        },
+        {
+          label: "IP Address",
+          value: logData.IP || "N/A",
+          icon: <GlobeAltIcon style={{ width: 18, height: 18 }} />,
+        },
       ]
     : [];
 
-  const formattedRawError = formatRawError(logData?.LogData?.RawError);
-
-  // LogData properties (RawError is shown separately)
+  // LogData properties
   const logDataItems =
-    logData?.LogData && typeof logData.LogData === "object" && !Array.isArray(logData.LogData)
-      ? Object.entries(logData.LogData)
-          .filter(([key, value]) => key !== "RawError" && value != null && value !== "")
-          .map(([key, value]) => ({
-            label: key,
-            value: formatLogDataValue(value),
-          }))
-      : [];
-
-  const standardItems =
-    logData?.Standard && typeof logData.Standard === "object" && !Array.isArray(logData.Standard)
-      ? Object.entries(logData.Standard).map(([key, value]) => ({
-          label: getCippTranslation(key),
-          value: value ?? "N/A",
+    logData?.LogData && typeof logData.LogData === "object"
+      ? Object.entries(logData.LogData).map(([key, value]) => ({
+          label: key,
+          value: typeof value === "object" ? JSON.stringify(value, null, 2) : String(value),
         }))
       : [];
 
   return (
-    <Box sx={{ flexGrow: 1 }}>
-      <Container maxWidth={false}>
-        <Stack spacing={2}>
-          {logRequest.isLoading && <CippFormSkeleton layout={[1, 1, 1]} />}
+    <>
+      <CippHead title="Log Entry Details" noTenant={true} />
+      <Box sx={{ flexGrow: 1, py: 2 }}>
+        <Container maxWidth={false}>
+          <Stack spacing={2}>
+            {/* Back Button */}
+            <Box>
+              <Button
+                component={Link}
+                href="/cipp/logs"
+                startIcon={
+                  <SvgIcon fontSize="small">
+                    <ArrowLeftIcon />
+                  </SvgIcon>
+                }
+                color="inherit"
+                sx={{ mb: 1 }}
+              >
+                Back to Logbook
+              </Button>
+            </Box>
 
-          {logRequest.isError && (
-            <CippPropertyListCard
-              title="Error"
-              propertyItems={[{ label: "Error", value: "Failed to load log entry" }]}
-            />
-          )}
+            {logRequest.isLoading && <CippFormSkeleton layout={[1, 1, 1]} />}
 
-          {logRequest.isSuccess && logData && (
-            <>
-              {/* Top info bar like dashboard */}
-              <CippInfoBar data={logInfo} isFetching={logRequest.isLoading} />
+            {logRequest.isError && (
+              <Alert severity="error" icon={<ExclamationCircleIcon style={{ width: 20 }} />}>
+                Failed to load log entry. The log may have been deleted or the ID is invalid.
+              </Alert>
+            )}
 
-              {/* Main log information */}
-              <CippPropertyListCard
-                title="Log Details"
-                propertyItems={propertyItems}
-                isFetching={logRequest.isLoading}
-              />
+            {logRequest.isSuccess && !logData && (
+              <Alert severity="warning" icon={<ExclamationTriangleIcon style={{ width: 20 }} />}>
+                Log entry not found. It may have been deleted or expired.
+              </Alert>
+            )}
 
-              {/* LogData in separate card */}
-              {logDataItems.length > 0 && (
-                <CippPropertyListCard
-                  title="Additional Log Data"
-                  propertyItems={logDataItems}
-                  isFetching={logRequest.isLoading}
-                  showDivider={false}
-                />
-              )}
-              {formattedRawError ? (
-                <Card>
-                  <CardHeader title="Raw Error" />
-                  <CardContent>
-                    <TextField
-                      fullWidth
-                      multiline
-                      minRows={8}
-                      maxRows={24}
-                      value={formattedRawError}
-                      slotProps={{
-                        input: { readOnly: true },
-                      }}
-                      sx={{
-                        "& .MuiInputBase-input": {
-                          fontFamily: "monospace",
-                          fontSize: "0.8125rem",
-                        },
-                      }}
+            {logRequest.isSuccess && logData && (
+              <>
+                {/* Status Info Bar */}
+                <CippInfoBar data={logInfo} isFetching={logRequest.isLoading} />
+
+                {/* Main Content Grid */}
+                <Grid container spacing={2}>
+                  {/* Log Details Card */}
+                  <Grid size={{ xs: 12, lg: logDataItems.length > 0 ? 6 : 12 }}>
+                    <CippPropertyListCard
+                      title="Log Details"
+                      propertyItems={propertyItems}
+                      isFetching={logRequest.isLoading}
+                      cardSx={{ height: "100%" }}
                     />
-                  </CardContent>
-                </Card>
-              ) : null}
-              {standardItems.length > 0 && (
-                <CippPropertyListCard
-                  title="Standard"
-                  propertyItems={standardItems}
-                  isFetching={logRequest.isLoading}
-                  layout="multiple"
-                  showDivider={false}
-                  variant="outlined"
-                />
-              )}
-            </>
-          )}
-        </Stack>
-      </Container>
-    </Box>
+                  </Grid>
+
+                  {/* Additional Log Data Card */}
+                  {logDataItems.length > 0 && (
+                    <Grid size={{ xs: 12, lg: 6 }}>
+                      <Card variant="outlined" sx={{ height: "100%" }}>
+                        <CardHeader
+                          title={
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <SvgIcon fontSize="small" color="primary">
+                                <CodeBracketIcon />
+                              </SvgIcon>
+                              <Typography variant="h6">Additional Data</Typography>
+                            </Stack>
+                          }
+                        />
+                        <CardContent>
+                          <Stack spacing={2}>
+                            {logDataItems.map((item, index) => (
+                              <Box key={index}>
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ textTransform: "uppercase", fontWeight: 600 }}
+                                >
+                                  {item.label}
+                                </Typography>
+                                <Typography
+                                  variant="body2"
+                                  sx={{
+                                    fontFamily: item.value.includes("{") ? "monospace" : "inherit",
+                                    fontSize: item.value.includes("{") ? "0.75rem" : "inherit",
+                                    whiteSpace: item.value.includes("{") ? "pre-wrap" : "normal",
+                                    backgroundColor: item.value.includes("{")
+                                      ? "action.hover"
+                                      : "transparent",
+                                    p: item.value.includes("{") ? 1 : 0,
+                                    borderRadius: 1,
+                                    wordBreak: "break-word",
+                                  }}
+                                >
+                                  {item.value}
+                                </Typography>
+                              </Box>
+                            ))}
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )}
+
+                  {/* Standard Card */}
+                  {logData?.Standard?.Standard && (
+                    <Grid size={12}>
+                      <CippPropertyListCard
+                        title="Standard Information"
+                        propertyItems={Object.entries(logData.Standard).map(([key, value]) => ({
+                          label: getCippTranslation(key),
+                          value: value ?? "N/A",
+                        }))}
+                        isFetching={logRequest.isLoading}
+                        layout="multiple"
+                        showDivider={false}
+                        variant="outlined"
+                      />
+                    </Grid>
+                  )}
+                </Grid>
+              </>
+            )}
+          </Stack>
+        </Container>
+      </Box>
+    </>
   );
 };
 

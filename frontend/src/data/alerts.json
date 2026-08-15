@@ -433,12 +433,6 @@
     "recommendedRunInterval": "1d"
   },
   {
-    "name": "IntuneApprovalRequests",
-    "label": "Alert on Intune changes waiting for multi-admin approval",
-    "recommendedRunInterval": "1d",
-    "description": "Multi-admin approval holds a protected Intune change until a second administrator approves it, and nothing notifies the requestor. This reports requests still sitting in needsApproval."
-  },
-  {
     "name": "SoftDeletedMailboxes",
     "label": "Alert on soft deleted mailboxes",
     "recommendedRunInterval": "1d"
@@ -602,7 +596,7 @@
     "name": "QuarantineReleaseRequests",
     "label": "Alert on quarantine release requests",
     "recommendedRunInterval": "1h",
-    "description": "Monitors for user requests to release quarantined messages and provides a CIPP-native alternative to the external email forwarding method. This helps MSPs maintain secure configurations while getting timely notifications about quarantine activity. Links to the tenant's quarantine page are provided in alerts."
+    "description": "Monitors for user requests to release quarantined messages and provides a Manage365-native alternative to the external email forwarding method. This helps MSPs maintain secure configurations while getting timely notifications about quarantine activity. Links to the tenant's quarantine page are provided in alerts."
   },
   {
     "name": "StaleEntraDevices",

@@ -12,11 +12,11 @@ import {
   Box,
   Input,
   Tooltip,
-  Alert,
 } from "@mui/material";
 import { CippAutoComplete } from "./CippAutocomplete";
 import { CippTextFieldWithVariables } from "./CippTextFieldWithVariables";
 import { Controller, useFormState } from "react-hook-form";
+import { formatPhoneE164, formatPhoneDisplay, validatePhoneNumber } from "../../utils/phone-formatting";
 import { DateTimePicker } from "@mui/x-date-pickers"; // Make sure to install @mui/x-date-pickers
 import CSVReader from "../CSVReader";
 import get from "lodash/get";
@@ -45,12 +45,10 @@ const languageCodeOptions = Object.values(
   }, {}),
 ).sort((a, b) => a.label.localeCompare(b.label));
 
-// The tiptap / prosemirror / mui-tiptap editor tree is large and only used by `richText` fields.
-// Load it on demand via next/dynamic so it is code-split into an async chunk instead of being
-// pulled into the shared bundle that every page using CippFormComponent loads. See CippRichTextField.jsx.
-const CippRichTextField = dynamic(() => import("./CippRichTextField"), {
+// Lazy-load TipTap rich text editor only when richText type is used
+const CippRichTextEditor = dynamic(() => import("./CippRichTextEditor"), {
   ssr: false,
-  loading: () => null,
+  loading: () => <Typography variant="body2" color="text.secondary">Loading editor...</Typography>,
 });
 
 // Helper function to convert bracket notation to dot notation
@@ -106,72 +104,12 @@ export const CippFormComponent = (props) => {
     }
   };
 
-  // Shared renderer for autoComplete-backed fields (autoComplete + the ISO-code multiselects).
-  const renderAutoCompleteField = (autoCompleteProps) => {
-    // Resolve options if it's a function
-    const resolvedOptions =
-      typeof autoCompleteProps.options === "function"
-        ? autoCompleteProps.options(row)
-        : autoCompleteProps.options;
-
-    // Wrap validate function to pass row as third parameter
-    const resolvedValidators = validators
-      ? {
-          ...validators,
-          validate:
-            typeof validators.validate === "function"
-              ? (value, formValues) => validators.validate(value, formValues, row)
-              : validators.validate,
-        }
-      : validators;
-
-    return (
-      <div>
-        <Controller
-          name={convertedName}
-          control={formControl.control}
-          rules={resolvedValidators}
-          render={({ field }) => (
-            <MemoizedCippAutoComplete
-              {...autoCompleteProps}
-              options={resolvedOptions}
-              isFetching={autoCompleteProps.isFetching}
-              variant="filled"
-              defaultValue={field.value}
-              label={label}
-              onChange={(value) => field.onChange(value)}
-              onBlur={field.onBlur}
-            />
-          )}
-        />
-
-        {get(errors, convertedName, {})?.message && (
-          <Typography variant="subtitle3" color="error">
-            {get(errors, convertedName, {})?.message}
-          </Typography>
-        )}
-        {helperText && (
-          <Typography variant="subtitle3" color="text.secondary">
-            {helperText}
-          </Typography>
-        )}
-      </div>
-    );
-  };
-
   switch (type) {
     case "heading":
       return (
         <Typography variant="h6" sx={{ mt: 2 }}>
           {label}
         </Typography>
-      );
-
-    case "alert":
-      return (
-        <Alert severity={other.severity || "info"} sx={{ my: 1 }}>
-          {label}
-        </Alert>
       );
 
     case "hidden":
@@ -266,64 +204,6 @@ export const CippFormComponent = (props) => {
           )}
         </>
       );
-    case "colorPicker":
-      return (
-        <>
-          <div>
-            <Controller
-              name={convertedName}
-              control={formControl.control}
-              defaultValue={defaultValue || ""}
-              rules={{
-                pattern: {
-                  value: /^#[0-9A-F]{6}$/i,
-                  message: "Please enter a valid hex color (e.g., #F77F00)",
-                },
-                ...validators,
-              }}
-              render={({ field }) => (
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <input
-                    type="color"
-                    value={/^#[0-9A-F]{6}$/i.test(field.value || "") ? field.value : "#000000"}
-                    onChange={(e) => field.onChange(e.target.value)}
-                    style={{
-                      width: "50px",
-                      height: "40px",
-                      border: "1px solid #ddd",
-                      borderRadius: "4px",
-                      cursor: "pointer",
-                      padding: 0,
-                    }}
-                  />
-                  <TextField
-                    variant="filled"
-                    InputLabelProps={{
-                      shrink: true,
-                    }}
-                    sx={{ width: "150px" }}
-                    {...other}
-                    label={label}
-                    value={field.value || ""}
-                    onChange={field.onChange}
-                    onBlur={field.onBlur}
-                  />
-                </Box>
-              )}
-            />
-          </div>
-          {get(errors, convertedName, {})?.message && (
-            <Typography variant="subtitle3" color="error">
-              {get(errors, convertedName, {})?.message}
-            </Typography>
-          )}
-          {helperText && (
-            <Typography variant="subtitle3" color="text.secondary">
-              {helperText}
-            </Typography>
-          )}
-        </>
-      );
     case "textFieldWithVariables":
       return (
         <>
@@ -334,10 +214,6 @@ export const CippFormComponent = (props) => {
                 control={formControl.control}
                 defaultValue={defaultValue || ""}
                 rules={validators}
-                // No tenantFilter prop: CippTextFieldWithVariables reads the current tenant from
-                // useSettings itself and does not accept one. This used to pass an identifier that
-                // was never destructured from props, so the field threw a ReferenceError as soon as
-                // it rendered — which made the whole type unusable.
                 render={({ field }) => (
                   <CippTextFieldWithVariables
                     {...other}
@@ -350,6 +226,7 @@ export const CippFormComponent = (props) => {
                     value={field.value || ""}
                     onChange={field.onChange}
                     onBlur={field.onBlur}
+                    tenantFilter={tenantFilter}
                     includeSystemVariables={includeSystemVariables}
                   />
                 )}
@@ -364,6 +241,71 @@ export const CippFormComponent = (props) => {
           {helperText && (
             <Typography variant="subtitle3" color="text.secondary">
               {helperText}
+            </Typography>
+          )}
+        </>
+      );
+    case "phone":
+      return (
+        <>
+          <Tooltip title={label || ""} placement="top" arrow>
+            <div>
+              <Controller
+                name={convertedName}
+                control={formControl.control}
+                defaultValue={defaultValue || ""}
+                rules={{
+                  ...validators,
+                  validate: {
+                    ...validators?.validate,
+                    phoneFormat: (value) => {
+                      if (!value) return true;
+                      const result = validatePhoneNumber(value, other.defaultCountry || "US");
+                      return result.valid || result.message;
+                    },
+                  },
+                }}
+                render={({ field }) => (
+                  <TextField
+                    {...other}
+                    variant="filled"
+                    fullWidth
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                    label={label}
+                    placeholder={other.placeholder || "+1 (555) 123-4567"}
+                    value={field.value || ""}
+                    onChange={field.onChange}
+                    onBlur={(e) => {
+                      field.onBlur();
+                      // Format phone number on blur
+                      if (e.target.value) {
+                        const formatted = formatPhoneE164(e.target.value, other.defaultCountry || "US");
+                        if (formatted && formatted !== e.target.value) {
+                          field.onChange(formatted);
+                        }
+                      }
+                    }}
+                    error={Boolean(get(errors, convertedName, {})?.message)}
+                    helperText={
+                      field.value
+                        ? formatPhoneDisplay(field.value, other.defaultCountry || "US")
+                        : "Enter phone with country code (e.g., +1 for US/Canada)"
+                    }
+                    inputProps={{
+                      ...other.inputProps,
+                      inputMode: "tel",
+                      autoComplete: "tel",
+                    }}
+                  />
+                )}
+              />
+            </div>
+          </Tooltip>
+          {get(errors, convertedName, {})?.message && (
+            <Typography variant="subtitle3" color="error">
+              {get(errors, convertedName, {})?.message}
             </Typography>
           )}
         </>
@@ -575,34 +517,128 @@ export const CippFormComponent = (props) => {
         </>
       );
 
-    case "autoComplete":
-      return renderAutoCompleteField(other);
-
     // ISO 3166-1 alpha-2 region/country code multiselect (e.g. Spam Filter RegionBlockList).
     case "CountryCodeMultiSelect":
-      return renderAutoCompleteField({
-        ...other,
-        options: countryCodeOptions,
-        multiple: true,
-        creatable: false,
-      });
+      return (
+        <CippFormComponent
+          {...props}
+          type="autoComplete"
+          options={countryCodeOptions}
+          multiple={true}
+          creatable={false}
+        />
+      );
 
     // ISO 639-1 alpha-2 language code multiselect (e.g. Spam Filter LanguageBlockList).
     case "LanguageCodeMultiSelect":
-      return renderAutoCompleteField({
-        ...other,
-        options: languageCodeOptions,
-        multiple: true,
-        creatable: false,
-      });
+      return (
+        <CippFormComponent
+          {...props}
+          type="autoComplete"
+          options={languageCodeOptions}
+          multiple={true}
+          creatable={false}
+        />
+      );
+
+    case "autoComplete": {
+      // Resolve options if it's a function
+      const resolvedOptions =
+        typeof other.options === "function" ? other.options(row) : other.options;
+
+      // Wrap validate function to pass row as third parameter
+      const resolvedValidators = validators
+        ? {
+            ...validators,
+            validate:
+              typeof validators.validate === "function"
+                ? (value, formValues) => validators.validate(value, formValues, row)
+                : validators.validate,
+          }
+        : validators;
+
+      // Process API config to substitute row values in data and Endpoint
+      // Supports [fieldName] placeholders that get replaced with row values
+      const resolvedApi = other.api
+        ? (() => {
+            const processValue = (value) => {
+              if (typeof value === "string") {
+                // Replace [fieldName] placeholders with row values
+                return value.replace(/\[([^\]]+)\]/g, (_, key) => {
+                  const rowValue = row?.[key];
+                  return rowValue !== undefined ? rowValue : `[${key}]`;
+                });
+              }
+              return value;
+            };
+
+            const processObject = (obj) => {
+              if (!obj || typeof obj !== "object") return obj;
+              const result = {};
+              for (const [key, value] of Object.entries(obj)) {
+                if (typeof value === "object" && value !== null) {
+                  result[key] = processObject(value);
+                } else {
+                  result[key] = processValue(value);
+                }
+              }
+              return result;
+            };
+
+            return {
+              ...other.api,
+              data: processObject(other.api.data),
+              // Include row data for unique queryKey to prevent caching across different rows
+              queryKey: other.api.queryKey
+                ? `${other.api.queryKey}-${row?.siteId || row?.id || ""}`
+                : undefined,
+            };
+          })()
+        : other.api;
+
+      return (
+        <div>
+          <Controller
+            name={convertedName}
+            control={formControl.control}
+            rules={resolvedValidators}
+            render={({ field }) => (
+              <MemoizedCippAutoComplete
+                {...other}
+                api={resolvedApi}
+                options={resolvedOptions}
+                isFetching={other.isFetching}
+                variant="filled"
+                defaultValue={field.value}
+                label={label}
+                onChange={(value) => field.onChange(value)}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
+
+          {get(errors, convertedName, {})?.message && (
+            <Typography variant="subtitle3" color="error">
+              {get(errors, convertedName, {})?.message}
+            </Typography>
+          )}
+          {helperText && (
+            <Typography variant="subtitle3" color="text.secondary">
+              {helperText}
+            </Typography>
+          )}
+        </div>
+      );
+    }
 
     case "richText": {
       return (
-        <CippRichTextField
+        <CippRichTextEditor
           convertedName={convertedName}
           formControl={formControl}
           validators={validators}
           label={label}
+          errors={errors}
           {...other}
         />
       );

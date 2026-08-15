@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import CippButtonCard from "../../../../components/CippCards/CippButtonCard";
 import { CippDataTable } from "../../../../components/CippTable/CippDataTable";
 import { CippImageCard } from "../../../../components/CippCards/CippImageCard";
-import { get } from "lodash";
+import get from "lodash/get";
 const Page = () => {
   const router = useRouter();
   const { id } = router.query;

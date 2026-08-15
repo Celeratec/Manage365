@@ -1,35 +1,40 @@
-import React, { useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Typography, Divider } from "@mui/material";
 import { Grid } from "@mui/system";
 import CippFormComponent from "./CippFormComponent";
 import { getCippTranslation } from "../../utils/get-cipp-translation";
-import { useIntuneDefinitions } from "../../hooks/use-intune-collection";
-import { collectSettingDefinitionIds } from "../../utils/intune-setting-definition-ids";
 
-// One shared reference for the nothing-to-resolve case, so the hook below is not handed a fresh
-// array on every render.
-const EMPTY_IDS = [];
+// Lazy-load the ~9.4MB intuneCollection JSON only when needed
+let _intuneCollectionCache = null;
+const getIntuneCollection = async () => {
+  if (_intuneCollectionCache) return _intuneCollectionCache;
+  const mod = await import("../../data/intuneCollection.json");
+  _intuneCollectionCache = mod.default;
+  return _intuneCollectionCache;
+};
 
 const CippTemplateFieldRenderer = ({
   templateData,
   formControl,
   templateType = "conditionalAccess",
 }) => {
-  // Only the setting definition ids this template references are requested. Keyed on the raw JSON
-  // string so the walk runs once per template rather than once per render.
-  const intuneRawJson = templateType === "intune" ? templateData?.RAWJson : undefined;
-  const intuneDefinitionIds = useMemo(() => {
-    if (!intuneRawJson) return EMPTY_IDS;
-    try {
-      return Array.from(collectSettingDefinitionIds(JSON.parse(intuneRawJson)));
-    } catch {
-      return EMPTY_IDS;
-    }
-  }, [intuneRawJson]);
+  const [intuneCollection, setIntuneCollection] = useState([]);
 
-  const { getDefinition: getIntuneDefinition } = useIntuneDefinitions(intuneDefinitionIds, {
-    enabled: templateType === "intune",
-  });
+  useEffect(() => {
+    if (templateType === "intune") {
+      getIntuneCollection().then(setIntuneCollection);
+    }
+  }, [templateType]);
+
+  const intuneDefinitionMap = useMemo(() => {
+    const map = new Map();
+    (intuneCollection || []).forEach((def) => {
+      if (def?.id) {
+        map.set(def.id, def);
+      }
+    });
+    return map;
+  }, [intuneCollection]);
   // Default blacklisted fields with wildcard support
   const defaultBlacklistedFields = [
     "id",
@@ -225,8 +230,10 @@ const CippTemplateFieldRenderer = ({
   const isFieldBlacklisted = (fieldName) => {
     return blacklistedFields.some((pattern) => {
       if (pattern.includes("*")) {
-        // Convert wildcard pattern to regex
-        const regexPattern = pattern.replace(/\*/g, ".*").replace(/\./g, "\\.");
+        // Convert wildcard pattern to regex - escape all regex special chars except *, then convert *
+        const regexPattern = pattern
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, ".*");
         const regex = new RegExp(`^${regexPattern}$`, "i");
         return regex.test(fieldName);
       }
@@ -255,43 +262,11 @@ const CippTemplateFieldRenderer = ({
   React.useEffect(() => {
     if (templateData && formControl) {
       const processedData = parseIntuneRawJson(templateData);
-
-      // Recursively strip null values, empty arrays, empty strings,
-      // and @odata / Graph metadata keys so they don't create blank
-      // form fields or phantom sections in the builder.
-      const stripEmpty = (obj) => {
-        if (obj === null || obj === undefined) return undefined;
-        if (typeof obj === "string" && obj.trim() === "") return undefined;
-        if (Array.isArray(obj)) {
-          const filtered = obj
-            .map(stripEmpty)
-            .filter((v) => v !== undefined && v !== null);
-          return filtered.length > 0 ? filtered : undefined;
-        }
-        if (typeof obj === "object") {
-          const result = {};
-          let hasContent = false;
-          for (const [k, v] of Object.entries(obj)) {
-            // Drop @odata annotations and Graph metadata
-            if (k.includes("@odata") || k.startsWith("#")) continue;
-            const cleaned = stripEmpty(v);
-            if (cleaned !== undefined) {
-              result[k] = cleaned;
-              hasContent = true;
-            }
-          }
-          return hasContent ? result : undefined;
-        }
-        return obj;
-      };
-
       const formValues = {};
+
       Object.keys(processedData).forEach((key) => {
         if (!isFieldBlacklisted(key)) {
-          const cleaned = stripEmpty(processedData[key]);
-          if (cleaned !== undefined) {
-            formValues[key] = cleaned;
-          }
+          formValues[key] = processedData[key];
         }
       });
       formControl.reset(formValues);
@@ -300,10 +275,6 @@ const CippTemplateFieldRenderer = ({
 
   const renderFormField = (key, value, path = "") => {
     const fieldPath = path ? `${path}.${key}` : key;
-
-    // Skip null/undefined values and @odata / metadata keys
-    if (value === null || value === undefined) return null;
-    if (key.includes("@odata") || key.startsWith("#")) return null;
 
     if (isFieldBlacklisted(key)) {
       return null;
@@ -330,7 +301,7 @@ const CippTemplateFieldRenderer = ({
                 <Grid container spacing={2}>
                   {(groupEntry?.children || []).map((child, childIndex) => {
                     const childPath = `${fieldPath}.${groupIndex}.children.${childIndex}`;
-                    const intuneDefinition = getIntuneDefinition(child?.settingDefinitionId);
+                    const intuneDefinition = intuneDefinitionMap.get(child?.settingDefinitionId);
                     const childLabel =
                       intuneDefinition?.displayName || child?.settingDefinitionId || `Child ${
                         childIndex + 1
@@ -435,7 +406,7 @@ const CippTemplateFieldRenderer = ({
                 // Handle different setting types
                 if (settingInstance.choiceSettingValue) {
                   // Find the setting definition in the intune collection
-                  const intuneObj = getIntuneDefinition(settingInstance.settingDefinitionId);
+                  const intuneObj = intuneDefinitionMap.get(settingInstance.settingDefinitionId);
 
                   const label = intuneObj?.displayName || `Setting ${index + 1}`;
                   const options =
@@ -461,7 +432,7 @@ const CippTemplateFieldRenderer = ({
 
                 if (settingInstance.simpleSettingValue) {
                   // Find the setting definition in the intune collection
-                  const intuneObj = getIntuneDefinition(settingInstance.settingDefinitionId);
+                  const intuneObj = intuneDefinitionMap.get(settingInstance.settingDefinitionId);
 
                   const label = intuneObj?.displayName || `Setting ${index + 1}`;
 
@@ -482,7 +453,9 @@ const CippTemplateFieldRenderer = ({
                 // Handle group setting collections
                 if (settingInstance.groupSettingCollectionValue) {
                   // Find the setting definition in the intune collection
-                  const intuneObj = getIntuneDefinition(settingInstance.settingDefinitionId);
+                  const intuneObj = intuneCollection.find(
+                    (item) => item.id === settingInstance.settingDefinitionId
+                  );
 
                   const label = intuneObj?.displayName || `Group Setting Collection ${index + 1}`;
 
@@ -821,16 +794,12 @@ const CippTemplateFieldRenderer = ({
       {priorityFields.map(
         (fieldName) =>
           processedData[fieldName] !== undefined &&
-          processedData[fieldName] !== null &&
           renderFormField(fieldName, processedData[fieldName])
       )}
 
       {/* Render all other fields except priority fields */}
       {Object.entries(processedData)
-        .filter(
-          ([key, value]) =>
-            !priorityFields.includes(key) && value !== null && value !== undefined
-        )
+        .filter(([key]) => !priorityFields.includes(key))
         .map(([key, value]) => renderFormField(key, value))}
     </Grid>
   );

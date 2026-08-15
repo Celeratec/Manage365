@@ -5,7 +5,7 @@ import { useSettings } from '../../../../../hooks/use-settings'
 import CippAddEditUser from '../../../../../components/CippFormPages/CippAddEditUser'
 import { useRouter } from 'next/router'
 import { ApiGetCall } from '../../../../../api/ApiCall'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import CippFormSkeleton from '../../../../../components/CippFormPages/CippFormSkeleton'
 import { getCippLicenseTranslation } from '../../../../../utils/get-cipp-license-translation'
 import CalendarIcon from '@heroicons/react/24/outline/CalendarIcon'
@@ -16,27 +16,61 @@ import { CippCopyToClipBoard } from '../../../../../components/CippComponents/Ci
 import { CippTimeAgo } from '../../../../../components/CippComponents/CippTimeAgo'
 import { Button, Alert } from '@mui/material'
 import { Box } from '@mui/system'
+import { useCippUserActions } from '../../../../../components/CippComponents/CippUserActions'
+
 const Page = () => {
   const userSettingsDefaults = useSettings()
   const router = useRouter()
   const { userId } = router.query
-  const [waiting, setWaiting] = useState(false)
+  const userActions = useCippUserActions()
+  const tenant = userSettingsDefaults.currentTenant
+  const settingsReady = userSettingsDefaults.isInitialized && !!tenant
+  const queryReady = router.isReady && !!userId && settingsReady
 
   const userRequest = ApiGetCall({
-    url: `/api/ListUsers?UserId=${userId}&tenantFilter=${userSettingsDefaults.currentTenant}`,
-    queryKey: `ListUsers-${userId}`,
-    waiting: waiting,
+    url: `/api/ListUsers?UserId=${userId}&tenantFilter=${tenant}`,
+    queryKey: `ListUsers-${userId}-${tenant}`,
+    waiting: queryReady,
   })
 
-  // add useEffect to refetch user data when userId changes - also set waiting to false if userId is undefined
-  useEffect(() => {
-    if (userId !== undefined) {
-      setWaiting(true)
-      userRequest.refetch()
-    } else {
-      setWaiting(false)
+  // Fetch tenant's subscribed SKUs for license name mapping
+  const licensesRequest = ApiGetCall({
+    url: `/api/ListLicenses?tenantFilter=${tenant}`,
+    queryKey: `Licenses-${tenant}`,
+    waiting: !!tenant && tenant !== 'AllTenants',
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  })
+
+  // Build a map from skuId to license display name
+  const licenseNameMap = useMemo(() => {
+    const map = new Map()
+    const licenses = licensesRequest.data || []
+    licenses.forEach((lic) => {
+      if (lic.skuId && lic.License) {
+        map.set(lic.skuId.toLowerCase(), lic.License)
+      }
+    })
+    return map
+  }, [licensesRequest.data])
+
+  // Helper function to get license display name
+  const getLicenseDisplayName = (license) => {
+    // First try the tenant's subscribed SKUs
+    if (license.skuId && licenseNameMap.size > 0) {
+      const name = licenseNameMap.get(license.skuId.toLowerCase())
+      if (name) return name
     }
-  }, [userId, waiting])
+    // Fall back to static translation
+    const translated = getCippLicenseTranslation([license])
+    return Array.isArray(translated) ? translated[0] : translated
+  }
+
+  // Trigger refetch when query conditions become ready
+  useEffect(() => {
+    if (queryReady && !userRequest.isSuccess && !userRequest.isFetching) {
+      userRequest.refetch()
+    }
+  }, [queryReady, userId, tenant])
 
   const formControl = useForm({
     mode: 'onBlur',
@@ -50,8 +84,8 @@ const Page = () => {
   const { dirtyFields } = useFormState({ control: formControl.control })
 
   useEffect(() => {
-    if (userRequest.isSuccess) {
-      const user = userRequest.data?.[0]
+    if (userRequest.isSuccess && userRequest.data?.[0]) {
+      const user = userRequest.data[0]
       //if we have userSettingsDefaults.userAttributes set, grab the .label from each userSsettingsDefaults, then set defaultAttributes.${label}.value to user.${label}
       let defaultAttributes = {}
       if (userSettingsDefaults.userAttributes) {
@@ -67,15 +101,15 @@ const Page = () => {
         ...user,
         usageLocation: usageLocation,
         defaultAttributes: defaultAttributes,
-        tenantFilter: userSettingsDefaults.currentTenant,
-        licenses: user.assignedLicenses.map((license) => ({
-          label: getCippLicenseTranslation([license]),
+        tenantFilter: tenant,
+        licenses: (user.assignedLicenses || []).map((license) => ({
+          label: getLicenseDisplayName(license),
           value: license.skuId,
         })),
       })
       formControl.trigger()
     }
-  }, [userRequest.isSuccess, userRequest.data, userRequest.isLoading])
+  }, [userRequest.isSuccess, userRequest.data, userRequest.isLoading, licenseNameMap])
 
   // Profile fields where blanking the box should clear the property in Entra.
   // Only fields the user actively emptied (dirty) are reported in clearProperties so untouched-empty
@@ -134,13 +168,13 @@ const Page = () => {
           ),
         },
         {
-          icon: <Launch style={{ color: '#667085' }} />,
+          icon: <Launch style={{ color: '#757575' }} />,
           text: (
             <Button
               color="muted"
               style={{ paddingLeft: 0 }}
               size="small"
-              href={`https://entra.microsoft.com/${userSettingsDefaults.currentTenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
+              href={`https://entra.microsoft.com/${tenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -156,6 +190,9 @@ const Page = () => {
       tabOptions={tabOptions}
       title={title}
       subtitle={subtitle}
+      copyItems={userRequest.isSuccess ? [{ text: userRequest.data?.[0]?.userPrincipalName }] : []}
+      actions={userActions}
+      actionsData={userRequest.data?.[0]}
       isFetching={userRequest.isLoading}
     >
       {userRequest.isSuccess && userRequest.data?.[0]?.onPremisesSyncEnabled && (
@@ -165,7 +202,7 @@ const Page = () => {
         </Alert>
       )}
       <CippFormPage
-        queryKey={[`ListUsers-${userId}`, `Licenses-${userSettingsDefaults.currentTenant}`]}
+        queryKey={[`ListUsers-${userId}-${tenant}`, `Licenses-${tenant}`]}
         formControl={formControl}
         title={title}
         hideBackButton={true}

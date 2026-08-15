@@ -198,7 +198,7 @@ const Page = () => {
                     type="textField"
                     name="Alias"
                     label="Tenant Alias"
-                    placeholder="Enter a custom alias for this tenant to be displayed in CIPP."
+                    placeholder="Enter a custom alias for this tenant to be displayed in Manage365."
                     formControl={formControl}
                     isFetching={tenantDetails.isFetching}
                     disabled={tenantDetails.isFetching}

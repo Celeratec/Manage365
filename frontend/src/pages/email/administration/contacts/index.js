@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
+import { useRouter } from "next/router";
 import { Layout as DashboardLayout } from "../../../../layouts/index.js";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
-import { CloudSync, Edit } from "@mui/icons-material";
+import { CloudSync, Edit, Business, Work, Badge } from "@mui/icons-material";
 import TrashIcon from "@heroicons/react/24/outline/TrashIcon";
 import { CippAddContactDrawer } from "../../../../components/CippComponents/CippAddContactDrawer";
 import { CippDeployContactTemplateDrawer } from "../../../../components/CippComponents/CippDeployContactTemplateDrawer";
@@ -9,6 +10,48 @@ import { CippDeployContactTemplateDrawer } from "../../../../components/CippComp
 const Page = () => {
   const pageTitle = "Contacts";
   const cardButtonPermissions = ["Exchange.Contact.ReadWrite"];
+  const router = useRouter();
+
+  const handleCardClick = useCallback((contact) => {
+    router.push(`/email/administration/contacts/edit?id=${encodeURIComponent(contact.Guid || contact.id || "")}`);
+  }, [router]);
+
+  // Card view configuration (works for both mobile and desktop)
+  const cardConfig = {
+    title: "DisplayName",
+    subtitle: "WindowsEmailAddress",
+    avatar: {
+      field: "DisplayName",
+    },
+    badges: [
+      {
+        field: "IsDirSynced",
+        conditions: {
+          true: { label: "On-Prem Synced", color: "info", icon: <CloudSync fontSize="small" />, tooltip: "Synced from on-premises Active Directory" },
+          false: { label: "Cloud", color: "default", tooltip: "Cloud-only contact" },
+        },
+      },
+    ],
+    extraFields: [
+      { field: "Company", icon: <Business />, maxLines: 1 },
+      { field: "Title", icon: <Work />, maxLines: 1 },
+    ],
+    // Additional fields shown only on desktop cards
+    desktopFields: [
+      { field: "Department", label: "Department", icon: <Badge /> },
+    ],
+    // Grid sizing for consistent card widths
+      cardGridProps: {
+        md: 6,
+        lg: 4,
+      },
+    mobileQuickActions: [
+      "Edit Contact",
+      "Remove Contact",
+    ],
+    maxQuickActions: 8,
+  };
+
   const actions = useMemo(
     () => [
       {
@@ -19,6 +62,8 @@ const Page = () => {
         icon: <Edit />,
         color: "warning",
         condition: (row) => !row.IsDirSynced,
+        category: "edit",
+        quickAction: true,
       },
       {
         label: "Set Source of Authority",
@@ -52,7 +97,7 @@ const Page = () => {
               validate: (value, formValues, row) => {
                 const states = [
                   ...new Set(
-                    (Array.isArray(row) ? row : [row]).map((r) => r?.IsDirSynced === true)
+                    (Array.isArray(row) ? row : [row]).map((r) => r?.IsDirSynced === true),
                   ),
                 ];
                 if (states.length === 1 && String(value) === String(!states[0])) {
@@ -70,6 +115,7 @@ const Page = () => {
         // contacts that are or were directory-synced; cloud-native mail contacts have
         // no Graph counterpart and the request would be meaningless
         condition: (row) => !!row?.graphId,
+        category: "manage",
       },
       {
         label: "Remove Contact",
@@ -81,9 +127,11 @@ const Page = () => {
         },
         confirmText:
           "Are you sure you want to delete this contact? Remember this will not work if the contact is AD Synced.",
-        color: "danger",
+        color: "error",
         icon: <TrashIcon />,
         condition: (row) => !row.IsDirSynced,
+        category: "danger",
+        quickAction: true,
       },
     ],
     []
@@ -102,6 +150,9 @@ const Page = () => {
           <CippDeployContactTemplateDrawer requiredPermissions={cardButtonPermissions} />
         </>
       }
+      cardConfig={cardConfig}
+      onCardClick={handleCardClick}
+      offCanvasOnRowClick={true}
     />
   );
 };

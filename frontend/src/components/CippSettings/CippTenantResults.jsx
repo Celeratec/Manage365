@@ -14,25 +14,21 @@ export const CippTenantResults = (props) => {
             actions={[]}
             simpleColumns={[
               "TenantName",
-              "TenantType",
               "LastRun",
               "GraphStatus",
               "ExchangeStatus",
               "MissingRoles",
-              "AssignedRoles",
+              "GDAPRoles",
             ]}
             offCanvas={{
               extendedInfoFields: [
                 "TenantName",
                 "TenantId",
-                "TenantType",
                 "DefaultDomainName",
-                "ServiceAccount",
-                "ServiceAccountLastAuth",
                 "LastRun",
                 "GraphTest",
                 "ExchangeTest",
-                "OrgManagementRepairNeeded",
+                "OrgManagementRepairNeeeded",
                 "OrgManagementRoles",
                 "OrgManagementRolesMissing",
               ],
@@ -60,6 +56,7 @@ export const CippTenantResults = (props) => {
               confirmText: "Execute the access check for the selected tenant(s)?",
               relatedQueryKeys: "ExecAccessChecks-Tenants",
               multiPost: false,
+              category: "view",
             },
             {
               label: "Repair Exchange Roles",
@@ -69,26 +66,22 @@ export const CippTenantResults = (props) => {
               icon: <Plumbing />,
               confirmText: "Repair Exchange roles for [TenantName]?",
               condition: (row) => row.OrgManagementRepairNeeded === true,
+              category: "manage",
             },
           ]}
           simpleColumns={[
             "TenantName",
-            "TenantType",
-            "ServiceAccount",
             "LastRun",
             "GraphStatus",
             "ExchangeStatus",
             "MissingRoles",
-            "AssignedRoles",
+            "GDAPRoles",
           ]}
           offCanvas={{
             extendedInfoFields: [
               "TenantName",
               "TenantId",
-              "TenantType",
               "DefaultDomainName",
-              "ServiceAccount",
-              "ServiceAccountLastAuth",
               "LastRun",
               "GraphTest",
               "ExchangeTest",

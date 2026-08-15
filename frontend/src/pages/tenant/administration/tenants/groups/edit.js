@@ -156,7 +156,6 @@ const Page = () => {
         groupDescription: groupData?.Description ?? "",
         groupType: isDynamic ? "dynamic" : "static",
         ruleLogic: groupData?.RuleLogic || "and",
-        excludePartnerTenant: groupData?.ExcludePartnerTenant ?? false,
         members: !isDynamic
           ? groupData?.Members?.map((member) => ({
               label: member.displayName,

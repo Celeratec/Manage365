@@ -33,7 +33,6 @@ const Page = () => {
           "surName",
           "displayName",
           "mailNickName",
-          "domain",
           "JobTitle",
           "streetAddress",
           "PostalCode",

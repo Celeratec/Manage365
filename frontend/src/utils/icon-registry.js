@@ -1,3 +1,7 @@
+import { SvgIcon } from '@mui/material'
+import GlobeAltIcon from '@heroicons/react/24/outline/GlobeAltIcon'
+import UsersIcon from '@heroicons/react/24/outline/UsersIcon'
+import ServerIcon from '@heroicons/react/24/outline/ServerIcon'
 import {
   AccessTime,
   AutoMode,
@@ -25,6 +29,7 @@ import {
   Group,
   Groups,
   Home,
+  Info,
   Key,
   Laptop,
   List,
@@ -33,11 +38,12 @@ import {
   ManageAccounts,
   ManageSearch,
   Notifications,
-  Palette,
   Person,
+  PlayArrow,
   Policy,
   PrecisionManufacturing,
   Public,
+  Science,
   Security,
   Settings,
   Share,
@@ -74,6 +80,7 @@ export const iconRegistry = {
   Group,
   Groups,
   Home,
+  Info,
   Key,
   Laptop,
   List,
@@ -82,11 +89,12 @@ export const iconRegistry = {
   ManageAccounts,
   ManageSearch,
   Notifications,
-  Palette,
   Person,
+  PlayArrow,
   Policy,
   PrecisionManufacturing,
   Public,
+  Science,
   Security,
   Settings,
   Share,
@@ -104,10 +112,24 @@ export const iconRegistry = {
   VpnKey,
 }
 
+const heroIconAliases = {
+  GlobeAltIcon,
+  UsersIcon,
+  ServerIcon,
+}
+
 export const getIconComponentByName = (iconName) => iconRegistry[iconName] ?? null
 
 export const getIconByName = (iconName, props = {}) => {
-  const Icon = getIconComponentByName(iconName)
+  const Hero = heroIconAliases[iconName]
+  if (Hero) {
+    return (
+      <SvgIcon {...props}>
+        <Hero />
+      </SvgIcon>
+    )
+  }
 
+  const Icon = getIconComponentByName(iconName)
   return Icon ? <Icon {...props} /> : null
 }

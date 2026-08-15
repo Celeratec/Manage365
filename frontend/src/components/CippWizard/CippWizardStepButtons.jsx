@@ -1,8 +1,10 @@
-import { Button, Stack } from "@mui/material";
+import { Button, Stack, useMediaQuery, Box, CircularProgress } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { useFormState } from "react-hook-form";
 import { createPortal } from "react-dom";
 import { ApiPostCall } from "../../api/ApiCall";
 import { CippApiResults } from "../CippComponents/CippApiResults";
+import { ArrowBack, ArrowForward, Check, Refresh } from "@mui/icons-material";
 import { useCippWizardDialog } from "./CippWizardDialogContext";
 
 export const CippWizardStepButtons = (props) => {
@@ -18,8 +20,11 @@ export const CippWizardStepButtons = (props) => {
     nextButtonDisabled = false,
     replacementBehaviour,
     queryKeys,
+    sticky = false,
     ...other
   } = props;
+  const theme = useTheme();
+  const smDown = useMediaQuery(theme.breakpoints.down("sm"));
   const { isValid, isSubmitted, isSubmitting } = useFormState({ control: formControl.control });
   const dialogContext = useCippWizardDialog();
   const mergedQueryKeys = [
@@ -46,12 +51,18 @@ export const CippWizardStepButtons = (props) => {
     sendForm.mutate({ url: postUrl, data: newData });
   };
 
-  const buttonStack = (
+  // Mobile-optimized button styles with proper touch targets (min 44px)
+  const mobileButtonSx = {
+    minHeight: 48,
+    fontSize: '1rem',
+  };
+
+  const buttonContent = (
     <Stack
-      alignItems="center"
-      direction="row"
-      justifyContent="flex-end"
-      spacing={2}
+      alignItems={smDown ? "stretch" : "center"}
+      direction={smDown ? "column-reverse" : "row"}
+      justifyContent={smDown ? "stretch" : "flex-end"}
+      spacing={smDown ? 1.5 : 2}
       sx={dialogContext?.actionsEl ? {} : { mt: 3 }}
     >
       {dialogContext?.onClose && (
@@ -66,7 +77,15 @@ export const CippWizardStepButtons = (props) => {
         </Button>
       )}
       {currentStep > 0 && (
-        <Button color="inherit" onClick={onPreviousStep} size="large" type="button">
+        <Button
+          color="inherit"
+          onClick={onPreviousStep}
+          size={smDown ? "large" : "large"}
+          type="button"
+          fullWidth={smDown}
+          startIcon={<ArrowBack />}
+          sx={smDown ? { ...mobileButtonSx, order: 2 } : {}}
+        >
           Back
         </Button>
       )}
@@ -77,26 +96,35 @@ export const CippWizardStepButtons = (props) => {
           onClick={onNextStep}
           type="submit"
           variant="contained"
+          fullWidth={smDown}
+          endIcon={<ArrowForward />}
+          sx={smDown ? { ...mobileButtonSx, order: 1 } : {}}
         >
           Next Step
         </Button>
       )}
       {!noSubmitButton && currentStep === lastStep && (
-        <form onSubmit={formControl.handleSubmit(handleSubmit)}>
-          <Button size="large" type="submit" variant="contained" disabled={sendForm.isPending}>
-            {isSubmitted ? "Resubmit" : "Submit"}
+        <form onSubmit={formControl.handleSubmit(handleSubmit)} style={{ width: smDown ? "100%" : "auto" }}>
+          <Button
+            size="large"
+            type="submit"
+            variant="contained"
+            disabled={sendForm.isPending}
+            fullWidth={smDown}
+            startIcon={
+              sendForm.isPending ? (
+                <CircularProgress size={20} color="inherit" />
+              ) : isSubmitted ? (
+                <Refresh />
+              ) : (
+                <Check />
+              )
+            }
+            sx={smDown ? mobileButtonSx : {}}
+          >
+            {sendForm.isPending ? "Submitting..." : isSubmitted ? "Resubmit" : "Submit"}
           </Button>
         </form>
-      )}
-      {dialogContext?.completionButton && currentStep === lastStep && sendForm.isSuccess && (
-        <Button
-          size="large"
-          variant="contained"
-          color="success"
-          onClick={dialogContext.completionButton.onClick}
-        >
-          {dialogContext.completionButton.label}
-        </Button>
       )}
     </Stack>
   );
@@ -104,7 +132,32 @@ export const CippWizardStepButtons = (props) => {
   return (
     <>
       <CippApiResults apiObject={sendForm} />
-      {dialogContext?.actionsEl ? createPortal(buttonStack, dialogContext.actionsEl) : buttonStack}
+      {dialogContext?.actionsEl ? (
+        createPortal(buttonContent, dialogContext.actionsEl)
+      ) : sticky ? (
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            bgcolor: "background.paper",
+            pt: 2,
+            // Extra bottom padding for mobile safe area (notches, gesture bars)
+            pb: { xs: 3, sm: 1 },
+            mt: 3,
+            mx: { xs: -2, sm: 0 },
+            px: { xs: 2, sm: 0 },
+            borderTop: 1,
+            borderColor: "divider",
+            zIndex: 10,
+          }}
+        >
+          {buttonContent}
+        </Box>
+      ) : (
+        <Box sx={{ mt: smDown ? 2 : 3 }}>
+          {buttonContent}
+        </Box>
+      )}
     </>
   );
 };

@@ -56,40 +56,15 @@ const restoreSettings = () => {
     // that's why we catch the error
   }
 
-  return value ? stripPersistedBrandingBlobs(stripServerManagedSettings(value)) : null;
+  return value;
 };
 
 const deleteSettings = () => {
   storage.removeItem(STORAGE_KEY);
 };
 
-/**
- * Branding is server state now, read via `useBrandingSettings`. Anything a previous version
- * persisted here is dropped on load rather than migrated - it is a stale copy, and its image
- * payloads used to exhaust the localStorage quota.
- */
-const stripPersistedBrandingBlobs = (settings) => {
-  if (!settings || typeof settings !== "object" || !("customBranding" in settings)) {
-    return settings;
-  }
-
-  const { customBranding: _legacyBranding, ...rest } = settings;
-  return rest;
-};
-
 const storeSettings = (value) => {
-  try {
-    storage.setItem(STORAGE_KEY, JSON.stringify(stripPersistedBrandingBlobs(value)));
-  } catch (err) {
-    console.error("[Settings Context] Failed to persist settings", err);
-    try {
-      // Drop a bloated legacy blob so future writes can succeed
-      storage.removeItem(STORAGE_KEY);
-      storage.setItem(STORAGE_KEY, JSON.stringify(stripPersistedBrandingBlobs(value)));
-    } catch (retryErr) {
-      console.error("[Settings Context] Failed to recover settings storage", retryErr);
-    }
-  }
+  storage.setItem(STORAGE_KEY, JSON.stringify(value));
 };
 
 const stripServerManagedSettings = (settings) => {
@@ -101,20 +76,18 @@ const stripServerManagedSettings = (settings) => {
   return cleanedSettings;
 };
 
-// First visit (no stored preference): follow the OS. 'browser' resolves against
-// prefers-color-scheme at render time in _app.js, so the app keeps tracking the
-// system preference until the user explicitly picks a mode with the theme toggle.
-const systemPrefersDark =
-  typeof window !== "undefined" && !!window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-
 const initialSettings = {
   direction: "ltr",
-  paletteMode: systemPrefersDark ? "dark" : "light",
-  currentTheme: { value: "browser", label: "Browser Default" },
+  paletteMode: "light",
+  currentTheme: { value: "light", label: "light" },
   pinNav: true,
   currentTenant: null,
   showDevtools: false,
   showAdvancedTools: false,
+  customBranding: {
+    colour: "#007BA7",
+    logo: null,
+  },
   persistFilters: false,
   lastUsedFilters: {},
   breadcrumbMode: "hierarchical",
@@ -144,7 +117,7 @@ export const SettingsProvider = (props) => {
     const restored = restoreSettings();
 
     if (restored) {
-      const cleanedRestored = restored;
+      const cleanedRestored = stripServerManagedSettings(restored);
 
       if (!cleanedRestored.currentTheme && cleanedRestored.paletteMode) {
         cleanedRestored.currentTheme = {

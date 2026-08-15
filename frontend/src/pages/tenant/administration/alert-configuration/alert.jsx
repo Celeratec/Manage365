@@ -23,12 +23,13 @@ import alertList from '../../../../data/alerts.json'
 import auditLogTemplates from '../../../../data/AuditLogTemplates'
 import auditLogSchema from '../../../../data/AuditLogSchema.json'
 import { Save, Delete } from '@mui/icons-material'
-import { Layout as DashboardLayout } from '../../../../layouts/index.js' // Dashboard layout
+import { Layout as DashboardLayout } from '../../../../layouts/index.js'
 import { CippApiResults } from '../../../../components/CippComponents/CippApiResults'
 import { ApiGetCall, ApiPostCall } from '../../../../api/ApiCall'
 import { PlusIcon } from '@heroicons/react/24/outline'
 import { CippFormCondition } from '../../../../components/CippComponents/CippFormCondition'
 import { CippHead } from '../../../../components/CippComponents/CippHead'
+import CippRiskAlert from "../../../../components/CippComponents/CippRiskAlert"
 import { useSettings } from '../../../../hooks/use-settings'
 
 const AlertWizard = () => {
@@ -46,8 +47,7 @@ const AlertWizard = () => {
 
   const existingAlert = ApiGetCall({
     url: '/api/ListAlertsQueue',
-    relatedQueryKeys: 'ListAlertsQueue',
-    queryKey: 'ListCurrentAlerts',
+    queryKey: `ListCurrentAlerts-${tenantFilter}`,
     data: { tenantFilter },
     waiting: !!tenantFilter,
   })
@@ -123,10 +123,11 @@ const AlertWizard = () => {
   const originalMembershipInputsRef = useRef({}) // Preserve original in/notIn arrays for rehydration
 
   const formControl = useForm({ mode: 'onChange' })
-  const selectedPreset = useWatch({ control: formControl.control, name: 'preset' }) // Watch the preset
+  const selectedPreset = useWatch({ control: formControl.control, name: 'preset' })
   const commandValue = useWatch({ control: formControl.control, name: 'command' })
   const logbookWatcher = useWatch({ control: formControl.control, name: 'logbook' })
   const propertyWatcher = useWatch({ control: formControl.control, name: 'conditions' })
+  const actionsWatcher = useWatch({ control: formControl.control, name: 'Actions' })
 
   // Clear input value only on actual operator transitions, skip while preset loading
   useEffect(() => {
@@ -165,11 +166,7 @@ const AlertWizard = () => {
       if (alert?.LogType === 'Scripted') {
         setAlertType('script')
         const excludedTenantsFormatted = Array.isArray(alert.excludedTenants)
-          ? alert.excludedTenants.map((tenant) =>
-              typeof tenant === 'object' && tenant !== null
-                ? tenant
-                : { value: tenant, label: tenant }
-            )
+          ? alert.excludedTenants.map((tenant) => ({ value: tenant, label: tenant }))
           : []
         const usedCommand = alertList?.find(
           (cmd) => cmd.name === alert.RawAlert.Command.replace('Get-CIPPAlert', '')
@@ -616,9 +613,9 @@ const AlertWizard = () => {
               <Card>
                 <CardActionArea onClick={() => setAlertType('script')}>
                   <CardContent>
-                    <Typography variant="h6">Scripted CIPP Alert</Typography>
+                    <Typography variant="h6">Scripted Manage365 Alert</Typography>
                     <Typography variant="body2">
-                      Select this option to set up an alert based on data processed by CIPP.
+                      Select this option to set up an alert based on data processed by Manage365.
                     </Typography>
                   </CardContent>
                 </CardActionArea>
@@ -659,7 +656,7 @@ const AlertWizard = () => {
                                 label="Excluded Tenants for alert"
                                 formControl={formControl}
                                 allTenants={false}
-                                includeGroups={true}
+                                includeGroups={false}
                                 name="excludedTenants"
                                 helperText="Optional. Tenants selected here are skipped even if they fall within the included tenants or group."
                               />
@@ -903,6 +900,28 @@ const AlertWizard = () => {
                               />
                             </Grid>
                             <Grid size={12}>
+                              <CippRiskAlert
+                                visible={
+                                  Array.isArray(actionsWatcher) &&
+                                  actionsWatcher.some((a) => (a?.value || a) === "disableuser")
+                                }
+                                severity="warning"
+                                title="Automated User Disabling"
+                                description='This alert will automatically disable user accounts when triggered. If alert conditions produce false positives, legitimate users will be locked out of their accounts without warning.'
+                                recommendation="Test this alert in a monitoring-only mode first. Ensure conditions are specific enough to avoid false positives before enabling automated user disabling."
+                              />
+                              <CippRiskAlert
+                                visible={
+                                  Array.isArray(actionsWatcher) &&
+                                  actionsWatcher.some((a) => (a?.value || a) === "becremediate")
+                                }
+                                severity="warning"
+                                title="Automated BEC Remediation"
+                                description="This alert will automatically execute BEC remediation (password reset, session revocation, inbox rule cleanup) when triggered. False positives will disrupt legitimate users by resetting their passwords and signing them out."
+                                recommendation="Validate alert conditions thoroughly before enabling automated remediation. Consider using email or webhook notifications first to verify accuracy."
+                              />
+                            </Grid>
+                            <Grid size={12}>
                               <CippFormComponent
                                 type="textField"
                                 name="CustomSubject"
@@ -935,7 +954,7 @@ const AlertWizard = () => {
               </Grid>
             )}
 
-            {/* Scripted CIPP Alert Form */}
+            {/* Scripted Manage365 Alert Form */}
             {alertType === 'script' && (
               <Grid container spacing={3} sx={{ mt: 2, width: '100%' }}>
                 <Grid size={12}>
@@ -969,7 +988,7 @@ const AlertWizard = () => {
                                 label="Excluded Tenants for alert"
                                 formControl={formControl}
                                 allTenants={false}
-                                includeGroups={true}
+                                includeGroups={false}
                                 name="excludedTenants"
                                 helperText="Optional. Tenants selected here are skipped even if they fall within the included tenants or group."
                               />

@@ -17,30 +17,37 @@ import {
   CloudSync,
   GroupSharp,
   GroupAdd,
+  PersonAdd,
+  PersonRemove,
+  ContactMail,
 } from "@mui/icons-material";
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions";
 import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
 import { Box, Stack } from "@mui/system";
 import { Grid } from "@mui/system";
-import { SvgIcon, Typography, Card, CardHeader, Divider } from "@mui/material";
+import { SvgIcon, Typography, Card, CardHeader, Divider, Button, CircularProgress, Alert } from "@mui/material";
 import { CippBannerListCard } from "../../../../../components/CippCards/CippBannerListCard";
 import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
 import { useEffect, useState } from "react";
 import { EyeIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
 import { PropertyList } from "../../../../../components/property-list";
 import { PropertyListItem } from "../../../../../components/property-list-item";
 import { getCippFormatting } from "../../../../../utils/get-cipp-formatting";
 import { CippHead } from "../../../../../components/CippComponents/CippHead";
-import { Button } from "@mui/material";
-import { Edit } from "@mui/icons-material";
+import { Edit, AlternateEmail, Delete, Star, Check, Error } from "@mui/icons-material";
+import { CippApiDialog } from "../../../../../components/CippComponents/CippApiDialog";
+import { useDialog } from "../../../../../hooks/use-dialog";
+import CippAliasDialog from "../../../../../components/CippComponents/CippAliasDialog";
+import { CippPropertyListCard } from "../../../../../components/CippCards/CippPropertyListCard";
+import { groupSupportsContacts, isUnifiedGroup } from "../../../../../utils/group-types";
 
 const Page = () => {
   const userSettingsDefaults = useSettings();
   const router = useRouter();
   const { groupId } = router.query;
   const [waiting, setWaiting] = useState(false);
+  const aliasDialog = useDialog();
 
   useEffect(() => {
     if (groupId) {
@@ -191,6 +198,16 @@ const Page = () => {
 
   // Calculate group type and add to data for actions
   const { groupType, calculatedGroupType } = calculateGroupType(groupData);
+  const supportsEmailAliases =
+    !!groupData?.mailEnabled &&
+    ["Distribution List", "Mail-Enabled Security", "Microsoft 365"].includes(groupType);
+
+  const groupAliasesRequest = ApiGetCall({
+    url: `/api/ListGroupAliases?groupId=${groupId}&groupType=${encodeURIComponent(groupType ?? "")}&tenantFilter=${router.query.tenantFilter ?? userSettingsDefaults.currentTenant}`,
+    queryKey: `GroupAliases-${groupId}`,
+    waiting: waiting && groupRequest.isSuccess && supportsEmailAliases,
+  });
+
   const data = groupData
     ? {
         ...groupData,
@@ -198,6 +215,216 @@ const Page = () => {
         calculatedGroupType: calculatedGroupType,
       }
     : null;
+
+  const effectiveTenantFilter = router.query.tenantFilter ?? userSettingsDefaults.currentTenant;
+  const supportsContacts = groupSupportsContacts(data);
+
+  // --- Add Member / Add Contact ---
+  const addMemberDialog = useDialog();
+  const addContactDialog = useDialog();
+
+  const memberPickerFields = [
+    {
+      type: "autoComplete",
+      name: "UserID",
+      label: "Select User",
+      multiple: false,
+      creatable: false,
+      validators: { required: "Please select a user" },
+      api: {
+        url: "/api/ListGraphRequest",
+        data: {
+          Endpoint: "users",
+          $select: "id,displayName,userPrincipalName",
+          $top: 999,
+          $count: true,
+        },
+        queryKey: "ListUsersAutoComplete",
+        dataKey: "Results",
+        labelField: (user) => `${user.displayName} (${user.userPrincipalName})`,
+        valueField: "userPrincipalName",
+        addedField: {
+          id: "id",
+          userPrincipalName: "userPrincipalName",
+          displayName: "displayName",
+        },
+        showRefresh: true,
+      },
+    },
+  ];
+
+  const contactPickerFields = [
+    {
+      type: "autoComplete",
+      name: "ContactID",
+      label: "Select Contact",
+      multiple: false,
+      creatable: false,
+      validators: { required: "Please select a contact" },
+      api: {
+        url: "/api/ListContacts",
+        labelField: (option) =>
+          `${option.displayName || option.DisplayName} (${
+            option.mail || option.WindowsEmailAddress
+          })`,
+        valueField: "WindowsEmailAddress",
+        addedField: {
+          Guid: "Guid",
+          displayName: "displayName",
+          WindowsEmailAddress: "WindowsEmailAddress",
+        },
+      },
+    },
+  ];
+
+  const removeMemberPickerFields = [
+    {
+      type: "autoComplete",
+      name: "RemoveMemberID",
+      label: "Select Member",
+      multiple: false,
+      creatable: false,
+      validators: { required: "Please select a member to remove" },
+      api: {
+        url: "/api/ListGraphRequest",
+        // No $select: /members is a heterogeneous directoryObject collection,
+        // so Graph rejects selecting derived-type properties like userPrincipalName
+        data: {
+          Endpoint: "groups/[id]/members",
+          $top: 999,
+        },
+        queryKey: "ListGroupMembers",
+        dataKey: "Results",
+        labelField: (member) =>
+          member.userPrincipalName
+            ? `${member.displayName} (${member.userPrincipalName})`
+            : member.displayName,
+        valueField: "id",
+        addedField: {
+          id: "id",
+          userPrincipalName: "userPrincipalName",
+          displayName: "displayName",
+        },
+        showRefresh: true,
+      },
+    },
+  ];
+
+  const removeContactPickerFields = [
+    {
+      type: "autoComplete",
+      name: "RemoveContactID",
+      label: "Select Contact",
+      multiple: false,
+      creatable: false,
+      validators: { required: "Please select a contact to remove" },
+      api: {
+        url: "/api/ListGraphRequest",
+        data: {
+          Endpoint: "groups/[id]/members/microsoft.graph.orgContact",
+          $top: 999,
+          $select: "id,displayName,mail",
+        },
+        queryKey: "ListGroupContacts",
+        dataKey: "Results",
+        labelField: (contact) => `${contact.displayName} (${contact.mail})`,
+        valueField: "mail",
+        addedField: { id: "id", displayName: "displayName" },
+        showRefresh: true,
+      },
+    },
+  ];
+
+  const addMemberApiConfig = {
+    type: "POST",
+    url: "/api/EditGroup",
+    customDataformatter: (row, action, formData) => {
+      const user = formData.UserID;
+      return {
+        AddMember: [
+          {
+            label: user?.addedFields?.displayName ?? user?.label,
+            value: user?.addedFields?.id ?? user?.value,
+            addedFields: {
+              id: user?.addedFields?.id,
+              userPrincipalName: user?.addedFields?.userPrincipalName ?? user?.value,
+              displayName: user?.addedFields?.displayName ?? user?.label,
+            },
+          },
+        ],
+        tenantFilter: effectiveTenantFilter,
+        groupId: row.id,
+        groupType: row.groupType,
+        groupName: row.displayName,
+      };
+    },
+    confirmText: "Select a user to add as a member of '[displayName]'.",
+    onSuccess: () => refreshFunction(),
+  };
+
+  const addContactApiConfig = {
+    type: "POST",
+    url: "/api/EditGroup",
+    customDataformatter: (row, action, formData) => ({
+      AddContact: [formData.ContactID],
+      tenantFilter: effectiveTenantFilter,
+      groupId: row.id,
+      groupType: row.groupType,
+      groupName: row.displayName,
+    }),
+    confirmText: "Select a contact to add to '[displayName]'.",
+    onSuccess: () => refreshFunction(),
+  };
+
+  const removeMemberApiConfig = {
+    type: "POST",
+    url: "/api/EditGroup",
+    customDataformatter: (row, action, formData) => {
+      const member = formData.RemoveMemberID;
+      return {
+        RemoveMember: [
+          {
+            label: member?.label,
+            value: member?.addedFields?.id ?? member?.value,
+            addedFields: {
+              id: member?.addedFields?.id,
+              userPrincipalName: member?.addedFields?.userPrincipalName,
+              displayName: member?.addedFields?.displayName,
+            },
+          },
+        ],
+        tenantFilter: effectiveTenantFilter,
+        groupId: row.id,
+        groupType: row.groupType,
+        groupName: row.displayName,
+      };
+    },
+    confirmText: "Select the member to remove from '[displayName]'.",
+    onSuccess: () => refreshFunction(),
+  };
+
+  const removeContactApiConfig = {
+    type: "POST",
+    url: "/api/EditGroup",
+    customDataformatter: (row, action, formData) => {
+      const contact = formData.RemoveContactID;
+      return {
+        RemoveContact: [
+          {
+            label: contact?.label,
+            value: contact?.value,
+            addedFields: { id: contact?.addedFields?.id },
+          },
+        ],
+        tenantFilter: effectiveTenantFilter,
+        groupId: row.id,
+        groupType: row.groupType,
+        groupName: row.displayName,
+      };
+    },
+    confirmText: "Select the contact to remove from '[displayName]'.",
+    onSuccess: () => refreshFunction(),
+  };
 
   // Calculate group type for display
   const getGroupType = () => {
@@ -228,13 +455,52 @@ const Page = () => {
 
     return [
       {
-        //tested
         label: "Edit Group",
         link: "/identity/administration/groups/edit?groupId=[id]&groupType=[groupType]",
         multiPost: false,
         icon: <Edit />,
-        color: "success",
+        category: "edit",
         showInActionsMenu: true,
+      },
+      {
+        label: "Add Member",
+        icon: <PersonAdd />,
+        fields: memberPickerFields,
+        ...addMemberApiConfig,
+        multiPost: false,
+        category: "edit",
+        showInActionsMenu: true,
+      },
+      {
+        label: "Add Contact",
+        icon: <ContactMail />,
+        fields: contactPickerFields,
+        ...addContactApiConfig,
+        multiPost: false,
+        category: "edit",
+        showInActionsMenu: true,
+        condition: (row) => groupSupportsContacts(row),
+      },
+      {
+        label: "Remove Member",
+        icon: <PersonRemove />,
+        fields: removeMemberPickerFields,
+        ...removeMemberApiConfig,
+        multiPost: false,
+        color: "error",
+        category: "danger",
+        showInActionsMenu: true,
+      },
+      {
+        label: "Remove Contact",
+        icon: <PersonRemove />,
+        fields: removeContactPickerFields,
+        ...removeContactApiConfig,
+        multiPost: false,
+        color: "error",
+        category: "danger",
+        showInActionsMenu: true,
+        condition: (row) => groupSupportsContacts(row),
       },
       {
         label: "Set Global Address List Visibility",
@@ -260,6 +526,7 @@ const Page = () => {
         confirmText:
           "Are you sure you want to hide this group from the global address list? Remember this will not work if the group is AD Synched.",
         multiPost: false,
+        category: "manage",
       },
       {
         label: "Only allow messages from people inside the organisation",
@@ -274,6 +541,7 @@ const Page = () => {
         confirmText:
           "Are you sure you want to only allow messages from people inside the organisation? Remember this will not work if the group is AD Synched.",
         multiPost: false,
+        category: "manage",
       },
       {
         label: "Allow messages from people inside and outside the organisation",
@@ -288,6 +556,7 @@ const Page = () => {
         confirmText:
           "Are you sure you want to allow messages from people inside and outside the organisation? Remember this will not work if the group is AD Synched.",
         multiPost: false,
+        category: "manage",
       },
       {
         label: "Set Source of Authority",
@@ -304,7 +573,7 @@ const Page = () => {
         defaultvalues: (row) => {
           const states = [
             ...new Set(
-              (Array.isArray(row) ? row : [row]).map((r) => r?.onPremisesSyncEnabled === true)
+              (Array.isArray(row) ? row : [row]).map((r) => r?.onPremisesSyncEnabled === true),
             ),
           ];
           return states.length === 1 ? { isCloudManaged: String(!states[0]) } : {};
@@ -323,7 +592,9 @@ const Page = () => {
               validate: (value, formValues, row) => {
                 const states = [
                   ...new Set(
-                    (Array.isArray(row) ? row : [row]).map((r) => r?.onPremisesSyncEnabled === true)
+                    (Array.isArray(row) ? row : [row]).map(
+                      (r) => r?.onPremisesSyncEnabled === true,
+                    ),
                   ),
                 ];
                 if (states.length === 1 && String(value) === String(!states[0])) {
@@ -341,6 +612,7 @@ const Page = () => {
         // were synced at some point (revert to on-premises); hide for cloud-native groups
         condition: (row) =>
           row?.onPremisesSyncEnabled === true || !!row?.onPremisesSamAccountName,
+        category: "manage",
       },
       {
         label: "Create template based on group",
@@ -357,6 +629,7 @@ const Page = () => {
         },
         confirmText: "Are you sure you want to create a template based on this group?",
         multiPost: false,
+        category: "manage",
       },
       {
         label: "Create Team from Group",
@@ -490,7 +763,8 @@ const Page = () => {
             label: "Allow custom memes",
           },
         ],
-        condition: (row) => row?.calculatedGroupType === "m365",
+        condition: (row) => isUnifiedGroup(row),
+        category: "manage",
       },
       {
         label: "Delete Group",
@@ -504,13 +778,159 @@ const Page = () => {
         },
         confirmText: "Are you sure you want to delete this group.",
         multiPost: false,
+        color: "error",
+        category: "danger",
       },
     ];
   };
 
   const groupActions = groupData ? getGroupActions() : [];
 
+  const aliasApiConfig = {
+    type: "POST",
+    url: "/api/EditGroupAliases",
+    relatedQueryKeys: `GroupAliases-${groupId}`,
+    confirmText: "Add the specified proxy addresses to this group?",
+    customDataformatter: (row, action, formData) => ({
+      id: groupId,
+      tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
+      GroupType: groupType,
+      AddedAliases: formData?.AddedAliases?.join(",") || "",
+      displayName: groupData?.displayName,
+    }),
+  };
+
+  const proxyAddressActions = [
+    {
+      label: "Make Primary",
+      type: "POST",
+      icon: <Star />,
+      url: "/api/EditGroupAliases",
+      data: {
+        id: groupId,
+        tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
+        GroupType: groupType,
+        MakePrimary: "Address",
+      },
+      confirmText: "Are you sure you want to make this the primary proxy address?",
+      multiPost: false,
+      relatedQueryKeys: `GroupAliases-${groupId}`,
+      condition: (row) => row && row.Type !== "Primary",
+      category: "edit",
+    },
+    {
+      label: "Remove Proxy Address",
+      type: "POST",
+      icon: <Delete />,
+      url: "/api/EditGroupAliases",
+      data: {
+        id: groupId,
+        tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
+        GroupType: groupType,
+        RemovedAliases: "Address",
+      },
+      confirmText: "Are you sure you want to remove this proxy address?",
+      multiPost: false,
+      relatedQueryKeys: `GroupAliases-${groupId}`,
+      condition: (row) => row && row.Type !== "Primary",
+      category: "danger",
+    },
+  ];
+
+  const proxyAddresses = groupAliasesRequest.data?.proxyAddresses ?? [];
+  const aliasCount = proxyAddresses.filter(
+    (address) => typeof address === "string" && !address.startsWith("SMTP:"),
+  ).length;
+
+  const proxyAddressesCard = [
+    {
+      id: 1,
+      cardLabelBox: {
+        cardLabelBoxHeader: groupAliasesRequest.isFetching ? (
+          <CircularProgress size="25px" color="inherit" />
+        ) : aliasCount > 0 ? (
+          <Check />
+        ) : (
+          <Error />
+        ),
+      },
+      text: "Email Aliases",
+      subtext:
+        aliasCount > 0
+          ? "Email aliases are configured for this group"
+          : "No additional email aliases configured for this group",
+      statusColor: "green.main",
+      cardLabelBoxActions: (
+        <Button
+          startIcon={<AlternateEmail />}
+          onClick={() => aliasDialog.handleOpen()}
+          variant="outlined"
+          color="primary"
+          size="small"
+        >
+          Add Alias
+        </Button>
+      ),
+      table: {
+        title: "Email Aliases",
+        hideTitle: true,
+        data: proxyAddresses.map((address) => ({
+          Address: address,
+          Type: typeof address === "string" && address.startsWith("SMTP:") ? "Primary" : "Alias",
+        })),
+        refreshFunction: () => groupAliasesRequest.refetch(),
+        isFetching: groupAliasesRequest.isFetching,
+        simpleColumns: ["Address", "Type"],
+        actions: proxyAddressActions,
+        offCanvas: {
+          children: (rowData) => (
+            <CippPropertyListCard
+              cardSx={{ p: 0, m: -2 }}
+              title="Address Details"
+              propertyItems={[
+                {
+                  label: "Address",
+                  value: rowData.Address,
+                },
+                {
+                  label: "Type",
+                  value: rowData.Type,
+                },
+              ]}
+              actionItems={proxyAddressActions}
+            />
+          ),
+        },
+      },
+    },
+  ];
+
   // Prepare members items
+  const memberCardActions = (
+    <Stack direction="row" spacing={1}>
+      <Button
+        startIcon={<PersonAdd />}
+        onClick={() => addMemberDialog.handleOpen()}
+        variant="outlined"
+        color="primary"
+        size="small"
+      >
+        Add Member
+      </Button>
+      {supportsContacts && (
+        <Button
+          startIcon={<ContactMail />}
+          onClick={() => addContactDialog.handleOpen()}
+          variant="outlined"
+          color="primary"
+          size="small"
+        >
+          Add Contact
+        </Button>
+      )}
+    </Stack>
+  );
+
   const membersItems =
     groupMembers.length > 0
       ? [
@@ -523,6 +943,7 @@ const Page = () => {
             subtext: "List of members in this group",
             statusText: ` ${groupMembers.length} Member(s)`,
             statusColor: "info.main",
+            cardLabelBoxActions: memberCardActions,
             table: {
               title: "Members",
               hideTitle: true,
@@ -532,6 +953,8 @@ const Page = () => {
                   label: "View User",
                   link: `/identity/administration/users/user?userId=[id]&tenantFilter=${userSettingsDefaults.currentTenant}`,
                   condition: (row) => row["@odata.type"] === "#microsoft.graph.user",
+                  color: "success",
+                  category: "view",
                 },
               ],
               data: groupMembers,
@@ -560,6 +983,7 @@ const Page = () => {
             subtext: "This group has no members.",
             statusColor: "warning.main",
             statusText: "No Members",
+            cardLabelBoxActions: memberCardActions,
             propertyItems: [],
           },
         ];
@@ -586,6 +1010,8 @@ const Page = () => {
                   label: "View User",
                   link: `/identity/administration/users/user?userId=[id]&tenantFilter=${userSettingsDefaults.currentTenant}`,
                   condition: (row) => row["@odata.type"] === "#microsoft.graph.user",
+                  color: "success",
+                  category: "view",
                 },
               ],
               data: groupOwners,
@@ -642,12 +1068,15 @@ const Page = () => {
                   label: "View Group",
                   link: `/identity/administration/groups/group?groupId=[id]&tenantFilter=${userSettingsDefaults.currentTenant}`,
                   condition: (row) => row["@odata.type"] === "#microsoft.graph.group",
+                  color: "success",
+                  category: "view",
                 },
                 {
                   icon: <PencilIcon />,
                   label: "Edit Group",
-                  link: "/identity/administration/groups/edit?groupId=[id]&groupType=[calculatedGroupType]",
+                  link: "/identity/administration/groups/edit?groupId=[id]&groupType=[groupType]",
                   condition: (row) => row["@odata.type"] === "#microsoft.graph.group",
+                  category: "edit",
                 },
               ],
               data: groupMemberOf?.filter((item) => item?.["@odata.type"] === "#microsoft.graph.group"),
@@ -808,6 +1237,23 @@ const Page = () => {
             </Grid>
             <Grid size={8}>
               <Stack spacing={3}>
+                {supportsEmailAliases && (
+                  <>
+                    <Typography variant="h6">Email Aliases</Typography>
+                    {groupAliasesRequest.isError && (
+                      <Alert severity="error">
+                        {groupAliasesRequest.error?.message ||
+                          groupAliasesRequest.data?.Results ||
+                          "Failed to load group aliases."}
+                      </Alert>
+                    )}
+                    <CippBannerListCard
+                      isFetching={groupAliasesRequest.isFetching}
+                      items={proxyAddressesCard}
+                      isCollapsible={true}
+                    />
+                  </>
+                )}
                 <Typography variant="h6">Members</Typography>
                 <CippBannerListCard
                   isFetching={groupBulkRequest.isPending}
@@ -830,6 +1276,32 @@ const Page = () => {
             </Grid>
           </Grid>
         </Box>
+      )}
+      <CippApiDialog
+        createDialog={aliasDialog}
+        title="Add Email Aliases"
+        api={aliasApiConfig}
+        row={groupData}
+      >
+        {({ formHook }) => <CippAliasDialog formHook={formHook} entityLabel="group" />}
+      </CippApiDialog>
+      <CippApiDialog
+        createDialog={addMemberDialog}
+        title="Add Member"
+        fields={memberPickerFields}
+        api={addMemberApiConfig}
+        row={data ?? {}}
+        allowAddAnother
+      />
+      {supportsContacts && (
+        <CippApiDialog
+          createDialog={addContactDialog}
+          title="Add Contact"
+          fields={contactPickerFields}
+          api={addContactApiConfig}
+          row={data ?? {}}
+          allowAddAnother
+        />
       )}
     </HeaderedTabbedLayout>
   );

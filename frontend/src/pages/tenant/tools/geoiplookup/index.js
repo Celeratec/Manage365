@@ -27,10 +27,11 @@ const Page = () => {
       noConfirm: true,
       icon: <MapPinIcon />,
       hideBulk: true,
+      category: "view",
     },
     {
       label: "Add to Whitelist",
-      url: `/api/ExecAddTrustedIP${`?tenantFilter=${currentTenant}`}`,
+      url: `/api/ExecAddTrustedIP`,
       type: "POST",
       data: {
         IP: "RowKey",
@@ -40,10 +41,11 @@ const Page = () => {
       confirmText: "Are you sure you want to add this IP to the whitelist?",
       multiPost: false,
       condition: (row) => row.state !== "Trusted",
+      category: "security",
     },
     {
       label: "Remove from Whitelist",
-      url: `/api/ExecAddTrustedIP${`?tenantFilter=${currentTenant}`}`,
+      url: `/api/ExecAddTrustedIP`,
       type: "POST",
       data: {
         IP: "RowKey",
@@ -53,6 +55,7 @@ const Page = () => {
       confirmText: "Are you sure you want to remove this IP from the whitelist?",
       multiPost: false,
       condition: (row) => row.state !== "NotTrusted",
+      category: "security",
     },
   ];
 
@@ -62,20 +65,22 @@ const Page = () => {
 
   const handleAddToWhitelist = () => {
     addGeoIP.mutate({
-      url: `/api/ExecAddTrustedIP${`?tenantFilter=${currentTenant}`}`,
+      url: `/api/ExecAddTrustedIP`,
       data: {
         IP: ip,
         State: "Trusted",
+        tenantFilter: currentTenant,
       },
     });
   };
 
   const handleRemoveFromWhitelist = () => {
     addGeoIP.mutate({
-      url: `/api/ExecAddTrustedIP${`?tenantFilter=${currentTenant}`}`,
+      url: `/api/ExecAddTrustedIP`,
       data: {
         IP: ip,
         State: "NotTrusted",
+        tenantFilter: currentTenant,
       },
     });
   };

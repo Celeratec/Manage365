@@ -2,24 +2,11 @@ import { Avatar, Card, CardContent, Stack, SvgIcon, Typography } from '@mui/mate
 import { useState, useEffect } from 'react'
 import { CippWizardStepButtons } from './CippWizardStepButtons'
 import { BuildingOfficeIcon, CloudIcon, LinkIcon } from '@heroicons/react/24/outline'
-import { ApiGetCall } from '../../api/ApiCall'
 
 export const CippAddTenantTypeSelection = (props) => {
   const { onNextStep, formControl, currentStep, onPreviousStep } = props
 
   const [selectedOption, setSelectedOption] = useState(null)
-
-  // Ask the backend whether this CIPP instance runs on a partner tenant. Deliberately not a
-  // direct Graph call: the tenant-scoped route is denied for custom roles that block the
-  // partner tenant, which greys out the partner-only options below for roles that are
-  // otherwise fully permitted. ListPartnerTenantInfo pins the lookup to the host tenant.
-  const organization = ApiGetCall({
-    url: '/api/ListPartnerTenantInfo',
-    queryKey: 'ListPartnerTenantInfo',
-  })
-
-  const isPartner = organization.isSuccess && Boolean(organization.data?.isPartnerTenant)
-  const partnerCheckComplete = organization.isSuccess || organization.isError
 
   // Register the tenantType field in react-hook-form
   formControl.register('tenantType', {
@@ -38,18 +25,6 @@ export const CippAddTenantTypeSelection = (props) => {
       formControl.setValue('selectedOption', selectedOptionValue)
     }
   }, [formControl])
-
-  // Clear selection if confirmed non-partner and a partner-only option was selected
-  useEffect(() => {
-    if (organization.isSuccess && !isPartner) {
-      const currentValue = formControl.getValues('tenantType')
-      if (currentValue === 'GDAP' || currentValue === 'IndirectReseller') {
-        formControl.setValue('tenantType', '')
-        setSelectedOption(null)
-        formControl.trigger('tenantType')
-      }
-    }
-  }, [organization.isSuccess, isPartner, formControl])
 
   const handleOptionClick = (value) => {
     setSelectedOption(value)
@@ -86,7 +61,6 @@ export const CippAddTenantTypeSelection = (props) => {
       description:
         "Select this option to add a new tenant to your Microsoft Partner center environment. We'll walk you through the steps of setting up GDAP.",
       icon: <CloudIcon />,
-      partnerOnly: true,
     },
     {
       value: 'Direct',
@@ -94,7 +68,6 @@ export const CippAddTenantTypeSelection = (props) => {
       description:
         'Select this option if you are not a Microsoft partner, or want to add a tenant outside of the scope of your partner center.',
       icon: <BuildingOfficeIcon />,
-      partnerOnly: false,
     },
     {
       value: 'IndirectReseller',
@@ -102,7 +75,6 @@ export const CippAddTenantTypeSelection = (props) => {
       description:
         'Generate a reseller relationship invite link to send to a customer. This does not add the tenant to CIPP, but may be used by other vendors to populate their customer list.',
       icon: <LinkIcon />,
-      partnerOnly: true,
     },
   ]
 
@@ -111,28 +83,25 @@ export const CippAddTenantTypeSelection = (props) => {
       <Stack spacing={1}>
         <Typography variant="h6">Select Tenant Type</Typography>
         <Typography color="text.secondary" variant="body2">
-          Choose how you want to add the tenant to your CIPP environment.
+          Choose how you want to add the tenant to your Manage365 environment.
         </Typography>
       </Stack>
       <Stack spacing={2}>
         {options.map((option) => {
           const isSelected = selectedOption === option.value
-          const isDisabled = option.partnerOnly && partnerCheckComplete && !isPartner
 
           return (
             <Card
               key={option.value}
-              onClick={isDisabled ? undefined : () => handleOptionClick(option.value)}
+              onClick={() => handleOptionClick(option.value)}
               variant="outlined"
               sx={{
-                cursor: isDisabled ? 'not-allowed' : 'pointer',
-                opacity: isDisabled ? 0.5 : 1,
-                ...(isSelected &&
-                  !isDisabled && {
-                    boxShadow: (theme) => `0px 0px 0px 2px ${theme.palette.primary.main}`,
-                  }),
+                cursor: 'pointer',
+                ...(isSelected && {
+                  boxShadow: (theme) => `0px 0px 0px 2px ${theme.palette.primary.main}`,
+                }),
                 '&:hover': {
-                  ...(isDisabled ? {} : isSelected ? {} : { boxShadow: 8 }),
+                  ...(isSelected ? {} : { boxShadow: 8 }),
                 },
               }}
             >

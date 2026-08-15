@@ -16,12 +16,12 @@ export const CippBaselinesStep = (props) => {
             at Tools - Community Repositories
           </Typography>
           <Typography variant="body2">
-            Downloading these baselines will create templates in your CIPP instance. These templates
+            Downloading these baselines will create templates in your Manage365 instance. These templates
             won't make any changes to your environment, but can be used as examples on how to setup
             environments. Each template library contains multiple templates,
             <ul>
               <li>
-                CIPP Templates by CyberDrain contain several example standards, including low,
+                Manage365 Templates by CyberDrain contain several example standards, including low,
                 medium, and high priority standards
               </li>
               <li>

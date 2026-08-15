@@ -1,26 +1,13 @@
-import { useState } from 'react'
 import { Layout as DashboardLayout } from '../../../../layouts/index.js'
 import { CippTablePage } from '../../../../components/CippComponents/CippTablePage.jsx'
-import { Delete, Edit } from '@mui/icons-material'
+import { Delete } from '@mui/icons-material'
 import CippJsonView from '../../../../components/CippFormPages/CippJSONView'
 import { CippTenantAllowBlockListTemplateDrawer } from '../../../../components/CippComponents/CippTenantAllowBlockListTemplateDrawer.jsx'
 
 const Page = () => {
   const pageTitle = 'Tenant Allow/Block List Templates'
-  const [editDrawerVisible, setEditDrawerVisible] = useState(false)
-  const [editData, setEditData] = useState(null)
 
   const actions = [
-    {
-      label: 'Edit Template',
-      noConfirm: true,
-      customFunction: (row) => {
-        setEditData(row)
-        setEditDrawerVisible(true)
-      },
-      icon: <Edit />,
-      color: 'primary',
-    },
     {
       label: 'Delete Template',
       type: 'POST',
@@ -30,6 +17,7 @@ const Page = () => {
       multiPost: false,
       icon: <Delete />,
       color: 'danger',
+      category: 'danger',
     },
   ]
 
@@ -49,26 +37,18 @@ const Page = () => {
   ]
 
   return (
-    <>
-      <CippTablePage
-        title={pageTitle}
-        tenantInTitle={false}
-        apiUrl="/api/ListTenantAllowBlockListTemplates"
-        queryKey="ListTenantAllowBlockListTemplates"
-        actions={actions}
-        offCanvas={offCanvas}
-        simpleColumns={simpleColumns}
-        cardButton={<CippTenantAllowBlockListTemplateDrawer />}
-      />
-      <CippTenantAllowBlockListTemplateDrawer
-        editData={editData}
-        drawerVisible={editDrawerVisible}
-        setDrawerVisible={(visible) => {
-          setEditDrawerVisible(visible)
-          if (!visible) setEditData(null)
-        }}
-      />
-    </>
+    <CippTablePage
+      title={pageTitle}
+      tenantInTitle={false}
+      apiUrl="/api/ListTenantAllowBlockListTemplates"
+      queryKey="ListTenantAllowBlockListTemplates"
+      actions={actions}
+      offCanvas={offCanvas}
+      simpleColumns={simpleColumns}
+      cardButton={
+        <CippTenantAllowBlockListTemplateDrawer />
+      }
+    />
   )
 }
 

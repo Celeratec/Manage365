@@ -1,18 +1,24 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
+import SyntaxHighlighter from "react-syntax-highlighter/dist/esm/prism-light";
+import atomDark from "react-syntax-highlighter/dist/esm/styles/prism/atom-dark";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import powershell from "react-syntax-highlighter/dist/esm/languages/prism/powershell";
 import { CippCopyToClipBoard } from "./CippCopyToClipboard";
-import { styled } from "@mui/system"; // Correct import from @mui/system
+import { styled } from "@mui/system";
+import { Skeleton } from "@mui/material";
 import { useSettings } from "../../hooks/use-settings";
 
-// Heavy, client-only editors loaded on demand so monaco-editor (~5MB) and react-syntax-highlighter
-// stay out of the common bundle — they only download when a code block actually renders.
-const Editor = dynamic(() => import("@monaco-editor/react").then((m) => m.Editor), {
+// Register only the languages actually used in the codebase
+// (plain text / unregistered languages render without highlighting by default)
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("JSON", json);
+SyntaxHighlighter.registerLanguage("powershell", powershell);
+
+// Lazy-load Monaco Editor (~2MB) only when type="editor" is used
+const Editor = dynamic(() => import("@monaco-editor/react").then((mod) => mod.Editor), {
   ssr: false,
-  loading: () => null,
-});
-const CippPrismHighlighter = dynamic(() => import("./CippPrismHighlighter"), {
-  ssr: false,
-  loading: () => null,
+  loading: () => <Skeleton variant="rectangular" height="500px" />,
 });
 
 const CodeContainer = styled("div")`
@@ -77,14 +83,16 @@ export const CippCodeBlock = (props) => {
         />
       )}
       {type === "syntax" && (
-        <CippPrismHighlighter
+        <SyntaxHighlighter
           lineProps={{ style: { wordBreak: "break-all", whiteSpace: "pre-wrap" } }}
           language={language}
+          style={atomDark}
           showLineNumbers={showLineNumbers}
           startingLineNumber={startingLineNumber}
           wrapLongLines={wrapLongLines}
-          code={code}
-        />
+        >
+          {code}
+        </SyntaxHighlighter>
       )}
     </CodeContainer>
   );

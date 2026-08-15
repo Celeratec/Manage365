@@ -16,6 +16,7 @@ const Page = () => {
       multiPost: false,
       icon: <Edit />,
       color: "success",
+      category: "edit",
     },
     {
       label: "Delete Room List",
@@ -29,6 +30,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to delete this room list?",
       multiPost: false,
+      category: "danger",
     },
   ];
 

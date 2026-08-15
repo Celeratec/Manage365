@@ -4,7 +4,7 @@ export const CippComponentDialog = (props) => {
   const { children, createDialog, title, ...other } = props;
 
   return (
-    <Dialog fullWidth maxWidth="sm" onClose={createDialog.handleClose} open={createDialog.open}>
+    <Dialog fullWidth maxWidth="sm" onClose={createDialog.handleClose} open={createDialog.open} disableRestoreFocus>
       <form onSubmit={formHook.handleSubmit(onSubmit)}>
         <DialogTitle>{title}</DialogTitle>
         <DialogContent>{children}</DialogContent>

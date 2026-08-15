@@ -95,7 +95,7 @@ export const CippRestoreBackupDrawer = ({
 
     const shippedValues = {
       TenantFilter: tenantFilterValue,
-      Name: `CIPP Restore ${tenantFilterValue}`,
+      Name: `Manage365 Restore ${tenantFilterValue}`,
       Command: { value: `New-CIPPRestore` },
       Parameters: {
         Type: 'Scheduled',
@@ -305,7 +305,7 @@ export const CippRestoreBackupDrawer = ({
 
             {/* CIPP */}
             <Grid size={{ md: 6, xs: 12 }}>
-              <Typography variant="subtitle1">CIPP</Typography>
+              <Typography variant="subtitle1">Manage365</Typography>
               <CippFormComponent
                 type="switch"
                 label="Webhook Alerts Configuration"

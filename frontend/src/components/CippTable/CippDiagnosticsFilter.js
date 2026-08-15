@@ -180,7 +180,7 @@ const CippDiagnosticsFilter = ({ onSubmitFilter }) => {
           <Alert severity="info">
             <AlertTitle>Requirements</AlertTitle>
             <Typography variant="body2">
-              • Application Insights must be deployed for your CIPP environment
+              • Application Insights must be deployed for your Manage365 environment
               <br />• The Function App's managed identity must have <strong>Reader</strong>{" "}
               permissions on the Application Insights resource
               <br />• Queries are executed using Kusto Query Language (KQL)

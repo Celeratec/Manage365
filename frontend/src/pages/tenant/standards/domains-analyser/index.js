@@ -36,6 +36,7 @@ const Page = () => {
         },
       ],
       multiPost: false,
+      category: "edit",
     },
     {
       label: 'Delete from analyser',
@@ -45,6 +46,7 @@ const Page = () => {
       data: { Action: '!RemoveDomain', Domain: 'Domain' },
       confirmText: 'Are you sure you want to delete this domain from the analyser?',
       multiPost: false,
+      category: "danger",
     },
   ]
 

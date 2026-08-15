@@ -35,10 +35,10 @@ export const hasPermission = (userPermissions, requiredPermissions) => {
 
       // Pattern matching - check if required permission contains wildcards
       if (requiredPerm.includes('*')) {
-        // Convert wildcard pattern to regex
+        // Convert wildcard pattern to regex - escape all regex special chars except *, then convert *
         const regexPattern = requiredPerm
-          .replace(/\./g, '\\.') // Escape dots
-          .replace(/\*/g, '.*') // Convert * to .*
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+          .replace(/\*/g, '.*')
         const regex = new RegExp(`^${regexPattern}$`)
         return regex.test(userPerm)
       }

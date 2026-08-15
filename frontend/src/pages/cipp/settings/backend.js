@@ -18,7 +18,7 @@ const Page = () => {
       id: "ResourceGroup",
       name: "Resource Group",
       description:
-        "The Resource group contains all the CIPP resources in your tenant, except the SAM Application",
+        "The Resource group contains all the Manage365 resources in your tenant, except the SAM Application",
     },
     {
       id: "KeyVault",

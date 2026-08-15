@@ -22,7 +22,7 @@ import {
 } from "@mui/lab";
 import { Layout as DashboardLayout } from "../../../layouts/index.js";
 import { HeaderedTabbedLayout } from "../../../layouts/HeaderedTabbedLayout";
-import { ApiGetCall } from "../../../api/ApiCall";
+import { ApiGetCallWithPagination } from "../../../api/ApiCall";
 import { useRouter } from "next/router";
 import {
   Policy,
@@ -82,10 +82,31 @@ const Page = () => {
 
   const { startDate, endDate } = getDateRange(daysToLoad);
 
-  const logsData = ApiGetCall({
-    url: `/api/Listlogs?tenant=${tenant}&StartDate=${startDate}&EndDate=${endDate}&Filter=true`,
+  const logsData = ApiGetCallWithPagination({
+    url: `/api/Listlogs`,
+    data: {
+      tenant: tenant,
+      StartDate: startDate,
+      EndDate: endDate,
+      Filter: true,
+    },
     queryKey: `Listlogs-${tenant}-${startDate}-${endDate}`,
   });
+
+  // ListLogs serves multi-day ranges in day batches; keep following
+  // Metadata.nextLink until the whole range has been loaded.
+  useEffect(() => {
+    if (logsData.isSuccess && !logsData.isFetching && !logsData.isError) {
+      const pages = logsData.data?.pages;
+      const lastPage = pages?.[pages.length - 1];
+      if (lastPage?.Metadata?.nextLink) {
+        logsData.fetchNextPage();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [logsData.data?.pages?.length, logsData.isFetching, logsData.isError]);
+
+  const logEntries = (logsData.data?.pages ?? []).flatMap((page) => page?.Results ?? []);
 
   // Get severity icon and color
   const getSeverityConfig = (severity) => {
@@ -135,13 +156,14 @@ const Page = () => {
       customFunction: () => {
         logsData.refetch();
       },
+      category: "manage",
     },
   ];
 
   const title = "View History";
   // Sort logs by date (newest first)
   const sortedLogs = logsData.data
-    ? [...logsData.data].sort((a, b) => new Date(b.DateTime) - new Date(a.DateTime))
+    ? [...logEntries].sort((a, b) => new Date(b.DateTime) - new Date(a.DateTime))
     : [];
 
   return (
@@ -156,7 +178,7 @@ const Page = () => {
         <Stack spacing={4}>
           <Typography variant="h6">Activity Timeline</Typography>
           <Typography variant="body1" color="text.secondary">
-            This timeline shows the history of actions taken on this tenant, by CIPP for the last{" "}
+            This timeline shows the history of actions taken on this tenant, by Manage365 for the last{" "}
             {daysToLoad} days.
           </Typography>
 
@@ -170,7 +192,7 @@ const Page = () => {
             <Alert severity="error">Failed to load activity logs. Please try again.</Alert>
           )}
 
-          {logsData.data && sortedLogs.length === 0 && (
+          {logsData.data && !logsData.isFetching && sortedLogs.length === 0 && (
             <Alert severity="info">No activity logs found for the selected time period.</Alert>
           )}
 

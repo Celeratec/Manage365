@@ -28,6 +28,7 @@ export const CippFormTenantSelector = ({
     return {};
   };
   const currentTenant = useSettings()?.currentTenant;
+  const selectedValue = formControl?.watch(name);
 
   // Build the API URL with query parameters to support tenant specific offboarding config
   const buildApiUrl = () => {
@@ -101,7 +102,7 @@ export const CippFormTenantSelector = ({
       type={componentType}
       name={name}
       formControl={formControl}
-      preselectedValue={preselectedEnabled ?? currentTenant ? currentTenant : null}
+      preselectedValue={preselectedEnabled ? currentTenant : null}
       label="Select a tenant"
       creatable={false}
       multiple={type === "single" ? false : true}
@@ -109,6 +110,7 @@ export const CippFormTenantSelector = ({
       validators={validators}
       removeOptions={removeOptions}
       options={options}
+      value={selectedValue}
       groupBy={(option) => option.type}
       renderGroup={(params) => (
         <li key={params.key}>

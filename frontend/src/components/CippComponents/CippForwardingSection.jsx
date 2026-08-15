@@ -5,19 +5,27 @@ import { Grid } from "@mui/system";
 import { CippApiResults } from "./CippApiResults";
 import { getCippValidator } from "../../utils/get-cipp-validator";
 
-const CippForwardingSection = ({ formControl, usersList, contactsList, postRequest, handleSubmit }) => {
+const getGroupTypeLabel = (group) => {
+  if (group.groupTypes?.includes("Unified")) return "M365 Group";
+  if (group.securityEnabled) return "Mail-enabled Security Group";
+  return "Distribution List";
+};
+
+const CippForwardingSection = ({ formControl, usersList, contactsList, groupsList, postRequest, handleSubmit }) => {
 
   const internalAddressOptions = [
-    // Add users
     ...(usersList?.data?.Results?.map((user) => ({
       value: user.userPrincipalName,
       label: `${user.displayName} (${user.userPrincipalName}) - User`,
     })) || []),
-    // Add contacts
     ...(contactsList?.data?.Results?.map((contact) => ({
       value: contact.mail || contact.emailAddress,
       label: `${contact.displayName} (${contact.mail || contact.emailAddress}) - Contact`,
-    })) || [])
+    })) || []),
+    ...(groupsList?.data?.Results?.filter((group) => group.mail)?.map((group) => ({
+      value: group.mail,
+      label: `${group.displayName} (${group.mail}) - ${getGroupTypeLabel(group)}`,
+    })) || []),
   ];
 
   return (
@@ -44,7 +52,7 @@ const CippForwardingSection = ({ formControl, usersList, contactsList, postReque
       >
         <CippFormComponent
           type="autoComplete"
-          label="Select User"
+          label="Select Recipient"
           name="forwarding.ForwardInternal"
           multiple={false}
           options={internalAddressOptions}

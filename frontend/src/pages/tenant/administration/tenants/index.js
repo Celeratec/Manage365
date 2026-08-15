@@ -10,7 +10,6 @@ const Page = () => {
   const simpleColumns = [
     "displayName",
     "defaultDomainName",
-    "tenantGroups",
     "portal_m365",
     "portal_exchange",
     "portal_entra",
@@ -29,11 +28,13 @@ const Page = () => {
       label: "Edit Tenant",
       link: "/tenant/manage/edit?tenantFilter=[defaultDomainName]",
       icon: <Edit />,
+      category: "edit",
     },
     {
       label: "Configure Backup",
       link: "/tenant/manage/configuration-backup?tenantFilter=[defaultDomainName]",
       icon: <Edit />,
+      category: "manage",
     },
     {
       label: "Delete Capabilities Cache",
@@ -43,6 +44,7 @@ const Page = () => {
       confirmText: "Are you sure you want to delete the capabilities cache for this tenant?",
       color: "info",
       icon: <DeleteOutline />,
+      category: "manage",
     },
   ];
 

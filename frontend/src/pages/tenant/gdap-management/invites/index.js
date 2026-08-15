@@ -32,6 +32,7 @@ const actions = [
       },
     ],
     relatedQueryKeys: ["ListGDAPInvite"],
+    category: "edit",
   },
   {
     label: "Delete Invite",
@@ -45,6 +46,7 @@ const actions = [
       InviteId: "RowKey",
     },
     relatedQueryKeys: ["ListGDAPInvite"],
+    category: "danger",
   },
 ];
 

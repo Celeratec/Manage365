@@ -25,6 +25,7 @@ const Page = () => {
       label: "Edit Mapping",
       icon: <PencilIcon />,
       link: "/cipp/custom-data/mappings/edit?id=[id]",
+      category: "edit",
     },
     {
       label: "Delete Mapping",
@@ -35,6 +36,7 @@ const Page = () => {
         id: "id",
       },
       confirmText: "Are you sure you want to delete the mapping with ID '[id]'?",
+      category: "danger",
     },
   ];
 

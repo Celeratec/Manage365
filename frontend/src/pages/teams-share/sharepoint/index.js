@@ -1,793 +1,570 @@
-import { Layout as DashboardLayout } from '../../../layouts/index.js'
-import { CippTablePage } from '../../../components/CippComponents/CippTablePage.jsx'
-import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@mui/material'
+import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { CippTablePage } from "../../../components/CippComponents/CippTablePage.jsx";
+import {
+  Button,
+  Paper,
+  Avatar,
+  Typography,
+  Chip,
+  Divider,
+  useTheme,
+  LinearProgress,
+  Tooltip,
+  useMediaQuery,
+  IconButton,
+} from "@mui/material";
+import { alpha } from "@mui/material/styles";
+import { Box, Stack } from "@mui/system";
 import {
   Add,
   AddToPhotos,
-  PersonAdd,
-  PersonRemove,
-  AdminPanelSettings,
-  NoAccounts,
-  Delete,
-  CleaningServices,
-  Assessment,
+  Language,
+  Storage,
+  CalendarToday,
+  Person,
+  Group,
+  Campaign,
+  Warning,
+  CheckCircle,
+  OpenInNew,
+  TrendingDown,
+  Description,
   FolderShared,
-  ManageAccounts,
-  PersonSearch,
-  RestoreFromTrash,
-  Settings,
-} from '@mui/icons-material'
-import Link from 'next/link'
-import { Stack } from '@mui/system'
-import { CippDataTable } from '../../../components/CippTable/CippDataTable'
-import { useSettings } from '../../../hooks/use-settings'
-import { usePermissions } from '../../../hooks/use-permissions'
-import { useCippReportDB } from '../../../components/CippComponents/CippReportDBControls'
-import CippFormComponent from '../../../components/CippComponents/CippFormComponent'
-import { CippFormCondition } from '../../../components/CippComponents/CippFormCondition'
-import { CippPropertyList } from '../../../components/CippComponents/CippPropertyList'
-import { ApiGetCall } from '../../../api/ApiCall'
-import { CippEditSitePropertiesForm } from '../../../components/CippComponents/CippEditSitePropertiesForm'
-import { CippSiteRecycleBinDialog } from '../../../components/CippComponents/CippSiteRecycleBinDialog'
-import { CippLibraryPermissionsDialog } from '../../../components/CippComponents/CippLibraryPermissionsDialog'
-import { CippCheckUserAccessDialog } from '../../../components/CippComponents/CippCheckUserAccessDialog'
-import { CippSharePointQuotaCard } from '../../../components/CippCards/CippSharePointQuotaCard'
-import {
-  CippAnonymizedReportAlert,
-  isReportAnonymized,
-  useReportAnonymized,
-} from '../../../components/CippComponents/CippAnonymizedReportAlert'
+} from "@mui/icons-material";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { CippDataTable } from "../../../components/CippTable/CippDataTable";
+import { useSettings } from "../../../hooks/use-settings";
+import { getCippFormatting } from "../../../utils/get-cipp-formatting";
+import { useMemo, useCallback } from "react";
+import { useCippSiteActions } from "../../../components/CippComponents/CippSiteActions";
 
-// Friendly labels for the SharePoint version cleanup (trim) job progress fields.
-const VERSION_CLEANUP_LABELS = {
-  Status: 'Status',
-  BatchDeleteMode: 'Cleanup Mode',
-  RequestTimeInUTC: 'Requested (UTC)',
-  LastProcessTimeInUTC: 'Last Processed (UTC)',
-  CompleteTimeInUTC: 'Completed (UTC)',
-  ListsProcessed: 'Lists Processed',
-  ListsUpdated: 'Lists Updated',
-  ListsFailed: 'Lists Failed',
-  FilesProcessed: 'Files Processed',
-  VersionsProcessed: 'Versions Processed',
-  VersionsDeleted: 'Versions Deleted',
-  VersionsFailed: 'Versions Failed',
-  StorageReleased: 'Storage Released (bytes)',
-  ErrorMessage: 'Error Message',
-  WorkItemId: 'Work Item ID',
-}
-// Order in which the fields are shown.
-const VERSION_CLEANUP_FIELDS = Object.keys(VERSION_CLEANUP_LABELS)
+// Helper function to get site type icon and color
+const getSiteTypeInfo = (template) => {
+  const templateMap = {
+    "Communication Site": { icon: <Campaign />, color: "primary", label: "Communication Site" },
+    "Group": { icon: <Group />, color: "info", label: "Group-Connected Site" },
+    "Team Site": { icon: <FolderShared />, color: "secondary", label: "Classic Site" },
+    "STS": { icon: <FolderShared />, color: "secondary", label: "Classic Site" },
+  };
 
-// Renders the body of the status modal based on the fetched job progress.
-const VersionCleanupStatusBody = ({ statusApi }) => {
-  const progress = statusApi.data?.Results
-
-  if (statusApi.isError) {
-    return <Alert severity="error">Failed to load cleanup job status.</Alert>
+  for (const [key, value] of Object.entries(templateMap)) {
+    if (template?.includes(key)) return value;
   }
+  return { icon: <Language />, color: "default", label: template || "Site" };
+};
 
-  // No job: either an empty/blank response, or the API's explicit "NoRequestFound" status.
-  if (
-    !statusApi.isFetching &&
-    (progress === undefined ||
-      progress === null ||
-      (typeof progress === 'string' && progress.trim() === '') ||
-      progress?.Status === 'NoRequestFound')
-  ) {
-    return <Alert severity="info">No cleanup job found for this site.</Alert>
-  }
+// Helper to calculate storage percentage
+const getStoragePercentage = (used, allocated) => {
+  if (!allocated || allocated === 0) return 0;
+  return Math.min(100, Math.round((used / allocated) * 100));
+};
 
-  // Backend couldn't parse the payload and returned the raw string.
-  if (!statusApi.isFetching && typeof progress === 'string') {
-    return <Alert severity="info">{progress}</Alert>
-  }
+// Helper to get storage status color
+const getStorageStatusColor = (percentage) => {
+  if (percentage >= 90) return "error";
+  if (percentage >= 75) return "warning";
+  return "success";
+};
 
-  const propertyItems = VERSION_CLEANUP_FIELDS.filter(
-    (key) => progress?.[key] !== undefined && progress?.[key] !== ''
-  ).map((key) => ({
-    label: VERSION_CLEANUP_LABELS[key],
-    value: String(progress[key]),
-  }))
+// Helper to check if site is inactive (no activity in 90 days)
+const isInactiveSite = (lastActivityDate) => {
+  if (!lastActivityDate) return true;
+  const lastActivity = new Date(lastActivityDate);
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  return lastActivity < ninetyDaysAgo;
+};
+
+// Storage progress bar component
+const StorageProgressBar = ({ used, allocated, showLabel = true }) => {
+  const percentage = getStoragePercentage(used, allocated);
+  const color = getStorageStatusColor(percentage);
 
   return (
-    <CippPropertyList
-      isFetching={statusApi.isFetching}
-      layout="two"
-      propertyItems={
-        propertyItems.length
-          ? propertyItems
-          : VERSION_CLEANUP_FIELDS.map((key) => ({ label: VERSION_CLEANUP_LABELS[key], value: '' }))
-      }
-    />
-  )
-}
-
-// Custom-component action modal: opens directly (no confirmation step) and fetches the trim
-// job status for the selected site, rendering it as a property list.
-const VersionCleanupStatusModal = ({ row, tenantFilter, drawerVisible, setDrawerVisible }) => {
-  const siteRow = Array.isArray(row) ? row[0] : row
-  const siteUrl = siteRow?.webUrl
-  const statusApi = ApiGetCall({
-    url: '/api/ListSPOVersionCleanup',
-    data: {
-      tenantFilter: siteRow?.Tenant ?? tenantFilter,
-      SiteUrl: siteUrl,
-    },
-    queryKey: `SPOVersionCleanupStatus-${siteUrl}`,
-    waiting: !!drawerVisible && !!siteUrl,
-  })
-
-  return (
-    <Dialog fullWidth maxWidth="sm" open={!!drawerVisible} onClose={() => setDrawerVisible(false)}>
-      <DialogTitle>
-        Cleanup Job Status{siteRow?.displayName ? ` — ${siteRow.displayName}` : ''}
-      </DialogTitle>
-      <DialogContent dividers>
-        <VersionCleanupStatusBody statusApi={statusApi} />
-      </DialogContent>
-      <DialogActions>
-        <Button color="inherit" onClick={() => setDrawerVisible(false)}>
-          Close
-        </Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
+    <Tooltip title={`${used} GB used of ${allocated} GB allocated (${percentage}%)`}>
+      <Box sx={{ width: "100%", minWidth: 100 }}>
+        {showLabel && (
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
+            <Typography variant="caption" color="text.secondary">
+              {used} GB
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              {percentage}%
+            </Typography>
+          </Stack>
+        )}
+        <LinearProgress
+          variant="determinate"
+          value={percentage}
+          color={color}
+          sx={{
+            height: 6,
+            borderRadius: 3,
+            bgcolor: (theme) => alpha(theme.palette.grey[500], 0.15),
+          }}
+        />
+      </Box>
+    </Tooltip>
+  );
+};
 
 const Page = () => {
-  const pageTitle = 'SharePoint Sites'
-  const tenantFilter = useSettings().currentTenant
-  const { checkPermissions } = usePermissions()
-  const canWriteSite = checkPermissions(['Sharepoint.Site.ReadWrite'])
-  const canReadSite = checkPermissions(['Sharepoint.Site.Read', 'Sharepoint.Site.ReadWrite'])
-  const canReadRecycleBin = checkPermissions([
-    'Sharepoint.SiteRecycleBin.Read',
-    'Sharepoint.SiteRecycleBin.ReadWrite',
-  ])
-  const reportDB = useCippReportDB({
-    apiUrl: '/api/ListSites?type=SharePointSiteUsage',
-    queryKey: 'ListSites-SharePointSiteUsage',
-    cacheName: 'SharePointSiteUsage',
-    syncTitle: 'Sync SharePoint Sites Report',
-    syncData: { Types: 'SharePointSiteUsage' },
-    allowToggle: true,
-    defaultCached: true,
-    allowAllTenantSync: true,
-  })
+  const pageTitle = "SharePoint Sites";
+  const tenantFilter = useSettings().currentTenant;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const router = useRouter();
 
-  // Two different faults produce empty usage columns here, and they need different advice.
-  //
-  // Anonymization: Microsoft 365 hashes the owner names in the SharePoint site usage report.
-  // Only hashed values prove this - absent usage data does not, because anonymization still
-  // returns rows, it just hashes them. Both the live and cached paths merge the same report,
-  // so this is not gated on cache mode.
-  const anonymizedReport = useReportAnonymized({
-    url: reportDB.resolvedApiUrl,
-    data: reportDB.resolvedApiData,
-    queryKey: reportDB.resolvedQueryKey,
-    check: (rows) => isReportAnonymized(rows, ['ownerPrincipalName', 'ownerDisplayName']),
-  })
+  const handleCardClick = useCallback((site) => {
+    const params = new URLSearchParams({
+      siteId: site.siteId || "",
+      displayName: site.displayName || "",
+      webUrl: site.webUrl || "",
+      rootWebTemplate: site.rootWebTemplate || "",
+      ownerPrincipalName: site.ownerPrincipalName || "",
+      ownerDisplayName: site.ownerDisplayName || "",
+      storageUsedInGigabytes: String(site.storageUsedInGigabytes || 0),
+      storageAllocatedInGigabytes: String(site.storageAllocatedInGigabytes || 0),
+      fileCount: String(site.fileCount || 0),
+      lastActivityDate: site.lastActivityDate || "",
+      createdDateTime: site.createdDateTime || "",
+      reportRefreshDate: site.reportRefreshDate || "",
+    });
+    router.push(`/teams-share/sharepoint/site-details?${params.toString()}`);
+  }, [router]);
 
-  // Empty usage report: getSharePointSiteUsageDetail returns no rows at all for tenants
-  // Microsoft has not generated a report for yet. The site listing still populates the table,
-  // so every usage-derived column is blank. reportRefreshDate comes only from that report, so
-  // an empty one across every row means the merge contributed nothing.
-  const noUsageData = useReportAnonymized({
-    url: reportDB.resolvedApiUrl,
-    data: reportDB.resolvedApiData,
-    queryKey: reportDB.resolvedQueryKey,
-    check: (rows) => rows.every((site) => !site?.reportRefreshDate),
-  })
+  const actions = useCippSiteActions();
 
-  const actions = [
-    {
-      label: 'Add Member',
-      type: 'POST',
-      icon: <PersonAdd />,
-      url: '/api/ExecSetSharePointMember',
-      data: {
-        groupId: 'ownerPrincipalName',
-        add: true,
-        URL: 'webUrl',
-        SharePointType: 'rootWebTemplate',
+  // Quick filters for common scenarios
+  const filters = useMemo(
+    () => [
+      {
+        filterName: "High Storage (>75%)",
+        value: [{ id: "storageStatus", value: "high" }],
+        type: "column",
       },
-      confirmText: 'Select the User to add and the site role to add them to.',
-      condition: () => canWriteSite,
-      fields: [
-        {
-          type: 'autoComplete',
-          name: 'user',
-          label: 'Select User',
-          multiple: false,
-          creatable: false,
-          api: {
-            url: '/api/ListGraphRequest',
-            data: {
-              Endpoint: 'users',
-              $select: 'id,displayName,userPrincipalName',
-              $top: 999,
-              $count: true,
-            },
-            queryKey: 'ListUsersAutoComplete',
-            dataKey: 'Results',
-            labelField: (user) => `${user.displayName} (${user.userPrincipalName})`,
-            valueField: 'userPrincipalName',
-            addedField: {
-              id: 'id',
-            },
-            showRefresh: true,
-          },
-        },
-        {
-          type: 'radio',
-          name: 'Role',
-          label: 'Site Role',
-          options: [
-            { label: 'Members', value: 'Members' },
-            { label: 'Owners', value: 'Owners' },
-            { label: 'Visitors', value: 'Visitors' },
-          ],
-        },
-      ],
-      defaultvalues: {
-        Role: 'Members',
+      {
+        filterName: "Critical Storage (>90%)",
+        value: [{ id: "storageStatus", value: "critical" }],
+        type: "column",
       },
-      allowResubmit: true,
-      multiPost: false,
-    },
-    {
-      label: 'Remove Member',
-      type: 'POST',
-      icon: <PersonRemove />,
-      url: '/api/ExecSetSharePointMember',
-      data: {
-        groupId: 'ownerPrincipalName',
-        add: false,
-        URL: 'webUrl',
-        SharePointType: 'rootWebTemplate',
+      {
+        filterName: "Inactive Sites (90+ days)",
+        value: [{ id: "activityStatus", value: "inactive" }],
+        type: "column",
       },
-      confirmText: 'Select the user to remove from their site role.',
-      condition: () => canWriteSite,
-      children: ({ formHook, row }) => {
-        const siteRow = Array.isArray(row) ? row[0] : row
-        return (
-          <CippFormComponent
-            type="autoComplete"
-            name="user"
-            label="Select Member"
-            multiple={false}
-            creatable={false}
-            formControl={formHook}
-            validators={{ required: 'Please select a member' }}
-            api={{
-              url: '/api/ListSiteMembers',
-              data: {
-                SiteId: siteRow?.siteId,
-                SiteUrl: siteRow?.webUrl,
-                tenantFilter: siteRow?.Tenant ?? tenantFilter,
-              },
-              queryKey: `SiteMembersPicker-${siteRow?.siteId}`,
-              dataKey: 'Results',
-              labelField: (member) =>
-                `${member.Title} (${member.UserPrincipalName}) — ${member.Group}`,
-              valueField: 'UserPrincipalName',
-              addedField: {
-                Group: 'Group',
-                Type: 'Type',
-              },
-              dataFilter: (options) =>
-                options.filter(
-                  (option, index, all) =>
-                    option.value &&
-                    ['Owners', 'Members', 'Visitors'].includes(option.addedFields?.Group) &&
-                    all.findIndex(
-                      (o) =>
-                        o.value === option.value &&
-                        o.addedFields?.Group === option.addedFields?.Group
-                    ) === index
-                ),
-              showRefresh: true,
-            }}
-          />
-        )
+      {
+        filterName: "Communication Sites",
+        value: [{ id: "rootWebTemplate", value: "Communication" }],
+        type: "column",
       },
-      multiPost: false,
-      allowResubmit: true,
-    },
-    {
-      label: 'Remove User From Site',
-      type: 'POST',
-      icon: <NoAccounts />,
-      url: '/api/ExecRemoveSiteUser',
-      data: {
-        SiteUrl: 'webUrl',
+      {
+        filterName: "Group-Connected Sites",
+        value: [{ id: "rootWebTemplate", value: "Group" }],
+        type: "column",
       },
-      confirmText:
-        'Remove a user from the entire site: this removes them from every site group and direct permission grant at once. Sharing links they received are not revoked.',
-      condition: () => canWriteSite,
-      children: ({ formHook, row }) => {
-        const siteRow = Array.isArray(row) ? row[0] : row
-        return (
-          <CippFormComponent
-            type="autoComplete"
-            name="user"
-            label="Select User"
-            multiple={false}
-            creatable={false}
-            formControl={formHook}
-            validators={{ required: 'Please select a user' }}
-            api={{
-              url: '/api/ListSiteMembers',
-              data: {
-                SiteId: siteRow?.siteId,
-                SiteUrl: siteRow?.webUrl,
-                tenantFilter: siteRow?.Tenant ?? tenantFilter,
-              },
-              queryKey: `SiteMembersPicker-${siteRow?.siteId}`,
-              dataKey: 'Results',
-              labelField: (member) =>
-                `${member.Title} (${member.UserPrincipalName})${member.IsGuest ? ' — Guest' : ''} — ${member.Group}`,
-              valueField: 'UserPrincipalName',
-              addedField: {
-                LoginName: 'LoginName',
-                Type: 'Type',
-              },
-              dataFilter: (options) =>
-                options.filter(
-                  (option, index, all) =>
-                    option.value &&
-                    option.addedFields?.Type === 'User' &&
-                    all.findIndex((o) => o.value === option.value) === index
-                ),
-              showRefresh: true,
-            }}
-          />
-        )
+      {
+        filterName: "Large Sites (>10 GB)",
+        value: [{ id: "sizeCategory", value: "large" }],
+        type: "column",
       },
-      multiPost: false,
-    },
-    {
-      label: 'Revoke Sharing Links',
-      type: 'POST',
-      icon: <FolderShared />,
-      url: '/api/ExecBulkRemoveSharingLinks',
-      data: {
-        SiteUrl: 'webUrl',
-      },
-      confirmText:
-        'Bulk revoke sharing links on [displayName]. This uses the sharing report cache: links created since the last sharing sync are not covered - run a sync from the Sharing Report page first for full coverage.',
-      condition: () => canWriteSite,
-      fields: [
-        {
-          type: 'radio',
-          name: 'Scope',
-          label: 'Which links to revoke',
-          options: [
-            { label: 'Anonymous links only (anyone with the link)', value: 'Anonymous' },
-            { label: 'Anonymous + external user shares', value: 'External' },
-            { label: 'All sharing links, including internal', value: 'All' },
-          ],
-        },
-      ],
-      defaultvalues: {
-        Scope: 'Anonymous',
-      },
-      multiPost: false,
-    },
-    {
-      label: 'Edit Site',
-      type: 'POST',
-      icon: <Settings />,
-      url: '/api/ExecSetSiteProperties',
-      confirmText:
-        'Edit site properties for [displayName]. Fields are prefilled with the current values.',
-      condition: () => canWriteSite,
-      children: ({ formHook, row }) => (
-        <CippEditSitePropertiesForm formHook={formHook} row={row} tenantFilter={tenantFilter} />
-      ),
-      customDataformatter: (row, action, formData) => {
-        const v = (x) => (x && typeof x === 'object' && 'value' in x ? x.value : x)
-        // isGroupSite is evaluated per site: a selection can mix group-backed and classic
-        // sites, and the group-backed ones reject the properties guarded below.
-        const formatRow = (siteRow) => {
-          const isGroupSite = siteRow?.rootWebTemplate === 'Group'
-          const payload = {
-            tenantFilter: siteRow.Tenant ?? tenantFilter,
-            SiteUrl: siteRow.webUrl,
-            SharingCapability: v(formData.SharingCapability),
-            DefaultSharingLinkType: v(formData.DefaultSharingLinkType),
-            DefaultLinkPermission: v(formData.DefaultLinkPermission),
-            LockState: v(formData.LockState),
-          }
-          if (!isGroupSite) {
-            payload.Title = formData.Title
-            payload.SharingDomainRestrictionMode = v(formData.SharingDomainRestrictionMode)
-            payload.OverrideTenantAnonymousLinkExpirationPolicy =
-              !!formData.OverrideTenantAnonymousLinkExpirationPolicy
-            payload.InheritVersionPolicyFromTenant = !!formData.InheritVersionPolicyFromTenant
-          }
-          if (!isGroupSite && v(formData.SharingDomainRestrictionMode) === 'AllowList') {
-            payload.SharingAllowedDomainList = formData.SharingAllowedDomainList
-          }
-          if (!isGroupSite && v(formData.SharingDomainRestrictionMode) === 'BlockList') {
-            payload.SharingBlockedDomainList = formData.SharingBlockedDomainList
-          }
-          if (!isGroupSite && formData.OverrideTenantAnonymousLinkExpirationPolicy) {
-            payload.AnonymousLinkExpirationInDays = parseInt(
-              formData.AnonymousLinkExpirationInDays ?? 0,
-              10
-            )
-          }
-          const storageMax = parseInt(formData.StorageMaximumLevel, 10)
-          const storageWarn = parseInt(formData.StorageWarningLevel, 10)
-          if (!isNaN(storageMax) && storageMax > 0) payload.StorageMaximumLevel = storageMax
-          if (!isNaN(storageWarn) && storageWarn > 0) payload.StorageWarningLevel = storageWarn
-          if (!isGroupSite && !formData.InheritVersionPolicyFromTenant) {
-            payload.EnableAutoExpirationVersionTrim = !!formData.EnableAutoExpirationVersionTrim
-            if (!formData.EnableAutoExpirationVersionTrim) {
-              payload.MajorVersionLimit = parseInt(formData.MajorVersionLimit ?? 0, 10)
-              payload.ExpireVersionsAfterDays = parseInt(formData.ExpireVersionsAfterDays ?? 0, 10)
-            }
-          }
-          return payload
-        }
-        // When multiple rows are selected, row is an array. Returning an array
-        // makes CippApiDialog send one request per row (bulk request mode).
-        return Array.isArray(row) ? row.map(formatRow) : formatRow(row)
-      },
-      multiPost: false,
-      allowResubmit: true,
-    },
-    {
-      label: 'Add Site Admin',
-      type: 'POST',
-      icon: <AdminPanelSettings />,
-      url: '/api/ExecSharePointPerms',
-      data: {
-        UPN: 'ownerPrincipalName',
-        RemovePermission: false,
-        URL: 'webUrl',
-      },
-      confirmText: 'Select the User to add to the Site Admins permissions',
-      condition: () => canWriteSite,
-      fields: [
-        {
-          type: 'autoComplete',
-          name: 'user',
-          label: 'Select User',
-          multiple: false,
-          creatable: false,
-          api: {
-            url: '/api/ListGraphRequest',
-            data: {
-              Endpoint: 'users',
-              $select: 'id,displayName,userPrincipalName',
-              $top: 999,
-              $count: true,
-            },
-            queryKey: 'ListUsersAutoComplete',
-            dataKey: 'Results',
-            labelField: (user) => `${user.displayName} (${user.userPrincipalName})`,
-            valueField: 'userPrincipalName',
-            addedField: {
-              id: 'id',
-            },
-            showRefresh: true,
-          },
-        },
-      ],
-      multiPost: false,
-    },
-    {
-      label: 'Remove Site Admin',
-      type: 'POST',
-      icon: <NoAccounts />,
-      url: '/api/ExecSharePointPerms',
-      data: {
-        UPN: 'ownerPrincipalName',
-        RemovePermission: true,
-        URL: 'webUrl',
-      },
-      confirmText: 'Select the User to remove from the Site Admins permissions',
-      condition: () => canWriteSite,
-      fields: [
-        {
-          type: 'autoComplete',
-          name: 'user',
-          label: 'Select User',
-          multiple: false,
-          creatable: false,
-          api: {
-            url: '/api/ListGraphRequest',
-            data: {
-              Endpoint: 'users',
-              $select: 'id,displayName,userPrincipalName',
-              $top: 999,
-              $count: true,
-            },
-            queryKey: 'ListUsersAutoComplete',
-            dataKey: 'Results',
-            labelField: (user) => `${user.displayName} (${user.userPrincipalName})`,
-            valueField: 'userPrincipalName',
-            addedField: {
-              id: 'id',
-            },
-            showRefresh: true,
-          },
-        },
-      ],
-      multiPost: false,
-    },
-    {
-      // Read access is enough to open this: the dialog gates every change on write access,
-      // so a read-only admin can still inspect who has what.
-      label: 'Manage Permissions',
-      icon: <ManageAccounts />,
-      condition: () => canReadSite,
-      customComponent: (row, { drawerVisible, setDrawerVisible }) => (
-        <CippLibraryPermissionsDialog
-          row={row}
-          tenantFilter={tenantFilter}
-          drawerVisible={drawerVisible}
-          setDrawerVisible={setDrawerVisible}
-        />
-      ),
-      multiPost: false,
-      hideBulk: true,
-    },
-    {
-      // Answers "does this person have access, and how" rather than "who holds permissions".
-      label: 'Check User Access',
-      icon: <PersonSearch />,
-      condition: () => canReadSite,
-      customComponent: (row, { drawerVisible, setDrawerVisible }) => (
-        <CippCheckUserAccessDialog
-          row={row}
-          tenantFilter={tenantFilter}
-          drawerVisible={drawerVisible}
-          setDrawerVisible={setDrawerVisible}
-        />
-      ),
-      multiPost: false,
-      hideBulk: true,
-    },
-    {
-      label: 'Delete Site',
-      type: 'POST',
-      icon: <Delete />,
-      url: '/api/DeleteSharepointSite',
-      data: {
-        SiteId: 'siteId',
-      },
-      confirmText:
-        'Are you sure you want to delete this SharePoint site? Deleted sites can be restored from the Deleted Sites page for 93 days.',
-      color: 'error',
-      // System sites cannot be deleted (SPO rejects it or the tenant breaks): admin site,
-      // My Site host, search/compliance centers, root site, content type hub. Team channel
-      // sites are deleted by deleting the channel in Teams, not directly.
-      condition: (row) =>
-        canWriteSite &&
-        ![
-          'Tenant Admin Site',
-          'My Site Host',
-          'Basic Search Center',
-          'Compliance Policy Center',
-          'SharePoint Online Tenant Fundamental Site',
-          'Team Channel',
-          'App Catalog Site',
-        ].includes(row.rootWebTemplate) &&
-        !/\.sharepoint\.com\/?$/i.test(row.webUrl ?? '') &&
-        !/\/sites\/contentTypeHub$/i.test(row.webUrl ?? ''),
-      multiPost: false,
-    },
-    {
-      label: 'Start Version Cleanup Job',
-      type: 'POST',
-      icon: <CleaningServices />,
-      url: '/api/ExecSPOVersionCleanup',
-      data: {
-        SiteUrl: 'webUrl',
-      },
-      confirmText:
-        'Start a file version cleanup job for [displayName]. This will trim old file versions based on the selected mode.',
-      condition: () => canWriteSite,
-      children: ({ formHook }) => (
-        <>
-          <CippFormComponent
-            type="radio"
-            name="BatchDeleteMode"
-            label="Cleanup Mode"
-            formControl={formHook}
-            options={[
-              { label: 'Sync Policy — apply site version policy to existing versions', value: '2' },
-              {
-                label: 'Delete Older Than Days — remove versions older than a set number of days',
-                value: '0',
-              },
-              { label: 'Count Limits — keep a maximum number of major versions', value: '1' },
-            ]}
-          />
-          <CippFormCondition
-            field="BatchDeleteMode"
-            compareType="is"
-            compareValue="0"
-            formControl={formHook}
-          >
-            <CippFormComponent
-              type="number"
-              name="DeleteOlderThanDays"
-              label="Delete Versions Older Than (days)"
-              formControl={formHook}
-              validators={{
-                required: 'Please enter the number of days',
-                min: { value: 30, message: 'SharePoint requires at least 30 days' },
+    ],
+    []
+  );
+
+  // Card view configuration
+  const cardConfig = useMemo(
+    () => ({
+      title: "displayName",
+      avatar: {
+        field: "rootWebTemplate",
+        customRender: (value) => {
+          const typeInfo = getSiteTypeInfo(value);
+          return (
+            <Avatar
+              sx={{
+                bgcolor: (theme) => alpha(theme.palette[typeInfo.color]?.main || theme.palette.grey[500], 0.15),
+                color: (theme) => theme.palette[typeInfo.color]?.main || theme.palette.grey[500],
               }}
-            />
-          </CippFormCondition>
-          <CippFormCondition
-            field="BatchDeleteMode"
-            compareType="is"
-            compareValue="1"
-            formControl={formHook}
-          >
-            <CippFormComponent
-              type="number"
-              name="MajorVersionLimit"
-              label="Maximum Major Versions to Keep"
-              formControl={formHook}
-              validators={{ required: 'Please enter the version limit' }}
-            />
-            <CippFormComponent
-              type="number"
-              name="MajorWithMinorVersionsLimit"
-              label="Major Versions That Keep Their Minor Versions"
-              formControl={formHook}
-              validators={{ required: 'Please enter the major-with-minor version limit' }}
-            />
-          </CippFormCondition>
-        </>
-      ),
-      defaultvalues: {
-        BatchDeleteMode: '2',
+            >
+              {typeInfo.icon}
+            </Avatar>
+          );
+        },
       },
-      customDataformatter: (row, action, formData) => {
-        const formatRow = (singleRow) => ({
-          tenantFilter: singleRow.Tenant ?? tenantFilter,
-          SiteUrl: singleRow.webUrl,
-          BatchDeleteMode: parseInt(formData.BatchDeleteMode, 10),
-          DeleteOlderThanDays:
-            formData.BatchDeleteMode === '0' ? parseInt(formData.DeleteOlderThanDays, 10) : -1,
-          MajorVersionLimit:
-            formData.BatchDeleteMode === '1' ? parseInt(formData.MajorVersionLimit, 10) : -1,
-          MajorWithMinorVersionsLimit:
-            formData.BatchDeleteMode === '1'
-              ? parseInt(formData.MajorWithMinorVersionsLimit, 10)
-              : -1,
-        })
-        // When multiple rows are selected, row is an array. Returning an array
-        // makes CippApiDialog send one request per row (bulk request mode).
-        return Array.isArray(row) ? row.map(formatRow) : formatRow(row)
-      },
-      multiPost: false,
-    },
-    {
-      label: 'Recycle Bin',
-      icon: <RestoreFromTrash />,
-      condition: () => canReadRecycleBin,
-      customComponent: (row, { drawerVisible, setDrawerVisible }) => (
-        <CippSiteRecycleBinDialog
-          row={row}
-          tenantFilter={tenantFilter}
-          drawerVisible={drawerVisible}
-          setDrawerVisible={setDrawerVisible}
-        />
-      ),
-      multiPost: false,
-      hideBulk: true,
-    },
-    {
-      label: 'Check Cleanup Job Status',
-      icon: <Assessment />,
-      condition: () => canReadSite,
-      customComponent: (row, { drawerVisible, setDrawerVisible }) => (
-        <VersionCleanupStatusModal
-          row={row}
-          tenantFilter={tenantFilter}
-          drawerVisible={drawerVisible}
-          setDrawerVisible={setDrawerVisible}
-        />
-      ),
-      multiPost: false,
-      hideBulk: true,
-    },
-  ]
-
-  const offCanvas = {
-    extendedInfoFields: ['displayName', 'description', 'webUrl'],
-    actions: actions,
-    children: (row) => (
-      <CippDataTable
-        title="Site Members"
-        queryKey={`site-members-${row.siteId}`}
-        api={{
-          url: '/api/ListSiteMembers',
-          data: {
-            SiteId: row.siteId,
-            SiteUrl: row.webUrl,
-            tenantFilter: tenantFilter,
+      badges: [
+        {
+          field: "storageStatus",
+          conditions: {
+            critical: { icon: <Storage fontSize="small" />, color: "error", label: "Storage Critical (>90%)" },
+            high: { icon: <Storage fontSize="small" />, color: "warning", label: "Storage High (>75%)" },
+            normal: { icon: <Storage fontSize="small" />, color: "success", label: "Storage OK" },
           },
-          dataKey: 'Results',
-        }}
-        simpleColumns={['Title', 'Email', 'Group', 'Type', 'IsGuest', 'IsSiteAdmin']}
-      />
-    ),
-    size: 'lg', // Make the offcanvas extra large
-  }
+          transform: (value, item) => {
+            const pct = getStoragePercentage(item.storageUsedInGigabytes, item.storageAllocatedInGigabytes);
+            if (pct >= 90) return "critical";
+            if (pct >= 75) return "high";
+            return "normal";
+          },
+          iconOnly: true,
+        },
+        {
+          field: "activityStatus",
+          conditions: {
+            inactive: { icon: <TrendingDown fontSize="small" />, color: "warning", label: "Inactive (90+ days)" },
+          },
+          transform: (value, item) => (isInactiveSite(item.lastActivityDate) ? "inactive" : null),
+          iconOnly: true,
+        },
+      ],
+      extraFields: [
+        { field: "ownerPrincipalName", icon: <Person />, label: "Owner" },
+        {
+          field: "storageUsedInGigabytes",
+          icon: <Storage />,
+          label: "Storage",
+          customRender: (value, item) => (
+            <StorageProgressBar
+              used={item.storageUsedInGigabytes || 0}
+              allocated={item.storageAllocatedInGigabytes || 1}
+              showLabel={false}
+            />
+          ),
+        },
+      ],
+      desktopFields: [
+        {
+          field: "fileCount",
+          icon: <Description />,
+          label: "Files",
+          formatter: (value) => (value ? value.toLocaleString() : "0"),
+        },
+        { field: "lastActivityDate", icon: <CalendarToday />, label: "Last Active" },
+      ],
+      cardGridProps: {
+        md: 6,
+        lg: 4,
+      },
+      mobileQuickActions: ["View Details", "Open Site", "Add Member"],
+    }),
+    []
+  );
 
-  const simpleColumns = [
-    ...reportDB.cacheColumns.filter((c) => c === 'Tenant'),
-    'displayName',
-    'createdDateTime',
-    'ownerPrincipalName',
-    'lastActivityDate',
-    'fileCount',
-    'storageUsedInGigabytes',
-    'storageAllocatedInGigabytes',
-    'reportRefreshDate',
-    'webUrl',
-    ...reportDB.cacheColumns.filter((c) => c !== 'Tenant'),
-  ]
+  // Off-canvas panel renderer
+  const offCanvasChildren = useCallback(
+    (row) => {
+      const typeInfo = getSiteTypeInfo(row.rootWebTemplate);
+      const storagePercentage = getStoragePercentage(
+        row.storageUsedInGigabytes,
+        row.storageAllocatedInGigabytes
+      );
+      const storageColor = getStorageStatusColor(storagePercentage);
+      const inactive = isInactiveSite(row.lastActivityDate);
 
-  const pageActions = (
-    <Stack direction="row" spacing={1} alignItems="center">
-      <Button component={Link} href="/teams-share/sharepoint/add-site" startIcon={<Add />}>
-        Add Site
-      </Button>
-      <Button
-        component={Link}
-        href="/teams-share/sharepoint/bulk-add-site"
-        startIcon={<AddToPhotos />}
-      >
-        Bulk Add Sites
-      </Button>
-      {reportDB.controls}
-    </Stack>
-  )
+      return (
+        <Stack spacing={3}>
+          {/* Hero Section */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${alpha(
+                theme.palette[typeInfo.color]?.main || theme.palette.primary.main,
+                0.15
+              )} 0%, ${alpha(
+                theme.palette[typeInfo.color]?.main || theme.palette.primary.main,
+                0.05
+              )} 100%)`,
+              borderLeft: `4px solid ${theme.palette[typeInfo.color]?.main || theme.palette.primary.main}`,
+            }}
+          >
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar
+                sx={{
+                  bgcolor: alpha(
+                    theme.palette[typeInfo.color]?.main || theme.palette.primary.main,
+                    0.15
+                  ),
+                  color: theme.palette[typeInfo.color]?.main || theme.palette.primary.main,
+                  width: 56,
+                  height: 56,
+                }}
+              >
+                {typeInfo.icon}
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
+                  {row.displayName || "Unknown Site"}
+                </Typography>
+                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                  <Chip
+                    label={typeInfo.label}
+                    size="small"
+                    color={typeInfo.color}
+                    variant="outlined"
+                  />
+                  {inactive && (
+                    <Chip
+                      icon={<TrendingDown fontSize="small" />}
+                      label="Inactive"
+                      size="small"
+                      color="warning"
+                      variant="outlined"
+                    />
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* Quick Stats */}
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Stack direction="row" spacing={2} justifyContent="space-around">
+              <Box sx={{ textAlign: "center" }}>
+                <Typography variant="h5" sx={{ fontWeight: 700, color: "primary.main" }}>
+                  {row.fileCount?.toLocaleString() || 0}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Files
+                </Typography>
+              </Box>
+              <Divider orientation="vertical" flexItem />
+              <Box sx={{ textAlign: "center" }}>
+                <Typography
+                  variant="h5"
+                  sx={{ fontWeight: 700, color: `${storageColor}.main` }}
+                >
+                  {storagePercentage}%
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Storage Used
+                </Typography>
+              </Box>
+              <Divider orientation="vertical" flexItem />
+              <Box sx={{ textAlign: "center" }}>
+                <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                  {row.storageUsedInGigabytes || 0}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  GB Used
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* Storage Details */}
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <Storage fontSize="small" color="action" />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Storage Details
+              </Typography>
+            </Stack>
+            <Box sx={{ mb: 2 }}>
+              <StorageProgressBar
+                used={row.storageUsedInGigabytes || 0}
+                allocated={row.storageAllocatedInGigabytes || 1}
+              />
+            </Box>
+            <Stack spacing={1}>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">
+                  Storage Allocated
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {row.storageAllocatedInGigabytes} GB
+                </Typography>
+              </Stack>
+              <Stack direction="row" justifyContent="space-between" alignItems="center">
+                <Typography variant="body2" color="text.secondary">
+                  Storage Available
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {((row.storageAllocatedInGigabytes || 0) - (row.storageUsedInGigabytes || 0)).toFixed(2)} GB
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
+
+          <Divider />
+
+          {/* Owner & Activity */}
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <Person fontSize="small" color="action" />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Owner & Activity
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              {row.ownerPrincipalName && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Owner
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                    {row.ownerDisplayName || row.ownerPrincipalName}
+                  </Typography>
+                </Stack>
+              )}
+              {row.createdDateTime && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Created
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {getCippFormatting(row.createdDateTime, "createdDateTime")}
+                  </Typography>
+                </Stack>
+              )}
+              {row.lastActivityDate && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Last Activity
+                  </Typography>
+                  <Stack direction="row" alignItems="center" spacing={0.5}>
+                    {inactive && (
+                      <Tooltip title="No activity in over 90 days">
+                        <Warning fontSize="small" color="warning" />
+                      </Tooltip>
+                    )}
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {getCippFormatting(row.lastActivityDate, "lastActivityDate")}
+                    </Typography>
+                  </Stack>
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+
+          {/* URL */}
+          {row.webUrl && (
+            <>
+              <Divider />
+              <Box>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Site URL
+                  </Typography>
+                  <Tooltip title="Open site in new tab">
+                    <IconButton
+                      size="small"
+                      component="a"
+                      href={row.webUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <OpenInNew fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Stack>
+                <Typography
+                  component="a"
+                  href={row.webUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  variant="body2"
+                  sx={{
+                    color: "primary.main",
+                    textDecoration: "none",
+                    "&:hover": { textDecoration: "underline" },
+                    wordBreak: "break-all",
+                  }}
+                >
+                  {row.webUrl}
+                </Typography>
+              </Box>
+            </>
+          )}
+
+          <Divider />
+
+          {/* Site Members Table */}
+          <Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2 }}>
+              Site Members
+            </Typography>
+            <CippDataTable
+              title="Site Members"
+              queryKey={`site-members-${row.siteId}`}
+              api={{
+                url: "/api/ListSiteMembers",
+                data: {
+                  SiteId: row.siteId,
+                  SiteUrl: row.webUrl,
+                  tenantFilter: tenantFilter,
+                },
+                dataKey: "Results",
+              }}
+              simpleColumns={["Title", "Email", "Group", "Type", "IsGuest", "IsSiteAdmin"]}
+            />
+          </Box>
+        </Stack>
+      );
+    },
+    [theme, tenantFilter]
+  );
+
+  const offCanvas = useMemo(
+    () => ({
+      actions: actions,
+      children: offCanvasChildren,
+      size: "lg",
+    }),
+    [actions, offCanvasChildren]
+  );
+
+  // Responsive columns
+  const simpleColumns = useMemo(
+    () =>
+      isMobile
+        ? ["displayName", "storageUsedInGigabytes", "lastActivityDate"]
+        : [
+            "displayName",
+            "rootWebTemplate",
+            "ownerPrincipalName",
+            "lastActivityDate",
+            "fileCount",
+            "storageUsedInGigabytes",
+            "storageAllocatedInGigabytes",
+            "webUrl",
+          ],
+    [isMobile]
+  );
 
   return (
-    <>
-      <CippTablePage
-        title={pageTitle}
-        apiUrl={reportDB.resolvedApiUrl}
-        apiData={reportDB.resolvedApiData}
-        queryKey={reportDB.resolvedQueryKey}
-        actions={actions}
-        offCanvas={offCanvas}
-        simpleColumns={simpleColumns}
-        cardButton={pageActions}
-        tableFilter={
-          <>
-            <CippSharePointQuotaCard />
-            <CippAnonymizedReportAlert show={anonymizedReport}>
-              Site owner names in this report are pseudo-anonymised because Microsoft 365 report
-              anonymization is enabled for this tenant.
-            </CippAnonymizedReportAlert>
-            {!anonymizedReport && noUsageData && (
-              <Alert severity="info">
-                Microsoft returned no SharePoint usage report for this tenant, so activity,
-                storage and file count are blank. The site list itself is complete. Usage reports
-                can take up to 48 hours to appear on a new tenant.
-              </Alert>
-            )}
-          </>
-        }
-      />
-      {reportDB.syncDialog}
-    </>
-  )
-}
+    <CippTablePage
+      title={pageTitle}
+      apiUrl="/api/ListSites?type=SharePointSiteUsage"
+      actions={actions}
+      offCanvas={offCanvas}
+      simpleColumns={simpleColumns}
+      filters={filters}
+      cardConfig={cardConfig}
+      onCardClick={handleCardClick}
+      dataFreshnessField="reportRefreshDate"
+      cardButton={
+        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Button component={Link} href="/teams-share/sharepoint/add-site" startIcon={<Add />}>
+            {isMobile ? "" : "Add Site"}
+          </Button>
+          {!isMobile && (
+            <Button
+              component={Link}
+              href="/teams-share/sharepoint/bulk-add-site"
+              startIcon={<AddToPhotos />}
+            >
+              Bulk Add Sites
+            </Button>
+          )}
+        </Box>
+      }
+    />
+  );
+};
 
-Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>
+Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
 
-export default Page
+export default Page;

@@ -1,232 +1,208 @@
-import React, { useState, useEffect } from "react";
-import { IconButton, Tooltip, Badge, Typography, LinearProgress, Box, Stack } from "@mui/material";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  IconButton,
+  Tooltip,
+  Badge,
+  Typography,
+  LinearProgress,
+  Box,
+  Stack,
+  Chip,
+} from "@mui/material";
 import { Timeline, Circle } from "@mui/icons-material";
 import { CippOffCanvas } from "../CippComponents/CippOffCanvas";
 import { ApiGetCall } from "../../api/ApiCall";
 import { useQueryClient } from "@tanstack/react-query";
+import { useDispatch } from "react-redux";
+import { showToast } from "../../store/toasts";
 
-export const CippQueueTracker = ({ queueId, queryKey, title, onQueueComplete }) => {
-  const queryClient = useQueryClient();
-  const [queueCanvasVisible, setQueueCanvasVisible] = useState(false);
-  const [persistentQueueData, setPersistentQueueData] = useState(null);
-  const [lastProcessedQueueId, setLastProcessedQueueId] = useState(null);
-  const [queueQueryKey, setQueueQueryKey] = useState(null);
-  const [hasAutoRefreshed, setHasAutoRefreshed] = useState(false);
+/**
+ * Polls a single queue entry and calls back on status changes.
+ * Renders nothing — purely a polling side-effect hook wrapper.
+ */
+const QueuePoller = ({ queueId, onData, onComplete }) => {
+  const [isCompleted, setIsCompleted] = useState(false);
 
-  const hasQueueData = !!queueId;
-  const currentQueryKey = queryKey || title;
-
-  // Show queue if we have current queue data OR persistent queue data from the same query key
-  // If query key changed and we don't have an active queueId, don't show the tracker
-  const shouldShowQueue =
-    hasQueueData || (!!persistentQueueData && queueQueryKey === currentQueryKey);
-
-  // Check if queue is in a completed state based on persistent data only (to avoid circular dependency)
-  const isQueueCompleted =
-    persistentQueueData?.Status === "Completed" ||
-    persistentQueueData?.Status === "Failed" ||
-    persistentQueueData?.Status === "Completed (with errors)";
-
-  const effectiveQueueId = queueId || lastProcessedQueueId;
-
-  const queuePolling = ApiGetCall({
+  const polling = ApiGetCall({
     url: `/api/ListCippQueue`,
-    data: { QueueId: effectiveQueueId },
-    queryKey: `CippQueue-${effectiveQueueId || "unknown"}`,
-    waiting: shouldShowQueue && !!effectiveQueueId && !isQueueCompleted,
-    refetchInterval: (query) => {
-      // TanStack Query v5 hands this callback the Query object, not the data - the response
-      // has to be read off query.state or the completion check below never matches.
-      const currentData = query?.state?.data?.[0];
-      const isCurrentCompleted =
-        currentData?.Status === "Completed" ||
-        currentData?.Status === "Failed" ||
-        currentData?.Status === "Completed (with errors)";
-
-      // Also check persistent data
-      const isPersistentCompleted =
-        persistentQueueData?.Status === "Completed" ||
-        persistentQueueData?.Status === "Failed" ||
-        persistentQueueData?.Status === "Completed (with errors)";
-
-      // Stop polling if either shows completion
-      if (isCurrentCompleted || isPersistentCompleted || !shouldShowQueue || !effectiveQueueId) {
+    data: { QueueId: queueId },
+    queryKey: `CippQueue-${queueId}`,
+    waiting: !!queueId && !isCompleted,
+    refetchInterval: (data) => {
+      const d = data?.[0];
+      if (
+        d?.Status === "Completed" ||
+        d?.Status === "Failed" ||
+        d?.Status === "Completed (with errors)"
+      ) {
         return false;
       }
-
       return 3000;
     },
     refetchOnMount: true,
     refetchOnWindowFocus: false,
   });
 
-  const queueData = queuePolling.data?.[0];
+  const queueData = polling.data?.[0];
 
-  // Handle queue data persistence - only update persistent queue data when we get a new QueueId
-  // and ensure it's pinned to the current query key
   useEffect(() => {
-    const currentQueryKey = queryKey || title;
+    if (!queueData) return;
+    onData(queueId, queueData);
 
-    // If query key changed, clear all queue data
-    if (queueQueryKey && queueQueryKey !== currentQueryKey) {
-      setPersistentQueueData(null);
-      setLastProcessedQueueId(null);
-      setQueueQueryKey(currentQueryKey);
-      setHasAutoRefreshed(false);
-      return;
+    const terminal =
+      queueData.Status === "Completed" ||
+      queueData.Status === "Failed" ||
+      queueData.Status === "Completed (with errors)";
+
+    if (terminal && !isCompleted) {
+      setIsCompleted(true);
+      onComplete(queueId, queueData);
     }
+  }, [queueData, queueId, onData, onComplete, isCompleted]);
 
-    // Set query key if not set
-    if (!queueQueryKey) {
-      setQueueQueryKey(currentQueryKey);
-    }
+  return null;
+};
 
-    // Only process new QueueId if we actually have one and it's different
-    if (queueId && queueId !== lastProcessedQueueId) {
-      // New QueueId detected, clear old persistent data and set new QueueId
-      setPersistentQueueData(null);
-      setLastProcessedQueueId(queueId);
-      setHasAutoRefreshed(false); // Reset auto-refresh flag for new queue
-    }
+export const CippQueueTracker = ({
+  queueIds = [],
+  queueId: legacySingleId,
+  queryKey,
+  title,
+  onQueueComplete,
+  onSingleQueueComplete,
+}) => {
+  const queryClient = useQueryClient();
+  const dispatch = useDispatch();
+  const [queueCanvasVisible, setQueueCanvasVisible] = useState(false);
 
-    // Don't clear persistent data if queueId is temporarily null (during table refresh)
-    // Only clear if we explicitly get a different QueueId or change query/page
-  }, [queueId, lastProcessedQueueId, queryKey, title, queueQueryKey]);
+  // Merge legacy single-id prop with the array prop for backwards compat
+  const allIds = [
+    ...queueIds,
+    ...(legacySingleId && !queueIds.includes(legacySingleId) ? [legacySingleId] : []),
+  ];
 
-  // Update persistent queue data when new queue data is available
-  useEffect(() => {
-    const currentQueryKey = queryKey || title;
+  // Map queueId -> latest data
+  const [queueDataMap, setQueueDataMap] = useState({});
+  const completedToastRef = useRef(new Set());
 
-    // Only update if we're on the same query key where the queue was initiated
-    if (queueData && queueId === lastProcessedQueueId && queueQueryKey === currentQueryKey) {
-      setPersistentQueueData(queueData);
-    }
-  }, [queueData, queueId, lastProcessedQueueId, queryKey, title, queueQueryKey]);
+  const handleData = useCallback((id, data) => {
+    setQueueDataMap((prev) => ({ ...prev, [id]: data }));
+  }, []);
 
-  // Auto-refresh table when queue reaches 100% completion
-  useEffect(() => {
-    const currentQueryKey = queryKey || title;
+  const handleComplete = useCallback(
+    (id, data) => {
+      // Fire toast once per queue
+      if (!completedToastRef.current.has(id)) {
+        completedToastRef.current.add(id);
 
-    // Only auto-refresh if we're on the same query key where the queue was initiated
-    // and we haven't already auto-refreshed for this queue completion
-    if (
-      !hasAutoRefreshed &&
-      (persistentQueueData?.Status === "Completed" ||
-        persistentQueueData?.Status === "Failed" ||
-        persistentQueueData?.Status === "Completed (with errors)") &&
-      queueQueryKey === currentQueryKey
-    ) {
-      // Queue is complete, invalidate the table query to refresh data
-      if (currentQueryKey) {
-        queryClient.invalidateQueries({ queryKey: [currentQueryKey] });
-        setHasAutoRefreshed(true); // Mark that we've auto-refreshed
-        // Call callback if provided
+        const queueName = data?.Name || "Background task";
+        if (data?.Status === "Completed") {
+          dispatch(showToast({ message: `${queueName} completed successfully.`, title: "Task Complete" }));
+        } else if (data?.Status === "Failed") {
+          dispatch(showToast({ message: `${queueName} failed.`, title: "Task Failed" }));
+        } else if (data?.Status === "Completed (with errors)") {
+          dispatch(
+            showToast({
+              message: `${queueName} completed with errors (${data?.FailedTasks} failed).`,
+              title: "Task Complete (with errors)",
+            })
+          );
+        }
+
+        // Refresh the table data
+        const currentQueryKey = queryKey || title;
+        if (currentQueryKey) {
+          queryClient.invalidateQueries({ queryKey: [currentQueryKey] });
+        }
+
+        // Notify parent so it can remove this id from its array
+        if (onSingleQueueComplete) {
+          onSingleQueueComplete(id);
+        }
+        // Legacy callback
         if (onQueueComplete) {
-          onQueueComplete();
+          onQueueComplete(id);
         }
       }
-    }
-  }, [
-    hasAutoRefreshed,
-    persistentQueueData?.PercentComplete,
-    persistentQueueData?.Status,
-    queryKey,
-    title,
-    queryClient,
-    queueQueryKey,
-    onQueueComplete,
-  ]);
+    },
+    [dispatch, queryClient, queryKey, title, onSingleQueueComplete, onQueueComplete]
+  );
 
-  // Don't render anything if we don't have queue data to show
-  // Check for valid queueId or persistent queue data
-  if (!shouldShowQueue || (!queueId && !lastProcessedQueueId && !persistentQueueData)) {
-    return null;
-  }
+  // Clean stale entries from the map when allIds changes (entries removed by parent)
+  useEffect(() => {
+    setQueueDataMap((prev) => {
+      const next = {};
+      for (const id of allIds) {
+        if (prev[id]) next[id] = prev[id];
+      }
+      return next;
+    });
+  }, [allIds.join(",")]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (allIds.length === 0) return null;
+
+  // Aggregate status across all tracked queues
+  const allData = allIds.map((id) => queueDataMap[id]).filter(Boolean);
+  const activeCount = allData.filter(
+    (d) => d.Status !== "Completed" && d.Status !== "Failed" && d.Status !== "Completed (with errors)"
+  ).length;
+  const failedCount = allData.filter(
+    (d) => d.Status === "Failed" || d.Status === "Completed (with errors)"
+  ).length;
+  const completedCount = allData.filter((d) => d.Status === "Completed").length;
+  const totalCount = allIds.length;
+
+  const overallColor =
+    activeCount > 0
+      ? "primary.main"
+      : failedCount > 0
+      ? "error.main"
+      : "success.main";
+
+  const badgeColor =
+    activeCount > 0
+      ? "warning.main"
+      : failedCount > 0
+      ? "error.main"
+      : "success.main";
+
+  const tooltipText =
+    activeCount > 0
+      ? `${activeCount} task${activeCount > 1 ? "s" : ""} running (${completedCount} done, ${failedCount} failed)`
+      : failedCount > 0
+      ? `All tasks finished — ${failedCount} failed, ${completedCount} succeeded`
+      : `All ${completedCount} task${completedCount > 1 ? "s" : ""} completed`;
 
   return (
     <>
-      <Tooltip
-        title={
-          (persistentQueueData || queueData)?.Status === "Completed"
-            ? `Queue Complete - ${(persistentQueueData || queueData)?.PercentComplete?.toFixed(
-                1,
-              )}% (${(persistentQueueData || queueData)?.CompletedTasks}/${
-                (persistentQueueData || queueData)?.TotalTasks
-              } tasks)`
-            : (persistentQueueData || queueData)?.Status === "Completed (with errors)"
-              ? `Queue Completed with Errors - ${(
-                  persistentQueueData || queueData
-                )?.PercentFailed?.toFixed(1)}% failed (${
-                  (persistentQueueData || queueData)?.FailedTasks
-                }/${(persistentQueueData || queueData)?.TotalTasks} tasks)`
-              : (persistentQueueData || queueData)?.Status === "Failed"
-                ? `Queue Failed - ${(persistentQueueData || queueData)?.PercentFailed?.toFixed(
-                    1,
-                  )}% failed (${(persistentQueueData || queueData)?.FailedTasks}/${
-                    (persistentQueueData || queueData)?.TotalTasks
-                  } tasks)`
-                : (persistentQueueData || queueData)?.Status
-                  ? `Queue ${(persistentQueueData || queueData).Status} - ${(
-                      persistentQueueData || queueData
-                    )?.PercentComplete?.toFixed(1)}% complete (${
-                      (persistentQueueData || queueData)?.CompletedTasks
-                    }/${(persistentQueueData || queueData)?.TotalTasks} tasks)`
-                  : "View Queue Status"
-        }
-      >
+      {/* Render one poller per tracked queue */}
+      {allIds.map((id) => (
+        <QueuePoller key={id} queueId={id} onData={handleData} onComplete={handleComplete} />
+      ))}
+
+      <Tooltip title={tooltipText}>
         <Badge
           badgeContent={
-            (persistentQueueData || queueData)?.Status === "Completed" ? (
-              <Circle sx={{ fontSize: 8, color: "success.main" }} />
-            ) : (persistentQueueData || queueData)?.Status === "Completed (with errors)" ? (
-              <Circle sx={{ fontSize: 8, color: "warning.main" }} />
-            ) : (persistentQueueData || queueData)?.Status === "Failed" ? (
-              <Circle sx={{ fontSize: 8, color: "error.main" }} />
-            ) : (persistentQueueData || queueData)?.RunningTasks > 0 ? (
-              <Circle sx={{ fontSize: 8, color: "warning.main" }} />
+            totalCount > 1 ? (
+              totalCount
             ) : (
-              <Circle sx={{ fontSize: 8, color: "info.main" }} />
+              <Circle sx={{ fontSize: 8, color: badgeColor }} />
             )
           }
+          color={activeCount > 0 ? "warning" : failedCount > 0 ? "error" : "success"}
           overlap="circular"
-          anchorOrigin={{
-            vertical: "top",
-            horizontal: "right",
-          }}
+          anchorOrigin={{ vertical: "top", horizontal: "right" }}
         >
           <IconButton
             onClick={() => setQueueCanvasVisible(true)}
             sx={{
-              animation:
-                (persistentQueueData || queueData)?.Status !== "Completed" &&
-                (persistentQueueData || queueData)?.Status !== "Completed (with errors)" &&
-                (persistentQueueData || queueData)?.Status !== "Failed"
-                  ? "pulse 2s infinite"
-                  : "none",
+              animation: activeCount > 0 ? "pulse 2s infinite" : "none",
               "@keyframes pulse": {
-                "0%": {
-                  transform: "scale(1)",
-                  opacity: 1,
-                },
-                "50%": {
-                  transform: "scale(1.1)",
-                  opacity: 0.8,
-                },
-                "100%": {
-                  transform: "scale(1)",
-                  opacity: 1,
-                },
+                "0%": { transform: "scale(1)", opacity: 1 },
+                "50%": { transform: "scale(1.1)", opacity: 0.8 },
+                "100%": { transform: "scale(1)", opacity: 1 },
               },
-              color:
-                (persistentQueueData || queueData)?.Status === "Completed"
-                  ? "success.main"
-                  : (persistentQueueData || queueData)?.Status === "Completed (with errors)"
-                    ? "warning.main"
-                    : (persistentQueueData || queueData)?.Status === "Failed"
-                      ? "error.main"
-                      : (persistentQueueData || queueData)?.RunningTasks > 0
-                        ? "warning.main"
-                        : "primary.main",
+              color: overallColor,
             }}
           >
             <Timeline />
@@ -237,205 +213,150 @@ export const CippQueueTracker = ({ queueId, queryKey, title, onQueueComplete }) 
       {/* Queue Status OffCanvas */}
       <CippOffCanvas
         size="lg"
-        title="Queue Status"
+        title="Background Tasks"
         visible={queueCanvasVisible}
         onClose={() => setQueueCanvasVisible(false)}
       >
         <Stack spacing={3} sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
-          {persistentQueueData || queueData ? (
-            <>
-              <Typography variant="h6">{(persistentQueueData || queueData).Name}</Typography>
-
-              <Box>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Progress: {(persistentQueueData || queueData).PercentComplete?.toFixed(1)}%
-                  complete
-                </Typography>
-                <LinearProgress
-                  variant="determinate"
-                  value={(persistentQueueData || queueData).PercentComplete || 0}
-                  sx={{ height: 8, borderRadius: 4 }}
-                />
-              </Box>
-
-              <Stack direction="row" spacing={4} sx={{ flexWrap: "wrap" }}>
-                <Typography variant="body2">
-                  <strong>Total Tasks:</strong> {(persistentQueueData || queueData).TotalTasks || 0}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Completed:</strong>{" "}
-                  {(persistentQueueData || queueData).CompletedTasks || 0}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Running:</strong> {(persistentQueueData || queueData).RunningTasks || 0}
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Failed:</strong> {(persistentQueueData || queueData).FailedTasks || 0}
-                </Typography>
-              </Stack>
-
-              <Typography variant="body2">
-                <strong>Status:</strong> {(persistentQueueData || queueData).Status}
-              </Typography>
-
-              {(persistentQueueData || queueData).Tasks &&
-                (persistentQueueData || queueData).Tasks.length > 0 && (
-                  <>
-                    <Typography variant="h6" sx={{ mt: 2, mb: 1 }}>
-                      Task Details
-                    </Typography>
+          {allIds.length === 0 ? (
+            <Typography>No background tasks</Typography>
+          ) : (
+            <Box
+              sx={{
+                flex: 1,
+                overflowY: "auto",
+                pr: 1,
+                "&::-webkit-scrollbar": { width: 8 },
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: (theme) =>
+                    theme.palette.mode === "dark" ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
+                  borderRadius: 4,
+                },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: (theme) =>
+                    theme.palette.mode === "dark" ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.3)",
+                  borderRadius: 4,
+                  "&:hover": {
+                    backgroundColor: (theme) =>
+                      theme.palette.mode === "dark"
+                        ? "rgba(255,255,255,0.5)"
+                        : "rgba(0,0,0,0.5)",
+                  },
+                },
+              }}
+            >
+              <Stack spacing={2}>
+                {allIds.map((id) => {
+                  const data = queueDataMap[id];
+                  if (!data) {
+                    return (
+                      <Box key={id} sx={{ p: 2, border: 1, borderColor: "divider", borderRadius: 1 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          Loading...
+                        </Typography>
+                      </Box>
+                    );
+                  }
+                  const isTerminal =
+                    data.Status === "Completed" ||
+                    data.Status === "Failed" ||
+                    data.Status === "Completed (with errors)";
+                  return (
                     <Box
-                      sx={{
-                        flex: 1,
-                        display: "flex",
-                        flexDirection: "column",
-                        minHeight: 0,
-                      }}
+                      key={id}
+                      sx={(theme) => ({
+                        p: 2,
+                        border: 1,
+                        borderColor:
+                          theme.palette.mode === "dark" ? "rgba(255,255,255,0.12)" : "divider",
+                        borderRadius: 1,
+                        backgroundColor:
+                          data.Status === "Completed"
+                            ? theme.palette.mode === "dark"
+                              ? "rgba(102, 187, 106, 0.15)"
+                              : "success.light"
+                            : data.Status === "Failed"
+                            ? theme.palette.mode === "dark"
+                              ? "rgba(244, 67, 54, 0.15)"
+                              : "error.light"
+                            : data.Status === "Completed (with errors)"
+                            ? theme.palette.mode === "dark"
+                              ? "rgba(255, 152, 0, 0.15)"
+                              : "warning.light"
+                            : theme.palette.mode === "dark"
+                            ? "rgba(255,255,255,0.05)"
+                            : "grey.100",
+                        transition: "all 0.2s ease-in-out",
+                      })}
                     >
-                      <Stack
-                        spacing={1}
-                        sx={{
-                          flex: 1,
-                          overflowY: "auto",
-                          pr: 1,
-                          "&::-webkit-scrollbar": {
-                            width: 8,
-                          },
-                          "&::-webkit-scrollbar-track": {
-                            backgroundColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.1)"
-                                : "rgba(0,0,0,0.1)",
-                            borderRadius: 4,
-                          },
-                          "&::-webkit-scrollbar-thumb": {
-                            backgroundColor: (theme) =>
-                              theme.palette.mode === "dark"
-                                ? "rgba(255,255,255,0.3)"
-                                : "rgba(0,0,0,0.3)",
-                            borderRadius: 4,
-                            "&:hover": {
-                              backgroundColor: (theme) =>
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.5)"
-                                  : "rgba(0,0,0,0.5)",
-                            },
-                          },
-                        }}
-                      >
-                        {(persistentQueueData || queueData).Tasks.map((task, index) => (
-                          <Box
-                            key={index}
-                            sx={(theme) => ({
-                              p: 2,
-                              border: 1,
-                              borderColor:
-                                theme.palette.mode === "dark"
-                                  ? "rgba(255,255,255,0.12)"
-                                  : "divider",
-                              borderRadius: 1,
-                              backgroundColor:
-                                task.Status === "Completed"
-                                  ? theme.palette.mode === "dark"
-                                    ? "rgba(102, 187, 106, 0.15)"
-                                    : "success.light"
-                                  : task.Status === "Failed"
-                                    ? theme.palette.mode === "dark"
-                                      ? "rgba(244, 67, 54, 0.15)"
-                                      : "error.light"
-                                    : task.Status === "Running"
-                                      ? theme.palette.mode === "dark"
-                                        ? "rgba(255, 152, 0, 0.15)"
-                                        : "warning.light"
-                                      : theme.palette.mode === "dark"
-                                        ? "rgba(255,255,255,0.05)"
-                                        : "grey.100",
-                              transition: "all 0.2s ease-in-out",
-                              "&:hover": {
-                                transform: "translateY(-1px)",
-                                boxShadow:
-                                  theme.palette.mode === "dark"
-                                    ? "0 4px 8px rgba(0,0,0,0.3)"
-                                    : "0 4px 8px rgba(0,0,0,0.1)",
-                              },
-                            })}
-                          >
-                            <Stack
-                              direction="row"
-                              justifyContent="space-between"
-                              alignItems="center"
-                            >
-                              <Typography variant="body2" fontWeight="medium">
-                                {task.Name}
-                              </Typography>
+                      <Stack direction="row" justifyContent="space-between" alignItems="center">
+                        <Typography variant="body2" fontWeight="medium">
+                          {data.Name}
+                        </Typography>
+                        <Chip
+                          label={data.Status}
+                          size="small"
+                          color={
+                            data.Status === "Completed"
+                              ? "success"
+                              : data.Status === "Failed"
+                              ? "error"
+                              : data.Status === "Completed (with errors)"
+                              ? "warning"
+                              : "info"
+                          }
+                          variant="outlined"
+                          sx={{ fontSize: "0.7rem" }}
+                        />
+                      </Stack>
+                      {!isTerminal && (
+                        <Box sx={{ mt: 1 }}>
+                          <LinearProgress
+                            variant="determinate"
+                            value={data.PercentComplete || 0}
+                            sx={{ height: 6, borderRadius: 3 }}
+                          />
+                          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                            {data.PercentComplete?.toFixed(0)}% — {data.CompletedTasks || 0}/
+                            {data.TotalTasks || 0} tasks
+                          </Typography>
+                        </Box>
+                      )}
+                      {isTerminal && data.FailedTasks > 0 && (
+                        <Typography variant="caption" color="error.main" sx={{ mt: 0.5, display: "block" }}>
+                          {data.FailedTasks} task{data.FailedTasks > 1 ? "s" : ""} failed
+                        </Typography>
+                      )}
+                      {/* Task details */}
+                      {data.Tasks && data.Tasks.length > 0 && (
+                        <Stack spacing={0.5} sx={{ mt: 1 }}>
+                          {data.Tasks.map((task, i) => (
+                            <Stack key={i} direction="row" justifyContent="space-between" alignItems="center">
+                              <Typography variant="caption">{task.Name}</Typography>
                               <Typography
                                 variant="caption"
-                                sx={(theme) => ({
-                                  px: 1.5,
-                                  py: 0.5,
-                                  borderRadius: 2,
-                                  backgroundColor:
-                                    theme.palette.mode === "dark"
-                                      ? "rgba(255,255,255,0.1)"
-                                      : "background.paper",
-                                  border:
-                                    theme.palette.mode === "dark"
-                                      ? "1px solid rgba(255,255,255,0.2)"
-                                      : "none",
-                                  fontWeight: "medium",
-                                  textTransform: "uppercase",
-                                  fontSize: "0.7rem",
-                                  letterSpacing: "0.5px",
+                                sx={{
                                   color:
                                     task.Status === "Completed"
                                       ? "success.main"
                                       : task.Status === "Failed"
-                                        ? "error.main"
-                                        : task.Status === "Running"
-                                          ? "warning.main"
-                                          : "text.secondary",
-                                })}
+                                      ? "error.main"
+                                      : task.Status === "Running"
+                                      ? "warning.main"
+                                      : "text.secondary",
+                                }}
                               >
                                 {task.Status}
                               </Typography>
                             </Stack>
-                            {task.Timestamp && (
-                              <Typography
-                                variant="caption"
-                                color="text.secondary"
-                                sx={{
-                                  mt: 0.5,
-                                  display: "block",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                {new Date(task.Timestamp).toLocaleDateString(undefined, {
-                                  year: "numeric",
-                                  month: "short",
-                                  day: "numeric",
-                                })}{" "}
-                                {new Date(task.Timestamp).toLocaleTimeString(undefined, {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                  second: "2-digit",
-                                })}
-                              </Typography>
-                            )}
-                          </Box>
-                        ))}
-                      </Stack>
+                          ))}
+                        </Stack>
+                      )}
                     </Box>
-                  </>
-                )}
-            </>
-          ) : queuePolling.isLoading ? (
-            <Typography>Loading queue data...</Typography>
-          ) : queuePolling.isError ? (
-            <Typography color="error">
-              Error loading queue data: {queuePolling.error?.message}
-            </Typography>
-          ) : (
-            <Typography>No queue data available</Typography>
+                  );
+                })}
+              </Stack>
+            </Box>
           )}
         </Stack>
       </CippOffCanvas>

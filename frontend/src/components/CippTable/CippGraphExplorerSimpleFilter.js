@@ -59,11 +59,6 @@ const CippGraphExplorerSimpleFilter = ({
   }, [defaultPresets, presetList.isSuccess, presetList.data]);
 
   const handleRunPreset = () => {
-    // re-run the last applied query from the edit drawer, preset change clears it
-    if (currentFilterValues) {
-      onSubmitFilter(currentFilterValues);
-      return;
-    }
     if (selectedPreset?.addedFields?.params) {
       const params = selectedPreset.addedFields.params;
       const values = { ...params };
@@ -73,7 +68,7 @@ const CippGraphExplorerSimpleFilter = ({
         values.$select = values.$select
           .map((item) => (typeof item === "string" ? item : item.value))
           .join(",");
-      } else if (!values.$select || values.$select.length === 0) {
+      } else if (values.$select === "") {
         delete values.$select;
       }
 
@@ -98,10 +93,7 @@ const CippGraphExplorerSimpleFilter = ({
         delete values.AsApp;
       }
 
-      // Remove non-API fields and null/empty values (presets saved from the form carry id/name/IsShared in params)
-      delete values.id;
-      delete values.name;
-      delete values.IsShared;
+      // Remove null/empty values
       Object.keys(values).forEach((key) => {
         if (values[key] === null || values[key] === "") {
           delete values[key];
@@ -125,14 +117,8 @@ const CippGraphExplorerSimpleFilter = ({
   };
 
   const handlePresetChange = (preset) => {
-    setCurrentFilterValues(null);
     presetControl.setValue("reportTemplate", preset);
   };
-
-  // preset picked directly in the bar, discard drawer edits so Run uses the pristine preset
-  useEffect(() => {
-    setCurrentFilterValues(null);
-  }, [selectedPreset?.value]);
 
   return (
     <>
@@ -162,7 +148,7 @@ const CippGraphExplorerSimpleFilter = ({
             color="primary"
             startIcon={<PlayCircle />}
             onClick={handleRunPreset}
-            disabled={!selectedPreset && !currentFilterValues}
+            disabled={!selectedPreset}
             sx={{ minWidth: "100px" }}
           >
             Run
@@ -194,7 +180,6 @@ const CippGraphExplorerSimpleFilter = ({
         visible={offCanvasVisible}
         onClose={() => setOffCanvasVisible(false)}
         contentPadding={1}
-        keepMounted={true}
       >
         <CippGraphExplorerFilter
           onSubmitFilter={handleFilterSubmit}
@@ -203,6 +188,7 @@ const CippGraphExplorerSimpleFilter = ({
           relatedQueryKeys={relatedQueryKeys}
           selectedPreset={selectedPreset}
           onPresetSelect={handlePresetChange}
+          initialValues={currentFilterValues}
         />
       </CippOffCanvas>
     </>

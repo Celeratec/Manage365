@@ -63,6 +63,7 @@ const Page = () => {
       ],
       hideBulk: true,
       condition: (row) => row.status !== "Deprecated",
+      category: "edit",
     },
     {
       label: "Set to Available",
@@ -76,6 +77,7 @@ const Page = () => {
       confirmText:
         "Set [id] to Available. You will no longer be able to delete properties or the schema.",
       condition: (row) => row.status === "InDevelopment",
+      category: "edit",
     },
     {
       label: "Set to Deprecated",
@@ -88,6 +90,7 @@ const Page = () => {
       },
       confirmText: "Set [id] to Deprecated. This is a permanent action and cannot be undone.",
       condition: (row) => row.status === "Available",
+      category: "edit",
     },
     {
       label: "Delete Schema",
@@ -99,6 +102,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to delete [id]?",
       condition: (row) => row.status === "InDevelopment",
+      category: "danger",
     },
   ];
 

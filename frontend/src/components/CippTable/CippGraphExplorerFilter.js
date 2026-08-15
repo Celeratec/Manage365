@@ -32,6 +32,7 @@ const CippGraphExplorerFilter = ({
   selectedPreset = null,
   onPresetSelect,
   hideButtons = false,
+  initialValues = null,
 }) => {
   const [offCanvasOpen, setOffCanvasOpen] = useState(false)
   const [cardExpanded, setCardExpanded] = useState(true)
@@ -66,6 +67,12 @@ const CippGraphExplorerFilter = ({
       reportTemplate: null,
     },
   })
+
+  useEffect(() => {
+    if (initialValues && !selectedPreset) {
+      formControl.reset({ ...formControl.getValues(), ...initialValues }, { keepDefaultValues: true })
+    }
+  }, [])
 
   const defaultGraphExplorerTitle = 'Graph Explorer'
 
@@ -219,48 +226,60 @@ const CippGraphExplorerFilter = ({
     if (option.value !== selectedPresets?.value) {
       presetControl.setValue('reportTemplate', option)
     }
-    // selectedPreset?.value covers the autocomplete option shape (no id/filterName keys)
-  }, [selectedPreset?.id, selectedPreset?.filterName, selectedPreset?.value, presetOptions])
+  }, [selectedPreset?.id, selectedPreset?.filterName, presetOptions])
 
   useEffect(() => {
     if (selectedPresets?.addedFields?.params) {
       setPresetOwner(selectedPresets?.addedFields?.IsMyPreset ?? false)
-
-      // normalize on a copy, addedFields.params is shared state (defaultPresets module / react-query cache)
-      const params = { ...selectedPresets.addedFields.params }
-      Object.keys(params).forEach((key) => {
-        if (params[key] == null) {
-          delete params[key]
-        }
-      })
-
-      // $select arrives as comma string (built-in presets) or array (saved presets), form needs [{label,value}]
-      if (Array.isArray(params.$select)) {
-        params.$select = params.$select.map((item) =>
-          typeof item === 'string' ? { label: item, value: item } : item
-        )
-      } else if (typeof params.$select === 'string' && params.$select !== '') {
-        params.$select = params.$select.split(',').map((item) => ({ label: item, value: item }))
-      } else {
-        params.$select = []
+      Object.keys(selectedPresets.addedFields.params).forEach(
+        (key) =>
+          selectedPresets.addedFields.params[key] == null &&
+          delete selectedPresets.addedFields.params[key]
+      )
+      //if $select is a blank array, set it to a string.
+      if (
+        selectedPresets.addedFields.params.$select &&
+        selectedPresets.addedFields.params.$select.length === 0
+      ) {
+        selectedPresets.addedFields.params.$select = ''
       }
+
+      // if $select is an array, extract the values and comma separate
+      if (
+        Array.isArray(selectedPresets.addedFields.params.$select) &&
+        selectedPresets.addedFields.params.$select.length > 0
+      ) {
+        selectedPresets.addedFields.params.$select = selectedPresets.addedFields.params.$select
+          .map((item) => item.value)
+          .join(',')
+      }
+      selectedPresets.addedFields.params.$select !== ''
+        ? (selectedPresets.addedFields.params.$select = selectedPresets.addedFields.params?.$select
+            ?.split(',')
+            .map((item) => ({ label: item, value: item })))
+        : (selectedPresets.addedFields.params.$select = [])
 
       // Convert version string to autocomplete object format, default to beta if not present
-      if (params.version) {
+      if (selectedPresets.addedFields.params.version) {
         const versionValue =
-          typeof params.version === 'string' ? params.version : params.version.value
-        params.version = { label: versionValue, value: versionValue }
+          typeof selectedPresets.addedFields.params.version === 'string'
+            ? selectedPresets.addedFields.params.version
+            : selectedPresets.addedFields.params.version.value
+        selectedPresets.addedFields.params.version = {
+          label: versionValue,
+          value: versionValue,
+        }
       } else {
-        params.version = { label: 'beta', value: 'beta' }
+        selectedPresets.addedFields.params.version = { label: 'beta', value: 'beta' }
       }
 
-      params.id = selectedPresets.value
+      selectedPresets.addedFields.params.id = selectedPresets.value
       setSelectedPreset(selectedPresets.value)
-      params.name = selectedPresets.label
+      selectedPresets.addedFields.params.name = selectedPresets.label
 
       // save last preset title
       setLastPresetTitle(selectedPresets.label)
-      formControl.reset(params, { keepDefaultValues: true })
+      formControl.reset(selectedPresets?.addedFields?.params, { keepDefaultValues: true })
 
       // Notify parent when preset changes in this component
       if (onPresetSelect) {
@@ -488,9 +507,8 @@ const CippGraphExplorerFilter = ({
   }
   // Handle filter form submission
   const onSubmit = (values) => {
-    if (Array.isArray(values.$select)) {
-      // empty array joins to '', removed by the null/empty cleanup below
-      values.$select = values.$select.map((item) => item.value).join(',')
+    if (values.$select && Array.isArray(values.$select) && values.$select.length > 0) {
+      values.$select = values?.$select?.map((item) => item.value)?.join(',')
     }
     if (values.version && values.version.value) {
       values.version = values.version.value
@@ -515,11 +533,7 @@ const CippGraphExplorerFilter = ({
     delete values.id
     delete values.IsShared
     delete values.reportTemplate
-    delete values.manualPagination
-    if (!values.ReverseTenantLookup) {
-      // property only means something with the lookup enabled
-      delete values.ReverseTenantLookupProperty
-    }
+    delete values.ReverseTenantLookupProperty
 
     Object.keys(values).forEach((key) => {
       if (values[key] === null || values[key] === '') {

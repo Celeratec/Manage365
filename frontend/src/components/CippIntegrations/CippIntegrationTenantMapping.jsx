@@ -47,11 +47,8 @@ const CippIntegrationSettings = ({ children }) => {
     defaultValues: mappings?.data,
   });
 
-  // Server-side automap writes the mappings itself, so the list has to be refetched or the
-  // table keeps showing the pre-automap rows and the new mappings look like they failed.
   const automapPostCall = ApiPostCall({
     datafromUrl: true,
-    relatedQueryKeys: [`IntegrationTenantMapping-${router.query.id}`],
   });
 
   const postCall = ApiPostCall({
@@ -102,32 +99,12 @@ const CippIntegrationSettings = ({ children }) => {
     formControl.setValue("integrationCompany", null);
   };
 
-  // Companies often differ from the GDAP tenant name only by case or legal suffix
-  // ("Company A LTD" vs "Company a Ltd" vs "Company A Limited"), so compare on a
-  // normalized form: lowercased, punctuation stripped, trailing legal suffixes removed.
-  const normalizeCompanyName = (name) => {
-    if (!name) return "";
-    let normalized = name
-      .toLowerCase()
-      .replace(/[.,'()&]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-    const legalSuffixes = /\s(ltd|limited|llc|llp|inc|incorporated|plc|pty|corp|corporation|gmbh|bv|co)$/;
-    while (legalSuffixes.test(normalized)) {
-      normalized = normalized.replace(legalSuffixes, "").trim();
-    }
-    return normalized;
-  };
-
   const handleAutoMap = () => {
     const newTableData = [];
     tenantList.data?.pages[0]?.forEach((tenant) => {
-      const normalizedTenant = normalizeCompanyName(tenant.displayName);
-      const matchingCompanies = mappings.data.Companies.filter(
-        (company) => normalizeCompanyName(company.name) === normalizedTenant
+      const matchingCompany = mappings.data.Companies.find(
+        (company) => company.name === tenant.displayName
       );
-      // More than one company collapsing to the same name is ambiguous - leave it manual.
-      const matchingCompany = matchingCompanies.length === 1 ? matchingCompanies[0] : null;
       if (
         Array.isArray(tableData) &&
         tableData?.find((item) => item.TenantId === tenant.customerId)
@@ -162,6 +139,7 @@ const CippIntegrationSettings = ({ children }) => {
       icon: <TrashIcon />,
       confirmText: "Are you sure you want to delete this mapping?",
       customFunction: handleRemoveItem,
+      category: "danger",
     },
   ];
 
@@ -172,13 +150,11 @@ const CippIntegrationSettings = ({ children }) => {
     return Array.isArray(tableData) ? tableData.map((item) => item.TenantId) : [];
   }, [tableData]);
 
-  // isSuccess only goes false -> true once, so depending on it alone meant a refetch never
-  // reached the table and server-side automap results stayed hidden until a page reload.
   useEffect(() => {
     if (mappings.isSuccess) {
       setTableData(mappings.data.Mappings ?? []);
     }
-  }, [mappings.isSuccess, mappings.data]);
+  }, [mappings.isSuccess]);
 
   return (
     <>
@@ -274,7 +250,7 @@ const CippIntegrationSettings = ({ children }) => {
                 reportTitle={`${extension.id}-tenant-map`}
                 data={tableData}
                 simple={false}
-                simpleColumns={["IntegrationName", "Tenant", "TenantDomain", "TenantId"]}
+                simpleColumns={["IntegrationName", "Tenant", "TenantDomain"]}
                 isFetching={mappings.isFetching}
                 refreshFunction={() => mappings.refetch()}
               />

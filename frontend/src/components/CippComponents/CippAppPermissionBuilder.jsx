@@ -37,7 +37,7 @@ import {
 import { useWatch } from "react-hook-form";
 import { CippCardTabPanel } from "./CippCardTabPanel";
 import { CippApiResults } from "./CippApiResults";
-import { isEqual } from "lodash";
+import isEqual from "lodash/isEqual";
 import { CippCodeBlock } from "./CippCodeBlock";
 import { CippOffCanvas } from "./CippOffCanvas";
 import { FileDropzone } from "../file-dropzone";
@@ -629,6 +629,7 @@ const CippAppPermissionBuilder = ({
                         noConfirm: true,
                         condition: (row) => !row.required,
                         customFunction: (row) => handleRemoveRow("applicationPermissions", row),
+                        category: "danger",
                       },
                     ]}
                     isFetching={spInfoFetching}
@@ -695,6 +696,7 @@ const CippAppPermissionBuilder = ({
                     noConfirm: true,
                     condition: (row) => !row.required,
                     customFunction: (row) => handleRemoveRow("delegatedPermissions", row),
+                    category: "danger",
                   },
                 ]}
                 isFetching={spInfoFetching}

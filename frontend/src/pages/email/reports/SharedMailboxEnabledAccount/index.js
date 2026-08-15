@@ -39,6 +39,7 @@ const Page = () => {
             data: { ID: "id" },
             confirmText: "Are you sure you want to block the sign-in for this mailbox?",
             condition: (row) => row.accountEnabled && !row.onPremisesSyncEnabled,
+            category: "security",
           },
         ]}
         offCanvas={{

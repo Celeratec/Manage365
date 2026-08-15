@@ -81,12 +81,14 @@ const Page = () => {
         setDialogOpen(true);
       },
       icon: <DocumentTextIcon />,
+      category: "view",
     },
     {
       label: "View in Explorer",
       noConfirm: true,
       link: `https://security.microsoft.com/realtimereportsv3?tid=${tenantFilter}&dltarget=Explorer&dlstorage=Url&viewid=allemail&query-NetworkMessageId=[MessageTraceId]`,
       icon: <DocumentTextIcon />,
+      category: "view",
     },
   ];
 

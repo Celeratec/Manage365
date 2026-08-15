@@ -11,7 +11,6 @@ export const CippApiLogsDrawer = ({
   tenantFilter = null,
   standardFilter = null,
   scheduledTaskFilter = null,
-  baselineRunFilter = null,
   requiredPermissions = [],
   PermissionButton = Button,
   title = 'API Logs',
@@ -32,7 +31,7 @@ export const CippApiLogsDrawer = ({
     tenantFilter ? `&Tenant=${tenantFilter}` : ''
   }${standardFilter ? `&StandardTemplateId=${standardFilter}` : ''}${
     scheduledTaskFilter ? `&ScheduledTaskId=${scheduledTaskFilter}` : ''
-  }${baselineRunFilter ? `&BaselineRunId=${baselineRunFilter}` : ''}`
+  }`
 
   // Define the columns for the logs table
   const simpleColumns = [
@@ -50,10 +49,11 @@ export const CippApiLogsDrawer = ({
 
   const actions = [
     {
-      label: 'View Log Entry',
-      link: '/cipp/logs/logentry?logentry=[RowKey]',
+      label: "View Log Entry",
+      link: "/cipp/logs/logentry?logentry=[RowKey]&date=[PartitionKey]",
       icon: <EyeIcon />,
       color: 'primary',
+      category: "view",
     },
   ]
 
@@ -67,12 +67,7 @@ export const CippApiLogsDrawer = ({
       >
         {buttonText}
       </PermissionButton>
-      <CippOffCanvas
-        title={title}
-        visible={drawerVisible}
-        onClose={handleCloseDrawer}
-        size="xl"
-      >
+      <CippOffCanvas title={title} visible={drawerVisible} onClose={handleCloseDrawer} size="xl">
         <Box sx={{ mb: 2 }}>
           <CippDataTable
             title={title}
@@ -81,11 +76,11 @@ export const CippApiLogsDrawer = ({
             simple={false}
             api={{
               url: apiUrl,
-              dataKey: '',
+              dataKey: 'Results',
             }}
             queryKey={`APILogs-${apiFilter || 'All'}-${tenantFilter || 'AllTenants'}-${
               standardFilter || 'NoStandard'
-            }-${scheduledTaskFilter || 'NoTask'}-${baselineRunFilter || 'NoRun'}`}
+            }-${scheduledTaskFilter || 'NoTask'}`}
             simpleColumns={simpleColumns}
             exportEnabled={true}
             offCanvas={{

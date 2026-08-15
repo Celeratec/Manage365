@@ -16,6 +16,7 @@ const Page = () => {
       url: "/api/ExecRemoveRestrictedUser",
       data: { SenderAddress: "SenderAddress" },
       color: "success",
+      category: "security",
     },
   ];
 

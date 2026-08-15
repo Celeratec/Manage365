@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Accordion,
   AccordionSummary,
@@ -22,8 +22,7 @@ import { PropertyList } from '../property-list'
 import { getCippTranslation } from '../../utils/get-cipp-translation'
 import { getCippFormatting } from '../../utils/get-cipp-formatting'
 import { CippCodeBlock } from '../CippComponents/CippCodeBlock'
-import { useIntuneDefinitions } from '../../hooks/use-intune-collection'
-import { collectSettingDefinitionIds } from '../../utils/intune-setting-definition-ids'
+import intuneCollection from '../../data/intuneCollection.json'
 import { useGuidResolver } from '../../hooks/use-guid-resolver'
 import { useAdminTemplateDefinitions } from '../../hooks/use-admin-template-definitions'
 import {
@@ -32,11 +31,11 @@ import {
   extractBindGuid,
 } from '../../utils/intune-bind-helpers'
 
-const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>)]+)/g
+const intuneCollectionMap = new Map(
+  (intuneCollection || []).filter((item) => item?.id).map((item) => [item.id, item])
+)
 
-// One shared reference for the nothing-to-resolve case, so useIntuneDefinitions is not handed a
-// fresh array on every render.
-const EMPTY_IDS = []
+const linkPattern = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>)]+)/g
 
 const renderTextWithLinks = (text) => {
   if (!text) {
@@ -275,16 +274,6 @@ function CippJsonView({
     waiting: resolvedType === 'intune',
   })
 
-  // Only the setting definition ids this object references are requested, rather than the whole
-  // catalog. Drilldown levels are subtrees of `object`, so one walk covers every level.
-  const intuneDefinitionIds = useMemo(
-    () => (resolvedType === 'intune' ? Array.from(collectSettingDefinitionIds(object)) : EMPTY_IDS),
-    [object, resolvedType]
-  )
-  const { getDefinition: getIntuneDefinition } = useIntuneDefinitions(intuneDefinitionIds, {
-    enabled: resolvedType === 'intune',
-  })
-
   const renderIntuneItems = (data) => {
     const items = []
     const liveDefinitions = new Map()
@@ -304,7 +293,7 @@ function CippJsonView({
       return (
         settingDefinitions.find((definition) => definition?.id === settingDefinitionId) ||
         liveDefinitions.get(settingDefinitionId) ||
-        getIntuneDefinition(settingDefinitionId)
+        intuneCollectionMap.get(settingDefinitionId)
       )
     }
 

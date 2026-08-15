@@ -119,7 +119,7 @@ export const AuthMethodSankey = ({ data }) => {
   // Add phish-resistant method breakdowns
   if (passkeyCount > 0)
     links.push({ source: "Phish resistant", target: "Passkey", value: passkeyCount });
-  if (whfbCount > 0) links.push({ source: "Phish resistant", target: "WHfB", value: whfbCount });
+  if (whfbCount > 0) links.push({ source: "Phish resistant", target: "Windows Hello", value: whfbCount });
 
   const description = `${mfaPercentage}% of enabled users have MFA configured. ${phishResistantPercentage}% use phish-resistant authentication methods.`;
 
@@ -161,7 +161,7 @@ export const AuthMethodSankey = ({ data }) => {
               nodeColor: "hsl(140, 70%, 50%)",
             },
             {
-              id: "WHfB",
+              id: "Windows Hello",
               nodeColor: "hsl(160, 70%, 50%)",
             },
           ],

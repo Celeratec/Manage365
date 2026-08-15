@@ -35,17 +35,19 @@ const Page = () => {
         />
       ),
       multiPost: false,
+      category: "edit",
     },
     {
       icon: <ContentCopy />,
       label: "Copy Permission Set",
       color: "info",
       link: "/tenant/administration/applications/permission-sets/add?template=[TemplateId]&copy=true&name=[TemplateName]",
+      category: "edit",
     },
     {
       icon: <Delete />,
       label: "Delete Permission Set",
-      color: "danger",
+      color: "error",
       url: apiUrl,
       data: {
         Action: "Delete",
@@ -53,6 +55,7 @@ const Page = () => {
       },
       type: "POST",
       confirmText: "Are you sure you want to delete [TemplateName]?",
+      category: "danger",
     },
   ];
 

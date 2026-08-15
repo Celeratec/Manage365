@@ -37,6 +37,7 @@ const actions = [
       },
     ],
     multiPost: false,
+    category: "edit",
   },
   {
     label: "Delete Mapping",
@@ -48,6 +49,7 @@ const actions = [
     },
     confirmText:
       "Are you sure you want to delete this role mapping? (Note: This does not delete the associated security groups or modify any GDAP relationships.)",
+    category: "danger",
   },
 ];
 

@@ -14,15 +14,15 @@ const Page = () => {
       link: `/email/resources/management/equipment/edit?equipmentId=[ExternalDirectoryObjectId]`,
       icon: <Edit />,
       color: "info",
-      // ListEquipment returns the raw Get-Mailbox object, so these are PascalCase like the
-      // columns below - reading row.isDirSynced here is always undefined and never gates.
-      condition: (row) => !row.IsDirSynced,
+      condition: (row) => !row.isDirSynced,
+      category: "edit",
     },
     {
       label: "Edit permissions",
       link: "/identity/administration/users/user/exchange?userId=[ExternalDirectoryObjectId]",
       color: "info",
       icon: <Key />,
+      category: "edit",
     },
     {
       label: "Block Sign In",
@@ -32,7 +32,8 @@ const Page = () => {
       data: { ID: "ExternalDirectoryObjectId" },
       confirmText: "Are you sure you want to block the sign-in for this equipment mailbox?",
       multiPost: false,
-      condition: (row) => !row.AccountDisabled && !row.IsDirSynced,
+      condition: (row) => !row.isDirSynced,
+      category: "security",
     },
     {
       label: "Unblock Sign In",
@@ -42,7 +43,8 @@ const Page = () => {
       data: { ID: "ExternalDirectoryObjectId", Enable: true },
       confirmText: "Are you sure you want to unblock sign-in for this equipment mailbox?",
       multiPost: false,
-      condition: (row) => row.AccountDisabled && !row.IsDirSynced,
+      condition: (row) => !row.isDirSynced,
+      category: "security",
     },
     {
       label: "Delete Equipment",
@@ -52,7 +54,8 @@ const Page = () => {
       data: { ID: "ExternalDirectoryObjectId" },
       confirmText: "Are you sure you want to delete this equipment mailbox?",
       multiPost: false,
-      condition: (row) => !row.IsDirSynced,
+      condition: (row) => !row.isDirSynced,
+      category: "danger",
     },
   ];
 

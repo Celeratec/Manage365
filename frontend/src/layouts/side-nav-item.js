@@ -5,6 +5,7 @@ import ChevronRightIcon from "@heroicons/react/24/outline/ChevronRightIcon";
 import ChevronDownIcon from "@heroicons/react/24/outline/ChevronDownIcon";
 import ArrowTopRightOnSquareIcon from "@heroicons/react/24/outline/ArrowTopRightOnSquareIcon";
 import { Box, ButtonBase, Collapse, SvgIcon, Stack } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import BookmarkBorderIcon from "@mui/icons-material/BookmarkBorder";
 import BookmarkIcon from "@mui/icons-material/Bookmark";
 import LanguageIcon from "@mui/icons-material/Language";
@@ -20,31 +21,38 @@ export const SideNavItem = (props) => {
     depth = 0,
     external = false,
     icon,
-    openImmediately = false,
+    open = false,
+    onToggle,
     path,
     scope,
     title,
   } = props;
 
   const isGlobal = scope === "global";
-
-  const [open, setOpen] = useState(openImmediately);
   const [hovered, setHovered] = useState(false);
-  const { isBookmarked: isPathBookmarked, toggleBookmark } = useUserBookmarks();
+  const { bookmarks, setBookmarks } = useUserBookmarks();
   const settings = useSettings();
   const compactNav = settings.compactNav ?? false;
-  const isBookmarked = isPathBookmarked(path);
+  const isBookmarked = bookmarks.some((bookmark) => bookmark.path === path);
 
   const handleToggle = useCallback(() => {
-    setOpen((prevOpen) => !prevOpen);
-  }, []);
+    if (onToggle) {
+      onToggle();
+    }
+  }, [onToggle]);
 
   const handleBookmarkToggle = useCallback(
     (event) => {
       event.stopPropagation();
-      toggleBookmark({ label: title, path, category: category || "" });
+      setBookmarks(
+        isBookmarked
+          ? bookmarks.filter((bookmark) => bookmark.path !== path)
+          : bookmarks.length >= 50
+            ? bookmarks
+            : [...bookmarks, { label: title, path, category: category || "" }]
+      );
     },
-    [toggleBookmark, path, title, category]
+    [isBookmarked, bookmarks, setBookmarks, path, title, category]
   );
 
   // Dynamic spacing and font sizing based on depth
@@ -76,6 +84,11 @@ export const SideNavItem = (props) => {
               textAlign: "left",
               whiteSpace: "nowrap",
               width: "100%",
+              transition: "all 150ms ease-out",
+              "&:hover": {
+                backgroundColor: "action.hover",
+                transform: "translateX(4px)",
+              },
             }}
           >
             <Box
@@ -170,8 +183,16 @@ export const SideNavItem = (props) => {
             justifyContent: "flex-start",
             textAlign: "left",
             whiteSpace: "nowrap",
-            width: "calc(100% - 20px)", // Adjust the width to leave space for the bookmark icon
+            width: "calc(100% - 20px)",
             py: navItemPy,
+            transition: "all 150ms ease-out",
+            "&:hover": {
+              backgroundColor: "action.hover",
+              transform: "translateX(4px)",
+            },
+            ...(active && {
+              backgroundColor: (theme) => alpha(theme.palette.primary.main, theme.palette.mode === "dark" ? 0.12 : 0.08),
+            }),
           }}
           {...linkProps}
           onClick={(e) => e.currentTarget.blur()}
@@ -272,7 +293,8 @@ SideNavItem.propTypes = {
   depth: PropTypes.number,
   external: PropTypes.bool,
   icon: PropTypes.any,
-  openImmediately: PropTypes.bool,
+  open: PropTypes.bool,
+  onToggle: PropTypes.func,
   path: PropTypes.string,
   scope: PropTypes.string,
   title: PropTypes.string.isRequired,

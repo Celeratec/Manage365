@@ -19,6 +19,7 @@ const Page = () => {
       customFunction: (row) => {
         router.push(`/tools/report-builder/view?id=${row.RowKey || row.GUID}`)
       },
+      category: 'view',
     },
     {
       label: 'Delete',
@@ -28,6 +29,7 @@ const Page = () => {
       confirmText: 'Are you sure you want to delete this generated report?',
       icon: <Delete />,
       multiPost: false,
+      category: 'danger',
     },
   ]
 

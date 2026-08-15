@@ -155,7 +155,7 @@ const Page = () => {
                   </SvgIcon>
                 }
               >
-                Add CIPP Default Roles
+                Add Manage365 Default Roles
               </Button>
             </Box>
             <CippFormComponent
@@ -312,6 +312,7 @@ const Page = () => {
                   ),
                   customFunction: handleRemoveMapping,
                   noConfirm: true,
+                  category: "danger",
                 },
               ]}
             />

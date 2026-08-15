@@ -1,27 +1,35 @@
 import { Layout as DashboardLayout } from "../../../../layouts/index.js";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
-import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
+import { useState } from "react";
+import { Button, Alert, SvgIcon, IconButton, Tooltip } from "@mui/material";
+import { useSettings } from "../../../../hooks/use-settings";
+import { Stack } from "@mui/system";
+import { Sync, Info } from "@mui/icons-material";
+import { useDialog } from "../../../../hooks/use-dialog";
+import { CippApiDialog } from "../../../../components/CippComponents/CippApiDialog";
+import { CippQueueTracker } from "../../../../components/CippTable/CippQueueTracker";
 
 const Page = () => {
-  const reportDB = useCippReportDB({
-    apiUrl: "/api/ListMailboxForwarding",
-    queryKey: "mailbox-forwarding",
-    cacheName: "Mailboxes",
-    syncTitle: "Sync Mailbox Cache",
-    allowToggle: false,
-    defaultCached: true,
-  });
+  const currentTenant = useSettings().currentTenant;
+  const syncDialog = useDialog();
+  const [syncQueueId, setSyncQueueId] = useState(null);
+
+  const isAllTenants = currentTenant === "AllTenants";
 
   const columns = [
-    ...reportDB.cacheColumns.filter((c) => c === "Tenant"),
+    ...(isAllTenants ? ["Tenant"] : []),
     "UPN",
     "DisplayName",
     "RecipientTypeDetails",
     "ForwardingType",
     "ForwardTo",
     "DeliverToMailboxAndForward",
-    ...reportDB.cacheColumns.filter((c) => c !== "Tenant"),
+    "CacheTimestamp",
   ];
+
+  const apiData = {
+    UseReportDB: true,
+  };
 
   const filters = [
     {
@@ -36,19 +44,69 @@ const Page = () => {
     },
   ];
 
+  const pageActions = [
+    <Stack direction="row" spacing={2} alignItems="center" key="actions-stack">
+      <CippQueueTracker
+        queueId={syncQueueId}
+        queryKey={`mailbox-forwarding-${currentTenant}`}
+        title="Mailbox Forwarding Sync"
+      />
+      <Tooltip title="This report displays cached mailbox data from the Manage365 reporting database. Cache timestamps are shown in the table. Click the Sync button to update the mailbox cache for the current tenant.">
+        <IconButton size="small">
+          <Info fontSize="small" />
+        </IconButton>
+      </Tooltip>
+      <Button
+        startIcon={
+          <SvgIcon fontSize="small">
+            <Sync />
+          </SvgIcon>
+        }
+        size="xs"
+        onClick={syncDialog.handleOpen}
+        disabled={isAllTenants}
+      >
+        Sync
+      </Button>
+    </Stack>,
+  ];
+
   return (
     <>
-      <CippTablePage
-        title="Mailbox Forwarding Report"
-        apiUrl={reportDB.resolvedApiUrl}
-        queryKey={reportDB.resolvedQueryKey}
-        apiData={reportDB.resolvedApiData}
-        simpleColumns={columns}
-        filters={filters}
-        cardButton={reportDB.controls}
-        offCanvas={null}
+      {currentTenant && currentTenant !== "" ? (
+        <CippTablePage
+          title="Mailbox Forwarding Report"
+          apiUrl="/api/ListMailboxForwarding"
+          queryKey={`mailbox-forwarding-${currentTenant}`}
+          apiData={apiData}
+          simpleColumns={columns}
+          filters={filters}
+          cardButton={pageActions}
+          offCanvas={null}
+        />
+      ) : (
+        <Alert severity="warning">Please select a tenant to view mailbox forwarding settings.</Alert>
+      )}
+      <CippApiDialog
+        createDialog={syncDialog}
+        title="Sync Mailbox Cache"
+        fields={[]}
+        api={{
+          type: "GET",
+          url: "/api/ExecCIPPDBCache",
+          confirmText: `Run mailbox cache sync for ${currentTenant}? This will update mailbox data including forwarding settings.`,
+          relatedQueryKeys: [`mailbox-forwarding-${currentTenant}`],
+          data: {
+            Name: "Mailboxes",
+            Types: "",
+          },
+          onSuccess: (result) => {
+            if (result?.Metadata?.QueueId) {
+              setSyncQueueId(result.Metadata.QueueId);
+            }
+          },
+        }}
       />
-      {reportDB.syncDialog}
     </>
   );
 };

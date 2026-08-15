@@ -6,6 +6,7 @@ import { useSettings } from "../../../../hooks/use-settings";
 import { useEffect } from "react";
 
 import CippAddGroupForm from "../../../../components/CippFormPages/CippAddGroupForm";
+
 const Page = () => {
   const userSettingsDefaults = useSettings();
 
@@ -25,12 +26,12 @@ const Page = () => {
       <CippFormPage
         queryKey={`Groups-${userSettingsDefaults.currentTenant}`}
         formControl={formControl}
-        title="Groups"
+        title="Group"
         backButtonTitle="Group Overview"
         postUrl="/api/AddGroup"
         resetForm={true}
       >
-        <Box sx={{ my: 2 }}>
+        <Box sx={{ my: 1 }}>
           <CippAddGroupForm formControl={formControl} />
         </Box>
       </CippFormPage>

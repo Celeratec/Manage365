@@ -11,6 +11,7 @@ import {
   Stack,
   Divider,
   FormControlLabel,
+  useTheme,
 } from "@mui/material";
 import { Grid } from "@mui/system";
 import SearchIcon from "@mui/icons-material/Search";
@@ -30,44 +31,48 @@ import { CippPropertyListCard } from "./CippPropertyListCard";
 import { getCippFormatting } from "../../utils/get-cipp-formatting";
 import punycode from "punycode";
 
-const ResultList = ({ passes = [], warns = [], fails = [] }) => (
-  <Stack direction="column" sx={{ mt: 1 }}>
-    {passes.map((pass, index) => (
-      <Typography
-        variant="body2"
-        key={index}
-        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
-      >
-        <CheckCircleIcon style={{ color: "green", marginRight: "4px" }} />
-        {pass}
-      </Typography>
-    ))}
-    {warns.map((warn, index) => (
-      <Typography
-        variant="body2"
-        key={index}
-        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
-      >
-        <WarningIcon style={{ color: "orange", marginRight: "4px" }} />
-        {warn}
-      </Typography>
-    ))}
-    {fails.map((fail, index) => (
-      <Typography
-        variant="body2"
-        key={index}
-        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
-      >
-        <ErrorIcon style={{ color: "red", marginRight: "4px" }} />
-        {fail}
-      </Typography>
-    ))}
-  </Stack>
-);
+const ResultList = ({ passes = [], warns = [], fails = [] }) => {
+  const theme = useTheme();
+  return (
+    <Stack direction="column" sx={{ mt: 1 }}>
+      {passes.map((pass, index) => (
+        <Typography
+          variant="body2"
+          key={index}
+          sx={{ display: "flex", alignItems: "center", mb: 1 }}
+        >
+          <CheckCircleIcon sx={{ color: "success.main", mr: 0.5, fontSize: 18 }} />
+          {pass}
+        </Typography>
+      ))}
+      {warns.map((warn, index) => (
+        <Typography
+          variant="body2"
+          key={index}
+          sx={{ display: "flex", alignItems: "center", mb: 1 }}
+        >
+          <WarningIcon sx={{ color: "warning.main", mr: 0.5, fontSize: 18 }} />
+          {warn}
+        </Typography>
+      ))}
+      {fails.map((fail, index) => (
+        <Typography
+          variant="body2"
+          key={index}
+          sx={{ display: "flex", alignItems: "center", mb: 1 }}
+        >
+          <ErrorIcon sx={{ color: "error.main", mr: 0.5, fontSize: 18 }} />
+          {fail}
+        </Typography>
+      ))}
+    </Stack>
+  );
+};
 
 // Custom MX Results Card component
 const MXResultsCard = ({ domain, mxData, isFetching }) => {
   const [visible, setVisible] = useState(false);
+  const theme = useTheme();
 
   const handleDetailsClick = () => {
     setVisible(true);
@@ -85,7 +90,7 @@ const MXResultsCard = ({ domain, mxData, isFetching }) => {
     <CippButtonCard
       title={
         <div style={{ display: "flex", alignItems: "center" }}>
-          {allPassed && <CheckCircleIcon style={{ color: "green", marginRight: "8px" }} />}
+          {allPassed && <CheckCircleIcon sx={{ color: "success.main", mr: 1 }} />}
           MX Records
         </div>
       }
@@ -94,13 +99,13 @@ const MXResultsCard = ({ domain, mxData, isFetching }) => {
         <>
           {helpUrl && (
             <Tooltip title="Help">
-              <IconButton href={helpUrl} target="_blank">
+              <IconButton href={helpUrl} target="_blank" aria-label="Help documentation">
                 <HelpIcon />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title="Details">
-            <IconButton onClick={handleDetailsClick}>
+            <IconButton onClick={handleDetailsClick} aria-label="View details">
               <MoreVertIcon />
             </IconButton>
           </Tooltip>
@@ -118,7 +123,7 @@ const MXResultsCard = ({ domain, mxData, isFetching }) => {
           <Typography variant="h6" gutterBottom>
             Mail Provider:
           </Typography>
-          <Chip color="info" className="mb-2" label={`${providerName}`} />
+          <Chip color="info" sx={{ mb: 1 }} label={providerName} />
           <ResultList passes={validationPasses} warns={validationWarns} fails={validationFails} />
         </>
       )}
@@ -331,13 +336,13 @@ function DomainResultCard({ title, data, isFetching, info, type }) {
       title={
         <div style={{ display: "flex", alignItems: "center" }}>
           {data?.ValidationFails?.length === 0 && data?.ValidationWarns?.length === 0 && (
-            <CheckCircleIcon style={{ color: "green", marginRight: "8px" }} />
+            <CheckCircleIcon sx={{ color: "success.main", mr: 1 }} />
           )}
           {data?.ValidationFails?.length > 0 && (
-            <ErrorIcon style={{ color: "red", marginRight: "8px" }} />
+            <ErrorIcon sx={{ color: "error.main", mr: 1 }} />
           )}
-          {data?.ValidationWarns?.length > 0 && (
-            <WarningIcon style={{ color: "orange", marginRight: "8px" }} />
+          {data?.ValidationWarns?.length > 0 && data?.ValidationFails?.length === 0 && (
+            <WarningIcon sx={{ color: "warning.main", mr: 1 }} />
           )}
           {title}
         </div>
@@ -347,13 +352,13 @@ function DomainResultCard({ title, data, isFetching, info, type }) {
         <>
           {data?._Comment && (
             <Tooltip title="Help">
-              <IconButton href={data?._Comment} target="_blank">
+              <IconButton href={data?._Comment} target="_blank" aria-label="Help documentation">
                 <HelpIcon />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title="Details">
-            <IconButton onClick={() => setVisible(true)}>
+            <IconButton onClick={() => setVisible(true)} aria-label="View details">
               <MoreVertIcon />
             </IconButton>
           </Tooltip>

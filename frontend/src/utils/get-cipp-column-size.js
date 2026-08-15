@@ -15,8 +15,6 @@ export const getCippColumnSize = (accessorKey, header) => {
   switch (accessorKey) {
     case 'alignmentScore':
     case 'combinedAlignmentScore':
-    case 'compliancePercentage':
-    case 'complianceScore':
     case 'LicenseMissingPercentage':
     case 'ScorePercentage':
       return { size: 250, minSize: 250 }

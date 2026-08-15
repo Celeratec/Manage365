@@ -17,7 +17,20 @@ export const CippInfoCard = (props) => {
   const { isFetching, actionLink, actionText, value, icon, label, cardSize, ...other } = props;
 
   return (
-    <Card {...other}>
+    <Card 
+      {...other}
+      sx={{
+        transition: "all 150ms ease-out",
+        ...(actionLink && {
+          cursor: "pointer",
+          "&:hover": {
+            boxShadow: (theme) => theme.shadows[8],
+            transform: "translateY(-2px)",
+          },
+        }),
+        ...other.sx,
+      }}
+    >
       <Stack alignItems="center" direction="row" spacing={2} sx={{ p: 2 }}>
         <Avatar
           sx={{

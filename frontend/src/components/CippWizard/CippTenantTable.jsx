@@ -28,6 +28,7 @@ export const CippTenantTable = ({
       confirmText: "Are you sure you want to exclude [displayName]?",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "edit",
     },
     {
       label: "Include Tenants",
@@ -38,6 +39,7 @@ export const CippTenantTable = ({
       confirmText: "Are you sure you want to include [displayName]?",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "edit",
     },
     {
       label: "Refresh CPV Permissions",
@@ -47,6 +49,7 @@ export const CippTenantTable = ({
       data: { tenantFilter: "customerId" },
       confirmText: "Are you sure you want to refresh the CPV permissions for [displayName]?",
       multiPost: false,
+      category: "manage",
     },
     {
       label: "Reset CPV Permissions",
@@ -59,6 +62,7 @@ export const CippTenantTable = ({
       multiPost: false,
       condition: (row) =>
         row.displayName !== "*Partner Tenant" && row.delegatedPrivilegeStatus !== "directTenant",
+      category: "manage",
     },
     {
       label: "Remove Tenant",
@@ -70,9 +74,10 @@ export const CippTenantTable = ({
         "Are you sure you want to remove [displayName]? If this is a Direct Tenant, this will no longer be accessible until you add it via the Setup Wizard.",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "danger",
     },
     {
-      label: "Refresh CIPPDB Cache",
+      label: "Refresh Manage365 DB Cache",
       type: "GET",
       url: `/api/ExecCIPPDBCache`,
       icon: <Refresh />,
@@ -105,6 +110,7 @@ export const CippTenantTable = ({
           TenantFilter: tenantFilter,
         };
       },
+      category: "manage",
     },
   ];
 

@@ -10,26 +10,6 @@
     "isBuiltin": true
   },
   {
-    "name": "Licensed Users",
-    "id": "6aa4445d-1202-41bb-9d24-431869420d13",
-    "params": {
-      "endpoint": "/users",
-      "$filter": "assignedLicenses/$count ne 0",
-      "$count": true
-    },
-    "isBuiltin": true
-  },
-  {
-    "name": "Licensed and Enabled Users",
-    "id": "277f07f1-17d5-4339-bc3f-c95c904ae794",
-    "params": {
-      "endpoint": "/users",
-      "$filter": "assignedLicenses/$count ne 0 and accountEnabled eq true",
-      "$count": true
-    },
-    "isBuiltin": true
-  },
-  {
     "name": "All Devices listing ID, Displayname, and registration status",
     "id": "e7fdc49a-72a9-4a70-9dbf-a74152495d80",
     "params": {

@@ -87,6 +87,7 @@ const Page = () => {
             confirmText:
               "Are you sure you want to restore '[ScriptName]' to version [Version]? All versions newer than [Version] will be permanently deleted.",
             color: "warning",
+            category: "edit",
           },
           {
             label: "Compare to Latest",
@@ -97,6 +98,7 @@ const Page = () => {
               setCompareOpen(true);
             },
             condition: (row) => row.Version != latestVersion?.Version,
+            category: "view",
           },
         ]}
       />

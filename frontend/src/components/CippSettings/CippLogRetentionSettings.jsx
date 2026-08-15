@@ -93,7 +93,7 @@ const CippLogRetentionSettings = () => {
       }
     >
       <Typography variant="body2">
-        Configure how long to keep CIPP log entries. Logs will be automatically deleted after this
+        Configure how long to keep Manage365 log entries. Logs will be automatically deleted after this
         period. Minimum retention is 7 days, maximum is 365 days, default is 90 days.
       </Typography>
       <CippApiResults apiObject={retentionChange} />

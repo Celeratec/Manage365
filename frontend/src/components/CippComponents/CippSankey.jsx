@@ -1,5 +1,15 @@
-import { ResponsiveSankey } from "@nivo/sankey";
+import dynamic from "next/dynamic";
 import { useSettings } from "../../hooks/use-settings";
+import { Skeleton } from "@mui/material";
+
+// Lazy-load the Nivo Sankey chart library
+const ResponsiveSankey = dynamic(
+  () => import("@nivo/sankey").then((mod) => mod.ResponsiveSankey),
+  {
+    ssr: false,
+    loading: () => <Skeleton variant="rectangular" height="100%" width="100%" />,
+  }
+);
 
 export const CippSankey = ({ data, onNodeClick, onLinkClick }) => {
   const settings = useSettings();

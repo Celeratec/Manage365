@@ -89,28 +89,26 @@ const Page = () => {
         Edit Settings
       </Button>
       <Tooltip title="Refresh Data">
-        <span>
-          <IconButton
-            className="MuiIconButton"
-            disabled={GlobalQuarantinePolicy?.isLoading || GlobalQuarantinePolicy?.isFetching}
-            onClick={() => {
-              GlobalQuarantinePolicy.refetch();
+        <IconButton
+          className="MuiIconButton"
+          disabled={GlobalQuarantinePolicy?.isLoading || GlobalQuarantinePolicy?.isFetching}
+          onClick={() => {
+            GlobalQuarantinePolicy.refetch();
+          }}
+        >
+          <SvgIcon
+            fontSize="small"
+            sx={{
+              animation: GlobalQuarantinePolicy?.isFetching ? "spin 1s linear infinite" : "none",
+              "@keyframes spin": {
+                "0%": { transform: "rotate(0deg)" },
+                "100%": { transform: "rotate(360deg)" },
+              },
             }}
           >
-            <SvgIcon
-              fontSize="small"
-              sx={{
-                animation: GlobalQuarantinePolicy?.isFetching ? "spin 1s linear infinite" : "none",
-                "@keyframes spin": {
-                  "0%": { transform: "rotate(0deg)" },
-                  "100%": { transform: "rotate(360deg)" },
-                },
-              }}
-            >
-              <Sync />
-            </SvgIcon>
-          </IconButton>
-        </span>
+            <Sync />
+          </SvgIcon>
+        </IconButton>
       </Tooltip>
     </>,
   ];
@@ -177,6 +175,7 @@ const Page = () => {
       icon: <Edit />,
       color: "info",
       condition: (row) => row.Guid != "00000000-0000-0000-0000-000000000000",
+      category: "edit",
     },
     {
       label: "Delete Policy",
@@ -208,6 +207,7 @@ const Page = () => {
         </>
       ),
       condition: (row) => row.Guid != "00000000-0000-0000-0000-000000000000",
+      category: "danger",
     },
   ];
 
@@ -372,7 +372,9 @@ const Page = () => {
           setDefaultValues: true,
           data: {
             Name: "Name",
-            Identity: "Guid",
+            // The built-in global policy reports an all-zeros Guid which Set-QuarantinePolicy
+            // cannot resolve, so pass the name-based Identity instead.
+            Identity: "Identity",
           },
           relatedQueryKeys: [`GlobalQuarantinePolicy-${currentTenant}`],
           confirmText: "Are you sure you want to update Global Quarantine settings?",

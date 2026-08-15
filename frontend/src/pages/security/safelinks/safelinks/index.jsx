@@ -21,19 +21,6 @@ const Page = () => {
     }
   ];
 
-  // Rows for orphaned built-in EOP rules carry PolicyName = null, so every condition has to
-  // tolerate a missing name rather than dereferencing it. A row with no policy behind it is
-  // Microsoft managed for these purposes, which is what the string comparisons already encode.
-  const isMicrosoftManaged = (row) => {
-    const name = row?.PolicyName ?? "";
-    return (
-      row?.IsBuiltIn === true ||
-      name.startsWith("Standard Preset Security Policy") ||
-      name.startsWith("Strict Preset Security Policy") ||
-      name === "Built-In Protection Policy"
-    );
-  };
-
   const actions = [
       {
         label: "Edit Safe Links Policy",
@@ -41,7 +28,8 @@ const Page = () => {
         icon: <Edit />,
         color: "success",
         target: "_self",
-        condition: (row) => !isMicrosoftManaged(row),
+        condition: (row) => !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy") && row.PolicyName !== "Built-In Protection Policy",
+        category: "edit",
       },
       {
         label: "Enable Rule",
@@ -55,7 +43,8 @@ const Page = () => {
         },
         confirmText: "Are you sure you want to enable this rule?",
         color: "info",
-        condition: (row) => row.State === "Disabled" && !isMicrosoftManaged(row),
+        condition: (row) => row.State === "Disabled" && !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy")&& row.PolicyName !== "Built-In Protection Policy",
+        category: "edit",
       },
       {
         label: "Disable Rule",
@@ -69,14 +58,15 @@ const Page = () => {
         },
         confirmText: "Are you sure you want to disable this rule?",
         color: "info",
-        condition: (row) => row.State === "Enabled" && !isMicrosoftManaged(row),
+        condition: (row) => row.State === "Enabled" && !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy")&& row.PolicyName !== "Built-In Protection Policy",
+        category: "edit",
       },
       {
         label: "Set Priority",
         type: "POST",
         icon: <LowPriority />,
         url: "/api/EditSafeLinksPolicy",
-        condition: (row) => !isMicrosoftManaged(row),
+        condition: (row) => !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy")&& row.PolicyName !== "Built-In Protection Policy",
         data: {
           PolicyName: "PolicyName",
           Name: "PolicyName"
@@ -99,6 +89,7 @@ const Page = () => {
             },
           },
         ],
+        category: "edit",
       },
       {
         label: "Create template based on policy",
@@ -108,7 +99,8 @@ const Page = () => {
         confirmText: "Are you sure you want to create a template based on this policy?",
         icon: <Book />,
         hideBulk: true,
-        condition: (row) => !isMicrosoftManaged(row),
+        condition: (row) => !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy")&& row.PolicyName !== "Built-In Protection Policy",
+        category: "manage",
       },
       {
         label: "Delete Rule",
@@ -120,8 +112,9 @@ const Page = () => {
           PolicyName: "PolicyName",
         },
         confirmText: "Are you sure you want to delete this policy and rule?",
-        color: "danger",
-        condition: (row) => !isMicrosoftManaged(row),
+        color: "error",
+        condition: (row) => !row.IsBuiltInProtection && !row.PolicyName.startsWith("Standard Preset Security Policy") && !row.PolicyName.startsWith("Strict Preset Security Policy")&& row.PolicyName !== "Built-In Protection Policy",
+        category: "danger",
       }
     ];
 

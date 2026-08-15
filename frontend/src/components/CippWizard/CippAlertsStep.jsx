@@ -33,7 +33,7 @@ export const CippAlertsStep = (props) => {
           </Typography>
           <ul>
             <li>
-              CIPP has the ability to send alerts to your PSA, Webhook or Email. You can configure
+              Manage365 has the ability to send alerts to your PSA, Webhook or Email. You can configure
               these settings under &gt; Tenant Administration &gt; Alert Configuration.
             </li>
           </ul>
@@ -46,13 +46,13 @@ export const CippAlertsStep = (props) => {
           </ul>
           <ul>
             <li>
-              If you want to use our integrations, you should set these up under &gt; CIPP &gt;
+              If you want to use our integrations, you should set these up under &gt; Manage365 &gt;
               Integrations. Some examples are CSP integrations, Password Pusher, PSA, and more.
             </li>
           </ul>
           <ul>
             <li>
-              Adding more users to CIPP? you can do this via CIPP &gt; Advanced &gt; Super Admin.
+              Adding more users to Manage365? you can do this via Manage365 &gt; Advanced &gt; Super Admin.
             </li>
           </ul>
           <ul>

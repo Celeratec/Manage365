@@ -18,6 +18,7 @@ const Page = () => {
       customFunction: (row) => {
         router.push(`/tools/report-builder/builder?id=${row.GUID || row.RowKey}`)
       },
+      category: 'view',
     },
     {
       label: 'Upload to Repository',
@@ -62,6 +63,7 @@ const Page = () => {
       ],
       confirmText: 'Are you sure you want to save this template to the selected repository?',
       relatedQueryKeys: ['ListReportBuilderTemplates'],
+      category: 'manage',
     },
     {
       label: 'Delete',
@@ -72,6 +74,7 @@ const Page = () => {
       icon: <Delete />,
       multiPost: false,
       relatedQueryKeys: ['ListReportBuilderTemplates'],
+      category: 'danger',
     },
   ]
 

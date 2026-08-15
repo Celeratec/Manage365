@@ -15,6 +15,7 @@ const Page = () => {
     defaultValues: {
       tenantFilter: userSettingsDefaults.currentTenant,
       usageLocation: userSettingsDefaults.usageLocation,
+      disableLegacyProtocols: true,
     },
   });
 
@@ -36,6 +37,7 @@ const Page = () => {
         newFields.usageLocation = { label: usageLocation, value: usageLocation };
       }
       newFields.tenantFilter = userSettingsDefaults.currentTenant;
+      newFields.disableLegacyProtocols = formControl.getValues("disableLegacyProtocols") ?? true;
 
       // Preserve the currently selected template when copying properties
       const currentTemplate = formControl.getValues("userTemplate");

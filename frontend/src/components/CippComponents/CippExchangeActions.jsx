@@ -1,4 +1,4 @@
-﻿import { TrashIcon, MagnifyingGlassIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
+import { TrashIcon, MagnifyingGlassIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
 import {
   Archive,
   MailOutline,
@@ -47,6 +47,7 @@ export const CippExchangeActions = () => {
       type: "POST",
       url: "/api/ExecModifyMBPerms",
       icon: <PersonAdd />,
+      category: "edit",
       data: {
         userID: "UPN",
       },
@@ -141,19 +142,19 @@ export const CippExchangeActions = () => {
           tenantFilter: tenant,
         };
       },
-      color: "primary",
+      category: "edit",
     },
     {
       label: "Edit permissions",
       link: "/identity/administration/users/user/exchange?userId=[ExternalDirectoryObjectId]",
-      color: "info",
       icon: <Key />,
+      category: "view",
     },
     {
       label: "Research Compromised Account",
       link: "/identity/administration/users/user/bec?userId=[ExternalDirectoryObjectId]",
-      color: "info",
       icon: <MagnifyingGlassIcon />,
+      category: "view",
     },
     {
       label: "Send MFA Push",
@@ -164,6 +165,7 @@ export const CippExchangeActions = () => {
       },
       confirmText: "Are you sure you want to send an MFA request to [UPN]?",
       icon: <PhonelinkLock />,
+      category: "security",
     },
     {
       label: "Convert Mailbox",
@@ -171,6 +173,7 @@ export const CippExchangeActions = () => {
       icon: <Email />,
       url: "/api/ExecConvertMailbox",
       data: { ID: "UPN" },
+      category: "edit",
       fields: [
         {
           type: "radio",
@@ -198,6 +201,7 @@ export const CippExchangeActions = () => {
       confirmText: "Are you sure you want to enable the online archive for [UPN]?",
       multiPost: false,
       condition: (row) => row.ArchiveGuid === "00000000-0000-0000-0000-000000000000",
+      category: "manage",
     },
     {
       label: "Set Retention Policy",
@@ -206,6 +210,7 @@ export const CippExchangeActions = () => {
       icon: <MailLock />,
       confirmText: "Set the specified retention policy for selected mailboxes?",
       multiPost: false,
+      category: "manage",
       fields: [
         {
           type: "autoComplete",
@@ -241,7 +246,7 @@ export const CippExchangeActions = () => {
           tenantFilter: tenant,
         };
       },
-      color: "primary",
+      category: "manage",
     },
     {
       label: "Enable Auto-Expanding Archive",
@@ -253,12 +258,14 @@ export const CippExchangeActions = () => {
         "Are you sure you want to enable auto-expanding archive for [UPN]? The archive must already be enabled.",
       multiPost: false,
       condition: (row) => row.ArchiveGuid !== "00000000-0000-0000-0000-000000000000",
+      category: "manage",
     },
     {
       label: "Set Global Address List visibility",
       type: "POST",
       url: "/api/ExecHideFromGAL",
       icon: <Visibility />,
+      category: "manage",
       data: {
         ID: "UPN",
       },
@@ -287,6 +294,7 @@ export const CippExchangeActions = () => {
         UserPrincipalName: "UPN",
       },
       confirmText: "Are you sure you want to start the managed folder assistant for [UPN]?",
+      category: "manage",
     },
     {
       label: "Delete Mailbox",
@@ -296,11 +304,13 @@ export const CippExchangeActions = () => {
       data: { ID: "UPN" },
       confirmText: "Are you sure you want to delete [UPN]?",
       multiPost: false,
+      category: "danger",
     },
     {
       label: "Set Copy Sent Items for Delegated Mailboxes",
       type: "POST",
       icon: <MailOutline />,
+      category: "manage",
       condition: (row) =>
         row.recipientTypeDetails === "UserMailbox" || row.recipientTypeDetails === "SharedMailbox",
       url: "/api/ExecCopyForSent",
@@ -326,6 +336,7 @@ export const CippExchangeActions = () => {
       data: { UPN: "UPN", Identity: "Id" },
       confirmText: "What do you want to set the Litigation Hold to?",
       icon: <Gavel />,
+      category: "manage",
       condition: (row) => row.LicensedForLitigationHold === true,
       fields: [
         {
@@ -348,6 +359,7 @@ export const CippExchangeActions = () => {
       data: { UPN: "UPN", Identity: "Id" },
       confirmText: "What do you want to set Retention Hold to?",
       icon: <MailLock />,
+      category: "manage",
       fields: [
         {
           type: "switch",
@@ -363,6 +375,7 @@ export const CippExchangeActions = () => {
       data: { user: "UPN", ProhibitSendQuota: true },
       confirmText: "Enter a locale, e.g. en-US",
       icon: <Language />,
+      category: "edit",
       fields: [
         {
           label: "Locale",
@@ -380,6 +393,7 @@ export const CippExchangeActions = () => {
       data: { UPN: "UPN", id: "ExternalDirectoryObjectId" },
       confirmText: "Enter a size in from 1 to 150. Leave blank to not change.",
       icon: <SettingsEthernet />,
+      category: "edit",
       fields: [
         {
           label: "Send Size(MB)",
@@ -402,6 +416,7 @@ export const CippExchangeActions = () => {
       data: { user: "UPN", ProhibitSendQuota: true },
       confirmText: "Enter a quota. e.g. 1000MB, 10GB,1TB",
       icon: <Outbox />,
+      category: "manage",
       fields: [
         {
           label: "Quota",
@@ -422,6 +437,7 @@ export const CippExchangeActions = () => {
       },
       confirmText: "Enter a quota. e.g. 1000MB, 10GB,1TB",
       icon: <DataUsage />,
+      category: "manage",
       fields: [
         {
           label: "Quota",
@@ -439,6 +455,7 @@ export const CippExchangeActions = () => {
       data: { user: "UPN", IssueWarningQuota: true },
       confirmText: "Enter a quota. e.g. 1000MB, 10GB,1TB",
       icon: <NotificationImportant />,
+      category: "manage",
       fields: [
         {
           label: "Quota",
@@ -456,6 +473,7 @@ export const CippExchangeActions = () => {
       data: { UPN: "UPN" },
       confirmText: "Configure calendar processing settings for [UPN]",
       icon: <CalendarMonth />,
+      category: "edit",
       condition: (row) =>
         row.recipientTypeDetails === "RoomMailbox" ||
         row.recipientTypeDetails === "EquipmentMailbox",

@@ -21,15 +21,17 @@ import { CippApiResults } from './CippApiResults'
 import { ApiPostCall, ApiGetCall } from '../../api/ApiCall'
 
 export const CippAddTestReportDrawer = ({
-  buttonText = 'Create Suite',
+  buttonText = "Create Suite",
+  iconOnly = false,
+  buttonProps = {},
   mode = 'create',
   reportToEdit = null,
   disabled = false,
 }) => {
-  const [drawerVisible, setDrawerVisible] = useState(false)
-  const [activeTab, setActiveTab] = useState(0)
-  const [searchTerm, setSearchTerm] = useState('')
-  const isEditMode = mode === 'edit'
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
+  const [searchTerm, setSearchTerm] = useState("");
+  const isEditMode = mode === 'edit';
 
   const formControl = useForm({
     mode: 'onChange',
@@ -189,25 +191,18 @@ export const CippAddTestReportDrawer = ({
           fontWeight: 'bold',
           textTransform: 'none',
           borderRadius: 2,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-          transition: 'all 0.2s ease-in-out',
-          px: 2,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          transition: "all 0.2s ease-in-out",
+          px: iconOnly ? 1 : (buttonText === "Create" ? 1.5 : 2),
+          minWidth: iconOnly ? 32 : "auto",
+          ...buttonProps.sx,
         }}
         onClick={() => setDrawerVisible(true)}
-        startIcon={isEditMode ? <Edit /> : <Add />}
+        startIcon={!iconOnly ? (isEditMode ? <Edit /> : <Add />) : undefined}
         disabled={disabled}
+        {...buttonProps}
       >
-        <Box
-          component="span"
-          sx={{
-            minWidth: 0,
-            overflow: 'hidden',
-            whiteSpace: 'nowrap',
-            textOverflow: 'ellipsis',
-          }}
-        >
-          {buttonText}
-        </Box>
+        {iconOnly ? <Add fontSize="small" /> : buttonText}
       </Button>
       <CippOffCanvas
         title={isEditMode ? 'Edit Test Suite' : 'Create Test Suite'}

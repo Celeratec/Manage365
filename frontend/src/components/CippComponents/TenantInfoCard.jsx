@@ -7,34 +7,34 @@ export const TenantInfoCard = ({ data, isLoading }) => {
     <Card sx={{ height: "100%" }}>
       <CardHeader
         title={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <BuildingIcon sx={{ fontSize: 20 }} />
-            <Typography variant="subtitle1">Tenant</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <BuildingIcon sx={{ fontSize: 18 }} />
+            <Typography variant="subtitle2" fontWeight={600}>Tenant</Typography>
           </Box>
         }
-        sx={{ pb: 1.5 }}
+        sx={{ py: 1, px: 1.5 }}
       />
-      <CardContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+      <CardContent sx={{ pt: 0, px: 1.5, pb: 1.5, "&:last-child": { pb: 1.5 } }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
               Name
             </Typography>
             {isLoading ? (
-              <Skeleton width={150} height={24} />
+              <Skeleton width={120} height={20} />
             ) : (
-              <Typography variant="body1" fontWeight={500}>
+              <Typography variant="body2" fontWeight={500} fontSize="0.85rem">
                 {data?.displayName || "Not Available"}
               </Typography>
             )}
           </Box>
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
               Tenant ID
             </Typography>
-            <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ mt: 0.25 }}>
               {isLoading ? (
-                <Skeleton width={200} height={24} />
+                <Skeleton width={160} height={20} />
               ) : data?.id ? (
                 <CippCopyToClipBoard text={data.id} type="chip" />
               ) : (
@@ -45,12 +45,12 @@ export const TenantInfoCard = ({ data, isLoading }) => {
             </Box>
           </Box>
           <Box>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
               Primary Domain
             </Typography>
-            <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ mt: 0.25 }}>
               {isLoading ? (
-                <Skeleton width={180} height={24} />
+                <Skeleton width={140} height={20} />
               ) : data?.verifiedDomains?.find((d) => d.isDefault)?.name ? (
                 <CippCopyToClipBoard
                   text={data.verifiedDomains.find((d) => d.isDefault).name}

@@ -2,7 +2,7 @@ import PropTypes from "prop-types";
 //import { CippContentCard } from 'src/components/layout'
 import { useDropzone } from "react-dropzone";
 import { styled } from "@mui/material/styles";
-import { useSystemPrefersDark } from "../../hooks/use-system-prefers-dark";
+import { useMediaPredicate } from "react-media-hook";
 //import { useSelector } from "react-redux";
 //import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 
@@ -21,7 +21,9 @@ const getColor = (props) => {
 
 const BackgroundColor = () => {
   const currentTheme = useSelector((state) => state.app.currentTheme);
-  const preferredTheme = useSystemPrefersDark() ? "impact" : "cyberdrain";
+  const preferredTheme = useMediaPredicate("(prefers-color-scheme: dark)")
+    ? "impact"
+    : "cyberdrain";
   const isDark =
     currentTheme === "impact" || (currentTheme === "default" && preferredTheme === "impact");
 

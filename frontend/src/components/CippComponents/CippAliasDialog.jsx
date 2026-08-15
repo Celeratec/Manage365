@@ -4,7 +4,7 @@ import { Add } from "@mui/icons-material";
 import { useWatch } from "react-hook-form";
 import { CippFormDomainSelector } from "./CippFormDomainSelector";
 
-const CippAliasDialog = ({ formHook }) => {
+const CippAliasDialog = ({ formHook, entityLabel = "user" }) => {
   const [aliasPrefix, setAliasPrefix] = useState("");
 
   // Initialize the form field if it doesn't exist
@@ -78,7 +78,7 @@ const CippAliasDialog = ({ formHook }) => {
     <>
       <Stack spacing={3} sx={{ mt: 1 }}>
         <Typography variant="body2" color="text.secondary">
-          Add proxy addresses (aliases) for this user. Enter a prefix, choose a verified tenant
+          Add proxy addresses (aliases) for this {entityLabel}. Enter a prefix, choose a verified tenant
           domain, and click Add or press Enter.
         </Typography>
         <Box

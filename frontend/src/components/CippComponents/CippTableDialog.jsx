@@ -6,7 +6,7 @@ export const CippTableDialog = (props) => {
   const { createDialog, title, fields, api, simpleColumns, ...other } = props;
 
   return (
-    <Dialog fullWidth maxWidth="lg" onClose={createDialog.handleClose} open={createDialog.open}>
+    <Dialog fullWidth maxWidth="lg" onClose={createDialog.handleClose} open={createDialog.open} disableRestoreFocus>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Stack spacing={3}>

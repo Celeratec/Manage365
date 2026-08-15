@@ -1,6 +1,7 @@
+import { memo } from "react";
 import { Container } from "@mui/material";
 
-export const Footer = () => {
+export const Footer = memo(() => {
 
   //randomize the order of the sponsor images
 
@@ -31,4 +32,6 @@ export const Footer = () => {
       ></Container>
     </div>
   );
-};
+});
+
+Footer.displayName = "Footer";

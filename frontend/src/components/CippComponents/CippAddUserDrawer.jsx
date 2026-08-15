@@ -13,6 +13,7 @@ export const CippAddUserDrawer = ({
   buttonText = "Add User",
   requiredPermissions = [],
   PermissionButton = Button,
+  buttonProps = {},
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const userSettingsDefaults = useSettings();
@@ -22,6 +23,7 @@ export const CippAddUserDrawer = ({
     defaultValues: {
       tenantFilter: userSettingsDefaults.currentTenant,
       usageLocation: userSettingsDefaults.usageLocation,
+      disableLegacyProtocols: true,
     },
   });
 
@@ -67,9 +69,9 @@ export const CippAddUserDrawer = ({
       const resetValues = {
         tenantFilter: userSettingsDefaults.currentTenant,
         usageLocation: userSettingsDefaults.usageLocation,
+        disableLegacyProtocols: true,
       };
 
-      // Preserve the default template if it exists
       const currentTemplate = formControl.getValues("userTemplate");
       if (currentTemplate?.addedFields?.defaultForTenant) {
         resetValues.userTemplate = currentTemplate;
@@ -101,9 +103,9 @@ export const CippAddUserDrawer = ({
     const resetValues = {
       tenantFilter: userSettingsDefaults.currentTenant,
       usageLocation: userSettingsDefaults.usageLocation,
+      disableLegacyProtocols: true,
     };
 
-    // Preserve the default template if it exists
     const currentTemplate = formControl.getValues("userTemplate");
     if (currentTemplate?.addedFields?.defaultForTenant) {
       resetValues.userTemplate = currentTemplate;
@@ -133,6 +135,7 @@ export const CippAddUserDrawer = ({
         requiredPermissions={requiredPermissions}
         onClick={handleOpenDrawer}
         startIcon={<PersonAdd />}
+        {...buttonProps}
       >
         {buttonText}
       </PermissionButton>

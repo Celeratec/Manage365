@@ -56,14 +56,23 @@ export const CippCopyToClipBoard = (props) => {
 
   if (type === "chip") {
     return (
-      <Tooltip title={copied ? "Copied!" : "Copy to clipboard"}>
+      <Tooltip title={copied ? "Copied!" : text}>
         <Chip
           label={text}
           variant="outlined"
           size="small"
           color="info"
-          sx={{ mr: "0.25rem" }}
           onClick={handleCopy}
+          sx={{ 
+            mr: "0.25rem",
+            maxWidth: "100%",
+            height: "auto",
+            "& .MuiChip-label": {
+              whiteSpace: "normal",
+              wordBreak: "break-word",
+              py: 0.5,
+            },
+          }}
           {...other}
         />
       </Tooltip>

@@ -92,8 +92,16 @@ export const CippFormCondition = (props) => {
       case "regex":
         return watcher?.match?.(new RegExp(compareValue));
       case "is":
+        // Handle object values from autoComplete (extract .value property)
+        if (typeof watchedValue === "object" && watchedValue !== null && "value" in watchedValue) {
+          return isEqual(watchedValue.value, compareTargetValue);
+        }
         return isEqual(watchedValue, compareTargetValue);
       case "isNot":
+        // Handle object values from autoComplete (extract .value property)
+        if (typeof watchedValue === "object" && watchedValue !== null && "value" in watchedValue) {
+          return !isEqual(watchedValue.value, compareTargetValue);
+        }
         return !isEqual(watchedValue, compareTargetValue);
       case "contains":
         if (Array.isArray(watcher)) {
@@ -198,7 +206,11 @@ export const CippFormCondition = (props) => {
           );
           return false;
         }
-        return compareValue.some((value) => isEqual(watchedValue, value));
+        // Handle object values from autoComplete (extract .value property)
+        const valueToCheckOneOf = typeof watchedValue === "object" && watchedValue !== null && "value" in watchedValue
+          ? watchedValue.value
+          : watchedValue;
+        return compareValue.some((value) => isEqual(valueToCheckOneOf, value));
       case "isNotOneOf":
         // Check if the watched value is NOT one of the values in the compareValue array
         if (!Array.isArray(compareValue)) {
@@ -207,7 +219,11 @@ export const CippFormCondition = (props) => {
           );
           return false;
         }
-        return !compareValue.some((value) => isEqual(watchedValue, value));
+        // Handle object values from autoComplete (extract .value property)
+        const valueToCheckNotOneOf = typeof watchedValue === "object" && watchedValue !== null && "value" in watchedValue
+          ? watchedValue.value
+          : watchedValue;
+        return !compareValue.some((value) => isEqual(valueToCheckNotOneOf, value));
       default:
         return false;
     }

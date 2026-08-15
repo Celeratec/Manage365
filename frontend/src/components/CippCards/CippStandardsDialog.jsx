@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { get } from 'lodash'
+import React, { useState } from "react";
+import get from "lodash/get";
 import {
   Dialog,
   DialogTitle,
@@ -36,7 +36,7 @@ import {
   ExpandMore as ExpandMoreIcon,
 } from '@mui/icons-material'
 import { SvgIcon } from '@mui/material'
-import { getStandards } from '../../utils/standards-data'
+import standards from '../../data/standards.json'
 
 const getCategoryIcon = (category) => {
   switch (category) {
@@ -111,7 +111,7 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
   // Combine standards from all applicable templates
   const combinedStandards = {}
   for (const template of applicableTemplates) {
-    for (const [standardKey, standardValue] of Object.entries(template.standards)) {
+    for (const [standardKey, standardValue] of Object.entries(template.standards || {})) {
       if (combinedStandards[standardKey]) {
         // If the standard already exists, we need to merge it
         const existing = combinedStandards[standardKey]
@@ -136,7 +136,7 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
   let totalStandardsCount = 0
 
   Object.entries(combinedStandards).forEach(([standardKey, standardConfig]) => {
-    const standardInfo = getStandards().find((s) => s.name === `standards.${standardKey}`)
+    const standardInfo = standards.find((s) => s.name === `standards.${standardKey}`)
     if (standardInfo) {
       const category = standardInfo.cat
       if (!standardsByCategory[category]) {
@@ -311,8 +311,8 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
                                       </Typography>
                                       <Stack spacing={0.5}>
                                         {info.addedComponent.map((component, componentIndex) => {
-                                          const value = get(templateItem, component.name)
-                                          let displayValue = 'N/A'
+                                          const value = get(templateItem, component.name);
+                                          let displayValue = "N/A";
 
                                           if (value) {
                                             if (typeof value === 'object' && value !== null) {
@@ -427,7 +427,7 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
                                         let extractedValue = null
 
                                         // Try direct access first
-                                        componentValue = get(config, component.name)
+                                        componentValue = get(config, component.name);
 
                                         // If direct access fails and component name contains dots (nested structure)
                                         if (
@@ -440,8 +440,8 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
                                           // Handle structures like: standards.AuthMethodsSettings.ReportSuspiciousActivity
                                           if (pathParts[0] === 'standards' && config.standards) {
                                             // Remove 'standards.' prefix and try to find the value in config.standards
-                                            const nestedPath = pathParts.slice(1).join('.')
-                                            extractedValue = get(config.standards, nestedPath)
+                                            const nestedPath = pathParts.slice(1).join(".");
+                                            extractedValue = get(config.standards, nestedPath);
 
                                             // If still not found, try alternative nested structures
                                             // Some standards have double nesting like: config.standards.StandardName.fieldName
@@ -450,8 +450,8 @@ export const CippStandardsDialog = ({ open, onClose, standardsData, currentTenan
                                                 extractedValue === null) &&
                                               pathParts.length >= 3
                                             ) {
-                                              const standardName = pathParts[1]
-                                              const fieldPath = pathParts.slice(2).join('.')
+                                              const standardName = pathParts[1];
+                                              const fieldPath = pathParts.slice(2).join(".");
                                               extractedValue = get(
                                                 config.standards,
                                                 `${standardName}.${fieldPath}`

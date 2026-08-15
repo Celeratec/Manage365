@@ -18,6 +18,7 @@ import { CippPropertyList } from "../../../../components/CippComponents/CippProp
 import { ApiGetCall, ApiGetCallWithPagination, ApiPostCall } from "../../../../api/ApiCall";
 import { useEffect, useState } from "react";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
+import { getCippError } from "../../../../utils/get-cipp-error";
 import { router } from "next/router";
 import cippDefaults from "../../../../data/CIPPDefaultGDAPRoles";
 import { WizardSteps } from "../../../../components/CippWizard/wizard-steps";
@@ -37,6 +38,7 @@ const Page = () => {
   const [pollOnboarding, setPollOnboarding] = useState(false);
   const [showOnboardingStatus, setShowOnboardingStatus] = useState(false);
   const [invalidRelationship, setInvalidRelationship] = useState(false);
+  const [invalidRelationshipReason, setInvalidRelationshipReason] = useState(null);
 
   const queryId = router.query.id;
   const formControl = useForm({
@@ -101,11 +103,11 @@ const Page = () => {
           (relationship) => relationship?.id === queryId
         );
 
-        if (
-          relationship &&
-          (relationship?.status === "active" || relationship?.status === "approvalPending") &&
-          !relationship?.customer?.displayName.startsWith("MLT_")
-        ) {
+        const isEligibleStatus =
+          relationship?.status === "active" || relationship?.status === "approvalPending";
+        const isMltTenant = relationship?.customer?.displayName?.startsWith("MLT_");
+
+        if (relationship && isEligibleStatus && !isMltTenant) {
           formValue = {
             label:
               (relationship?.customer?.displayName ?? "Pending Invite") +
@@ -126,8 +128,28 @@ const Page = () => {
           formControl.setValue("id", formValue);
           formControl.trigger();
           setInvalidRelationship(false);
+          setInvalidRelationshipReason(null);
         } else {
           setInvalidRelationship(true);
+          if (!relationship) {
+            setInvalidRelationshipReason(
+              "We couldn't find a GDAP relationship with this ID in your partner tenant. It may have been deleted, or you may not have access to view it."
+            );
+          } else if (isMltTenant) {
+            setInvalidRelationshipReason(
+              "This relationship belongs to a multi-tenant management (MLT_) tenant, which cannot be onboarded directly. Onboard the underlying customer tenants instead."
+            );
+          } else if (!isEligibleStatus) {
+            setInvalidRelationshipReason(
+              `This relationship is in "${
+                relationship?.status ?? "unknown"
+              }" status. Only relationships in "active" or "approvalPending" status can be onboarded. Once the customer accepts the invite (or the relationship becomes active), you'll be able to onboard it.`
+            );
+          } else {
+            setInvalidRelationshipReason(
+              "This relationship is not eligible for onboarding. Please select a different relationship."
+            );
+          }
         }
       }
       const invite =
@@ -179,7 +201,8 @@ const Page = () => {
       } else {
         currentRoles = selectedRole?.value;
       }
-      var relationshipRoles = currentRelationship.addedFields.accessDetails.unifiedRoles;
+      var relationshipRoles =
+        currentRelationship?.addedFields?.accessDetails?.unifiedRoles ?? [];
       var missingRoles = [];
       var missingRolesRelationship = [];
 
@@ -215,6 +238,7 @@ const Page = () => {
       setRolesMissingFromMapping(missingRoles);
       setRolesMissingFromRelationship(missingRolesRelationship);
       setInvalidRelationship(false);
+      setInvalidRelationshipReason(null);
     }
   }, [selectedRole, currentInvite, currentRelationship]);
 
@@ -301,10 +325,46 @@ const Page = () => {
                   select a GDAP Relationship from the dropdown below. If the relationship has not
                   been mapped, you will be prompted to select a GDAP Role Template.
                 </Alert>
+                {(relationshipList.isError ||
+                  currentInvites.isError ||
+                  onboardingList.isError) && (
+                  <Alert severity="error">
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      We couldn't load the data needed to onboard a tenant.
+                    </Typography>
+                    {relationshipList.isError && (
+                      <Typography variant="body2">
+                        GDAP relationships:{" "}
+                        {getCippError(relationshipList.error) ||
+                          "Failed to load relationships from Microsoft Graph."}
+                      </Typography>
+                    )}
+                    {currentInvites.isError && (
+                      <Typography variant="body2">
+                        GDAP invites: {getCippError(currentInvites.error) || "Failed to load."}
+                      </Typography>
+                    )}
+                    {onboardingList.isError && (
+                      <Typography variant="body2">
+                        Onboarding history:{" "}
+                        {getCippError(onboardingList.error) || "Failed to load."}
+                      </Typography>
+                    )}
+                    <Typography variant="body2" sx={{ mt: 1 }}>
+                      Refresh the page. If the problem persists, check that the partner tenant has
+                      a working GDAP connection in Settings.
+                    </Typography>
+                  </Alert>
+                )}
                 {invalidRelationship && (
                   <Alert severity="error">
-                    The selected relationship ({queryId}) is not eligible for onboarding. Please
-                    select a different relationship.
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Relationship {queryId} is not eligible for onboarding
+                    </Typography>
+                    <Typography variant="body2">
+                      {invalidRelationshipReason ??
+                        "Please select a different relationship from the dropdown."}
+                    </Typography>
                   </Alert>
                 )}
                 <CippFormComponent
@@ -392,7 +452,7 @@ const Page = () => {
                 {missingDefaults && (
                   <>
                     <Alert severity="warning">
-                      The selected relationship does not contain all the default roles. CIPP may not
+                      The selected relationship does not contain all the default roles. Manage365 may not
                       function correctly if this is the only relationship with the tenant.
                       Onboarding will fail unless you ignore the missing default roles.
                     </Alert>
@@ -414,7 +474,24 @@ const Page = () => {
                 />
                 {currentRelationship?.value && (
                   <>
-                    {currentRelationship?.addedFields?.accessDetails?.unifiedRoles.some(
+                    {!currentRelationship?.addedFields?.accessDetails?.unifiedRoles?.length && (
+                      <Alert severity="warning">
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          No role assignments found for this relationship
+                        </Typography>
+                        <Typography variant="body2">
+                          We couldn't read any unified role assignments from this GDAP relationship.
+                          This usually means the relationship is still being provisioned, the
+                          customer hasn't accepted the invite yet, or the data is stale. Onboarding
+                          will likely fail until the relationship is fully active.
+                        </Typography>
+                        <Typography variant="body2" sx={{ mt: 1 }}>
+                          Try refreshing the relationship list from the dropdown, or wait a few
+                          minutes and reload the page.
+                        </Typography>
+                      </Alert>
+                    )}
+                    {currentRelationship?.addedFields?.accessDetails?.unifiedRoles?.some(
                       (role) => role.roleDefinitionId === "62e90394-69f5-4237-9190-012177145e10"
                     ) && (
                       <Alert severity="warning">
@@ -535,6 +612,40 @@ const Page = () => {
                       Updated {getCippFormatting(currentOnboarding?.Timestamp, "Timestamp", "date")}
                     </Typography>
                   </Box>
+                  {startOnboarding.isError && (
+                    <Alert severity="error">
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        We couldn't start the onboarding job
+                      </Typography>
+                      <Typography variant="body2">
+                        {getCippError(startOnboarding.error) ||
+                          "The request failed before any onboarding steps could run."}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        Use the Retry button below, or try again after refreshing the page.
+                      </Typography>
+                    </Alert>
+                  )}
+                  {currentOnboarding?.Status === "failed" &&
+                    (() => {
+                      const failedStep = currentOnboarding?.OnboardingSteps?.find(
+                        (step) => step?.Status === "failed"
+                      );
+                      return (
+                        <Alert severity="error">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            Onboarding failed{failedStep?.Title ? ` at: ${failedStep.Title}` : ""}
+                          </Typography>
+                          {failedStep?.Message && (
+                            <Typography variant="body2">{failedStep.Message}</Typography>
+                          )}
+                          <Typography variant="body2" sx={{ mt: 1 }}>
+                            Review the logs below for details, fix the underlying issue, then click
+                            Retry to resume from the failed step.
+                          </Typography>
+                        </Alert>
+                      );
+                    })()}
                   <Box>
                     <CippDataTableButton data={currentOnboarding?.Logs} title="Logs:" />
                   </Box>

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react'
+import React, { useEffect } from "react";
 import {
   Card,
   CardHeader,
@@ -9,9 +9,9 @@ import {
   Accordion,
   AccordionSummary,
   AccordionDetails,
-} from '@mui/material'
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
-import { useState } from 'react'
+} from "@mui/material";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
+import { useState } from "react";
 
 export default function CippButtonCard({
   title,
@@ -21,26 +21,39 @@ export default function CippButtonCard({
   cardSx,
   cardActions,
   variant,
-  component = 'card',
+  component = "card",
   accordionExpanded = false,
   onAccordionChange,
 }) {
-  const [cardExpanded, setCardExpanded] = useState(accordionExpanded)
+  const [cardExpanded, setCardExpanded] = useState(accordionExpanded);
   useEffect(() => {
     if (accordionExpanded !== cardExpanded) {
-      setCardExpanded(accordionExpanded)
+      setCardExpanded(accordionExpanded);
     }
-  }, [accordionExpanded])
+  }, [accordionExpanded]);
 
   useEffect(() => {
     if (onAccordionChange) {
-      onAccordionChange(cardExpanded)
+      onAccordionChange(cardExpanded);
     }
-  }, [cardExpanded])
+  }, [cardExpanded]);
+
+  const hasInteraction = !!CardButton || !!cardActions;
 
   return (
-    <Card variant={variant} sx={cardSx}>
-      {component === 'card' && (
+    <Card 
+      variant={variant} 
+      sx={{
+        transition: "all 150ms ease-out",
+        ...(hasInteraction && {
+          "&:hover": {
+            boxShadow: (theme) => theme.shadows[4],
+          },
+        }),
+        ...cardSx,
+      }}
+    >
+      {component === "card" && (
         <>
           {title && (
             <>
@@ -48,14 +61,14 @@ export default function CippButtonCard({
               <Divider />
             </>
           )}
-          <CardContent style={{ marginBottom: 'auto' }}>
+          <CardContent style={{ marginBottom: "auto" }}>
             {isFetching ? <Skeleton /> : children}
           </CardContent>
           <Divider />
           {CardButton && <CardActions>{CardButton}</CardActions>}
         </>
       )}
-      {component === 'accordion' && (
+      {component === "accordion" && (
         <Accordion expanded={cardExpanded}>
           <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
@@ -64,7 +77,7 @@ export default function CippButtonCard({
             <CardHeader action={cardActions} title={title} sx={{ pl: 1, py: 0, flexGrow: 1 }} />
           </AccordionSummary>
           <AccordionDetails sx={{ p: 0 }}>
-            <CardContent style={{ marginBottom: 'auto' }}>
+            <CardContent style={{ marginBottom: "auto" }}>
               {isFetching ? <Skeleton /> : children}
             </CardContent>
             {CardButton && <CardActions>{CardButton}</CardActions>}
@@ -72,5 +85,5 @@ export default function CippButtonCard({
         </Accordion>
       )}
     </Card>
-  )
+  );
 }

@@ -70,7 +70,7 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
   };
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={1}>
       {metrics.map((metric) => {
         const IconComponent = metric.icon;
         return (
@@ -84,13 +84,12 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
                 sx={{
                   display: "flex",
                   alignItems: "center",
-                  gap: { xs: 1, sm: 1.5 },
-                  p: { xs: 1, sm: 1.5, md: 2 },
+                  gap: 1,
+                  p: 1.25,
                   border: 1,
                   borderColor: "divider",
                   borderRadius: 1,
                   cursor: "pointer",
-                  minWidth: 0,
                   transition: "all 0.2s ease-in-out",
                   "&:hover": {
                     borderColor: `${metric.color}.main`,
@@ -104,23 +103,17 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
                   sx={{
                     bgcolor: `${metric.color}.main`,
                     color: `${metric.color}.contrastText`,
-                    width: { xs: 28, sm: 32, md: 34 },
-                    height: { xs: 28, sm: 32, md: 34 },
-                    flexShrink: 0,
+                    width: 28,
+                    height: 28,
                   }}
                 >
-                  <IconComponent sx={{ fontSize: { xs: 18, sm: 22, md: 24 }, color: "inherit" }} />
+                  <IconComponent sx={{ fontSize: 18, color: "inherit" }} />
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    fontSize={{ xs: "0.6rem", sm: "0.65rem", md: "0.7rem" }}
-                    noWrap
-                  >
+                  <Typography variant="caption" color="text.secondary" fontSize="0.65rem" noWrap>
                     {metric.label}
                   </Typography>
-                  <Typography variant="h6" fontSize={{ xs: "0.9rem", sm: "1rem", md: "1.125rem" }}>
+                  <Typography variant="subtitle1" fontWeight={600} fontSize="0.95rem" lineHeight={1.2}>
                     {isLoading ? <Skeleton width={40} /> : formatNumber(metric.value)}
                   </Typography>
                 </Box>

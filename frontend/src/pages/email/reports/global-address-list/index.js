@@ -15,6 +15,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to show this mailbox in the Global Address List?",
       condition: (row) => row.HiddenFromAddressListsEnabled == true,
+      category: "edit",
     },
     {
       label: "Hide from Global Address List",
@@ -27,6 +28,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to hide this mailbox from the Global Address List?",
       condition: (row) => row.HiddenFromAddressListsEnabled == false,
+      category: "edit",
     },
   ];
 

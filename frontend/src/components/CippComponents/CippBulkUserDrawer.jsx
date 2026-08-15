@@ -8,6 +8,7 @@ import CippFormComponent from "./CippFormComponent";
 import { CippFormLicenseSelector } from "./CippFormLicenseSelector";
 import { CippDataTable } from "../CippTable/CippDataTable";
 import { CippApiResults } from "./CippApiResults";
+import { CippFormDomainSelector } from "./CippFormDomainSelector";
 import { useSettings } from "../../hooks/use-settings";
 import { ApiPostCall } from "../../api/ApiCall";
 import { getCippTranslation } from "../../utils/get-cipp-translation";
@@ -17,6 +18,7 @@ export const CippBulkUserDrawer = ({
   buttonText = "Bulk Add Users",
   requiredPermissions = [],
   PermissionButton = Button,
+  buttonProps = {},
 }) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [addRowDialogOpen, setAddRowDialogOpen] = useState(false);
@@ -31,7 +33,6 @@ export const CippBulkUserDrawer = ({
     "surName",
     "displayName",
     "mailNickName",
-    "domain",
     "JobTitle",
     "streetAddress",
     "PostalCode",
@@ -76,6 +77,7 @@ export const CippBulkUserDrawer = ({
       usageLocation: initialState.usageLocation || "US",
       bulkUser: [],
       licenses: [],
+      disableLegacyProtocols: true,
     },
   });
 
@@ -117,6 +119,13 @@ export const CippBulkUserDrawer = ({
 
   const handleSubmit = () => {
     const formData = formControl.getValues();
+    const selectedDomain = formData.primDomain?.value || formData.primDomain;
+    if (selectedDomain && Array.isArray(formData.bulkUser)) {
+      formData.bulkUser = formData.bulkUser.map((user) => ({
+        ...user,
+        domain: user.domain || selectedDomain,
+      }));
+    }
     createBulkUsers.mutate({
       url: "/api/AddUserBulk",
       data: formData,
@@ -131,6 +140,7 @@ export const CippBulkUserDrawer = ({
       usageLocation: initialState.usageLocation || "US",
       bulkUser: [],
       licenses: [],
+      disableLegacyProtocols: true,
     });
   };
 
@@ -141,6 +151,7 @@ export const CippBulkUserDrawer = ({
       confirmText: "Are you sure you want to delete this row?",
       customFunction: handleRemoveItem,
       noConfirm: true,
+      category: "danger",
     },
   ];
 
@@ -150,6 +161,7 @@ export const CippBulkUserDrawer = ({
         requiredPermissions={requiredPermissions}
         onClick={() => setDrawerVisible(true)}
         startIcon={<GroupAdd />}
+        {...buttonProps}
       >
         {buttonText}
       </PermissionButton>
@@ -196,10 +208,29 @@ export const CippBulkUserDrawer = ({
           </Grid>
 
           <Grid size={{ md: 6, xs: 12 }}>
+            <CippFormDomainSelector
+              formControl={formControl}
+              name="primDomain"
+              label="Primary Domain"
+              required={true}
+              validators={{ required: "Primary Domain is required" }}
+            />
+          </Grid>
+
+          <Grid size={{ md: 6, xs: 12 }}>
             <CippFormLicenseSelector
               fullWidth
               label="Assign License"
               name="licenses"
+              formControl={formControl}
+            />
+          </Grid>
+
+          <Grid size={{ md: 6, xs: 12 }}>
+            <CippFormComponent
+              type="switch"
+              label="Disable legacy protocols (IMAP & POP)"
+              name="disableLegacyProtocols"
               formControl={formControl}
             />
           </Grid>

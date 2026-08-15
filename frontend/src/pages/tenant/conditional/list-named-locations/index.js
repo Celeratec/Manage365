@@ -28,6 +28,7 @@ const Page = () => {
       },
       fields: [{ type: "textField", name: "input", label: "New Name" }],
       confirmText: "Enter the new name for this named location.",
+      category: "edit",
     },
     {
       label: "Mark as Trusted",
@@ -41,6 +42,7 @@ const Page = () => {
       confirmText: "Are you sure you want to mark this IP location as trusted?",
       condition: (row) =>
         row["@odata.type"] == "#microsoft.graph.ipNamedLocation" && !row.isTrusted,
+      category: "security",
     },
     {
       label: "Mark as Untrusted",
@@ -53,6 +55,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to mark this IP location as untrusted?",
       condition: (row) => row["@odata.type"] == "#microsoft.graph.ipNamedLocation" && row.isTrusted,
+      category: "security",
     },
     {
       label: "Add location to named location",
@@ -84,6 +87,7 @@ const Page = () => {
       ],
       confirmText: "Select a country to add to this named location.",
       condition: (row) => row["@odata.type"] == "#microsoft.graph.countryNamedLocation",
+      category: "edit",
     },
     {
       label: "Remove location from named location",
@@ -127,6 +131,7 @@ const Page = () => {
       condition: (row) =>
         row["@odata.type"] == "#microsoft.graph.countryNamedLocation" &&
         (row.countriesAndRegions?.length || 0) > 1,
+      category: "edit",
     },
     {
       label: "Add IP to named location",
@@ -179,6 +184,7 @@ const Page = () => {
       ],
       confirmText: "Enter an IP in CIDR format, e.g., 1.1.1.1/32 or 2001:db8::/32.",
       condition: (row) => row["@odata.type"] == "#microsoft.graph.ipNamedLocation",
+      category: "edit",
     },
     {
       label: "Remove IP from named location",
@@ -219,6 +225,7 @@ const Page = () => {
       condition: (row) =>
         row["@odata.type"] == "#microsoft.graph.ipNamedLocation" &&
         (row.ipRanges?.length || 0) > 1,
+      category: "edit",
     },
     {
       label: "Delete named location",
@@ -232,6 +239,7 @@ const Page = () => {
       confirmText:
         "Are you sure you want to delete this named location? This action cannot be undone.",
       color: "error",
+      category: "danger",
     },
   ];
 

@@ -1,0 +1,18 @@
+[
+  {
+    "label": "Overview",
+    "path": "/security/ediscovery/cases/case"
+  },
+  {
+    "label": "Legal Holds",
+    "path": "/security/ediscovery/cases/case/holds"
+  },
+  {
+    "label": "Searches",
+    "path": "/security/ediscovery/cases/case/searches"
+  },
+  {
+    "label": "Exports",
+    "path": "/security/ediscovery/cases/case/exports"
+  }
+]

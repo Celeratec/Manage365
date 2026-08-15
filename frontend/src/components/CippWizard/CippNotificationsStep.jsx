@@ -11,7 +11,7 @@ export const CippNotificationsStep = (props) => {
         <Typography variant="h6">Notification Settings</Typography>
         <Alert severity="info">
           Configure your notification settings. These settings will determine how you receive alerts
-          from CIPP. You can test your configuration using the "Send Test Alert" button. Don't want
+          from Manage365. You can test your configuration using the "Send Test Alert" button. Don't want
           to setup notifications yet? You can skip this step and configure it later via Application
           Settings - Notifications
         </Alert>

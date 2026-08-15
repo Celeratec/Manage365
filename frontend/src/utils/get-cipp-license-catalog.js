@@ -1,4 +1,5 @@
-import { getM365Licenses } from "./m365-licenses-data";
+import M365LicensesDefault from "../data/M365Licenses.json";
+import M365LicensesAdditional from "../data/M365Licenses-additional.json";
 
 // Build an index keyed by lowercased GUID with one entry per SKU (collapsing the
 // per-service-plan rows in the source JSON into a single record).
@@ -6,7 +7,7 @@ let catalogCache = null;
 
 const buildCatalog = () => {
   const map = new Map();
-  for (const row of getM365Licenses()) {
+  for (const row of [...M365LicensesDefault, ...M365LicensesAdditional]) {
     if (!row?.GUID) continue;
     const key = row.GUID.toLowerCase();
     let entry = map.get(key);
@@ -40,8 +41,8 @@ const buildCatalog = () => {
 };
 
 const getCatalog = () => {
-  if (!catalogCache && getM365Licenses().length) catalogCache = buildCatalog();
-  return catalogCache || [];
+  if (!catalogCache) catalogCache = buildCatalog();
+  return catalogCache;
 };
 
 /**

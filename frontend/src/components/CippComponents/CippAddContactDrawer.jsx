@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Button, Divider } from "@mui/material";
 import { Grid } from "@mui/system";
 import { useForm, useFormState } from "react-hook-form";
@@ -243,18 +243,20 @@ export const CippAddContactDrawer = ({
           {/* Phone Numbers */}
           <Grid size={{ md: 6, xs: 12 }}>
             <CippFormComponent
-              type="textField"
+              type="phone"
               label="Mobile Phone"
               name="mobilePhone"
               formControl={formControl}
+              defaultCountry="US"
             />
           </Grid>
           <Grid size={{ md: 6, xs: 12 }}>
             <CippFormComponent
-              type="textField"
+              type="phone"
               label="Business Phone"
               name="businessPhone"
               formControl={formControl}
+              defaultCountry="US"
             />
           </Grid>
 

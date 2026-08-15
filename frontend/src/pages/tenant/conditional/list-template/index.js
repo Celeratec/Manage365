@@ -36,12 +36,14 @@ const Page = () => {
       noConfirm: true,
       icon: <RocketLaunch />,
       color: "success",
+      category: "manage",
     },
     {
       label: "Edit Template",
       link: "/tenant/conditional/list-template/edit?GUID=[GUID]",
       icon: <Edit />,
       color: "info",
+      category: "edit",
     },
     {
       label: "Add to package",
@@ -63,6 +65,7 @@ const Page = () => {
       multiPost: true,
       icon: <LocalOffer />,
       color: "info",
+      category: "edit",
     },
     {
       label: "Remove from package",
@@ -73,6 +76,7 @@ const Page = () => {
       multiPost: true,
       icon: <LocalOfferOutlined />,
       color: "warning",
+      category: "edit",
     },
     {
       label: "Save to GitHub",
@@ -117,6 +121,7 @@ const Page = () => {
       ],
       confirmText: "Are you sure you want to save this template to the selected repository?",
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
+      category: "manage",
     },
     {
       label: "Delete Template",
@@ -126,6 +131,7 @@ const Page = () => {
       data: { ID: "GUID" },
       confirmText: "Do you want to delete the template?",
       multiPost: false,
+      category: "danger",
     },
   ];
 

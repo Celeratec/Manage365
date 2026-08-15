@@ -41,13 +41,6 @@ export const CippRoleAddEdit = ({ selectedRole }) => {
 
   const formControl = useForm({
     mode: "onChange",
-    defaultValues: {
-      allowedTenants: [],
-      blockedTenants: [],
-      BlockedEndpoints: [],
-      IPRange: [],
-      Permissions: {},
-    },
   });
 
   const formState = useFormState({ control: formControl.control });
@@ -106,7 +99,11 @@ export const CippRoleAddEdit = ({ selectedRole }) => {
   const tenants = pages[0] || [];
 
   const matchPattern = (pattern, value) => {
-    const regex = new RegExp(`^${pattern.replace("*", ".*")}$`);
+    // Escape regex special characters except *, then convert * to .*
+    const regexPattern = pattern
+      .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+      .replace(/\*/g, '.*');
+    const regex = new RegExp(`^${regexPattern}$`);
     return regex.test(value);
   };
 
@@ -535,9 +532,9 @@ export const CippRoleAddEdit = ({ selectedRole }) => {
             )}
             {cippApiRoleSelected && (
               <Alert color="info">
-                This is the default role for all API clients in the CIPP-API integration. If you
+                This is the default role for all API clients in the Manage365 API integration. If you
                 would like different permissions for specific applications, create a role per
-                application and select it from the CIPP-API integrations page.
+                application and select it from the Manage365 API integrations page.
               </Alert>
             )}
             <CippFormComponent

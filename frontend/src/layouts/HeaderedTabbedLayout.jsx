@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { ActionsMenu } from "../components/actions-menu";
 import { useMediaQuery } from "@mui/material";
+import { CippCopyToClipBoard } from "../components/CippComponents/CippCopyToClipboard";
 import { getIconByName } from "../utils/icon-registry";
 
 export const HeaderedTabbedLayout = (props) => {
@@ -29,9 +30,11 @@ export const HeaderedTabbedLayout = (props) => {
     actionsData,
     isFetching = false,
     backUrl,
+    copyItems,
   } = props;
 
   const mdDown = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const smDown = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   const router = useRouter();
   const pathname = usePathname();
   const queryParams = router.query;
@@ -59,36 +62,73 @@ export const HeaderedTabbedLayout = (props) => {
         pb: 4,
       }}
     >
-      <Container maxWidth="xl" sx={{ height: "100%" }}>
+      <Container maxWidth="xl" sx={{ height: "100%", px: smDown ? 2 : 3 }}>
         <Stack spacing={1} sx={{ height: "100%" }}>
-          <Stack spacing={2}>
+          <Stack spacing={smDown ? 1 : 2}>
             <Stack
-              alignItems="flex-start"
-              direction="row"
+              alignItems={smDown ? "stretch" : "flex-start"}
+              direction={smDown ? "column" : "row"}
               justifyContent="space-between"
               spacing={1}
             >
-              <Stack spacing={1}>
+              <Stack spacing={1} sx={{ minWidth: 0, flex: 1 }}>
                 <Stack
                   alignItems="center"
                   direction="row"
                   spacing={1}
                   justifyContent="space-between"
                 >
-                  <Typography variant={mdDown ? "h6" : "h4"}>{title}</Typography>
+                  <Typography 
+                    variant={mdDown ? "h6" : "h4"}
+                    sx={{
+                      wordBreak: "break-word",
+                      overflowWrap: "break-word",
+                    }}
+                  >
+                    {title}
+                  </Typography>
+                  {title && !isFetching && (
+                    <CippCopyToClipBoard text={title} type="button" />
+                  )}
+                  {!isFetching && copyItems?.map((item, index) => (
+                    item.text && (
+                      <CippCopyToClipBoard key={index} text={item.text} type="chip" />
+                    )
+                  ))}
                 </Stack>
                 {isFetching ? (
                   <Skeleton variant="text" width={200} />
                 ) : (
                   subtitle && (
-                    <Stack alignItems="center" flexWrap="wrap" direction="row" spacing={2}>
+                    <Stack 
+                      alignItems={smDown ? "flex-start" : "center"} 
+                      flexWrap="wrap" 
+                      direction={smDown ? "column" : "row"} 
+                      spacing={smDown ? 1 : 2}
+                      sx={{ gap: smDown ? 1 : 2 }}
+                    >
                       {subtitle.map((item, index) =>
                         item.component ? (
-                          <Box key={index}>{item.component}</Box>
+                          <Box key={index} sx={{ maxWidth: "100%", overflow: "hidden" }}>
+                            {item.component}
+                          </Box>
                         ) : (
-                          <Stack key={index} alignItems="center" direction="row" spacing={1}>
-                            <SvgIcon fontSize="small">{item.icon}</SvgIcon>
-                            <Typography color="text.secondary" variant="body2">
+                          <Stack 
+                            key={index} 
+                            alignItems="center" 
+                            direction="row" 
+                            spacing={1}
+                            sx={{ 
+                              minWidth: 0,
+                              maxWidth: "100%",
+                              "& .MuiTypography-root": {
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }
+                            }}
+                          >
+                            <SvgIcon fontSize="small" sx={{ flexShrink: 0 }}>{item.icon}</SvgIcon>
+                            <Typography color="text.secondary" variant="body2" noWrap={smDown}>
                               {item.text}
                             </Typography>
                           </Stack>
@@ -99,17 +139,25 @@ export const HeaderedTabbedLayout = (props) => {
                 )}
               </Stack>
               {actions && actions.length > 0 && (
-                <ActionsMenu actions={actions} data={actionsData} disabled={isFetching} />
+                <Box sx={{ flexShrink: 0, alignSelf: smDown ? "flex-end" : "flex-start", mt: smDown ? 1 : 0 }}>
+                  <ActionsMenu actions={actions} data={actionsData} disabled={isFetching} />
+                </Box>
               )}
             </Stack>
             <div>
-              <Tabs
-                onChange={handleTabsChange}
-                value={currentTab?.path}
+              <Tabs 
+                onChange={handleTabsChange} 
+                value={currentTab?.path} 
                 variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
                 sx={{
-                  "& .MuiTab-root:first-of-type": {
-                    ml: 2,
+                  minHeight: smDown ? 40 : 48,
+                  "& .MuiTab-root": {
+                    minHeight: smDown ? 40 : 48,
+                    py: smDown ? 1 : 1.5,
+                    px: smDown ? 1.5 : 2,
+                    fontSize: smDown ? "0.8rem" : "0.875rem",
                   },
                 }}
               >
@@ -125,7 +173,7 @@ export const HeaderedTabbedLayout = (props) => {
                       value={option.path}
                       icon={icon ?? undefined}
                       iconPosition={icon ? iconPosition : undefined}
-                      sx={compactIcon ? { minHeight: 48, py: 1.5 } : undefined}
+                      sx={compactIcon ? { minHeight: smDown ? 40 : 48, py: smDown ? 1 : 1.5 } : undefined}
                     />
                   );
                 })}
@@ -156,8 +204,6 @@ HeaderedTabbedLayout.propTypes = {
     PropTypes.shape({
       label: PropTypes.string.isRequired,
       path: PropTypes.string.isRequired,
-      icon: PropTypes.string,
-      iconPosition: PropTypes.oneOf(["bottom", "end", "start", "top"]),
     })
   ).isRequired,
   title: PropTypes.string.isRequired,

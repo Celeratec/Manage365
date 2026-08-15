@@ -11,7 +11,6 @@ import {
   BarChart,
 } from '@mui/icons-material'
 import { Chip, Link, SvgIcon, Tooltip } from '@mui/material'
-import NextLink from 'next/link'
 import { alpha } from '@mui/material/styles'
 import { Box } from '@mui/system'
 import { CippCopyToClipBoard } from '../components/CippComponents/CippCopyToClipboard'
@@ -28,14 +27,16 @@ import {
   ServerIcon,
   UserIcon,
   UsersIcon,
-} from '@heroicons/react/24/outline'
-import { getCippTranslation } from './get-cipp-translation'
-import DOMPurify from 'dompurify'
-import { getSignInErrorCodeTranslation } from './get-cipp-signin-errorcode-translation'
-import { CollapsibleChipList } from '../components/CippComponents/CollapsibleChipList'
-import countryList from '../data/countryList.json'
-import { getStandards } from './standards-data'
-import { parseCippDate } from './parse-cipp-date'
+  CheckCircleIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
+import { getCippTranslation } from "./get-cipp-translation";
+import DOMPurify from "dompurify";
+import { getSignInErrorCodeTranslation } from "./get-cipp-signin-errorcode-translation";
+import { CollapsibleChipList } from "../components/CippComponents/CollapsibleChipList";
+import countryList from "../data/countryList.json";
+import standardsData from "../data/standards.json";
+import { parseCippDate } from "./parse-cipp-date";
 
 // Helper function to convert country codes to country names
 const getCountryNameFromCode = (countryCode) => {
@@ -43,13 +44,7 @@ const getCountryNameFromCode = (countryCode) => {
   return country ? country.Name : countryCode
 }
 
-export const getCippFormatting = (
-  data,
-  cellName,
-  type,
-  canReceive,
-  flatten = true
-) => {
+export const getCippFormatting = (data, cellName, type, canReceive, flatten = true) => {
   const isText = type === 'text'
   const cellNameLower = cellName.toLowerCase()
   // if data is a data object, return a fFormatted date
@@ -61,6 +56,24 @@ export const getCippFormatting = (
         <Chip variant="outlined" label="No data" size="small" color="info" />
       </Box>
     )
+  }
+
+  // Handle PowerShell type strings that weren't properly serialized
+  const powershellTypePatterns = [
+    "System.Collections.Hashtable",
+    "System.Object[]",
+    "System.Collections.ArrayList",
+    "System.Collections.Generic.List",
+    "System.Collections.Generic.Dictionary",
+    "System.Management.Automation.PSCustomObject",
+  ];
+  
+  if (typeof data === "string" && powershellTypePatterns.some(pattern => data.includes(pattern))) {
+    return isText ? (
+      "Complex data (not displayed)"
+    ) : (
+      <Chip variant="outlined" label="Complex data" size="small" color="warning" />
+    );
   }
 
   const portalIcons = {
@@ -80,9 +93,7 @@ export const getCippFormatting = (
   // Create a helper function to render chips with CollapsibleChipList
   const renderChipList = (items, maxItems = 4) => {
     if (!Array.isArray(items) || items.length === 0) {
-      return (
-        <Chip variant="outlined" label="No data" size="small" color="info" />
-      )
+      return <Chip variant="outlined" label="No data" size="small" color="info" />
     }
 
     return (
@@ -90,11 +101,7 @@ export const getCippFormatting = (
         {items.map((item, index) => {
           // Avoid JSON.stringify which can cause circular reference errors
           let key = index
-          if (
-            typeof item === 'string' ||
-            typeof item === 'number' ||
-            typeof item === 'boolean'
-          ) {
+          if (typeof item === 'string' || typeof item === 'number' || typeof item === 'boolean') {
             key = item
           } else if (typeof item === 'object' && item?.label) {
             key = `item-${item.label}-${index}`
@@ -117,14 +124,36 @@ export const getCippFormatting = (
     return 'Download Baseline'
   }
 
-  if (cellName === 'Severity' || cellName === 'logsToInclude') {
-    if (data == null) {
-      return isText ? (
-        'No data'
-      ) : (
-        <Chip variant="outlined" label="No data" size="small" color="info" />
-      )
+  if (cellName === "accountEnabled") {
+    const isEnabled = data === true || data === "true" || data === "Yes";
+    const isDisabled = data === false || data === "false" || data === "No";
+    
+    if (isText) {
+      return isEnabled ? "Yes" : isDisabled ? "No" : String(data);
     }
+    
+    return (
+      <Chip
+        icon={
+          <SvgIcon sx={{ fontSize: "1rem !important" }}>
+            {isEnabled ? <CheckCircleIcon /> : <XCircleIcon />}
+          </SvgIcon>
+        }
+        label={isEnabled ? "Yes" : "No"}
+        size="small"
+        color={isEnabled ? "success" : "error"}
+        variant="outlined"
+        sx={{
+          fontWeight: 500,
+          "& .MuiChip-icon": {
+            color: isEnabled ? "success.main" : "error.main",
+          },
+        }}
+      />
+    );
+  }
+
+  if (cellName === "Severity" || cellName === "logsToInclude") {
     if (Array.isArray(data)) {
       return isText ? data.join(', ') : renderChipList(data)
     } else {
@@ -143,9 +172,7 @@ export const getCippFormatting = (
         high: 'error',
       }
       const color = severityColor[String(label).toLowerCase()] ?? 'info'
-      return (
-        <Chip variant="outlined" label={label} size="small" color={color} />
-      )
+      return <Chip variant="outlined" label={label} size="small" color={color} />
     }
   }
 
@@ -181,37 +208,6 @@ export const getCippFormatting = (
     return joinTypeMap[data.toLowerCase()] ?? data
   }
 
-  // Hex color values (a sensitivity label's custom color, content-marking font colors, ...) render
-  // as a swatch chip. Matches any column named Color or *Color, guarded on the value shape so
-  // non-hex data in a matching column falls through untouched.
-  if (
-    cellNameLower.endsWith('color') &&
-    typeof data === 'string' &&
-    /^#[0-9A-Fa-f]{6}$/.test(data)
-  ) {
-    return isText ? (
-      data
-    ) : (
-      <Chip
-        variant="outlined"
-        size="small"
-        label={data.toUpperCase()}
-        icon={
-          <Box
-            component="span"
-            sx={{
-              width: 14,
-              height: 14,
-              borderRadius: '50%',
-              backgroundColor: data,
-              border: '1px solid rgba(0, 0, 0, 0.2)',
-            }}
-          />
-        }
-      />
-    )
-  }
-
   //if the cellName starts with portal_, return text, or a link with an icon
   if (cellName.startsWith('portal_')) {
     const IconComponent = portalIcons[cellName]
@@ -226,11 +222,7 @@ export const getCippFormatting = (
     )
   }
 
-  if (
-    cellName === 'prohibitSendReceiveQuotaInBytes' ||
-    cellName === 'storageUsedInBytes' ||
-    cellName === 'ArchiveSize'
-  ) {
+  if (cellName === 'prohibitSendReceiveQuotaInBytes' || cellName === 'storageUsedInBytes') {
     //convert bytes to GB
     const bytes = data
     if (bytes === null || bytes === undefined) {
@@ -245,13 +237,18 @@ export const getCippFormatting = (
   }
 
   if (cellName === 'info.logoUrl') {
-    return isText ? (
-      data
-    ) : data ? (
-      <img src={data} alt="logo" style={{ width: '16px', height: '16px' }} />
-    ) : (
-      ''
-    )
+    if (isText) return data
+    if (!data) return ''
+    // Validate URL to prevent XSS via javascript: or data: URLs
+    try {
+      const url = new URL(data, window.location.origin)
+      if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+        return ''
+      }
+      return <img src={url.href} alt="logo" style={{ width: '16px', height: '16px' }} />
+    } catch {
+      return ''
+    }
   }
 
   // Audit-log coverage timestamps: render as an ABSOLUTE date in the browser's local timezone
@@ -287,11 +284,6 @@ export const getCippFormatting = (
     'timestamp',
     'DateTime',
     'LastRun',
-    'lastRun', // Baselines
-    'lastRemediated', // Baselines
-    'deviationAt', // Baselines
-    'deviationExpires', // Baselines
-    'enteredStageAt', // Baselines
     'LastRefresh',
     'createdDateTime',
     'activatedDateTime',
@@ -317,12 +309,9 @@ export const getCippFormatting = (
     'requestDate', // App Consent Requests
     'reviewedDate', // App Consent Requests
     'GeneratedAt', // Report Builder
-    'directTenantAuthDate', // Direct tenant service account
-    'ServiceAccountLastAuth', // Direct tenant service account
   ]
 
-  const matchDateTime =
-    /([dD]ate[tT]ime|[Ee]xpiration|[Tt]imestamp|[sS]tart[Dd]ate)/
+  const matchDateTime = /([dD]ate[tT]ime|[Ee]xpiration|[Tt]imestamp|[sS]tart[Dd]ate)/
   if (timeAgoArray.includes(cellName) || matchDateTime.test(cellName)) {
     return isText && canReceive === false ? (
       parseCippDate(data).toLocaleString() // This runs if canReceive is false and isText is true
@@ -336,19 +325,14 @@ export const getCippFormatting = (
 
   if (passwordItems.includes(cellNameLower)) {
     //return a button that shows/hides the password if it has a password. In text mode, return "Password hidden"
-    return isText ? (
-      'Password hidden'
-    ) : (
-      <CippCopyToClipBoard text={data} type="password" />
-    )
+    return isText ? 'Password hidden' : <CippCopyToClipBoard text={data} type="password" />
   }
 
   // Handle hardware hash fields
   const hardwareHashFields = ['hardwareHash', 'Hardware Hash']
   if (
     typeof data === 'string' &&
-    (hardwareHashFields.includes(cellName) ||
-      cellNameLower.includes('hardware'))
+    (hardwareHashFields.includes(cellName) || cellNameLower.includes('hardware'))
   ) {
     if (data.length > 15) {
       return isText ? (
@@ -377,52 +361,28 @@ export const getCippFormatting = (
     return isText ? data : data
   }
 
-  if (
-    cellName === 'alignmentScore' ||
-    cellName === 'combinedAlignmentScore' ||
-    cellName === 'compliancePercentage' ||
-    cellName === 'alignedPercentage' ||
-    cellName === 'verifiedPercentage'
-  ) {
+  if (cellName === 'alignmentScore' || cellName === 'combinedAlignmentScore') {
     // Handle alignment score, return a percentage with a label
     return isText ? (
       `${data}%`
     ) : (
-      <LinearProgressWithLabel
-        colourLevels={true}
-        variant="determinate"
-        value={data}
-      />
+      <LinearProgressWithLabel colourLevels={true} variant="determinate" value={data} />
     )
   }
 
   if (cellName === 'currentDeviationsCount') {
-    if (data === undefined || data === null)
-      return isText ? (
-        'N/A'
-      ) : (
-        <Chip variant="outlined" label="N/A" size="small" color="default" />
-      )
+    if (data === undefined || data === null) return isText ? 'N/A' : <Chip variant="outlined" label="N/A" size="small" color="default" />
     const count = Number(data)
     const color = count > 0 ? 'warning' : 'success'
-    const label =
-      count > 0 ? `${count} Deviation${count !== 1 ? 's' : ''}` : 'None'
-    return isText ? (
-      label
-    ) : (
-      <Chip variant="outlined" label={label} size="small" color={color} />
-    )
+    const label = count > 0 ? `${count} Deviation${count !== 1 ? 's' : ''}` : 'None'
+    return isText ? label : <Chip variant="outlined" label={label} size="small" color={color} />
   }
 
   if (cellName === 'LicenseMissingPercentage') {
     return isText ? (
       `${data}%`
     ) : (
-      <LinearProgressWithLabel
-        colourLevels={'flipped'}
-        variant="determinate"
-        value={data}
-      />
+      <LinearProgressWithLabel colourLevels={'flipped'} variant="determinate" value={data} />
     )
   }
   if (cellName === 'RepeatsEvery') {
@@ -443,9 +403,7 @@ export const getCippFormatting = (
                 : unit === 'y'
                   ? 'year'
                   : unit
-      return isText
-        ? `Every ${value} ${unitText}`
-        : `Every ${value} ${unitText}`
+      return isText ? `Every ${value} ${unitText}` : `Every ${value} ${unitText}`
     }
   }
   if (cellName === 'ReportInterval') {
@@ -464,49 +422,29 @@ export const getCippFormatting = (
     if (data === 'afrf') {
       data = 'Authentication Failure'
     }
-    return isText ? (
-      data
-    ) : (
-      <Chip variant="outlined" label={data} size="small" color="info" />
-    )
+    return isText ? data : <Chip variant="outlined" label={data} size="small" color="info" />
   }
 
   if (cellName === 'ScorePercentage') {
-    return isText ? (
-      `${data}%`
-    ) : (
-      <LinearProgressWithLabel variant="determinate" value={data} />
-    )
+    return isText ? `${data}%` : <LinearProgressWithLabel variant="determinate" value={data} />
   }
 
   if (cellName === 'ScoreExplanation') {
-    return isText ? (
-      data
-    ) : (
-      <Chip variant="outlined" label={data} size="small" color="info" />
-    )
+    return isText ? data : <Chip variant="outlined" label={data} size="small" color="info" />
   }
 
   if (cellName === 'DMARCActionPolicy') {
     if (data === '') {
       data = 'No DMARC Action'
     }
-    return isText ? (
-      data
-    ) : (
-      <Chip variant="outlined" label={data} size="small" color="info" />
-    )
+    return isText ? data : <Chip variant="outlined" label={data} size="small" color="info" />
   }
 
   if (cellName === 'MailProvider') {
     if (data === 'Null') {
       data = 'Unknown'
     }
-    return isText ? (
-      data
-    ) : (
-      <Chip variant="outlined" label={data} size="small" color="info" />
-    )
+    return isText ? data : <Chip variant="outlined" label={data} size="small" color="info" />
   }
 
   if (cellName === 'delegatedPrivilegeStatus') {
@@ -524,9 +462,7 @@ export const getCippFormatting = (
     //check if data is an array.
     if (Array.isArray(data)) {
       // Filter out null/undefined values and map the valid items
-      const validItems = data.filter(
-        (item) => item !== null && item !== undefined
-      )
+      const validItems = data.filter((item) => item !== null && item !== undefined)
 
       if (validItems.length === 0) {
         return isText ? (
@@ -537,9 +473,7 @@ export const getCippFormatting = (
       }
 
       return isText
-        ? validItems
-            .map((item) => (item?.label !== undefined ? item.label : item))
-            .join(', ')
+        ? validItems.map((item) => (item?.label !== undefined ? item.label : item)).join(', ')
         : renderChipList(
             validItems.map((item, key) => {
               const itemText = item?.label !== undefined ? item.label : item
@@ -592,11 +526,7 @@ export const getCippFormatting = (
           </SvgIcon>
         )
       }
-      return isText ? (
-        itemText
-      ) : (
-        <CippCopyToClipBoard text={itemText} type="chip" icon={icon} />
-      )
+      return isText ? itemText : <CippCopyToClipBoard text={itemText} type="chip" icon={icon} />
     }
   }
 
@@ -617,104 +547,6 @@ export const getCippFormatting = (
           ))
     }
   }
-  if (cellName === 'status') {
-    // Baseline statuses chip-render; any other page's 'status' values fall through to the
-    // generic rendering below so this stays scoped to the baseline vocabulary.
-    const baselineStatusColors = {
-      compliant: 'success',
-      drift: 'error',
-      conflict: 'error',
-      accepted: 'info',
-      'partially accepted': 'warning',
-      'denied - remediate pending': 'warning',
-      'denied - delete pending': 'warning',
-      'skipped - no license': 'default',
-      'no data': 'default',
-    }
-    const baselineColor = baselineStatusColors[String(data).toLowerCase()]
-    if (baselineColor) {
-      if (isText) return data
-      // Pending states answer the "when does something happen?" question inline.
-      const baselineStatusTooltips = {
-        'no data': 'Not collected yet - happens automatically on the next run.',
-        conflict:
-          'Two baselines configure this at the same level with different settings. Nothing runs until you edit one of them - see the standard details for both sources.',
-        'denied - remediate pending':
-          'Fixed automatically on the next run (within 12 hours), or use Remediate Now.',
-        'denied - delete pending':
-          'Removed automatically on the next run (within 12 hours).',
-      }
-      const statusTooltip = baselineStatusTooltips[String(data).toLowerCase()]
-      const chip = (
-        <Chip
-          variant="outlined"
-          label={data}
-          size="small"
-          color={baselineColor}
-        />
-      )
-      return statusTooltip ? (
-        <Tooltip title={statusTooltip}>{chip}</Tooltip>
-      ) : (
-        chip
-      )
-    }
-  }
-
-  if (cellName === 'outcome') {
-    // Baseline run outcomes in the historic view
-    if (isText) return data
-    const outcomeColors = {
-      compliant: 'success',
-      remediated: 'info',
-      drift: 'error',
-      error: 'error',
-      'skipped-nocache': 'default',
-      'skipped-license': 'default',
-    }
-    const color = outcomeColors[String(data).toLowerCase()] ?? 'default'
-    // Humanize the engine's internal outcome codes.
-    const outcomeLabels = {
-      'skipped-nocache': 'Skipped - No Data',
-      'skipped-license': 'Skipped - No License',
-    }
-    const label = outcomeLabels[String(data).toLowerCase()] ?? data
-    return <Chip variant="outlined" label={label} size="small" color={color} />
-  }
-
-  if (cellName === 'feedEvent') {
-    // Baseline deviation feed events
-    if (isText) return data
-    const eventColors = {
-      detected: 'error',
-      accepted: 'info',
-      suppressed: 'warning',
-      'property accepted': 'info',
-      remediated: 'success',
-    }
-    const color = eventColors[String(data).toLowerCase()] ?? 'default'
-    return <Chip variant="outlined" label={data} size="small" color={color} />
-  }
-
-  if (cellName === 'sourceTemplate') {
-    // Baselines: which template's configuration is effective for this row
-    if (isText) return data
-    const color = data === 'Tenant Override' ? 'success' : 'info'
-    return <Chip variant="outlined" label={data} size="small" color={color} />
-  }
-
-  if (cellName === 'remediationPosture') {
-    // Baseline template posture
-    if (isText) return data
-    const postureColors = {
-      remediate: 'success',
-      staged: 'info',
-      report: 'default',
-    }
-    const color = postureColors[String(data).toLowerCase()] ?? 'default'
-    return <Chip variant="outlined" label={data} size="small" color={color} />
-  }
-
   if (cellName === 'complianceStatus') {
     if (isText) return data
     const complianceColors = {
@@ -729,12 +561,11 @@ export const getCippFormatting = (
 
   if (cellName === 'standardName') {
     // Already resolved for templates; do a standards.json lookup for classic standards
-    if (!data?.startsWith('standards.'))
-      return isText ? data : <span>{data}</span>
+    if (!data?.startsWith('standards.')) return isText ? data : <span>{data}</span>
     const baseName = data.split('.').slice(0, -1).join('.')
     const label =
-      getStandards().find((s) => s.name === data)?.label ??
-      getStandards().find((s) => s.name === baseName)?.label ??
+      standardsData.find((s) => s.name === data)?.label ??
+      standardsData.find((s) => s.name === baseName)?.label ??
       data
     return label
   }
@@ -756,12 +587,7 @@ export const getCippFormatting = (
     return isText ? (
       'Drift Standard'
     ) : (
-      <Chip
-        variant="outlined"
-        label="Drift Standard"
-        size="small"
-        color="info"
-      />
+      <Chip variant="outlined" label="Drift Standard" size="small" color="info" />
     )
   }
 
@@ -783,11 +609,7 @@ export const getCippFormatting = (
       return isText ? countryNames.join(', ') : renderChipList(countryNames)
     } else {
       const countryName = getCountryNameFromCode(data)
-      return isText ? (
-        countryName
-      ) : (
-        <CippCopyToClipBoard text={countryName} type="chip" />
-      )
+      return isText ? countryName : <CippCopyToClipBoard text={countryName} type="chip" />
     }
   }
 
@@ -806,23 +628,17 @@ export const getCippFormatting = (
     if (Array.isArray(data)) {
       return isText
         ? data
-            .map((item) =>
-              typeof item === 'object' && item?.label ? item.label : item
-            )
+            .map((item) => (typeof item === 'object' && item?.label ? item.label : item))
             .join(', ')
         : renderChipList(
             data
               .filter((item) => item)
-              .map((item) =>
-                typeof item === 'object' && item?.label ? item.label : item
-              )
+              .map((item) => (typeof item === 'object' && item?.label ? item.label : item))
           )
     }
   }
   if (cellName === 'bulkUser') {
-    return isText
-      ? `${data.length} new users to create`
-      : `${data.length} new users to create`
+    return isText ? `${data.length} new users to create` : `${data.length} new users to create`
   }
 
   if (data?.enabled === true && data?.date) {
@@ -850,11 +666,7 @@ export const getCippFormatting = (
 
   if (cellName === 'state') {
     if (typeof data !== 'string') {
-      return isText ? (
-        data
-      ) : (
-        <Chip variant="filled" label={data} size="small" color="info" />
-      )
+      return isText ? data : <Chip variant="filled" label={data} size="small" color="info" />
     }
 
     const normalized = data.trim().toLowerCase()
@@ -906,13 +718,6 @@ export const getCippFormatting = (
   }
 
   if (cellName === 'Parameters.ScheduledBackupValues') {
-    if (!data || typeof data !== 'object') {
-      return isText ? (
-        'No data'
-      ) : (
-        <Chip variant="outlined" label="No data" size="small" color="info" />
-      )
-    }
     return isText ? (
       JSON.stringify(data)
     ) : (
@@ -928,9 +733,7 @@ export const getCippFormatting = (
   if (cellName === 'AccessRights') {
     // Handle data as an array or string
     const accessRights = Array.isArray(data)
-      ? data.flatMap((item) =>
-          typeof item === 'string' ? item.split(', ') : []
-        )
+      ? data.flatMap((item) => (typeof item === 'string' ? item.split(', ') : []))
       : typeof data === 'string'
         ? data.split(', ')
         : []
@@ -1051,20 +854,6 @@ export const getCippFormatting = (
     )
   }
 
-  // handle role members
-  // Without this the CSV/PDF exports fall through to the generic object branch and emit raw
-  // JSON per member. The on-screen cell keeps rendering as the items button.
-  if (cellName === 'Members' && Array.isArray(data)) {
-    return isText ? (
-      data
-        .map((member) => member?.displayName || member?.userPrincipalName || member?.id)
-        .filter(Boolean)
-        .join(', ')
-    ) : (
-      <CippDataTableButton data={data} tableTitle="Members" />
-    )
-  }
-
   // Handle assigned licenses
   if (cellName === 'assignedLicenses') {
     var translatedLicenses = getCippLicenseTranslation(data)
@@ -1102,18 +891,13 @@ export const getCippFormatting = (
     return isText ? (
       JSON.stringify(transformedData)
     ) : (
-      <CippDataTableButton
-        data={transformedData}
-        tableTitle="License Assignment States"
-      />
+      <CippDataTableButton data={transformedData} tableTitle="License Assignment States" />
     )
   }
 
   if (cellName === 'unifiedRoles') {
     if (Array.isArray(data)) {
-      const roles = data.map((role) =>
-        getCippRoleTranslation(role.roleDefinitionId)
-      )
+      const roles = data.map((role) => getCippRoleTranslation(role.roleDefinitionId))
       return isText ? roles.join(', ') : renderChipList(roles, 12)
     }
     return isText ? (
@@ -1141,19 +925,12 @@ export const getCippFormatting = (
     return isText
       ? actions.map((action) => action.label).join(', ')
       : actions.map((action) => (
-          <CippCopyToClipBoard
-            key={action.label}
-            text={action.label}
-            type="chip"
-          />
+          <CippCopyToClipBoard key={action.label} text={action.label} type="chip" />
         ))
   }
 
   // if data is a json string, parse it and return a table
-  if (
-    typeof data === 'string' &&
-    (data.startsWith('{') || data.startsWith('['))
-  ) {
+  if (typeof data === 'string' && (data.startsWith('{') || data.startsWith('['))) {
     try {
       const parsedData = JSON.parse(data)
 
@@ -1188,9 +965,7 @@ export const getCippFormatting = (
       // Check if parsed data is a simple array of strings
       if (
         Array.isArray(parsedData) &&
-        parsedData.every(
-          (item) => typeof item === 'string' || typeof item === 'number'
-        ) &&
+        parsedData.every((item) => typeof item === 'string' || typeof item === 'number') &&
         flatten
       ) {
         return isText ? parsedData.join(', ') : renderChipList(parsedData)
@@ -1198,10 +973,7 @@ export const getCippFormatting = (
       return isText ? (
         data
       ) : (
-        <CippDataTableButton
-          data={parsedData}
-          tableTitle={getCippTranslation(cellName)}
-        />
+        <CippDataTableButton data={parsedData} tableTitle={getCippTranslation(cellName)} />
       )
     } catch (e) {
       // If parsing fails, return the original string
@@ -1219,10 +991,7 @@ export const getCippFormatting = (
     return isText ? (
       JSON.stringify(properties)
     ) : (
-      <CippDataTableButton
-        data={properties}
-        tableTitle={getCippTranslation(cellName)}
-      />
+      <CippDataTableButton data={properties} tableTitle={getCippTranslation(cellName)} />
     )
   }
 
@@ -1231,20 +1000,10 @@ export const getCippFormatting = (
   }
 
   if (cellName === 'location' && data?.geoCoordinates) {
-    return isText ? (
-      JSON.stringify(data)
-    ) : (
-      <CippLocationDialog location={data} />
-    )
+    return isText ? JSON.stringify(data) : <CippLocationDialog location={data} />
   }
 
-  const translateProps = [
-    'riskLevel',
-    'riskState',
-    'riskDetail',
-    'enrollmentType',
-    'profileType',
-  ]
+  const translateProps = ['riskLevel', 'riskState', 'riskDetail', 'enrollmentType', 'profileType']
 
   if (translateProps.includes(cellName)) {
     return getCippTranslation(data)
@@ -1259,9 +1018,7 @@ export const getCippFormatting = (
         'No'
       )
     ) : (
-      <Box component="span">
-        {data ? <Check fontSize="10" /> : <Cancel fontSize="10" />}
-      </Box>
+      <Box component="span">{data ? <Check fontSize="10" /> : <Cancel fontSize="10" />}</Box>
     )
   }
 
@@ -1289,11 +1046,7 @@ export const getCippFormatting = (
       />
     )
   }
-  if (
-    cellName === 'Status' ||
-    cellName === 'Risk' ||
-    cellName === 'UserImpact'
-  ) {
+  if (cellName === 'Status' || cellName === 'Risk' || cellName === 'UserImpact') {
     let color = 'default'
     let label = data
 
@@ -1343,7 +1096,8 @@ export const getCippFormatting = (
   // into human-readable form (e.g. "1 hour 23 minutes 30 seconds") across all CIPP tables.
   // The try/catch below handles same-suffixed fields that are not actually ISO 8601.
   // Add explicit entries below for fields that don't follow the *Duration naming convention.
-  const durationArray = []
+  const durationArray = [
+  ]
   if (durationArray.includes(cellName) || cellName.endsWith('Duration')) {
     isoDuration.setLocales(
       {
@@ -1364,17 +1118,6 @@ export const getCippFormatting = (
     }
   }
 
-  // Internal CIPP navigation links
-  if (cellName === 'cippLink' && typeof data === 'string') {
-    return isText ? (
-      data
-    ) : (
-      <Link component={NextLink} href={data} underline="hover">
-        View
-      </Link>
-    )
-  }
-
   //if string starts with http, return a link - but only when it parses as a real
   //absolute http(s) URL. Defanged URLs (e.g. https[:]//bad.com from Check) fail to
   //parse and would otherwise render as a link relative to the CIPP instance, so
@@ -1383,8 +1126,7 @@ export const getCippFormatting = (
     let isValidUrl = false
     try {
       const parsedUrl = new URL(data)
-      isValidUrl =
-        parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:'
+      isValidUrl = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:'
     } catch {
       isValidUrl = false
     }
@@ -1416,13 +1158,7 @@ export const getCippFormatting = (
           variant="outlined"
           label={data}
           size="small"
-          color={
-            data === 'private'
-              ? 'error'
-              : data === 'public'
-                ? 'success'
-                : 'primary'
-          }
+          color={data === 'private' ? 'error' : data === 'public' ? 'success' : 'primary'}
           sx={{ textTransform: 'capitalize' }}
         />
       )
@@ -1435,20 +1171,11 @@ export const getCippFormatting = (
 
   // handle autocomplete labels
   if (data?.label && data?.value) {
-    return isText ? (
-      data.label
-    ) : (
-      <CippCopyToClipBoard text={data.label} type="chip" />
-    )
+    return isText ? data.label : <CippCopyToClipBoard text={data.label} type="chip" />
   }
 
   // handle array of autocomplete labels
-  if (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    data[0]?.label &&
-    data[0]?.value
-  ) {
+  if (Array.isArray(data) && data.length > 0 && data[0]?.label && data[0]?.value) {
     return isText
       ? data.map((item) => item.label).join(', ')
       : renderChipList(
@@ -1461,11 +1188,7 @@ export const getCippFormatting = (
   }
 
   // Handle arrays of strings
-  if (
-    Array.isArray(data) &&
-    data.every((item) => typeof item === 'string') &&
-    flatten
-  ) {
+  if (Array.isArray(data) && data.every((item) => typeof item === 'string') && flatten) {
     // if string matches json format, parse it
     if (data.every((item) => item.startsWith('{') || item.startsWith('['))) {
       try {
@@ -1477,10 +1200,7 @@ export const getCippFormatting = (
         return isText ? (
           JSON.stringify(data)
         ) : (
-          <CippDataTableButton
-            data={parsedData}
-            tableTitle={getCippTranslation(cellName)}
-          />
+          <CippDataTableButton data={parsedData} tableTitle={getCippTranslation(cellName)} />
         )
       } catch (e) {
         return isText ? JSON.stringify(data) : data.join(', ')
@@ -1496,10 +1216,7 @@ export const getCippFormatting = (
     return isText ? (
       JSON.stringify(data)
     ) : (
-      <CippDataTableButton
-        data={data}
-        tableTitle={getCippTranslation(cellName)}
-      />
+      <CippDataTableButton data={data} tableTitle={getCippTranslation(cellName)} />
     )
   }
 

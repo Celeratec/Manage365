@@ -1,4 +1,20 @@
-import { getM365Licenses } from "./m365-licenses-data";
+// Lazy-load the ~2.1MB M365 license JSON files only when needed
+let _m365LicensesCache = null;
+const getM365Licenses = async () => {
+  if (_m365LicensesCache) return _m365LicensesCache;
+  const [defaultMod, additionalMod] = await Promise.all([
+    import("../data/M365Licenses.json"),
+    import("../data/M365Licenses-additional.json"),
+  ]);
+  _m365LicensesCache = [...defaultMod.default, ...additionalMod.default];
+  return _m365LicensesCache;
+};
+
+// Synchronous cache accessor for when data is already loaded
+const getM365LicensesSync = () => _m365LicensesCache || [];
+
+// Pre-warm the cache on module load (non-blocking)
+getM365Licenses();
 
 /**
  * Get all available licenses for tenant group dynamic rules
@@ -6,7 +22,7 @@ import { getM365Licenses } from "./m365-licenses-data";
  */
 export const getTenantGroupLicenseOptions = () => {
   // Combine both license files
-  const allLicenses = getM365Licenses();
+  const allLicenses = getM365LicensesSync();
 
   // Create unique licenses map using String_Id as key for better deduplication
   const uniqueLicensesMap = new Map();
@@ -47,7 +63,7 @@ export const getTenantGroupLicenseOptions = () => {
  */
 export const getTenantGroupServicePlanOptions = () => {
   // Combine both license files
-  const allLicenses = getM365Licenses();
+  const allLicenses = getM365LicensesSync();
 
   // Create unique service plans map using Service_Plan_Name as key for better deduplication
   const uniqueServicePlansMap = new Map();

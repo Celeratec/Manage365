@@ -15,6 +15,7 @@ const savedLogsActions = [
     link: "/tenant/administration/audit-logs/log?id=[LogId]",
     color: "primary",
     icon: <EyeIcon />,
+    category: "view",
   },
 ];
 

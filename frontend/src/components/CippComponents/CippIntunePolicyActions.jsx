@@ -229,6 +229,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
       icon: <Book />,
       color: 'info',
       multiPost: false,
+      category: 'manage',
     })
   }
 
@@ -263,6 +264,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
         description: row.description,
       }),
       confirmText: 'Enter the new name and description for this policy.',
+      category: 'edit',
     })
   }
 
@@ -298,6 +300,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
       }),
       confirmText:
         'Enter a name for the cloned policy. The name must be different from the original policy and assignments are not copied to the clone.',
+      category: 'manage',
     })
   }
 
@@ -319,6 +322,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     confirmText: 'Are you sure you want to assign "[displayName]" to all users?',
     icon: <UserIcon />,
     color: 'info',
+    category: 'edit',
   })
 
   // Assign to All Devices
@@ -339,6 +343,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     confirmText: 'Are you sure you want to assign "[displayName]" to all devices?',
     icon: <LaptopChromebook />,
     color: 'info',
+    category: 'edit',
   })
 
   // Assign Globally (All Users / All Devices)
@@ -359,6 +364,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     confirmText: 'Are you sure you want to assign "[displayName]" to all users and devices?',
     icon: <GlobeAltIcon />,
     color: 'info',
+    category: 'edit',
   })
 
   // Assign to Custom Group
@@ -373,6 +379,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     multiPost: false,
     fields: getCustomGroupFields(),
     customDataformatter: getCustomDataFormatterForGroups(),
+    category: 'edit',
   })
 
   // Delete action
@@ -388,6 +395,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
       confirmText: 'Are you sure you want to delete this policy?',
       icon: <TrashIcon />,
       color: 'danger',
+      category: 'danger',
     })
   }
 

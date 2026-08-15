@@ -83,12 +83,6 @@ const CippAddEditTenantGroups = ({ formControl, initialValues, title, backButton
             compareType="is"
             compareValue="dynamic"
           >
-            <CippFormComponent
-              type="switch"
-              name="excludePartnerTenant"
-              label="Exclude Partner Tenant from this group"
-              formControl={formControl}
-            />
             <CippTenantGroupRuleBuilder
               formControl={formControl}
               name="dynamicRules"

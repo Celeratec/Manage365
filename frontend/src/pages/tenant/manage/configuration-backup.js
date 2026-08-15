@@ -246,8 +246,8 @@ const Page = () => {
     if (values.intuneprotection) enabledComponents.push("Intune Protection");
     if (values.antispam) enabledComponents.push("Anti-Spam");
     if (values.antiphishing) enabledComponents.push("Anti-Phishing");
-    if (values.CippWebhookAlerts) enabledComponents.push("CIPP Webhook Alerts");
-    if (values.CippScriptedAlerts) enabledComponents.push("CIPP Scripted Alerts");
+    if (values.CippWebhookAlerts) enabledComponents.push("Manage365 Webhook Alerts");
+    if (values.CippScriptedAlerts) enabledComponents.push("Manage365 Scripted Alerts");
     if (values.CippCustomVariables) enabledComponents.push("Custom Variables");
 
     return enabledComponents;

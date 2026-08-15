@@ -10,12 +10,14 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
   return [
     {
       label: "View Task Details",
+      category: "view",
       link: "/cipp/scheduler/task?id=[RowKey]",
       icon: <EyeIcon />,
       condition: () => canReadScheduler,
     },
     {
       label: "Run Now",
+      category: "manage",
       type: "POST",
       url: "/api/AddScheduledItem",
       data: { RowKey: "RowKey", RunNow: true },
@@ -29,7 +31,13 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
       customFunction:
         drawerHandlers.openEditDrawer ||
         ((row) => {
-          window.location.href = `/cipp/scheduler/job?id=${row.RowKey}`;
+          import("next/router")
+            .then(({ default: router }) => {
+              router.push(`/cipp/scheduler/job?id=${row.RowKey}`);
+            })
+            .catch(() => {
+              window.location.href = `/cipp/scheduler/job?id=${row.RowKey}`;
+            });
         }),
       multiPost: false,
       icon: <Edit />,
@@ -43,7 +51,13 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
       customFunction:
         drawerHandlers.openCloneDrawer ||
         ((row) => {
-          window.location.href = `/cipp/scheduler/job?id=${row.RowKey}&Clone=True`;
+          import("next/router")
+            .then(({ default: router }) => {
+              router.push(`/cipp/scheduler/job?id=${row.RowKey}&Clone=True`);
+            })
+            .catch(() => {
+              window.location.href = `/cipp/scheduler/job?id=${row.RowKey}&Clone=True`;
+            });
         }),
       multiPost: false,
       icon: <CopyAll />,
@@ -54,6 +68,7 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
     },
     {
       label: "Delete Job",
+      category: "danger",
       icon: <TrashIcon />,
       type: "POST",
       url: "/api/RemoveScheduledItem",

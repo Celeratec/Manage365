@@ -43,8 +43,7 @@ import { useState, useEffect, useMemo } from "react";
 const TABLE_LABELS = {
   AppPermissions: "App Permissions",
   CommunityRepos: "Community Repositories",
-  Config: "CIPP Configuration",
-  CustomPowershellScripts: "Custom PowerShell/Test Scripts",
+  Config: "Manage365 Configuration",
   CustomData: "Custom Data",
   CustomRoles: "Custom Roles",
   Domains: "Domains",
@@ -446,7 +445,7 @@ export const CippRestoreWizard = ({
       {!restoreAction.isSuccess && (
         <Alert severity="warning" icon={<Warning />}>
           <AlertTitle>Confirm Restore</AlertTitle>
-          This will overwrite your current CIPP configuration for the selected categories. This
+          This will overwrite your current Manage365 configuration for the selected categories. This
           action cannot be undone.
         </Alert>
       )}

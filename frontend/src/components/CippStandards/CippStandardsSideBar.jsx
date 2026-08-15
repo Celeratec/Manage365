@@ -29,7 +29,7 @@ import CheckIcon from "@heroicons/react/24/outline/CheckIcon";
 import CloseIcon from "@mui/icons-material/Close";
 import { useWatch } from "react-hook-form";
 import { useEffect, useState } from "react";
-import { get } from "lodash";
+import get from "lodash/get";
 import CippFormComponent from "../CippComponents/CippFormComponent";
 import { CippFormTenantSelector } from "../CippComponents/CippFormTenantSelector";
 import { CippApiDialog } from "../CippComponents/CippApiDialog";
@@ -144,7 +144,7 @@ const CippStandardsSideBar = ({
   };
 
   // Enhanced drift validation using CIPP patterns with group support
-  const validateDrift = async (tenants, excludedTenants) => {
+  const validateDrift = async (tenants) => {
     if (!isDriftMode || !tenants || tenants.length === 0) {
       setDriftError("");
       onDriftConflictChange?.(false);
@@ -170,9 +170,6 @@ const CippStandardsSideBar = ({
       // Expand selected tenants (including group members)
       const selectedTenantList = expandGroupsToTenants(tenants, groups);
 
-      // Expand excluded tenants the same way; a tenant excluded here can never overlap
-      const excludedTenantSet = new Set(expandGroupsToTenants(excludedTenants || [], groups));
-
       // Simple conflict check
       const conflicts = [];
 
@@ -197,21 +194,17 @@ const CippStandardsSideBar = ({
         const template = uniqueTemplates[templateId];
         const templateTenants = template.tenants;
 
-        // Template tenants come from ListTenantAlignment rows, which already have that
-        // template's own exclusions applied — only this form's exclusions need subtracting
-        const selectedHasAllTenants = selectedTenantList.includes("AllTenants");
-        const hasConflict = templateTenants.some(
-          (templateTenant) =>
-            !excludedTenantSet.has(templateTenant) &&
-            (selectedHasAllTenants ||
-              templateTenant === "AllTenants" ||
-              selectedTenantList.some(
-                (selectedTenant) =>
-                  selectedTenant !== "AllTenants" &&
-                  !excludedTenantSet.has(selectedTenant) &&
-                  selectedTenant === templateTenant,
-              )),
-        );
+        const hasConflict = selectedTenantList.some((selectedTenant) => {
+          // Check if any template tenant matches the selected tenant
+          const conflict = templateTenants.some((templateTenant) => {
+            if (selectedTenant === "AllTenants" || templateTenant === "AllTenants") {
+              return true;
+            }
+            const match = selectedTenant === templateTenant;
+            return match;
+          });
+          return conflict;
+        });
 
         if (hasConflict) {
           conflicts.push(template.standardName || "Unknown Template");
@@ -240,17 +233,11 @@ const CippStandardsSideBar = ({
     if (!isDriftMode) return;
 
     const timeoutId = setTimeout(() => {
-      validateDrift(watchForm.tenantFilter, watchForm.excludedTenants);
+      validateDrift(watchForm.tenantFilter);
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [
-    watchForm.tenantFilter,
-    watchForm.excludedTenants,
-    isDriftMode,
-    driftValidationApi.data,
-    tenantGroupsApi.data,
-  ]);
+  }, [watchForm.tenantFilter, isDriftMode, driftValidationApi.data, tenantGroupsApi.data]);
 
   useEffect(() => {
     const stepsStatus = {
@@ -328,7 +315,7 @@ const CippStandardsSideBar = ({
               <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
                 • Monitors all security standards, Conditional Access policies, and Intune policies
                 <br />
-                • Detects changes made outside of CIPP
+                • Detects changes made outside of Manage365
                 <br />
                 • Configurable webhook and email notifications
                 <br />• Granular control over deviation acceptance

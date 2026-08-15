@@ -19,7 +19,8 @@ const Page = () => {
       url: "/api/RemoveQueuedApp",
       data: { ID: "id" },
       confirmText: "Do you want to delete the queued application?",
-      color: "danger",
+      color: "error",
+      category: "danger",
     },
   ];
 

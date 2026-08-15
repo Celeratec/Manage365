@@ -3,8 +3,11 @@ import { Person as UserIcon } from "@mui/icons-material";
 import { CippSankey } from "./CippSankey";
 import { useRouter } from "next/router";
 
-export const MFACard = ({ data, isLoading }) => {
+export const MFACard = ({ data, isLoading, compact = false }) => {
   const router = useRouter();
+  const chartHeight = compact ? 220 : 300;
+  const titleVariant = compact ? "subtitle1" : "h6";
+  const descriptionVariant = compact ? "caption" : "body2";
   // Process data inside component
   const processData = () => {
     if (!data || !Array.isArray(data) || data.length === 0) {
@@ -93,13 +96,13 @@ export const MFACard = ({ data, isLoading }) => {
 
     return {
       nodes: [
-        { id: "Enabled users", nodeColor: "hsl(28, 100%, 53%)" },
-        { id: "MFA registered", nodeColor: "hsl(99, 70%, 50%)" },
-        { id: "Not registered", nodeColor: "hsl(39, 100%, 50%)" },
-        { id: "CA policy", nodeColor: "hsl(99, 70%, 50%)" },
-        { id: "Security defaults", nodeColor: "hsl(140, 70%, 50%)" },
-        { id: "Per-user MFA", nodeColor: "hsl(200, 70%, 50%)" },
-        { id: "No enforcement", nodeColor: "hsl(0, 100%, 50%)" },
+        { id: "Enabled users", nodeColor: "hsl(220, 60%, 75%)" },
+        { id: "MFA registered", nodeColor: "hsl(140, 50%, 72%)" },
+        { id: "Not registered", nodeColor: "hsl(35, 65%, 75%)" },
+        { id: "CA policy", nodeColor: "hsl(140, 50%, 72%)" },
+        { id: "Security defaults", nodeColor: "hsl(160, 50%, 72%)" },
+        { id: "Per-user MFA", nodeColor: "hsl(200, 55%, 72%)" },
+        { id: "No enforcement", nodeColor: "hsl(0, 55%, 72%)" },
       ],
       links,
       description,
@@ -221,16 +224,16 @@ export const MFACard = ({ data, isLoading }) => {
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            <UserIcon sx={{ fontSize: 24 }} />
-            <Typography variant="h6">User authentication</Typography>
+            <UserIcon sx={{ fontSize: compact ? 20 : 24 }} />
+            <Typography variant={titleVariant}>User authentication</Typography>
           </Box>
         }
-        sx={{ pb: 1 }}
+        sx={{ pb: compact ? 0.5 : 1 }}
       />
-      <CardContent sx={{ pb: 0 }}>
-        <Box sx={{ height: 300 }}>
+      <CardContent sx={{ pb: compact ? 1.5 : 2, pt: compact ? 1.5 : 2 }}>
+        <Box sx={{ height: chartHeight }}>
           {isLoading ? (
-            <Skeleton variant="rectangular" width="100%" height={300} />
+            <Skeleton variant="rectangular" width="100%" height={chartHeight} />
           ) : processedData ? (
             <CippSankey
               data={{ nodes: processedData.nodes, links: processedData.links }}
@@ -247,7 +250,7 @@ export const MFACard = ({ data, isLoading }) => {
                 width: "100%",
               }}
             >
-              <Typography variant="body2" color="text.secondary">
+              <Typography variant={descriptionVariant} color="text.secondary">
                 No MFA data available
               </Typography>
             </Box>
@@ -255,8 +258,8 @@ export const MFACard = ({ data, isLoading }) => {
         </Box>
       </CardContent>
       {!isLoading && processedData?.description && (
-        <CardContent sx={{ pt: 2 }}>
-          <Typography variant="body2" color="text.secondary">
+        <CardContent sx={{ pt: compact ? 1 : 2, pb: compact ? 1.5 : 2 }}>
+          <Typography variant={descriptionVariant} color="text.secondary">
             {processedData.description}
           </Typography>
         </CardContent>

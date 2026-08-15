@@ -19,6 +19,7 @@ const Page = () => {
       label: "Edit Template",
       link: "/tenant/gdap-management/role-templates/edit?templateId=[TemplateId]",
       icon: <Edit />,
+      category: "edit",
     },
     {
       label: "Delete Template",
@@ -27,6 +28,7 @@ const Page = () => {
       icon: <TrashIcon />,
       data: { TemplateId: "TemplateId" },
       confirmText: "Are you sure you want to delete this Role Template?",
+      category: "danger",
     },
   ];
 
@@ -62,7 +64,7 @@ const Page = () => {
         <>
           <Box>
             <Alert severity="warning" sx={{ mx: 3 }}>
-              The CIPP Defaults template is missing from the GDAP Role Templates. Create it now?
+              The Manage365 Defaults template is missing from the GDAP Role Templates. Create it now?
               <Button
                 size="small"
                 variant="outlined"
@@ -79,7 +81,7 @@ const Page = () => {
                   </SvgIcon>
                 }
               >
-                Create CIPP Defaults
+                Create Manage365 Defaults
               </Button>
             </Alert>
           </Box>

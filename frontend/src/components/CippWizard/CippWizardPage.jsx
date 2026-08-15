@@ -35,7 +35,6 @@ const CippWizardPage = (props) => {
     onClose,
     dialogIcon,
     relatedQueryKeys,
-    completionButton,
     ...other
   } = props;
 
@@ -77,9 +76,7 @@ const CippWizardPage = (props) => {
         </DialogTitle>
         <Divider />
         <DialogContent sx={{ flex: 1, overflow: "auto", p: 2 }}>
-          <CippWizardDialogContext.Provider
-            value={{ actionsEl, relatedQueryKeys, onClose, completionButton }}
-          >
+          <CippWizardDialogContext.Provider value={{ actionsEl, relatedQueryKeys, onClose }}>
             {wizardNode}
           </CippWizardDialogContext.Provider>
         </DialogContent>
@@ -103,9 +100,7 @@ const CippWizardPage = (props) => {
           <Stack spacing={6}>
             <Stack spacing={5}>
               <Stack spacing={1}>
-                <CippWizardDialogContext.Provider
-                  value={{ actionsEl: null, relatedQueryKeys, completionButton }}
-                >
+                <CippWizardDialogContext.Provider value={{ actionsEl: null, relatedQueryKeys }}>
                   {wizardNode}
                 </CippWizardDialogContext.Provider>
               </Stack>

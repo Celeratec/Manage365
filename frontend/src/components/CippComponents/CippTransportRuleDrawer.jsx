@@ -7,6 +7,7 @@ import { CippOffCanvas } from "./CippOffCanvas";
 import CippFormComponent from "./CippFormComponent";
 import { CippFormDomainSelector } from "./CippFormDomainSelector";
 import { CippApiResults } from "./CippApiResults";
+import CippRiskAlert from "./CippRiskAlert";
 import { useSettings } from "../../hooks/use-settings";
 import { ApiGetCall, ApiPostCall } from "../../api/ApiCall";
 import { useQueryClient } from "@tanstack/react-query";
@@ -1580,6 +1581,30 @@ export const CippTransportRuleDrawer = ({
             </Grid>
 
             {selectedActions.map((action) => renderActionField(action))}
+
+            <Grid size={12}>
+              <CippRiskAlert
+                visible={selectedActions.some((a) => (a.value || a) === "DeleteMessage")}
+                severity="error"
+                title="High Risk — Silent Message Deletion"
+                description="Matching messages will be permanently deleted without notifying the sender or recipient. Business-critical emails can be silently lost with no indication to anyone."
+                recommendation='Use "Quarantine" or "Reject with explanation" instead so senders are aware their message was not delivered.'
+              />
+              <CippRiskAlert
+                visible={selectedActions.some((a) => (a.value || a) === "RedirectMessageTo")}
+                severity="warning"
+                title="Message Redirection — Original Recipient Will Not Receive"
+                description="Matching messages are redirected to another address and the original recipient never receives them. This can silently divert important email without the intended recipient's knowledge."
+                recommendation='Consider using "Bcc" or "Cc" actions instead if the original recipient should still receive the message.'
+              />
+              <CippRiskAlert
+                visible={selectedActions.some((a) => (a.value || a) === "RejectMessage")}
+                severity="warning"
+                title="Messages Will Be Bounced"
+                description="Matching messages are rejected and bounced back to the sender. If conditions are too broad, legitimate email will be blocked."
+                recommendation="Test with a narrow condition set first and monitor for false positives before applying broadly."
+              />
+            </Grid>
 
             <Divider sx={{ my: 2, width: "100%" }} />
 

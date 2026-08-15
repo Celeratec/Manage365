@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Button, Link, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import {
+  Box,
+  Button,
+  Link,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+} from "@mui/material";
 import { Grid } from "@mui/system";
 import { useForm, useWatch } from "react-hook-form";
 import { GroupAdd, Delete } from "@mui/icons-material";
@@ -7,6 +15,7 @@ import { CippOffCanvas } from "./CippOffCanvas";
 import CippFormComponent from "./CippFormComponent";
 import { CippDataTable } from "../CippTable/CippDataTable";
 import { CippApiResults } from "./CippApiResults";
+import CippAccessTypeGuide from "./CippAccessTypeGuide";
 import { useSettings } from "../../hooks/use-settings";
 import { ApiPostCall } from "../../api/ApiCall";
 import { getCippValidator } from "../../utils/get-cipp-validator";
@@ -135,6 +144,7 @@ export const CippBulkInviteGuestDrawer = ({
       confirmText: "Are you sure you want to delete this row?",
       customFunction: handleRemoveItem,
       noConfirm: true,
+      category: "danger",
     },
   ];
 
@@ -174,6 +184,14 @@ export const CippBulkInviteGuestDrawer = ({
           </div>
         }
       >
+        <Box sx={{ mb: 2 }}>
+          <CippAccessTypeGuide
+            type="guest"
+            variant="banner"
+            context="userManagement"
+            showSettingsLinks={false}
+          />
+        </Box>
         <Grid container spacing={2}>
           <Grid size={{ xs: 12 }}>
             <CippFormComponent

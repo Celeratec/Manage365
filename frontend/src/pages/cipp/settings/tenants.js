@@ -14,7 +14,6 @@ import {
   Delete,
   Add,
   Refresh,
-  VpnKey,
 } from "@mui/icons-material";
 import cacheTypes from "../../../data/CIPPDBCacheTypes.json";
 
@@ -33,6 +32,7 @@ const Page = () => {
       confirmText: "Are you sure you want to exclude [displayName]?",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "edit",
     },
     {
       label: "Include Tenants",
@@ -43,6 +43,7 @@ const Page = () => {
       confirmText: "Are you sure you want to include [displayName]?",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "edit",
     },
     {
       label: "Refresh CPV Permissions",
@@ -52,14 +53,7 @@ const Page = () => {
       data: { tenantFilter: "customerId" },
       confirmText: "Are you sure you want to refresh the CPV permissions for [displayName]?",
       multiPost: false,
-      condition: (row) =>
-        row.displayName !== "*Partner Tenant" && row.delegatedPrivilegeStatus !== "directTenant",
-    },
-    {
-      label: "Re-authenticate Connection",
-      link: "/onboardingv2?selectedOption=AddTenant&tenantType=Direct",
-      icon: <VpnKey />,
-      condition: (row) => row.delegatedPrivilegeStatus === "directTenant",
+      category: "manage",
     },
     {
       label: "Reset CPV Permissions",
@@ -72,6 +66,7 @@ const Page = () => {
       multiPost: false,
       condition: (row) =>
         row.displayName !== "*Partner Tenant" && row.delegatedPrivilegeStatus !== "directTenant",
+      category: "manage",
     },
     {
       label: "Remove Tenant",
@@ -83,9 +78,10 @@ const Page = () => {
         "Are you sure you want to remove [displayName]? If this is a Direct Tenant, this will no longer be accessible until you add it via the Setup Wizard.",
       multiPost: false,
       condition: (row) => row.displayName !== "*Partner Tenant",
+      category: "danger",
     },
     {
-      label: "Refresh CIPPDB Cache",
+      label: "Refresh Manage365 DB Cache",
       type: "GET",
       url: "/api/ExecCIPPDBCache",
       icon: <Refresh />,
@@ -118,6 +114,7 @@ const Page = () => {
           TenantFilter: tenantFilter,
         };
       },
+      category: "manage",
     },
     traceGdapAction,
   ];
@@ -127,8 +124,6 @@ const Page = () => {
       "displayName",
       "defaultDomainName",
       "delegatedPrivilegeStatus",
-      "directTenantUserPrincipalName",
-      "directTenantAuthDate",
       "Excluded",
       "ExcludeDate",
       "ExcludeUser",
@@ -154,16 +149,6 @@ const Page = () => {
     {
       filterName: "Excluded tenants",
       value: [{ id: "Excluded", value: "Yes" }],
-      type: "column",
-    },
-    {
-      filterName: "Direct tenants",
-      value: [{ id: "delegatedPrivilegeStatus", value: "Direct Tenant" }],
-      type: "column",
-    },
-    {
-      filterName: "GDAP tenants",
-      value: [{ id: "delegatedPrivilegeStatus", value: "GDAP Tenant" }],
       type: "column",
     },
   ];

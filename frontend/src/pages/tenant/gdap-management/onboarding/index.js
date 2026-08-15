@@ -17,6 +17,7 @@ const actions = [
     confirmText: "Are you sure you want to cancel these onboardings?",
     multiPost: false,
     icon: <Cancel />,
+    category: "manage",
   },
   {
     label: "Retry Onboarding",
@@ -26,6 +27,7 @@ const actions = [
     confirmText: "Are you sure you want to retry these onboardings?",
     multiPost: false,
     icon: <Replay />,
+    category: "manage",
   },
 ];
 

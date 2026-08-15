@@ -5,19 +5,11 @@ import Link from "next/link";
 import { TrashIcon } from "@heroicons/react/24/outline";
 import { Edit, Add, Book } from "@mui/icons-material";
 import { Stack } from "@mui/system";
-import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
+import { useSettings } from "../../../../hooks/use-settings";
 
 const Page = () => {
   const pageTitle = "Assignment Filters";
-
-  const reportDB = useCippReportDB({
-    apiUrl: "/api/ListAssignmentFilters",
-    queryKey: "assignment-filters",
-    cacheName: "IntuneAssignmentFilters",
-    syncTitle: "Sync Assignment Filters Report",
-    allowToggle: true,
-    defaultCached: false,
-  });
+  const { currentTenant } = useSettings();
 
   const actions = [
     {
@@ -34,6 +26,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to create a template based on this filter?",
       multiPost: false,
+      category: "manage",
     },
     {
       label: "Edit Filter",
@@ -41,6 +34,7 @@ const Page = () => {
       multiPost: false,
       icon: <Edit />,
       color: "success",
+      category: "edit",
     },
     {
       label: "Delete Filter",
@@ -53,6 +47,7 @@ const Page = () => {
       },
       confirmText: "Are you sure you want to delete this assignment filter?",
       multiPost: false,
+      category: "danger",
     },
   ];
 
@@ -70,35 +65,28 @@ const Page = () => {
     actions: actions,
   };
 
-  const simpleColumns = [
-    ...reportDB.cacheColumns,
-    "displayName",
-    "description",
-    "platform",
-    "assignmentFilterManagementType",
-    "rule",
-  ];
-
   return (
-    <>
-      <CippTablePage
-        title={pageTitle}
-        cardButton={
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Button component={Link} href="assignment-filters/add" startIcon={<Add />}>
-              Add Assignment Filter
-            </Button>
-            {reportDB.controls}
-          </Stack>
-        }
-        apiUrl={reportDB.resolvedApiUrl}
-        queryKey={reportDB.resolvedQueryKey}
-        actions={actions}
-        offCanvas={offCanvas}
-        simpleColumns={simpleColumns}
-      />
-      {reportDB.syncDialog}
-    </>
+    <CippTablePage
+      title={pageTitle}
+      cardButton={
+        <Stack direction="row" spacing={1}>
+          <Button component={Link} href="assignment-filters/add" startIcon={<Add />}>
+            Add Assignment Filter
+          </Button>
+        </Stack>
+      }
+      apiUrl="/api/ListAssignmentFilters"
+      queryKey={`assignment-filters-${currentTenant}`}
+      actions={actions}
+      offCanvas={offCanvas}
+      simpleColumns={[
+        "displayName",
+        "description",
+        "platform",
+        "assignmentFilterManagementType",
+        "rule",
+      ]}
+    />
   );
 };
 

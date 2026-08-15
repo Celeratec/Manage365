@@ -395,7 +395,7 @@ const Page = () => {
                 <Grid size={{ xs: 12, lg: 4 }}>
                   <Stack spacing={3}>
                     <CippPropertyListCard
-                      title={`CIPP Roles for ${auth?.data?.clientPrincipal?.userDetails}`}
+                      title={`Manage365 Roles for ${auth?.data?.clientPrincipal?.userDetails}`}
                       propertyItems={(auth?.data?.clientPrincipal?.userRoles ?? [])
                         .filter((role) => !["anonymous", "authenticated"].includes(role))
                         .map((role) => ({

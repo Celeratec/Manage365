@@ -1,327 +1,218 @@
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  Box,
-  Typography,
-  Skeleton,
-  Tooltip,
-} from "@mui/material";
-import { Security as SecurityIcon } from "@mui/icons-material";
+import { Card, CardHeader, CardContent, Box, Typography, Skeleton, Button, useMediaQuery, useTheme, Tooltip } from "@mui/material";
+import { Security as SecurityIcon, Refresh as RefreshIcon, Close as CloseIcon } from "@mui/icons-material";
+import { ResponsiveContainer, RadialBarChart, RadialBar, PolarAngleAxis } from "recharts";
 import { CippTimeAgo } from "../CippComponents/CippTimeAgo";
+import CippFormComponent from "../CippComponents/CippFormComponent";
+import { CippAddTestReportDrawer } from "../CippComponents/CippAddTestReportDrawer";
+import { useState, useEffect, useRef, useCallback } from "react";
 
-export const AssessmentCard = ({ data, isLoading, title, description }) => {
+export const AssessmentCard = ({ 
+  data, 
+  isLoading, 
+  reports = [], 
+  formControl, 
+  onRefresh, 
+  onDelete,
+  selectedReport 
+}) => {
+  const chartContainerRef = useRef(null);
+  const [containerReady, setContainerReady] = useState(false);
+
+  // Check if container has valid dimensions - used both in effect and during render
+  const hasValidDimensions = useCallback(() => {
+    if (!chartContainerRef.current) return false;
+    const { width, height } = chartContainerRef.current.getBoundingClientRect();
+    return width > 0 && height > 0;
+  }, []);
+
+  useEffect(() => {
+    const checkContainer = () => {
+      if (hasValidDimensions()) {
+        setContainerReady(true);
+      } else {
+        setContainerReady(false);
+      }
+    };
+    
+    // Check immediately and after a short delay to handle layout timing
+    checkContainer();
+    const timer = setTimeout(checkContainer, 100);
+    
+    // Also observe resize changes
+    const resizeObserver = new ResizeObserver(checkContainer);
+    if (chartContainerRef.current) {
+      resizeObserver.observe(chartContainerRef.current);
+    }
+    
+    return () => {
+      clearTimeout(timer);
+      resizeObserver.disconnect();
+    };
+  }, [isLoading, hasValidDimensions]);
+
+  // Synchronous check during render - if state says ready but dimensions are invalid, don't render chart
+  const canRenderChart = containerReady && hasValidDimensions();
   // Extract data with null safety
   const identityPassed = data?.TestResultSummary?.IdentityPassed || 0;
-  const identityFailed = data?.TestResultSummary?.IdentityFailed || 0;
-  const identitySkipped = data?.TestResultSummary?.IdentitySkipped || 0;
-  const identityInformational = data?.TestResultSummary?.IdentityInformational || 0;
-  const identityNeedsAttention = data?.TestResultSummary?.IdentityNeedsAttention || 0;
-  const identityTotal = data?.TestResultSummary?.IdentityTotal || 0;
+  const identityTotal = data?.TestResultSummary?.IdentityTotal || 1;
   const devicesPassed = data?.TestResultSummary?.DevicesPassed || 0;
-  const devicesFailed = data?.TestResultSummary?.DevicesFailed || 0;
-  const devicesSkipped = data?.TestResultSummary?.DevicesSkipped || 0;
-  const devicesInformational = data?.TestResultSummary?.DevicesInformational || 0;
-  const devicesNeedsAttention = data?.TestResultSummary?.DevicesNeedsAttention || 0;
   const devicesTotal = data?.TestResultSummary?.DevicesTotal || 0;
-  const customPassed = data?.TestResultSummary?.CustomPassed || 0;
-  const customFailed = data?.TestResultSummary?.CustomFailed || 0;
-  const customSkipped = data?.TestResultSummary?.CustomSkipped || 0;
-  const customInformational = data?.TestResultSummary?.CustomInformational || 0;
-  const customNeedsAttention = data?.TestResultSummary?.CustomNeedsAttention || 0;
-  const customTotal = data?.TestResultSummary?.CustomTotal || 0;
 
-  const overallPassed = identityPassed + devicesPassed + customPassed;
-  const overallFailed = identityFailed + devicesFailed + customFailed;
-  const overallSkipped = identitySkipped + devicesSkipped + customSkipped;
-  const overallInformational =
-    identityInformational + devicesInformational + customInformational;
-  const overallNeedsAttention =
-    identityNeedsAttention + devicesNeedsAttention + customNeedsAttention;
-  const overallTotal = identityTotal + devicesTotal + customTotal;
-
-  // Determine if we should show section
-  const hasIdentityTests = identityTotal > 0;
+  // Determine if we should show devices section
   const hasDeviceTests = devicesTotal > 0;
-  const hasCustomTests = customTotal > 0;
 
-  const testCategories = [
-    {
-      key: "identity",
-      label: "Identity",
-      passed: identityPassed,
-      failed: identityFailed,
-      skipped: identitySkipped,
-      informational: identityInformational,
-      needsAttention: identityNeedsAttention,
-      total: identityTotal,
-      show: hasIdentityTests,
-    },
-    {
-      key: "devices",
-      label: "Devices",
-      passed: devicesPassed,
-      failed: devicesFailed,
-      skipped: devicesSkipped,
-      informational: devicesInformational,
-      needsAttention: devicesNeedsAttention,
-      total: devicesTotal,
-      show: hasDeviceTests,
-    },
-    {
-      key: "custom",
-      label: "Custom",
-      passed: customPassed,
-      failed: customFailed,
-      skipped: customSkipped,
-      informational: customInformational,
-      needsAttention: customNeedsAttention,
-      total: customTotal,
-      show: hasCustomTests,
-    },
-  ].filter((category) => category.show);
+  // Calculate percentages for the radial chart
+  // If no device tests, set devices to 100% (complete)
+  const devicesPercentage = hasDeviceTests ? (devicesPassed / devicesTotal) * 100 : 100;
+  const identityPercentage = (identityPassed / identityTotal) * 100;
 
-  const overallCategory = {
-    label: "Overall",
-    passed: overallPassed,
-    failed: overallFailed,
-    skipped: overallSkipped,
-    informational: overallInformational,
-    needsAttention: overallNeedsAttention,
-    total: overallTotal,
-    show: overallTotal > 0,
-  };
-  const overallTotalFromValues =
-    overallCategory.passed +
-    overallCategory.failed +
-    overallCategory.skipped +
-    overallCategory.informational +
-    overallCategory.needsAttention;
-  const overallDenominator = overallCategory.total > 0 ? overallCategory.total : overallTotalFromValues;
-  const overallPassWidth = overallDenominator > 0 ? (overallCategory.passed / overallDenominator) * 100 : 0;
-  const overallFailWidth = overallDenominator > 0 ? (overallCategory.failed / overallDenominator) * 100 : 0;
-  const overallSkipWidth = overallDenominator > 0 ? (overallCategory.skipped / overallDenominator) * 100 : 0;
-  const overallInfoWidth =
-    overallDenominator > 0 ? (overallCategory.informational / overallDenominator) * 100 : 0;
-  const overallNeedsAttentionWidth =
-    overallDenominator > 0 ? (overallCategory.needsAttention / overallDenominator) * 100 : 0;
-  const overallStatusItems = [
-    {
-      key: "pass",
-      value: overallCategory.passed,
-      label: "Pass",
-      color: "success.main",
-    },
-    {
-      key: "fail",
-      value: overallCategory.failed,
-      label: "Fail",
-      color: "error.main",
-    },
-    {
-      key: "skip",
-      value: overallCategory.skipped,
-      label: "Skip",
-      color: "warning.main",
-    },
-    {
-      key: "info",
-      value: overallCategory.informational,
-      label: "Info",
-      color: "info.main",
-    },
-    {
-      key: "attention",
-      value: overallCategory.needsAttention,
-      label: "Attention",
-      color: "text.primary",
-    },
-  ].filter((item) => item.value > 0);
+  const theme = useTheme();
+  const smDown = useMediaQuery(theme.breakpoints.down("sm"));
 
-  const descriptionText = description || "No description available for the selected test suite.";
+  // Use theme-aware colors for the chart
+  const chartData = [
+    {
+      name: "Devices",
+      value: devicesPercentage,
+      fill: "hsl(140, 55%, 48%)", // Green matching the design system
+    },
+    {
+      name: "Identity",
+      value: identityPercentage,
+      fill: "hsl(210, 65%, 55%)", // Blue matching the design system
+    },
+  ];
+
+  // Check if report controls are provided
+  const hasReportControls = formControl && reports.length > 0;
 
   return (
-    <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Card sx={{ height: "100%" }}>
       <CardHeader
         title={
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, width: "fit-content" }}>
-            <SecurityIcon sx={{ fontSize: 20 }} />
-            <Typography variant="subtitle1">{title || "Assessment"}</Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+            <SecurityIcon sx={{ fontSize: 18 }} />
+            <Typography variant="subtitle2" fontWeight={600}>Assessment</Typography>
           </Box>
         }
-        sx={{ pb: 1 }}
+        sx={{ py: 1, px: 1.5 }}
       />
-      <CardContent sx={{ pt: 0.75, flexGrow: 1, display: "flex" }}>
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.25,
-            width: "100%",
-            height: "100%",
-            justifyContent: "space-between",
-          }}
-        >
-          <Box sx={{ flexGrow: 1, display: "flex", alignItems: "center" }}>
-            {isLoading ? (
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 2, width: "100%" }}>
-                <Box>
-                  <Skeleton variant="text" width="80%" />
-                  <Skeleton variant="text" width="100%" />
-                  <Skeleton variant="text" width="100%" />
-                  <Skeleton variant="text" width="70%" />
-                </Box>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  <Skeleton variant="rounded" height={28} />
-                  <Skeleton variant="rounded" height={28} />
-                  <Skeleton variant="rounded" height={28} />
-                </Box>
+      <CardContent sx={{ pt: 0, px: 1.5, pb: 1.5, "&:last-child": { pb: 1.5 } }}>
+        {/* Report Controls */}
+        {hasReportControls && (
+          <Box sx={{ mb: 1.5 }}>
+            <Box sx={{ display: "flex", gap: 1, alignItems: "flex-start", flexWrap: "wrap" }}>
+              <Box sx={{ flex: 1, minWidth: 150 }}>
+                <CippFormComponent
+                  name="reportId"
+                  label="Report"
+                  type="autoComplete"
+                  multiple={false}
+                  formControl={formControl}
+                  options={reports.map((r) => ({
+                    label: r.name,
+                    value: r.id,
+                    description: r.description,
+                  }))}
+                  placeholder="Select report"
+                  size="small"
+                />
               </Box>
-            ) : (
-              <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 2, width: "100%" }}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                    Description
-                  </Typography>
-                  <Tooltip title={descriptionText} arrow placement="top-start">
-                    <Typography
-                      variant="caption"
-                      color="text.primary"
-                      sx={{
-                        display: "-webkit-box",
-                        WebkitLineClamp: 6,
-                        WebkitBoxOrient: "vertical",
-                        overflow: "hidden",
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {descriptionText}
-                    </Typography>
-                  </Tooltip>
-                </Box>
-                {testCategories.length > 0 ? (
-                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                    {testCategories.map((category) => {
-                      const totalFromValues =
-                        category.passed +
-                        category.failed +
-                        category.skipped +
-                        category.informational +
-                        category.needsAttention;
-                      const denominator = category.total > 0 ? category.total : totalFromValues;
-                      const passWidth = denominator > 0 ? (category.passed / denominator) * 100 : 0;
-                      const failWidth = denominator > 0 ? (category.failed / denominator) * 100 : 0;
-                      const skipWidth = denominator > 0 ? (category.skipped / denominator) * 100 : 0;
-                      const infoWidth = denominator > 0 ? (category.informational / denominator) * 100 : 0;
-                      const needsAttentionWidth =
-                        denominator > 0 ? (category.needsAttention / denominator) * 100 : 0;
-                      const statusItems = [
-                        {
-                          key: "pass",
-                          value: category.passed,
-                          label: "Pass",
-                          color: "success.main",
-                        },
-                        {
-                          key: "fail",
-                          value: category.failed,
-                          label: "Fail",
-                          color: "error.main",
-                        },
-                        {
-                          key: "skip",
-                          value: category.skipped,
-                          label: "Skip",
-                          color: "warning.main",
-                        },
-                        {
-                          key: "info",
-                          value: category.informational,
-                          label: "Info",
-                          color: "info.main",
-                        },
-                        {
-                          key: "attention",
-                          value: category.needsAttention,
-                          label: "Attention",
-                          color: "text.primary",
-                        },
-                      ].filter((item) => item.value > 0);
-
-                      return (
-                        <Box key={category.key}>
-                          <Typography variant="caption" color="text.secondary">
-                            {category.label + ` (${category.total})`}
-                          </Typography>
-                          <Box
-                            sx={{
-                              height: 8,
-                              borderRadius: 5,
-                              mt: 0.25,
-                              overflow: "hidden",
-                              display: "flex",
-                              bgcolor: "action.hover",
-                            }}
-                          >
-                            <Box sx={{ width: `${passWidth}%`, bgcolor: "success.main" }} />
-                            <Box sx={{ width: `${failWidth}%`, bgcolor: "error.main" }} />
-                            <Box sx={{ width: `${skipWidth}%`, bgcolor: "warning.main" }} />
-                            <Box sx={{ width: `${infoWidth}%`, bgcolor: "info.main" }} />
-                            <Box sx={{ width: `${needsAttentionWidth}%`, bgcolor: "text.primary" }} />
-                          </Box>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              mt: 0.25,
-                              display: "block",
-                              whiteSpace: "normal",
-                              lineHeight: 1.25,
-                            }}
-                          >
-                            {statusItems.length > 0 ? (
-                              statusItems.map((item, index) => (
-                                <Box key={item.key} component="span">
-                                  {index > 0 ? " / " : ""}
-                                  <Box component="span" sx={{ color: item.color }}>
-                                    {item.value} {item.label}
-                                  </Box>
-                                </Box>
-                              ))
-                            ) : (
-                              <Box component="span">No results</Box>
-                            )}
-                          </Typography>
-                        </Box>
-                      );
-                    })}
-                  </Box>
+              <Box sx={{ display: "flex", gap: 0.5, flexWrap: "wrap", alignItems: "center" }}>
+                <Tooltip title="Create new report" arrow>
+                  <span>
+                    <CippAddTestReportDrawer iconOnly buttonProps={{ size: "small" }} />
+                  </span>
+                </Tooltip>
+                <Tooltip title="Refresh report data" arrow>
+                  <Button
+                    variant="contained"
+                    color="primary"
+                    size="small"
+                    onClick={onRefresh}
+                    sx={{ minWidth: 32, px: 1 }}
+                  >
+                    <RefreshIcon fontSize="small" />
+                  </Button>
+                </Tooltip>
+                <Tooltip title="Delete report" arrow>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    size="small"
+                    onClick={onDelete}
+                    sx={{ minWidth: 32, px: 1 }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </Button>
+                </Tooltip>
+              </Box>
+            </Box>
+          </Box>
+        )}
+        <Box sx={{ display: "flex", gap: 2, alignItems: "center" }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Box sx={{ mb: 0.75 }}>
+              <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                Identity
+              </Typography>
+              <Typography variant="subtitle1" fontWeight="bold" fontSize="0.95rem" lineHeight={1.2}>
+                {isLoading ? (
+                  <Skeleton width={60} />
                 ) : (
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Typography variant="caption" color="text.secondary">
-                      No assessment tests available
+                  <>
+                    <Box component="span" sx={{ color: "hsl(210, 65%, 55%)" }}>
+                      {identityPassed}
+                    </Box>
+                    /{identityTotal}
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ ml: 0.5 }}
+                      fontSize="0.65rem"
+                    >
+                      tests
                     </Typography>
-                  </Box>
+                  </>
                 )}
+              </Typography>
+            </Box>
+            {hasDeviceTests && (
+              <Box sx={{ mb: 0.75 }}>
+                <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
+                  Devices
+                </Typography>
+                <Typography variant="subtitle1" fontWeight="bold" fontSize="0.95rem" lineHeight={1.2}>
+                  {isLoading ? (
+                    <Skeleton width={60} />
+                  ) : (
+                    <>
+                      <Box component="span" sx={{ color: "hsl(140, 55%, 48%)" }}>
+                        {devicesPassed}
+                      </Box>
+                      /{devicesTotal}
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ ml: 0.5 }}
+                        fontSize="0.65rem"
+                      >
+                        tests
+                      </Typography>
+                    </>
+                  )}
+                </Typography>
               </Box>
             )}
-          </Box>
-
-          <Box
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              alignItems: "flex-end",
-              gap: 2,
-            }}
-          >
             <Box>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" fontSize="0.65rem">
                 Last Data Collection
               </Typography>
-              <Typography variant="body2" fontSize="0.75rem">
+              <Typography variant="body2" fontSize="0.7rem" lineHeight={1.3}>
                 {isLoading ? (
-                  <Skeleton width={100} />
+                  <Skeleton width={80} />
                 ) : data?.ExecutedAt ? (
                   <CippTimeAgo data={data?.ExecutedAt} />
                 ) : (
@@ -329,49 +220,43 @@ export const AssessmentCard = ({ data, isLoading, title, description }) => {
                 )}
               </Typography>
             </Box>
-
+          </Box>
+          <Box
+            ref={chartContainerRef}
+            sx={{
+              width: 90,
+              height: 90,
+              flexShrink: 0,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
             {isLoading ? (
-              <Box sx={{ width: "100%" }}>
-                <Skeleton variant="rounded" height={28} />
+              <Skeleton variant="circular" width={85} height={85} />
+            ) : canRenderChart ? (
+              <Box sx={{ width: "100%", height: "100%", minWidth: 0, minHeight: 0 }}>
+                <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0} debounce={50}>
+                  <RadialBarChart
+                    innerRadius="30%"
+                    outerRadius="95%"
+                    data={chartData}
+                    startAngle={90}
+                    endAngle={450}
+                    cx="50%"
+                    cy="50%"
+                  >
+                    <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+                    <RadialBar 
+                      dataKey="value" 
+                      background={{ fill: "hsl(0, 0%, 92%)" }}
+                      cornerRadius={8}
+                    />
+                  </RadialBarChart>
+                </ResponsiveContainer>
               </Box>
-            ) : overallCategory.show && (
-              <Box sx={{ textAlign: "left", width: "100%" }}>
-                <Typography variant="caption" color="text.secondary">
-                  {overallCategory.label + ` (${overallCategory.total})`}
-                </Typography>
-                <Box
-                  sx={{
-                    height: 8,
-                    borderRadius: 5,
-                    mt: 0.25,
-                    overflow: "hidden",
-                    display: "flex",
-                    bgcolor: "action.hover",
-                  }}
-                >
-                  <Box sx={{ width: `${overallPassWidth}%`, bgcolor: "success.main" }} />
-                  <Box sx={{ width: `${overallFailWidth}%`, bgcolor: "error.main" }} />
-                  <Box sx={{ width: `${overallSkipWidth}%`, bgcolor: "warning.main" }} />
-                  <Box sx={{ width: `${overallInfoWidth}%`, bgcolor: "info.main" }} />
-                  <Box sx={{ width: `${overallNeedsAttentionWidth}%`, bgcolor: "text.primary" }} />
-                </Box>
-                <Typography variant="caption" sx={{ display: "block", lineHeight: 1.25, mt: 0.25 }}>
-                  {overallStatusItems.length > 0 ? (
-                    overallStatusItems.map((item, index) => (
-                      <Box key={item.key} component="span">
-                        {index > 0 ? " / " : ""}
-                        <Box component="span" sx={{ color: item.color }}>
-                          {item.value} {item.label}
-                        </Box>
-                      </Box>
-                    ))
-                  ) : (
-                    <Box component="span" color="text.secondary">
-                      No results
-                    </Box>
-                  )}
-                </Typography>
-              </Box>
+            ) : (
+              <Skeleton variant="circular" width={85} height={85} />
             )}
           </Box>
         </Box>

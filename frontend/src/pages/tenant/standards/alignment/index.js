@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material'
-import { getStandards } from '../../../../utils/standards-data'
+import standardsData from '../../../../data/standards.json'
 
 const complianceColors = {
   compliant: 'success',
@@ -64,8 +64,8 @@ const getPageRows = (page) => {
 const getStandardInfo = (standardId) => {
   const baseName = standardId?.split('.').slice(0, -1).join('.')
   return (
-    getStandards().find((s) => s.name === standardId) ??
-    getStandards().find((s) => s.name === baseName)
+    standardsData.find((s) => s.name === standardId) ??
+    standardsData.find((s) => s.name === baseName)
   )
 }
 
@@ -117,7 +117,7 @@ const Page = () => {
       if (!standardKey) return
 
       const standardInfo = getStandardInfo(row.standardId)
-      const hasExactMatch = getStandards().find((s) => s.name === row.standardId)
+      const hasExactMatch = standardsData.find((s) => s.name === row.standardId)
       const standardName = hasExactMatch
         ? (standardInfo?.label ?? row.standardName ?? standardKey)
         : (row.standardName ?? standardInfo?.label ?? standardKey)
@@ -315,6 +315,7 @@ const Page = () => {
       icon: <EyeIcon />,
       color: 'info',
       target: '_self',
+      category: 'view',
     },
     {
       label: 'Edit Template',
@@ -322,6 +323,7 @@ const Page = () => {
       icon: <Edit />,
       color: 'success',
       target: '_self',
+      category: 'edit',
     },
     {
       label: 'Manage Drift',
@@ -330,6 +332,7 @@ const Page = () => {
       color: 'info',
       target: '_self',
       condition: (row) => row.standardType === 'drift',
+      category: 'manage',
     },
     {
       label: 'Remove Drift Customization',
@@ -344,6 +347,7 @@ const Page = () => {
         'Are you sure you want to remove all drift customizations? This resets the Drift Standard to the default template, and will generate alerts for the drifted items.',
       multiPost: false,
       condition: (row) => row.standardType === 'drift',
+      category: 'danger',
     },
   ]
 
@@ -354,6 +358,7 @@ const Page = () => {
       icon: <EyeIcon />,
       color: 'info',
       target: '_self',
+      category: 'view',
     },
     {
       label: 'Edit Template',
@@ -361,6 +366,7 @@ const Page = () => {
       icon: <Edit />,
       color: 'success',
       target: '_self',
+      category: 'edit',
     },
     {
       label: 'Manage Drift',
@@ -369,6 +375,7 @@ const Page = () => {
       color: 'info',
       target: '_self',
       condition: (row) => row.templateType === 'drift',
+      category: 'manage',
     },
   ]
 
@@ -429,8 +436,8 @@ const Page = () => {
       const diffs = compareValues(expectedParsed, currentParsed)
       const baseName = row.standardId?.split('.').slice(0, -1).join('.')
       const prettyName =
-        getStandards().find((s) => s.name === row.standardId)?.label ??
-        getStandards().find((s) => s.name === baseName)?.label ??
+        standardsData.find((s) => s.name === row.standardId)?.label ??
+        standardsData.find((s) => s.name === baseName)?.label ??
         row.standardName
 
       const statusColor = getComplianceColor(row.complianceStatus)

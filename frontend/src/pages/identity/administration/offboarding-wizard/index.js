@@ -78,6 +78,7 @@ const Page = () => {
       maxWidth: "lg",
       componentProps: {
         columns: 3,
+        replacementBehaviour: "removeNulls",
       },
     },
   ];

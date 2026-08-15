@@ -91,8 +91,7 @@ const Page = () => {
         labelField: 'id',
         valueField: 'id',
         queryKey: `ListGraphRequest-domains-${userSettings.currentTenant}`,
-        dataFilter: (options) =>
-          options.filter((option) => option?.addedFields?.isVerified === true), // Only include verified domains
+        dataFilter: (options) => options.filter((option) => option?.addedFields?.isVerified === true), // Only include verified domains
       },
       multiple: false,
       creatable: false,
@@ -138,72 +137,12 @@ const Page = () => {
         url: '/api/ListGroups',
         labelField: 'displayName',
         valueField: 'id',
-        queryKey: `ListGroups-${userSettings.currentTenant}`,
+        queryKey: 'ListGroups',
         addedField: {
           groupType: 'calculatedGroupType',
         },
       },
       multiple: true,
-      creatable: false,
-    },
-    {
-      label: 'Shared Mailboxes',
-      name: 'sharedMailboxes',
-      type: 'autoComplete',
-      api: {
-        url: '/api/ListMailboxes',
-        data: { RecipientTypeDetails: 'SharedMailbox' },
-        labelField: (option) => `${option.displayName} (${option.UPN})`,
-        valueField: 'UPN',
-        queryKey: `SharedMailboxes-${userSettings.currentTenant}`,
-      },
-      helperText:
-        'New users are granted access to these mailboxes 15 minutes after creation. With Full Access, Outlook adds them automatically.',
-      multiple: true,
-      creatable: false,
-    },
-    {
-      label: 'Shared Mailbox Permissions',
-      name: 'sharedMailboxPermission',
-      type: 'autoComplete',
-      options: [
-        { label: 'Full Access', value: 'FullAccess' },
-        { label: 'Send As', value: 'SendAs' },
-        { label: 'Send on Behalf', value: 'SendOnBehalf' },
-      ],
-      helperText: 'Defaults to Full Access. Select several to grant them together.',
-      multiple: true,
-      creatable: false,
-    },
-    {
-      label: 'Shared Calendars',
-      name: 'sharedCalendars',
-      type: 'autoComplete',
-      api: {
-        url: '/api/ListMailboxes',
-        data: { RecipientTypeDetails: 'SharedMailbox' },
-        labelField: (option) => `${option.displayName} (${option.UPN})`,
-        valueField: 'UPN',
-        queryKey: `SharedMailboxes-${userSettings.currentTenant}`,
-      },
-      helperText:
-        'New users are sent a sharing invitation for these calendars 15 minutes after creation.',
-      multiple: true,
-      creatable: false,
-    },
-    {
-      label: 'Shared Calendar Permission',
-      name: 'sharedCalendarPermission',
-      type: 'autoComplete',
-      // Exchange only sends a sharing invitation for these access levels.
-      options: [
-        { label: 'Editor', value: 'Editor' },
-        { label: 'Reviewer', value: 'Reviewer' },
-        { label: 'Limited Details', value: 'LimitedDetails' },
-        { label: 'Availability Only', value: 'AvailabilityOnly' },
-      ],
-      helperText: 'Defaults to Editor.',
-      multiple: false,
       creatable: false,
     },
     {
@@ -256,13 +195,6 @@ const Page = () => {
       name: 'businessPhones[0]',
       type: 'textField',
     },
-    ...(userSettings?.userAttributes
-      ?.filter((attribute) => attribute.value !== 'sponsor')
-      .map((attribute) => ({
-        label: attribute.label,
-        name: `defaultAttributes.${attribute.label}.Value`,
-        type: 'textField',
-      })) || []),
   ]
 
   const actions = [
@@ -276,6 +208,7 @@ const Page = () => {
       confirmText: 'Edit the template and click Confirm to save.',
       relatedQueryKeys: [`ListNewUserDefaults-${userSettings.currentTenant}`],
       fields: templateFields,
+      category: "edit",
     },
     {
       label: 'Delete Template',
@@ -285,6 +218,7 @@ const Page = () => {
       data: { ID: 'GUID' },
       confirmText: 'Do you want to delete this User Default template?',
       multiPost: false,
+      category: "danger",
     },
   ]
 
@@ -300,10 +234,6 @@ const Page = () => {
       'usageLocation',
       'licenses',
       'groupMemberships',
-      'sharedMailboxes',
-      'sharedMailboxPermission',
-      'sharedCalendars',
-      'sharedCalendarPermission',
       'jobTitle',
       'streetAddress',
       'city',
@@ -314,15 +244,13 @@ const Page = () => {
       'department',
       'mobilePhone',
       'businessPhones',
-      ...(userSettings?.userAttributes
-        ?.filter((attribute) => attribute.value !== 'sponsor')
-        .map((attribute) => `defaultAttributes.${attribute.label}.Value`) || []),
     ],
     actions: actions,
   }
 
   const createTemplateAction = {
     label: 'Create User Default Template',
+    category: "manage",
     type: 'POST',
     url: '/api/AddUserDefaults',
 

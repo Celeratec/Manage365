@@ -1,4 +1,4 @@
-import { Drawer, Box, IconButton, Typography, Divider } from "@mui/material";
+import { Drawer, Box, IconButton, Typography, Divider, useTheme } from "@mui/material";
 import { CippPropertyListCard } from "../CippCards/CippPropertyListCard";
 import { getCippTranslation } from "../../utils/get-cipp-translation";
 import { getCippFormatting } from "../../utils/get-cipp-formatting";
@@ -27,7 +27,9 @@ export const CippOffCanvas = (props) => {
     keepMounted = false,
   } = props;
 
-  const mdDown = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  const theme = useTheme();
+  const mdDown = useMediaQuery(theme.breakpoints.down("md"));
+  const smDown = useMediaQuery(theme.breakpoints.down("sm"));
   const extendedInfo = extendedInfoFields.map((field) => {
     const value = field.split(".").reduce((acc, part) => acc && acc[part], extendedData);
     if (value === undefined || value === null) {
@@ -89,31 +91,56 @@ export const CippOffCanvas = (props) => {
         onClose={onClose}
       >
         <Box
-          sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 1.5 }}
+          sx={{ 
+            display: "flex", 
+            justifyContent: "space-between", 
+            alignItems: "center", 
+            p: smDown ? 2 : 1.5,
+            // Safe area for notched phones
+            paddingTop: smDown ? 'max(16px, env(safe-area-inset-top))' : 1.5,
+          }}
         >
-          <Typography variant="h5">{title}</Typography>
-          <Box sx={{ display: "flex", gap: 0.5 }}>
+          <Typography variant={smDown ? "h6" : "h5"} sx={{ pr: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {title}
+          </Typography>
+          <Box sx={{ display: "flex", gap: smDown ? 1 : 0.5, flexShrink: 0 }}>
             {(canNavigateUp || canNavigateDown) && (
               <>
                 <IconButton
                   onClick={onNavigateUp}
                   disabled={!canNavigateUp}
-                  size="small"
+                  size={smDown ? "medium" : "small"}
                   title="Previous row"
+                  sx={{ 
+                    // Minimum 44px touch target for mobile
+                    minWidth: smDown ? 44 : 'auto',
+                    minHeight: smDown ? 44 : 'auto',
+                  }}
                 >
                   <KeyboardArrowUpIcon />
                 </IconButton>
                 <IconButton
                   onClick={onNavigateDown}
                   disabled={!canNavigateDown}
-                  size="small"
+                  size={smDown ? "medium" : "small"}
                   title="Next row"
+                  sx={{ 
+                    minWidth: smDown ? 44 : 'auto',
+                    minHeight: smDown ? 44 : 'auto',
+                  }}
                 >
                   <KeyboardArrowDownIcon />
                 </IconButton>
               </>
             )}
-            <IconButton onClick={onClose}>
+            <IconButton 
+              onClick={onClose}
+              size={smDown ? "medium" : "small"}
+              sx={{ 
+                minWidth: smDown ? 44 : 'auto',
+                minHeight: smDown ? 44 : 'auto',
+              }}
+            >
               <CloseIcon />
             </IconButton>
           </Box>
@@ -146,6 +173,7 @@ export const CippOffCanvas = (props) => {
                     copyItems={true}
                     actionItems={actions}
                     data={extendedData}
+                    actionsCollapsedByDefault={true}
                   />
                 </Grid>
               )}

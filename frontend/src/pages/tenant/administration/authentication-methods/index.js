@@ -240,6 +240,7 @@ const Page = () => {
       data: { state: "!enabled", id: "id" },
       confirmText: "Are you sure you want to enable this policy?",
       multiPost: false,
+      category: "edit",
     },
     {
       label: "Disable Policy",
@@ -249,6 +250,7 @@ const Page = () => {
       data: { state: "!disabled", id: "id" },
       confirmText: "Are you sure you want to disable this policy?",
       multiPost: false,
+      category: "edit",
     },
     {
       label: "Deploy to Custom Group",
@@ -278,9 +280,11 @@ const Page = () => {
         };
       },
       multiPost: false,
+      category: "manage",
     },
     {
       label: "Assign to All Users",
+      category: "security",
       type: "POST",
       icon: <Public />,
       url: "/api/SetAuthMethod",
@@ -296,6 +300,7 @@ const Page = () => {
     },
     {
       label: "Configure",
+      category: "security",
       type: "POST",
       icon: <Settings />,
       url: "/api/SetAuthMethod",

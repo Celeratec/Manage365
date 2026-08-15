@@ -22,6 +22,7 @@ const Page = () => {
         postEntireRow: true,
         icon: <Edit />,
         color: "warning",
+        category: "edit",
       },
       {
         label: "Delete Policy",
@@ -29,7 +30,7 @@ const Page = () => {
         url: "/api/ExecManageRetentionPolicies",
         confirmText:
           "Are you sure you want to delete retention policy [Name]? This action cannot be undone.",
-        color: "danger",
+        color: "error",
         icon: <TrashIcon />,
         customDataformatter: (rows) => {
           const policies = Array.isArray(rows) ? rows : [rows];
@@ -38,6 +39,7 @@ const Page = () => {
             tenantFilter: tenant,
           };
         },
+        category: "danger",
       },
     ],
     [tenant]
@@ -64,7 +66,6 @@ const Page = () => {
   return (
     <HeaderedTabbedLayout tabOptions={tabOptions} title={pageTitle}>
       <CippTablePage
-        title={pageTitle}
         apiUrl="/api/ExecManageRetentionPolicies"
         queryKey={`RetentionPolicies-${tenant}`}
         actions={actions}

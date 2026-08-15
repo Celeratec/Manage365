@@ -17,6 +17,7 @@ const Page = () => {
       target: "_blank",
       multiPost: false,
       external: true,
+      category: "view",
     },
   ];
 

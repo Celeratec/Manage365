@@ -27,12 +27,14 @@ const Page = () => {
       label: "Edit Template",
       color: "warning",
       link: "/tenant/administration/applications/templates/edit?template=[TemplateId]&name=[TemplateName]",
+      category: "edit",
     },
     {
       icon: <ContentCopy />,
       label: "Copy Template",
       color: "info",
       link: "/tenant/administration/applications/templates/add?template=[TemplateId]&copy=true&name=[TemplateName]",
+      category: "edit",
     },
     {
       icon: <GitHub />,
@@ -78,11 +80,12 @@ const Page = () => {
       ],
       confirmText: "Are you sure you want to save this template to the selected repository?",
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
+      category: "manage",
     },
     {
       icon: <Delete />,
       label: "Delete Template",
-      color: "danger",
+      color: "error",
       url: "/api/ExecAppApprovalTemplate",
       data: {
         Action: "Delete",
@@ -90,6 +93,7 @@ const Page = () => {
       },
       type: "POST",
       confirmText: "Are you sure you want to delete [TemplateName]?",
+      category: "danger",
     },
   ];
 

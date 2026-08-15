@@ -86,7 +86,7 @@ const CippBackupRetentionSettings = () => {
       }
     >
       <Typography variant="body2">
-        Configure how long to keep backup files. Both CIPP system backups and tenant backups will be
+        Configure how long to keep backup files. Both Manage365 system backups and tenant backups will be
         automatically deleted after this period. Minimum retention is 7 days, default is 30 days.
         Cleanup runs daily at 2:00 AM.
       </Typography>

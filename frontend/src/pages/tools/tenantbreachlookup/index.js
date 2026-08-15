@@ -18,6 +18,7 @@ const Page = () => {
       multiPost: false,
       icon: <EyeIcon />,
       color: "success",
+      category: "view",
     },
   ];
 

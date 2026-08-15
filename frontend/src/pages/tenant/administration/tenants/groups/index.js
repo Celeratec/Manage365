@@ -32,6 +32,7 @@ const Page = () => {
       label: "Edit Group",
       link: "/tenant/administration/tenants/groups/edit?id=[Id]",
       icon: <Edit />,
+      category: "edit",
     },
     {
       label: "Run Dynamic Rules",
@@ -42,6 +43,7 @@ const Page = () => {
       queryKey: "TenantGroupListPage",
       confirmText: "Are you sure you want to run dynamic rules for [Name]?",
       condition: (row) => row.GroupType === "dynamic",
+      category: "manage",
     },
     {
       label: "Delete Group",
@@ -51,6 +53,7 @@ const Page = () => {
       data: { action: "Delete", groupId: "Id" },
       queryKey: "TenantGroupListPage",
       confirmText: "Are you sure you want to delete [Name]?",
+      category: "danger",
     },
   ];
 

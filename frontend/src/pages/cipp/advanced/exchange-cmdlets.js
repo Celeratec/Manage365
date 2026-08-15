@@ -92,6 +92,7 @@ const Page = () => {
       label: "Check Roles",
       noConfirm: true,
       customFunction: checkCmdletRoles,
+      category: "view",
     },
   ];
 

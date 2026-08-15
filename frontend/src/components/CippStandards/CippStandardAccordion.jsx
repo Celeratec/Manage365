@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
   Card,
   Stack,
-  Alert,
   Avatar,
   Box,
   Typography,
@@ -16,10 +15,6 @@ import {
   InputAdornment,
   ButtonGroup,
   Button,
-  Menu,
-  MenuItem,
-  Checkbox,
-  ListItemText,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -32,12 +27,13 @@ import {
   NotificationImportant,
   Assignment,
   Construction,
-  Warning,
 } from "@mui/icons-material";
 import { Grid } from "@mui/system";
 import CippFormComponent from "../CippComponents/CippFormComponent";
 import { useWatch, useFormState } from "react-hook-form";
-import { get, isEqual, cloneDeep } from "lodash";
+import get from "lodash/get";
+import isEqual from "lodash/isEqual";
+import cloneDeep from "lodash/cloneDeep";
 import Microsoft from "../../icons/iconly/bulk/microsoft";
 import Azure from "../../icons/iconly/bulk/azure";
 import Exchange from "../../icons/iconly/bulk/exchange";
@@ -45,7 +41,7 @@ import Defender from "../../icons/iconly/bulk/defender";
 import Intune from "../../icons/iconly/bulk/intune";
 import GDAPRoles from "../../data/GDAPRoles";
 import timezoneList from "../../data/timezoneList";
-import { getStandards } from "../../utils/standards-data";
+import standards from "../../data/standards.json";
 import { CippFormCondition } from "../CippComponents/CippFormCondition";
 import { CippPolicyImportDrawer } from "../CippComponents/CippPolicyImportDrawer";
 import ReactMarkdown from "react-markdown";
@@ -59,9 +55,8 @@ const getAvailableActions = (disabledFeatures) => {
   return allActions.filter((action) => !disabledFeatures?.[action.value.toLowerCase()]);
 };
 
-const CippAddedComponent = React.memo(({ standardName, component, formControl, currentValue }) => {
+const CippAddedComponent = React.memo(({ standardName, component, formControl }) => {
   const updatedComponent = { ...component };
-  const fieldName = `${standardName}.${updatedComponent.name}`;
 
   if (component.type === "AdminRolesMultiSelect") {
     updatedComponent.type = "autoComplete";
@@ -80,30 +75,15 @@ const CippAddedComponent = React.memo(({ standardName, component, formControl, c
     updatedComponent.type = component.type;
   }
 
-  const warningThreshold = Number(updatedComponent.warningThreshold);
-  const numericValue = Number(currentValue);
-  const showThresholdWarning =
-    Number.isFinite(warningThreshold) &&
-    !Number.isNaN(numericValue) &&
-    `${currentValue}`.trim() !== "" &&
-    numericValue > warningThreshold;
-
-  const warningMessage =
-    updatedComponent.warningMessage ||
-    `Values above ${warningThreshold} can match unrelated policies. Use with caution.`;
-
   return (
     <Grid size={12}>
-      <Stack spacing={1}>
-        <CippFormComponent
-          type={updatedComponent.type}
-          label={updatedComponent.label}
-          formControl={formControl}
-          {...updatedComponent}
-          name={fieldName}
-        />
-        {showThresholdWarning && <Alert severity="warning">{warningMessage}</Alert>}
-      </Stack>
+      <CippFormComponent
+        type={updatedComponent.type}
+        label={updatedComponent.label}
+        formControl={formControl}
+        {...updatedComponent}
+        name={`${standardName}.${updatedComponent.name}`}
+      />
     </Grid>
   );
 });
@@ -125,8 +105,6 @@ const CippStandardAccordion = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [savedValues, setSavedValues] = useState({});
   const [originalValues, setOriginalValues] = useState({});
-  const [bulkAnchorEl, setBulkAnchorEl] = useState(null);
-  const [bulkActions, setBulkActions] = useState([]);
 
   const watchedValues = useWatch({
     control: formControl.control,
@@ -312,9 +290,9 @@ const CippStandardAccordion = ({
         const updated = { ...prev };
         removedKeys.forEach((k) => delete updated[k]);
         addedKeys.forEach((k) => {
-          const currentValues = get(watchedValues, k);
+          const currentValues = _.get(watchedValues, k);
           if (currentValues) {
-            updated[k] = cloneDeep(currentValues);
+            updated[k] = _.cloneDeep(currentValues);
           }
         });
         return updated;
@@ -326,7 +304,7 @@ const CippStandardAccordion = ({
         addedKeys.forEach((k) => {
           const baseStandardName = k.split("[")[0];
           const standard = providedStandards.find((s) => s.name === baseStandardName);
-          const currentValues = get(watchedValues, k);
+          const currentValues = _.get(watchedValues, k);
           if (standard && currentValues) {
             updated[k] = isStandardConfigured(k, standard, currentValues);
           }
@@ -373,44 +351,6 @@ const CippStandardAccordion = ({
     formControl.setValue(`${standardName}.action`, action);
   };
 
-  // Apply the selected action set to every standard in the template
-  const handleBulkSetActions = () => {
-    // Collapse any expanded accordion so the action change isn't edited underneath the user
-    if (expanded) {
-      handleAccordionToggle(null);
-    }
-
-    const newSaved = {};
-    const newConfigured = {};
-
-    Object.keys(selectedStandards).forEach((standardName) => {
-      const baseStandardName = standardName.split("[")[0];
-      const standard = providedStandards.find((s) => s.name === baseStandardName);
-      if (!standard) return; // unknown/removed standard — skip
-      if (standard.deprecated) return; // deprecated standards can't be configured
-
-      // Replace the action selection, keeping only actions this standard supports
-      const nextActions = getAvailableActions(standard.disabledFeatures).filter((action) =>
-        bulkActions.includes(action.value),
-      );
-      if (nextActions.length === 0) return;
-
-      formControl.setValue(`${standardName}.action`, nextActions, { shouldDirty: true });
-
-      // Only the action is saved — any other unsaved edits stay unsaved so Cancel still reverts them
-      const previous = get(savedValues, standardName);
-      const merged = previous
-        ? { ...cloneDeep(previous), action: nextActions }
-        : { action: nextActions };
-      newSaved[standardName] = merged;
-      newConfigured[standardName] = isStandardConfigured(standardName, standard, merged);
-    });
-
-    setSavedValues((prev) => ({ ...prev, ...newSaved }));
-    setConfiguredState((prev) => ({ ...prev, ...newConfigured }));
-    setBulkAnchorEl(null);
-  };
-
   // Cancel changes for a standard
   const handleCancel = (standardName) => {
     // Get the last saved values
@@ -446,25 +386,9 @@ const CippStandardAccordion = ({
     Object.keys(selectedStandards).forEach((standardName) => {
       const baseStandardName = standardName.split("[")[0];
       const standard = providedStandards.find((s) => s.name === baseStandardName);
+      if (!standard) return;
 
-      if (!standard) {
-        // Unknown/deprecated standard — surface it so the user can remove it
-        const unknownCategory = "Unknown Standards";
-        if (!result[unknownCategory]) {
-          result[unknownCategory] = [];
-        }
-        result[unknownCategory].push({
-          standardName,
-          standard: {
-            _unknown: true,
-            name: baseStandardName,
-            label: baseStandardName,
-          },
-        });
-        return;
-      }
-
-      const standardInfo = getStandards().find((s) => s.name === baseStandardName);
+      const standardInfo = standards.find((s) => s.name === baseStandardName);
       const category = standardInfo?.cat || "Other Standards";
 
       if (!result[category]) {
@@ -561,8 +485,6 @@ const CippStandardAccordion = ({
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
-            flexWrap="wrap"
-            useFlexGap
             sx={{
               mt: 2,
               mb: 3,
@@ -657,52 +579,6 @@ const CippStandardAccordion = ({
                 Unconfigured ({standardCounts.unconfiguredCount})
               </Button>
             </ButtonGroup>
-            {!isDriftMode && (
-              <>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  size="small"
-                  onClick={(e) => setBulkAnchorEl(e.currentTarget)}
-                >
-                  Set All Actions
-                </Button>
-                <Menu
-                  anchorEl={bulkAnchorEl}
-                  open={Boolean(bulkAnchorEl)}
-                  onClose={() => setBulkAnchorEl(null)}
-                >
-                  {getAvailableActions({}).map((action) => (
-                    <MenuItem
-                      key={action.value}
-                      dense
-                      onClick={() =>
-                        setBulkActions((prev) =>
-                          prev.includes(action.value)
-                            ? prev.filter((v) => v !== action.value)
-                            : [...prev, action.value],
-                        )
-                      }
-                    >
-                      <Checkbox
-                        size="small"
-                        checked={bulkActions.includes(action.value)}
-                        disableRipple
-                        sx={{ p: 0.5, mr: 1 }}
-                      />
-                      <ListItemText primary={action.label} />
-                    </MenuItem>
-                  ))}
-                  <Divider />
-                  <MenuItem dense disabled={bulkActions.length === 0} onClick={handleBulkSetActions}>
-                    <ListItemText
-                      primary="Apply to all standards"
-                      slotProps={{ primary: { color: "primary" } }}
-                    />
-                  </MenuItem>
-                </Menu>
-              </>
-            )}
           </Stack>
 
           {!hasFilteredStandards && (
@@ -722,69 +598,6 @@ const CippStandardAccordion = ({
           </Typography>
 
           {filteredGroupedStandards[category].map(({ standardName, standard }) => {
-            if (standard._unknown) {
-              const isExpanded = expanded === standardName;
-              const rawData = get(watchedValues, standardName);
-              return (
-                <Card key={standardName} sx={{ mb: 2, borderLeft: "4px solid", borderColor: "warning.main" }}>
-                  <Stack
-                    direction="row"
-                    justifyContent="space-between"
-                    alignItems="center"
-                    sx={{ p: 2 }}
-                  >
-                    <Stack direction="row" alignItems="center" spacing={2}>
-                      <Avatar sx={{ bgcolor: "warning.main" }}>
-                        <Warning />
-                      </Avatar>
-                      <Stack>
-                        <Typography variant="h6">{standard.label}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          This standard no longer exists and should be removed.
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                    <Stack direction="row" alignItems="center" spacing={1}>
-                      <Tooltip title="Remove Unknown Standard">
-                        <IconButton color="error" onClick={() => handleRemoveStandard(standardName)}>
-                          <Delete />
-                        </IconButton>
-                      </Tooltip>
-                      <IconButton onClick={() => handleAccordionToggle(standardName)}>
-                        <SvgIcon
-                          component={ExpandMoreIcon}
-                          sx={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}
-                        />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-                  <Collapse in={isExpanded} unmountOnExit>
-                    <Divider />
-                    <Box sx={{ p: 2 }}>
-                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                        Stored Configuration
-                      </Typography>
-                      <Box
-                        component="pre"
-                        sx={{
-                          p: 2,
-                          borderRadius: 1,
-                          bgcolor: "background.default",
-                          overflow: "auto",
-                          maxHeight: 300,
-                          fontSize: "0.8rem",
-                          whiteSpace: "pre-wrap",
-                          wordBreak: "break-word",
-                        }}
-                      >
-                        {JSON.stringify(rawData, null, 2)}
-                      </Box>
-                    </Box>
-                  </Collapse>
-                </Card>
-              );
-            }
-
             const isExpanded = expanded === standardName;
             const hasAddedComponents =
               standard.addedComponent && standard.addedComponent.length > 0;
@@ -821,8 +634,8 @@ const CippStandardAccordion = ({
             const accordionTitle = templateDisplayName
               ? `${standard.label} - ${templateDisplayName}`
               : selectedTemplateName && get(selectedTemplateName, "label")
-                ? `${standard.label} - ${get(selectedTemplateName, "label")}`
-                : standard.label;
+              ? `${standard.label} - ${get(selectedTemplateName, "label")}`
+              : standard.label;
 
             // Get current values and check if they differ from saved values
             const current = get(watchedValues, standardName);
@@ -1129,10 +942,6 @@ const CippStandardAccordion = ({
                                     standardName={standardName}
                                     component={component}
                                     formControl={formControl}
-                                    currentValue={get(
-                                      watchedValues,
-                                      `${standardName}.${component.name}`,
-                                    )}
                                   />
                                 </CippFormCondition>
                               ) : (
@@ -1141,10 +950,6 @@ const CippStandardAccordion = ({
                                   standardName={standardName}
                                   component={component}
                                   formControl={formControl}
-                                  currentValue={get(
-                                    watchedValues,
-                                    `${standardName}.${component.name}`,
-                                  )}
                                 />
                               ),
                             )}
@@ -1195,10 +1000,6 @@ const CippStandardAccordion = ({
                                       standardName={standardName}
                                       component={component}
                                       formControl={formControl}
-                                      currentValue={get(
-                                        watchedValues,
-                                        `${standardName}.${component.name}`,
-                                      )}
                                     />
                                   </CippFormCondition>
                                 ) : (
@@ -1207,10 +1008,6 @@ const CippStandardAccordion = ({
                                     standardName={standardName}
                                     component={component}
                                     formControl={formControl}
-                                    currentValue={get(
-                                      watchedValues,
-                                      `${standardName}.${component.name}`,
-                                    )}
                                   />
                                 ),
                               )}

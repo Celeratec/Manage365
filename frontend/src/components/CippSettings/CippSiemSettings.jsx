@@ -30,7 +30,7 @@ const CippSiemSettings = () => {
 
   return (
     <CippButtonCard
-      title="CIPP Logs Table Access"
+      title="Manage365 Logs Table Access"
       cardSx={{ display: "flex", flexDirection: "column", height: "100%" }}
       CardButton={
         <Button
@@ -46,7 +46,7 @@ const CippSiemSettings = () => {
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2, flex: 1 }}>
         <Alert severity="info">
-          Generate a read-only SAS token for the CIPP Logs table. This token can be used to query
+          Generate a read-only SAS token for the Manage365 Logs table. This token can be used to query
           log data from external SIEM tools or scripts using the Azure Table Storage REST API. Note
           that generating a new URL does not invalidate previous URLs.
         </Alert>

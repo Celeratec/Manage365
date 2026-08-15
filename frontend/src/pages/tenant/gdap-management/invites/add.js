@@ -110,7 +110,7 @@ const Page = () => {
                     the customer tenant.
                   </ListItem>
                   <ListItem sx={{ display: "list-item" }}>
-                    The Onboarding link is for a CIPP Administrator to complete the onboarding
+                    The Onboarding link is for a Manage365 Administrator to complete the onboarding
                     process.
                   </ListItem>
                 </List>
@@ -128,7 +128,7 @@ const Page = () => {
               <>
                 <Grid size={12}>
                   <Alert severity="warning">
-                    The CIPP Defaults template is missing from the GDAP Role Templates. Create it
+                    The Manage365 Defaults template is missing from the GDAP Role Templates. Create it
                     now?
                     <Button
                       size="small"
@@ -146,7 +146,7 @@ const Page = () => {
                         </SvgIcon>
                       }
                     >
-                      Create CIPP Defaults
+                      Create Manage365 Defaults
                     </Button>
                   </Alert>
                 </Grid>

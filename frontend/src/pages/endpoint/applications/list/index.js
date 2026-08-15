@@ -2,13 +2,26 @@ import { Layout as DashboardLayout } from '../../../../layouts/index.js'
 import { CippTablePage } from '../../../../components/CippComponents/CippTablePage.jsx'
 import { CippApiDialog } from '../../../../components/CippComponents/CippApiDialog.jsx'
 import { GlobeAltIcon, TrashIcon, UserIcon, UserGroupIcon } from '@heroicons/react/24/outline'
-import { LaptopMac, Sync, BookmarkAdd } from '@mui/icons-material'
+import {
+  LaptopMac,
+  Sync,
+  Apps,
+  CheckCircle,
+  Cancel,
+  CalendarToday,
+  Assignment,
+  BookmarkAdd,
+} from '@mui/icons-material'
 import { CippApplicationDeployDrawer } from '../../../../components/CippComponents/CippApplicationDeployDrawer'
-import { Button } from '@mui/material'
-import { Stack } from '@mui/system'
+import { Button, Paper, Avatar, Typography, Chip, Divider, useTheme } from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import { Box, Stack } from '@mui/system'
+import { useCallback } from 'react'
+import { useRouter } from 'next/router'
 import { useSettings } from '../../../../hooks/use-settings.js'
 import { useDialog } from '../../../../hooks/use-dialog.js'
-import { useCippReportDB } from '../../../../components/CippComponents/CippReportDBControls'
+import { getCippFormatting } from '../../../../utils/get-cipp-formatting'
+import { getInitials, stringToColor } from '../../../../utils/get-initials'
 
 const assignmentIntentOptions = [
   { label: 'Required', value: 'Required' },
@@ -51,17 +64,55 @@ const mapOdataToAppType = (odataType) => {
 
 const Page = () => {
   const pageTitle = 'Applications'
-  const vppSyncDialog = useDialog()
+  const syncDialog = useDialog()
   const tenant = useSettings().currentTenant
+  const theme = useTheme()
+  const router = useRouter()
 
-  const reportDB = useCippReportDB({
-    apiUrl: '/api/ListApps',
-    queryKey: 'ListApps',
-    cacheName: 'IntuneApplications',
-    syncTitle: 'Sync Intune Applications Report',
-    allowToggle: true,
-    defaultCached: false,
-  })
+  const handleCardClick = useCallback(
+    (app) => {
+      router.push(`/endpoint/applications/list/view?appId=${encodeURIComponent(app.id || '')}`)
+    },
+    [router]
+  )
+
+  // Card view configuration (works for both mobile and desktop)
+  const cardConfig = {
+    title: 'displayName',
+    subtitle: 'publishingState',
+    avatar: {
+      field: 'displayName',
+      icon: () => <Apps />,
+    },
+    badges: [
+      {
+        field: 'isAssigned',
+        tooltip: 'Assignment Status',
+        conditions: {
+          true: { label: 'Assigned', color: 'success' },
+          false: { label: 'Unassigned', color: 'default' },
+        },
+      },
+    ],
+    extraFields: [{ field: 'AppAssignment', maxLines: 2 }],
+    // Additional fields shown only on desktop cards
+    desktopFields: [
+      { field: 'lastModifiedDateTime', label: 'Last Modified' },
+      { field: 'createdDateTime', label: 'Created' },
+    ],
+    // Grid sizing for consistent card widths
+    cardGridProps: {
+      md: 6,
+      lg: 4,
+    },
+    mobileQuickActions: [
+      'Assign to All Users',
+      'Assign to All Devices',
+      'Assign to Custom Group',
+      'Delete Application',
+    ],
+    maxQuickActions: 8,
+  }
 
   const getAssignmentFilterFields = () => [
     {
@@ -182,6 +233,8 @@ const Page = () => {
       confirmText: 'Are you sure you want to assign "[displayName]" to all users?',
       icon: <UserIcon />,
       color: 'info',
+      category: 'manage',
+      quickAction: true,
     },
     {
       label: 'Assign to All Devices',
@@ -197,6 +250,8 @@ const Page = () => {
       confirmText: 'Are you sure you want to assign "[displayName]" to all devices?',
       icon: <LaptopMac />,
       color: 'info',
+      category: 'manage',
+      quickAction: true,
     },
     {
       label: 'Assign Globally (All Users / All Devices)',
@@ -212,6 +267,7 @@ const Page = () => {
       confirmText: 'Are you sure you want to assign "[displayName]" to all users and devices?',
       icon: <GlobeAltIcon />,
       color: 'info',
+      category: 'manage',
     },
     {
       label: 'Assign to Custom Group',
@@ -220,6 +276,7 @@ const Page = () => {
       allowResubmit: true,
       icon: <UserGroupIcon />,
       color: 'info',
+      category: 'manage',
       confirmText: 'Select the target groups and intent for "[displayName]".',
       fields: [
         { type: 'heading', label: 'Target groups' },
@@ -324,12 +381,14 @@ const Page = () => {
             config: JSON.stringify({
               ApplicationName: r.displayName,
               IntuneBody: r,
-              AssignTo: 'On',
+              assignTo: 'On',
             }),
           })),
         }
       },
       confirmText: 'Save selected application(s) as a reusable template?',
+      category: 'manage',
+      quickAction: true,
     },
     {
       label: 'Delete Application',
@@ -341,28 +400,246 @@ const Page = () => {
       confirmText: 'Are you sure you want to delete "[displayName]"?',
       icon: <TrashIcon />,
       color: 'danger',
+      category: 'danger',
+      quickAction: true,
     },
   ]
 
   const offCanvas = {
-    extendedInfoFields: [
-      'installExperience.runAsAccount',
-      'installExperience.deviceRestartBehavior',
-      'isAssigned',
-      'createdDateTime',
-      'lastModifiedDateTime',
-      'isFeatured',
-      'publishingState',
-      'dependentAppCount',
-      'rules.0.ruleType',
-      'rules.0.fileOrFolderName',
-      'rules.0.path',
-    ],
     actions: actions,
+    children: (row) => {
+      const isAssigned = row.isAssigned === true
+      const statusColor = isAssigned ? theme.palette.success.main : theme.palette.grey[500]
+
+      return (
+        <Stack spacing={3}>
+          {/* Hero Section */}
+          <Paper
+            elevation={0}
+            sx={{
+              p: 2.5,
+              borderRadius: 2,
+              background: `linear-gradient(135deg, ${alpha(theme.palette.primary.main, 0.15)} 0%, ${alpha(theme.palette.primary.main, 0.05)} 100%)`,
+              borderLeft: `4px solid ${theme.palette.primary.main}`,
+            }}
+          >
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar
+                sx={{
+                  bgcolor: stringToColor(row.displayName || 'A'),
+                  width: 56,
+                  height: 56,
+                }}
+              >
+                <Apps />
+              </Avatar>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
+                  {row.displayName || 'Unknown Application'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {row.publishingState || 'Unknown state'}
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
+
+          {/* Status */}
+          <Box>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ fontWeight: 600, letterSpacing: 1, mb: 1.5, display: 'block' }}
+            >
+              Assignment Status
+            </Typography>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip
+                icon={isAssigned ? <CheckCircle fontSize="small" /> : <Cancel fontSize="small" />}
+                label={isAssigned ? 'Assigned' : 'Unassigned'}
+                color={isAssigned ? 'success' : 'default'}
+                variant="filled"
+                sx={{ fontWeight: 600 }}
+              />
+              {row.isFeatured && (
+                <Chip label="Featured" color="info" variant="outlined" size="small" />
+              )}
+            </Stack>
+          </Box>
+
+          {/* Assignments */}
+          {(row.AppAssignment || row.AppExclude) && (
+            <>
+              <Divider />
+              <Box>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <Assignment fontSize="small" color="action" />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Assignments
+                  </Typography>
+                </Stack>
+                <Stack spacing={1}>
+                  {row.AppAssignment && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Typography variant="body2" color="text.secondary">
+                        Assigned To
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}
+                      >
+                        {row.AppAssignment}
+                      </Typography>
+                    </Stack>
+                  )}
+                  {row.AppExclude && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Typography variant="body2" color="text.secondary">
+                        Excluded
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        sx={{ fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}
+                      >
+                        {row.AppExclude}
+                      </Typography>
+                    </Stack>
+                  )}
+                  {row.dependentAppCount > 0 && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Dependencies
+                      </Typography>
+                      <Chip label={row.dependentAppCount} size="small" variant="outlined" />
+                    </Stack>
+                  )}
+                </Stack>
+              </Box>
+            </>
+          )}
+
+          {/* Install Experience */}
+          {row.installExperience && (
+            <>
+              <Divider />
+              <Box>
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+                  <LaptopMac fontSize="small" color="action" />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Install Experience
+                  </Typography>
+                </Stack>
+                <Stack spacing={1}>
+                  {row.installExperience.runAsAccount && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Run As
+                      </Typography>
+                      <Chip
+                        label={row.installExperience.runAsAccount}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Stack>
+                  )}
+                  {row.installExperience.deviceRestartBehavior && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Restart Behavior
+                      </Typography>
+                      <Chip
+                        label={row.installExperience.deviceRestartBehavior}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Stack>
+                  )}
+                </Stack>
+              </Box>
+            </>
+          )}
+
+          {/* Detection Rules */}
+          {row.rules?.[0] && (
+            <>
+              <Divider />
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Detection Rule
+                </Typography>
+                <Stack spacing={1}>
+                  {row.rules[0].ruleType && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="center">
+                      <Typography variant="body2" color="text.secondary">
+                        Type
+                      </Typography>
+                      <Chip label={row.rules[0].ruleType} size="small" variant="outlined" />
+                    </Stack>
+                  )}
+                  {row.rules[0].path && (
+                    <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                      <Typography variant="body2" color="text.secondary">
+                        Path
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          fontFamily: 'monospace',
+                          bgcolor: alpha(theme.palette.text.primary, 0.05),
+                          px: 1,
+                          py: 0.25,
+                          borderRadius: 0.5,
+                          maxWidth: '60%',
+                          wordBreak: 'break-all',
+                        }}
+                      >
+                        {row.rules[0].path}
+                      </Typography>
+                    </Stack>
+                  )}
+                </Stack>
+              </Box>
+            </>
+          )}
+
+          {/* Timeline */}
+          <Divider />
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1.5 }}>
+              <CalendarToday fontSize="small" color="action" />
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                Timeline
+              </Typography>
+            </Stack>
+            <Stack spacing={1}>
+              {row.createdDateTime && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Created
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {getCippFormatting(row.createdDateTime, 'createdDateTime')}
+                  </Typography>
+                </Stack>
+              )}
+              {row.lastModifiedDateTime && (
+                <Stack direction="row" justifyContent="space-between" alignItems="center">
+                  <Typography variant="body2" color="text.secondary">
+                    Last Modified
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    {getCippFormatting(row.lastModifiedDateTime, 'lastModifiedDateTime')}
+                  </Typography>
+                </Stack>
+              )}
+            </Stack>
+          </Box>
+        </Stack>
+      )
+    },
   }
 
   const simpleColumns = [
-    ...reportDB.cacheColumns,
     'displayName',
     'AppAssignment',
     'AppExclude',
@@ -375,24 +652,25 @@ const Page = () => {
     <>
       <CippTablePage
         title={pageTitle}
-        apiUrl={reportDB.resolvedApiUrl}
+        apiUrl="/api/ListApps"
         actions={actions}
         offCanvas={offCanvas}
         simpleColumns={simpleColumns}
-        queryKey={reportDB.resolvedQueryKey}
         cardButton={
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <CippApplicationDeployDrawer />
-            <Button onClick={vppSyncDialog.handleOpen} startIcon={<Sync />}>
+            <Button onClick={syncDialog.handleOpen} startIcon={<Sync />}>
               Sync VPP
             </Button>
-            {reportDB.controls}
-          </Stack>
+          </Box>
         }
+        cardConfig={cardConfig}
+        onCardClick={handleCardClick}
+        offCanvasOnRowClick={true}
       />
       <CippApiDialog
         title="Sync VPP Tokens"
-        createDialog={vppSyncDialog}
+        createDialog={syncDialog}
         api={{
           type: 'POST',
           url: '/api/ExecSyncVPP',
@@ -400,10 +678,9 @@ const Page = () => {
           confirmText: `Are you sure you want to sync Apple Volume Purchase Program (VPP) tokens? This will sync all VPP tokens for ${tenant}.`,
         }}
       />
-      {reportDB.syncDialog}
     </>
   )
 }
 
-Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>
+Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>
 export default Page

@@ -31,7 +31,7 @@ const TemplateLibrary = () => {
 
     return {
       TenantFilter: values?.tenantFilter?.value ? values?.tenantFilter?.value : "No tenant",
-      Name: `CIPP Template ${
+      Name: `Manage365 Template ${
         values.tenantFilter?.value ? values.tenantFilter?.value : values.templateRepo?.value
       }`,
       Command: { value: `New-CIPPTemplateRun` },
@@ -63,7 +63,7 @@ const TemplateLibrary = () => {
         <Grid size={12}>
           <Typography sx={{ mb: 2 }}>
             Template libraries are tenants set up to retrieve the latest version of a specific
-            tenants policies. These are then stored in CIPPs templates, allowing you to keep an up
+            tenants policies. These are then stored in Manage365's templates, allowing you to keep an up
             to date copy of the policies. Tenant-based template libraries sync every 4 hours,
             while community repository-based template libraries sync every 7 days.
           </Typography>

@@ -159,6 +159,7 @@ const UsersDisplayStep = (props) => {
       color: 'error',
       customFunction: (user) => handleRemoveUser(user),
       noConfirm: true,
+      category: 'danger',
     },
   ]
 

@@ -81,8 +81,8 @@ export const CippGDAPResults = (props) => {
       matchProperty: "displayName",
       match: "^M365 GDAP.+",
       count: 15,
-      successMessage: "User is a member of the 15 CIPP Recommended GDAP groups",
-      failureMessage: "User is not a member of the 15 CIPP Recommended GDAP groups",
+      successMessage: "User is a member of the 15 Manage365 Recommended GDAP groups",
+      failureMessage: "User is not a member of the 15 Manage365 Recommended GDAP groups",
     },
     {
       resultProperty: "GDAPIssues",
