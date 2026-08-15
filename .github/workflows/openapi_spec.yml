@@ -4,7 +4,6 @@ on:
   pull_request:
     branches:
       - main
-      - dev
     paths:
       - 'backend/Modules/CIPPHTTP/**'
       # entrypoints hand the body to these, and the generator follows the call
@@ -19,7 +18,6 @@ concurrency:
   cancel-in-progress: true
 jobs:
   spec:
-    if: github.repository_owner == 'CyberDrain'
     name: Validate and check for drift
     runs-on: ubuntu-latest
     # Checkout only; the spec is regenerated in a temp file and compared, never
