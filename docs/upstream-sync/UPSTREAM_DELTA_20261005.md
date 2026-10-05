@@ -63,5 +63,5 @@ Merged onto the v10.10.3 result. 83 conflicts.
 
 ## Still open in this cycle
 
-- Version bump to Manage365 6.1.0 / upstream 11.0.2, then build, test, and the pull request.
 - Baselines feature flag stays off so existing standards keep running.
+- This alignment is not deployed. Production stays on the two-repo stack until a separate cutover.

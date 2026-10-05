@@ -13,12 +13,12 @@ slots) to the single Manage365 container. Companion to
 
   ```bash
   docker build -f build/Dockerfile \
-    --build-arg APP_VERSION=10.8.5 \
+    --build-arg APP_VERSION=11.0.2 \
     --build-arg COMMIT_SHA=$(git rev-parse --short HEAD) \
-    --build-arg IMAGE_TAG=v6.0.0 \
+    --build-arg IMAGE_TAG=v6.1.0 \
     --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-    -t ghcr.io/celeratec/manage365:v6.0.0 .
-  docker push ghcr.io/celeratec/manage365:v6.0.0
+    -t ghcr.io/celeratec/manage365:v6.1.0 .
+  docker push ghcr.io/celeratec/manage365:v6.1.0
   ```
 
   `APP_VERSION` must be the upstream baseline (drives out-of-date checks);
@@ -44,7 +44,7 @@ slots) to the single Manage365 container. Companion to
    - [ ] Integration templates list/deploy (NinjaOne enrichment if configured)
    - [ ] Applied standards + drift + license-aware scoring
    - [ ] Alerts/audit logs; scheduler tasks run (watch `CIPPTimers` + queue processing)
-   - [ ] Application Settings shows Manage365 v6.0.0 + upstream 10.8.5, no false
+   - [ ] Application Settings shows Manage365 v6.1.0 + upstream 11.0.2, no false
          out-of-date toasts
 4. Soak for several days; watch container memory/CPU and the Craft worker stats page.
 
@@ -58,7 +58,7 @@ slots) to the single Manage365 container. Companion to
    ./deployment/Invoke-CippMigration.ps1 `
      -ResourceGroupName <prod RG> `
      -CippUrl manage365.<domain> `
-     -ContainerImage 'DOCKER|ghcr.io/celeratec/manage365:v6.0.0'
+     -ContainerImage 'DOCKER|ghcr.io/celeratec/manage365:v6.1.0'
    ```
 
    The script preserves the storage account, its tables, blobs, and queues, and the Key Vault
