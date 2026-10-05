@@ -36,7 +36,9 @@ Describe 'Invoke-ExecBECRemediate' {
         $Response = Invoke-ExecBECRemediate -Request (New-Request @{ tenantFilter = 'contoso.com'; userid = 'u1'; username = 'victim@contoso.com'; Confirmation = 'Victim@Contoso.com' }) -TriggerMetadata $null
         $Response.StatusCode | Should -Be 200
         $Response.Body.Results[0].state | Should -Be 'success'
-        Should -Invoke Invoke-CIPPBecContainment -Times 1 -ParameterFilter { $Confirmed.IsPresent -and @($Actions).Count -eq 0 -and $UserPrincipalName -eq 'victim@contoso.com' }
+        Should -Invoke Invoke-CIPPBecContainment -Times 1 -ParameterFilter { $Confirmed.IsPresent -and $Actions -contains 'ResetPassword' -and $Actions -notcontains 'DisableInboxRules' -and $UserPrincipalName -eq 'victim@contoso.com' }
+        Should -Invoke Start-CIPPBecContainmentJob -Times 1 -ParameterFilter { @($Actions) -join ',' -eq 'DisableInboxRules' }
+        ($Response.Body.Results | Where-Object { $_.Action -eq 'DisableInboxRules' }).resultText | Should -Match 'queued for background processing'
     }
 
     It 'returns 400 and runs nothing when a Critical action is selected without the typed UPN' {

@@ -52,7 +52,26 @@ function Invoke-ExecBECRemediate {
             $AsyncDeploymentId = Start-CIPPBecContainmentJob -TenantFilter $TenantFilter -UserId $SuspectUser -UserPrincipalName $Username -Actions @($Selected.Id) -Parameters $Parameters -CaseId $CaseId -Headers $Headers -APIName $APIName
             [pscustomobject]@{ resultText = "Queued $($Selected.Count) containment action(s) for $Username. Progress is shown below and on the scheduled task."; state = 'info' }
         } else {
-            Invoke-CIPPBecContainment -TenantFilter $TenantFilter -UserId $SuspectUser -UserPrincipalName $Username -Actions $Actions -Parameters $Parameters -Confirmed:$ConfirmationOk -CaseId $CaseId -Headers $Headers -APIName $APIName
+            # Get-InboxRule plus one Disable-InboxRule per rule exceeds the Static Web Apps
+            # proxy limit. Queue that action and return the rest, including the new password, now.
+            $InlineIds = @($Selected.Id)
+            $QueueRules = $InlineIds -contains 'DisableInboxRules'
+            if ($QueueRules) { $InlineIds = @($InlineIds | Where-Object { $_ -ne 'DisableInboxRules' }) }
+            $InlineRows = [System.Collections.Generic.List[object]]::new()
+            if ($InlineIds.Count -gt 0) {
+                foreach ($InlineRow in @(Invoke-CIPPBecContainment -TenantFilter $TenantFilter -UserId $SuspectUser -UserPrincipalName $Username -Actions $InlineIds -Parameters $Parameters -Confirmed:$ConfirmationOk -CaseId $CaseId -Headers $Headers -APIName $APIName)) {
+                    if ($null -ne $InlineRow) { $InlineRows.Add($InlineRow) }
+                }
+            }
+            if ($QueueRules) {
+                try {
+                    $null = Start-CIPPBecContainmentJob -TenantFilter $TenantFilter -UserId $SuspectUser -UserPrincipalName $Username -Actions @('DisableInboxRules') -Parameters $Parameters -CaseId $CaseId -Headers $Headers -APIName $APIName
+                    $InlineRows.Add([pscustomobject]@{ resultText = "Inbox rules for $Username queued for background processing."; state = 'info'; Action = 'DisableInboxRules'; Target = $Username })
+                } catch {
+                    $InlineRows.Add([pscustomobject]@{ resultText = "Failed to queue inbox rule processing: $($_.Exception.Message)"; state = 'error'; Action = 'DisableInboxRules'; Target = $Username })
+                }
+            }
+            $InlineRows
         }
         @($Rows | ForEach-Object {
                 $Row = [ordered]@{ resultText = $_.resultText; state = $_.state; Action = $_.Action; Target = $_.Target }

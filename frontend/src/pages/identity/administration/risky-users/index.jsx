@@ -194,7 +194,7 @@ const Page = () => {
       url: "/api/execBecRemediate",
       data: { userId: "id", username: "userPrincipalName" },
       confirmText:
-        "This will remediate this user, blocking their signin, resetting their password, disconnecting their sessions, and disabling all their inbox rules. Are you sure you want to continue?",
+        "This will remediate this user: block sign-in, reset the password, disconnect sessions, and remove MFA. Inbox rules are disabled in the background. Are you sure you want to continue?",
       multiPost: false,
       category: "security",
       quickAction: true,

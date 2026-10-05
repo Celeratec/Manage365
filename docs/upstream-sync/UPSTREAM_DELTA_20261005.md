@@ -57,7 +57,11 @@ Merged onto the v10.10.3 result. 83 conflicts.
 | Security Simulations, Service Health, MCP client, NinjaOne sync | **Apply** | Upstream behavior, with Manage365 labels and the NinjaOne mapping guard |
 | Baselines feature flag | **Skip** | Not enabled. Standards and drift stay available |
 
+## 24 Aug identity/BEC hotfix
+
+`Disable-CIPPUserInboxRules.ps1` was not copied. v11 `Disable-CIPPInboxRules` already disables processable rules and skips Exchange delegate rules. The HTTP remediator still ran that work inside the request, so an inline `ExecBECRemediate` call now queues only `DisableInboxRules` and returns the rest immediately. License assignment uses an app-only Graph token, and a privilege denial explains department SKUs, CPV, and GDAP.
+
 ## Still open in this cycle
 
-- 24 Aug identity/BEC hotfix (`47c750c25`, `40dcaed53`) is ported after this merge if upstream did not supersede it.
+- Version bump to Manage365 6.1.0 / upstream 11.0.2, then build, test, and the pull request.
 - Baselines feature flag stays off so existing standards keep running.

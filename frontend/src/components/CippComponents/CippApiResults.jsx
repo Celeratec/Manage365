@@ -162,6 +162,40 @@ const FormattedResultText = ({ text, severity }) => {
     );
   }
 
+  // Pattern: Graph assignLicense privilege / department-SKU denials
+  const isAssignLicensePrivilegeError =
+    (text.includes("Failed to assign licenses") || text.includes("Failed to remove licenses")) &&
+    text.includes("Insufficient privileges");
+  if (isAssignLicensePrivilegeError) {
+    return (
+      <Stack spacing={1}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          License assignment was denied
+        </Typography>
+        <Typography variant="body2">{text}</Typography>
+        <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+          Suggested steps:
+        </Typography>
+        <Typography variant="body2" component="div">
+          <ol style={{ margin: 0, paddingLeft: "1.2em" }}>
+            <li>
+              Confirm the SKU is not a <strong>department or self-service</strong> license — those
+              cannot be assigned directly
+            </li>
+            <li>
+              Run a <strong>CPV Refresh</strong> for this tenant so the Manage365 app has{" "}
+              <strong>User.ReadWrite.All</strong>
+            </li>
+            <li>
+              Confirm GDAP includes <strong>License Administrator</strong> or{" "}
+              <strong>User Administrator</strong>
+            </li>
+          </ol>
+        </Typography>
+      </Stack>
+    );
+  }
+
   // Pattern: Litigation Hold license errors from Exchange Online
   const isLitigationHoldLicenseError =
     (text.includes("LitigationHold") ||

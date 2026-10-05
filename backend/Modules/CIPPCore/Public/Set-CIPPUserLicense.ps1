@@ -25,6 +25,23 @@ function Set-CIPPUserLicense {
 
     $Results = [System.Collections.Generic.List[string]]::new()
 
+    # Delegated assignLicense needs an Entra License Administrator role, so a profile
+    # edit can succeed while the license call is denied. App-only uses the SAM grant.
+    $FormatLicenseError = {
+        param($UserPrincipalName, $GraphMessage, [switch]$AfterUsageLocation, [switch]$Remove)
+        $Prefix = if ($Remove) {
+            "Failed to remove licenses for user $UserPrincipalName"
+        } elseif ($AfterUsageLocation) {
+            "Failed to assign licenses for user $UserPrincipalName after setting usage location"
+        } else {
+            "Failed to assign licenses for user $UserPrincipalName"
+        }
+        if ($GraphMessage -like '*Insufficient privileges*') {
+            return "$Prefix`: $GraphMessage Department or self-service SKUs cannot be assigned directly. Otherwise run a CPV refresh so the Manage365 app has User.ReadWrite.All, and confirm GDAP includes License Administrator or User Administrator."
+        }
+        return "$Prefix`: $GraphMessage"
+    }
+
     # Get default usage location once for all users
     $Table = Get-CippTable -tablename 'UserSettings'
     $UserSettings = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'UserSettings' and RowKey eq 'allUsers'"
@@ -64,15 +81,16 @@ function Set-CIPPUserLicense {
             }
         }
 
-        $RemoveResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($RemoveBulkRequests)
+        $RemoveResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($RemoveBulkRequests) -asapp $true
 
         foreach ($Result in $RemoveResults) {
             $Request = $ReplaceRequests | Where-Object { $_.UserId -eq $Result.id }
             if ($Result.status -ge 200 -and $Result.status -le 299) {
                 Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message "Removed existing licenses for user $($Request.UserPrincipalName)" -Sev 'Info'
             } else {
-                $Results.Add("Failed to remove licenses for user $($Request.UserPrincipalName): $($Result.body.error.message)")
-                Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to remove licenses for user $($Request.UserPrincipalName): $($Result.body.error.message)" -Sev 'Error'
+                $RemoveError = & $FormatLicenseError -UserPrincipalName $Request.UserPrincipalName -GraphMessage $Result.body.error.message -Remove
+                $Results.Add($RemoveError)
+                Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message $RemoveError -Sev 'Error'
             }
         }
     }
@@ -96,7 +114,7 @@ function Set-CIPPUserLicense {
     }
 
     # Execute bulk request
-    $BulkResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($BulkRequests)
+    $BulkResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($BulkRequests) -asapp $true
 
     # Collect users with usage location errors
     $UsageLocationErrors = [System.Collections.Generic.List[object]]::new()
@@ -110,8 +128,9 @@ function Set-CIPPUserLicense {
         } elseif ($Result.body.error.message -like '*invalid usage location*' -or $Result.body.error.message -like '*UsageLocation*') {
             $UsageLocationErrors.Add($Request)
         } else {
-            $Results.Add("Failed to assign licenses for user $($Request.UserPrincipalName): $($Result.body.error.message)")
-            Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to assign licenses for user $($Request.UserPrincipalName): $($Result.body.error.message)" -Sev 'Error'
+            $AssignError = & $FormatLicenseError -UserPrincipalName $Request.UserPrincipalName -GraphMessage $Result.body.error.message
+            $Results.Add($AssignError)
+            Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message $AssignError -Sev 'Error'
         }
     }
 
@@ -128,7 +147,7 @@ function Set-CIPPUserLicense {
             }
         }
 
-        $UsageLocationResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($UsageLocationRequests)
+        $UsageLocationResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($UsageLocationRequests) -asapp $true
 
         # Log usage location updates
         foreach ($Result in $UsageLocationResults) {
@@ -156,7 +175,7 @@ function Set-CIPPUserLicense {
             }
         }
 
-        $RetryResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($RetryBulkRequests)
+        $RetryResults = New-GraphBulkRequest -tenantid $TenantFilter -Requests @($RetryBulkRequests) -asapp $true
 
         foreach ($Result in $RetryResults) {
             $Request = $UsageLocationErrors | Where-Object { $_.UserId -eq $Result.id }
@@ -165,8 +184,9 @@ function Set-CIPPUserLicense {
                 $Results.Add("Successfully set licenses for $($Request.UserPrincipalName) after setting usage location. It may take 2–5 minutes before the changes become visible.")
                 Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message "Assigned licenses to user $($Request.UserPrincipalName) after usage location fix. Added: $($Request.AddLicenses -join ', '); Removed: $($Request.RemoveLicenses -join ', ')" -Sev 'Info'
             } else {
-                $Results.Add("Failed to assign licenses for user $($Request.UserPrincipalName) after setting usage location: $($Result.body.error.message)")
-                Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to assign licenses for user $($Request.UserPrincipalName) after usage location fix: $($Result.body.error.message)" -Sev 'Error'
+                $RetryError = & $FormatLicenseError -UserPrincipalName $Request.UserPrincipalName -GraphMessage $Result.body.error.message -AfterUsageLocation
+                $Results.Add($RetryError)
+                Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message $RetryError -Sev 'Error'
             }
         }
     }
