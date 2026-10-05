@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
-import { Document, Page, Text, View, StyleSheet, PDFViewer, Image, Font } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
+import { CippPdfPreview } from '../CippPdf/CippPdfPreview'
 
 /* ── Emoji support ─────────────────────────────────────────
  * Helvetica has no emoji glyphs.  react-pdf can render emojis
@@ -756,9 +757,15 @@ export const ReportBuilderPDF = ({
 
   if (mode === 'preview') {
     return (
-      <PDFViewer style={{ width: '100%', height: '100%', border: 'none' }} showToolbar={true}>
+      <CippPdfPreview
+        title="Report preview"
+        fileName="Report.pdf"
+        style={{ width: '100%', height: '100%', border: 'none' }}
+        showToolbar={true}
+        showDownload
+      >
         {document}
-      </PDFViewer>
+      </CippPdfPreview>
     )
   }
   return null

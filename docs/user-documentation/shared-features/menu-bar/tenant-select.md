@@ -36,9 +36,17 @@ Recent tenants are tracked for you: choosing a tenant from the dropdown adds it 
 Favourites and recent tenants are stored in your browser rather than in your CIPP user settings. They are specific to the browser and device you set them on, they do not follow you to another machine, and clearing your browser's site data removes them. Both lists update immediately in any other CIPP tab you have open.
 {% endhint %}
 
+## On Narrow Screens
+
+Where the window is too narrow for the selector, the menu bar shows the current tenant as a chip in its place. Selecting the chip opens a full-screen picker with its own search box and the same **All Tenants** entry, favourites, recent tenants and stars as the dropdown, so the same choices are available with more room to make them.
+
+Both forms read the same favourites and recent tenants, so resizing the window, or opening CIPP on a phone in a browser you have already used, keeps the groups you are used to.
+
+The tenant information flyout described below is not available from the picker. See [mobile-layout.md](../mobile-layout.md "mention").
+
 ## Tenant Information
 
-The building icon to the left of the selector opens a flyout with details of the currently selected tenant, available from any page. It is unavailable while All Tenants is selected, and is not shown on narrow screens, where the selector moves into the mobile navigation menu.
+The building icon to the left of the selector opens a flyout with details of the currently selected tenant, available from any page. It is unavailable while All Tenants is selected, and is not shown on narrow screens, where the selector is replaced by the tenant chip described above.
 
 | Field                                    | Description                                                                     |
 | ---------------------------------------- | ------------------------------------------------------------------------------- |

@@ -1,4 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useState, useMemo } from "react";
+import { EyeIcon } from "@heroicons/react/24/outline";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
 import { Layout as DashboardLayout } from "../../../../layouts/index.js";
 import { CippHead } from "../../../../components/CippComponents/CippHead.jsx";
 import {
@@ -20,7 +22,6 @@ import {
   Warning,
   CheckCircle,
   Block,
-  Refresh,
   Send,
 } from "@mui/icons-material";
 import { useSettings } from "../../../../hooks/use-settings.js";
@@ -32,6 +33,7 @@ const STATUS_CONFIG = {
   Active: { color: "success", icon: CheckCircle },
   Stale: { color: "error", icon: Warning },
   Pending: { color: "warning", icon: HourglassEmpty },
+  "Pending Acceptance": { color: "warning", icon: HourglassEmpty },
   Disabled: { color: "default", icon: Block },
   "Never Signed In": { color: "info", icon: PersonOff },
 };
@@ -69,22 +71,36 @@ const Page = () => {
   const currentTenant = settings.currentTenant;
   const [statusFilter, setStatusFilter] = useState(null);
 
-  const guestQuery = ApiGetCall({
-    url: "/api/ListGuestUsers",
-    data: { tenantFilter: currentTenant },
-    queryKey: `GuestUsers-${currentTenant}`,
-    waiting: true,
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListGuestUsers",
+    queryKey: "ListGuestUsers",
+    cacheName: "Guests",
+    syncTitle: "Sync Guest Users",
+    allowToggle: true,
+    defaultCached: true,
+    allowAllTenantSync: true,
+    cacheColumns: ["CacheTimestamp"],
   });
 
-  useEffect(() => {
-    if (currentTenant) {
-      guestQuery.refetch();
-    }
-  }, [currentTenant]);
+  const guestQuery = ApiGetCall({
+    url: reportDB.resolvedApiUrl,
+    data: { tenantFilter: currentTenant },
+    queryKey: reportDB.resolvedQueryKey,
+    waiting: !currentTenant,
+  });
 
-  const data = guestQuery.data?.Results;
-  const guests = data?.guests || [];
-  const summary = data?.summary || {};
+  const payload = guestQuery.data?.Results ?? guestQuery.data;
+  const guests = Array.isArray(payload) ? payload : payload?.guests || [];
+  const summary = payload?.summary || {
+    totalGuests: guests.length,
+    activeGuests: guests.filter((guest) => guest.status === "Active").length,
+    staleGuests: guests.filter((guest) => guest.status === "Stale").length,
+    pendingGuests: guests.filter(
+      (guest) => guest.status === "Pending" || guest.status === "Pending Acceptance",
+    ).length,
+    disabledGuests: guests.filter((guest) => guest.status === "Disabled").length,
+    neverSignedIn: guests.filter((guest) => guest.status === "Never Signed In").length,
+  };
 
   const filteredGuests = useMemo(() => {
     if (!statusFilter) return guests;
@@ -191,6 +207,13 @@ const Page = () => {
 
   const rowActions = [
     {
+      label: "View User",
+      link: "/identity/administration/users/user?userId=[id]",
+      icon: <EyeIcon />,
+      color: "success",
+      category: "view",
+    },
+    {
       label: "Re-invite Guest",
       icon: <Send />,
       color: "info",
@@ -206,14 +229,7 @@ const Page = () => {
       <Box sx={{ p: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
           <Typography variant="h4">Guest Lifecycle Dashboard</Typography>
-          <Button
-            variant="outlined"
-            startIcon={<Refresh />}
-            onClick={() => guestQuery.refetch()}
-            disabled={guestQuery.isFetching}
-          >
-            Refresh
-          </Button>
+          {reportDB.controls}
         </Stack>
 
         {!currentTenant && (
@@ -242,7 +258,7 @@ const Page = () => {
                     count={summary[
                       status === "Active" ? "activeGuests" :
                       status === "Stale" ? "staleGuests" :
-                      status === "Pending" ? "pendingGuests" :
+                      status === "Pending" || status === "Pending Acceptance" ? "pendingGuests" :
                       status === "Disabled" ? "disabledGuests" :
                       "neverSignedIn"
                     ]}
@@ -265,6 +281,7 @@ const Page = () => {
           </>
         )}
       </Box>
+      {reportDB.syncDialog}
     </>
   );
 };

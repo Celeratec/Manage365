@@ -28,6 +28,7 @@ import {
 import { Stack } from "@mui/system";
 import { useState } from "react";
 import { useSettings } from "../../../../hooks/use-settings";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
 import {
   GROUP_TYPES,
   groupSupportsContacts,
@@ -39,6 +40,19 @@ const Page = () => {
   const pageTitle = "Groups";
   const [showMembers, setShowMembers] = useState(false);
   const { currentTenant } = useSettings();
+  const tenantQuery = currentTenant === "AllTenants" ? "[Tenant]" : currentTenant;
+  const nestedTenantQuery = currentTenant === "AllTenants" ? "[parent.Tenant]" : currentTenant;
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListGroups",
+    queryKey: "ListGroups",
+    cacheName: "Groups",
+    syncTitle: "Sync Groups Report",
+    allowToggle: true,
+    defaultCached: false,
+    allowAllTenantSync: true,
+    cacheColumns: ["CacheTimestamp"],
+  });
 
   const handleMembersToggle = () => {
     setShowMembers(!showMembers);
@@ -46,7 +60,7 @@ const Page = () => {
   const actions = [
     {
       label: "View Group",
-      link: `/identity/administration/groups/group?groupId=[id]&tenantFilter=${currentTenant}`,
+      link: `/identity/administration/groups/group?groupId=[id]&tenantFilter=${tenantQuery}`,
       color: "success",
       icon: <EyeIcon />,
       multiPost: false,
@@ -687,50 +701,198 @@ const Page = () => {
     actions: actions,
   };
   return (
-    <CippTablePage
-      title={pageTitle}
-      cardButton={
-        <Stack direction="row" spacing={1}>
-          <Button onClick={handleMembersToggle}>
-            {showMembers ? "Hide Members" : "Show Members"}
-          </Button>
-          <Button component={Link} href="groups/add" startIcon={<GroupAdd />}>
-            Add Group
-          </Button>
-          <Button
-            component={Link}
-            href="/identity/administration/group-templates/deploy"
-            startIcon={<RocketLaunch />}
-          >
-            Deploy Group Template
-          </Button>
-        </Stack>
-      }
-      apiUrl="/api/ListGroups"
-      apiData={{ expandMembers: showMembers }}
-      queryKey={
-        showMembers
-          ? `groups-with-members-${currentTenant}`
-          : `groups-without-members-${currentTenant}`
-      }
-      actions={actions}
-      offCanvas={offCanvas}
-      cardConfig={cardConfig}
-      simpleColumns={[
-        "displayName",
-        "description",
-        "mail",
-        "mailEnabled",
-        "mailNickname",
-        "groupType",
-        "assignedLicenses",
-        "licenseProcessingState.state",
-        "visibility",
-        "onPremisesSamAccountName",
-        "membershipRule",
-        "onPremisesSyncEnabled",
-      ]}
-    />
+    <>
+      <CippTablePage
+        title={pageTitle}
+        cardButton={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button onClick={handleMembersToggle}>
+              {showMembers ? "Hide Members" : "Show Members"}
+            </Button>
+            <Button component={Link} href="groups/add" startIcon={<GroupAdd />}>
+              Add Group
+            </Button>
+            <Button
+              component={Link}
+              href="/identity/administration/group-templates/deploy"
+              startIcon={<RocketLaunch />}
+            >
+              Deploy Group Template
+            </Button>
+          </Stack>
+        }
+        dataSourceControls={reportDB.controls}
+        apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.useReportDB ? undefined : { expandMembers: showMembers }}
+        queryKey={
+          reportDB.useReportDB
+            ? reportDB.resolvedQueryKey
+            : showMembers
+              ? `groups-with-members-${currentTenant}`
+              : `groups-without-members-${currentTenant}`
+        }
+        actions={actions}
+        offCanvas={offCanvas}
+        cardConfig={cardConfig}
+        simpleColumns={[
+          ...reportDB.cacheColumns,
+          "displayName",
+          "description",
+          "mail",
+          "mailEnabled",
+          "mailNickname",
+          "groupType",
+          "assignedLicenses",
+          "licenseProcessingState.state",
+          "visibility",
+          "onPremisesSamAccountName",
+          "membershipRule",
+          "onPremisesSyncEnabled",
+          "members",
+          "owners",
+        ]}
+        subTables={[
+          {
+            id: "members",
+            header: "Members",
+            label: "View members",
+            cachedColumn: "membersCsv",
+            table: {
+              title: "Members of [displayName]",
+              queryKey: "group-members-[id]",
+              api: {
+                url: "/api/ListGroups",
+                data: { groupID: "[id]", members: true, groupType: "[groupType]" },
+                dataKey: "members",
+              },
+              simpleColumns: ["displayName", "userPrincipalName", "mail", "@odata.type"],
+              actions: [
+                {
+                  label: "View User",
+                  link: `/identity/administration/users/user?userId=[id]&tenantFilter=${nestedTenantQuery}`,
+                  color: "info",
+                  icon: <EyeIcon />,
+                  condition: (row) =>
+                    !row?.["@odata.type"] || row["@odata.type"] === "#microsoft.graph.user",
+                },
+                {
+                  label: "View Group",
+                  link: `/identity/administration/groups/group?groupId=[id]&tenantFilter=${nestedTenantQuery}`,
+                  color: "info",
+                  icon: <EyeIcon />,
+                  condition: (row) => row?.["@odata.type"] === "#microsoft.graph.group",
+                },
+                {
+                  label: "Remove Member",
+                  type: "POST",
+                  url: "/api/ExecGroupMembers",
+                  icon: <PersonRemove />,
+                  data: { action: "!removeMember", groupId: "parent.id", users: "id" },
+                  confirmText: "Remove [displayName] from [parent.displayName]?",
+                  condition: (row) => !row?.parent?.dynamicGroupBool && !row?.parent?.membershipRule,
+                },
+              ],
+              cardButton: {
+                label: "Add Members",
+                icon: <GroupAdd />,
+                url: "/api/ExecGroupMembers",
+                allowResubmit: true,
+                relatedQueryKeys: "group-members-[id]",
+                confirmText: "Add members to [displayName]?",
+                condition: (row) => !row?.dynamicGroupBool && !row?.membershipRule,
+                data: { action: "!addMember", groupId: "id" },
+                fields: [
+                  {
+                    type: "autoComplete",
+                    name: "users",
+                    label: "Add Members",
+                    multiple: true,
+                    creatable: false,
+                    csvColumn: "userPrincipalName",
+                    api: {
+                      url: "/api/ListUsersAndGroups",
+                      dataKey: "Results",
+                      valueField: "id",
+                      labelField: "displayName",
+                      descriptionField: "userPrincipalName",
+                    },
+                  },
+                ],
+              },
+            },
+          },
+          {
+            id: "owners",
+            header: "Owners",
+            label: "View owners",
+            cachedColumn: "ownersCsv",
+            table: {
+              title: "Owners of [displayName]",
+              queryKey: "group-owners-[id]",
+              api: {
+                url: "/api/ListGroups",
+                data: { groupID: "[id]", owners: true, groupType: "[groupType]" },
+                dataKey: "owners",
+              },
+              simpleColumns: ["displayName", "userPrincipalName", "mail"],
+              actions: [
+                {
+                  label: "View User",
+                  link: `/identity/administration/users/user?userId=[id]&tenantFilter=${nestedTenantQuery}`,
+                  color: "info",
+                  icon: <EyeIcon />,
+                  condition: (row) =>
+                    !row?.["@odata.type"] || row["@odata.type"] === "#microsoft.graph.user",
+                },
+                {
+                  label: "Remove Owner",
+                  type: "POST",
+                  url: "/api/ExecGroupMembers",
+                  icon: <PersonRemove />,
+                  data: { action: "!removeOwner", groupId: "parent.id", users: "id" },
+                  confirmText: "Remove [displayName] as owner of [parent.displayName]?",
+                },
+              ],
+              cardButton: {
+                label: "Add Owners",
+                icon: <GroupAdd />,
+                url: "/api/ExecGroupMembers",
+                allowResubmit: true,
+                relatedQueryKeys: "group-owners-[id]",
+                confirmText: "Add owners to [displayName]?",
+                data: { action: "!addOwner", groupId: "id" },
+                fields: [
+                  {
+                    type: "autoComplete",
+                    name: "users",
+                    label: "Add Owners",
+                    multiple: true,
+                    creatable: false,
+                    csvColumn: "userPrincipalName",
+                    api: {
+                      url: "/api/ListGraphRequest",
+                      dataKey: "Results",
+                      valueField: "id",
+                      labelField: "displayName",
+                      descriptionField: "userPrincipalName",
+                      data: {
+                        Endpoint: "users",
+                        manualPagination: true,
+                        $select: "id,userPrincipalName,displayName",
+                        $count: true,
+                        $orderby: "displayName",
+                        $top: 999,
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        ]}
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 

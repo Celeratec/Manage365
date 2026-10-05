@@ -11,10 +11,9 @@ import {
   Box,
   alpha,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { usePopover } from "../hooks/use-popover";
-import { useDialog } from "../hooks/use-dialog";
-import { CippApiDialog } from "./CippComponents/CippApiDialog";
+import { useActionsDispatch } from "../hooks/use-actions-dispatch";
 import { resolvePaletteMainColor } from "../theme/utils";
 import {
   getActionColor,
@@ -27,14 +26,14 @@ import {
 export const ActionsMenu = (props) => {
   const { actions = [], label = "Actions", data, queryKeys, ...other } = props;
   const popover = usePopover();
-  const [actionData, setActionData] = useState({ data: {}, action: {}, ready: false });
-  const [customComponentData, setCustomComponentData] = useState({ data: {}, action: {} });
-  const [customComponentVisible, setCustomComponentVisible] = useState(false);
-  const createDialog = useDialog();
+  const { visibleActions, isDisabled, dispatch, dialog } = useActionsDispatch({
+    actions,
+    data,
+    queryKeys,
+  });
 
   const groupedActions = useMemo(() => {
-    const filtered = actions?.filter((action) => !action.link || action.showInActionsMenu) || [];
-    const grouped = filtered.reduce((acc, action) => {
+    const grouped = visibleActions.reduce((acc, action) => {
       const category =
         typeof action.category === "string" && action.category.trim().length > 0
           ? action.category.trim()
@@ -46,17 +45,7 @@ export const ActionsMenu = (props) => {
       return acc;
     }, {});
     return sortCategoryEntries(Object.entries(grouped));
-  }, [actions]);
-  const handleActionDisabled = (row, action) => {
-    //add nullsaftey for row. It can sometimes be undefined(still loading) or null(no data)
-    if (!row) {
-      return true;
-    }
-    if (action?.condition) {
-      return !action?.condition(row);
-    }
-    return false;
-  };
+  }, [visibleActions]);
   return (
     <>
       <Button
@@ -94,13 +83,15 @@ export const ActionsMenu = (props) => {
       >
         {groupedActions.map(([category, categoryActions], groupIndex) => {
           const categoryColor = getCategoryColor(category);
-          const headerBgColor = categoryColor === "text.secondary" 
-            ? (theme) => alpha(theme.palette.grey[500], 0.08)
-            : (theme) => alpha(resolvePaletteMainColor(theme, categoryColor), 0.08);
-          const headerTextColor = categoryColor === "text.secondary"
-            ? "text.secondary"
-            : (theme) => resolvePaletteMainColor(theme, categoryColor);
-            
+          const headerBgColor =
+            categoryColor === "text.secondary"
+              ? (theme) => alpha(theme.palette.grey[500], 0.08)
+              : (theme) => alpha(resolvePaletteMainColor(theme, categoryColor), 0.08);
+          const headerTextColor =
+            categoryColor === "text.secondary"
+              ? "text.secondary"
+              : (theme) => resolvePaletteMainColor(theme, categoryColor);
+
           return (
             <Box key={category}>
               <ListSubheader
@@ -130,32 +121,17 @@ export const ActionsMenu = (props) => {
                 const iconSx =
                   actionColor === "text.secondary"
                     ? { minWidth: "30px", color: actionColor }
-                    : { minWidth: "30px", color: (theme) => resolvePaletteMainColor(theme, actionColor) };
+                    : {
+                        minWidth: "30px",
+                        color: (theme) => resolvePaletteMainColor(theme, actionColor),
+                      };
 
                 return (
                   <MenuItem
-                    disabled={handleActionDisabled(data, action)}
+                    disabled={isDisabled(action)}
                     key={`${category}-${index}`}
                     onClick={() => {
-                      if (action?.noConfirm && action.customFunction) {
-                        action.customFunction(data, action, {});
-                        popover.handleClose();
-                        return;
-                      }
-
-                      if (typeof action?.customComponent === "function") {
-                        setCustomComponentData({ data: data, action: action });
-                        setCustomComponentVisible(true);
-                        popover.handleClose();
-                        return;
-                      }
-
-                      setActionData({
-                        data: data,
-                        action: action,
-                        ready: true,
-                      });
-                      createDialog.handleOpen();
+                      dispatch(action);
                       popover.handleClose();
                     }}
                   >
@@ -171,24 +147,7 @@ export const ActionsMenu = (props) => {
           );
         })}
       </Menu>
-      {customComponentVisible &&
-        customComponentData?.action &&
-        typeof customComponentData.action.customComponent === "function" &&
-        customComponentData.action.customComponent(customComponentData.data, {
-          drawerVisible: customComponentVisible,
-          setDrawerVisible: setCustomComponentVisible,
-        })}
-      {actionData.ready && typeof actionData.action?.customComponent !== "function" && (
-        <CippApiDialog
-          createDialog={createDialog}
-          title="Confirmation"
-          fields={actionData.action?.fields}
-          api={actionData.action}
-          row={actionData.data}
-          relatedQueryKeys={queryKeys}
-          {...actionData.action}
-        />
-      )}
+      {dialog}
     </>
   );
 };

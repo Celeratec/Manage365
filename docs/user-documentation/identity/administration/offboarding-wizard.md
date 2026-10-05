@@ -35,7 +35,7 @@ A summary of everything selected. Submitting creates the offboarding job.
 {% endstepper %}
 
 {% hint style="info" %}
-The options are pre-filled from your saved offboarding defaults each time the tenant changes. A tenant with its own defaults takes precedence over your personal ones, and the wizard states which set it has applied at the top of the Offboarding Settings card. You can manage these defaults using [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention").
+The options are pre-filled from your saved offboarding defaults each time the tenant changes. A tenant with its own defaults takes precedence over your personal ones (the whole tenant defaults blob wins, including an empty Out of Office message), and the wizard states which set it has applied at the top of the Offboarding Settings card. You can manage these defaults using [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention"), or per tenant under Manage Tenant.
 {% endhint %}
 
 ## Offboarding Settings
@@ -74,14 +74,20 @@ Converting a mailbox that is at or near 50 GB may fail, and a converted mailbox 
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | Grant Full Access (no automap) | Gives the selected users full access to the mailbox without Outlook adding it automatically.                                                  |
 | Grant Full Access (automap)    | Gives full access and lets Outlook add the mailbox on its own.                                                                                |
-| Grant Onedrive Full Access     | Gives the selected users full access to the user's OneDrive.                                                                                  |
+| Grant Send As Access           | Lets the selected users send mail as the offboarded user, so it appears to come from them.                                                    |
+| Grant Send on Behalf Access    | Lets the selected users send mail on the offboarded user's behalf, which recipients see as sent by them on behalf of the leaver.              |
+| Grant OneDrive Full Access     | Gives the selected users full access to the user's OneDrive.                                                                                  |
 | Disable Email Forwarding       | Clears any forwarding already set on the mailbox. Turning this on empties the forwarding fields below, since the two work against each other. |
 | Forward Email To               | The recipient the user's mail is forwarded to.                                                                                                |
 | Keep a copy of forwarded mail  | Delivers the message to the offboarded mailbox as well as forwarding it.                                                                      |
-| Out of Office Message          | The automatic reply set on the mailbox, composed in a rich text editor.                                                                       |
+| Out of Office Message          | The automatic reply set on the mailbox, composed in a rich text editor. Leave blank to skip. Supports CIPP `%variable%` tokens such as `%tenantname%` and tenant custom variables; they stay literal in the form and are resolved when the job runs. `%username%` is a reserved Windows-style token and is **not** replaced with the offboarded user. |
 
 {% hint style="info" %}
 When the account is being deleted, its OneDrive is retained for 30 days by default, so granting OneDrive access is still worth doing if the contents may be needed.
+{% endhint %}
+
+{% hint style="info" %}
+Selecting **Delete user** greys out the mailbox access, forwarding and out of office settings, since the mailbox goes with the account. OneDrive access stays available.
 {% endhint %}
 
 ## Scheduling & Notifications

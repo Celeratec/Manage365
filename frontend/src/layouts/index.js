@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react'
 import { usePathname } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import {
@@ -7,13 +7,12 @@ import {
   Button,
   Container,
   Dialog,
-  Divider,
   DialogContent,
   DialogTitle,
   Stack,
-  useMediaQuery,
 } from '@mui/material'
 import { styled } from '@mui/material/styles'
+import { useIsMobileLayout } from '../hooks/use-breakpoint'
 import { useSettings } from '../hooks/use-settings'
 import { Footer } from './footer'
 import { MobileNav } from './mobile-nav'
@@ -27,15 +26,23 @@ import { CippImageCard } from '../components/CippCards/CippImageCard'
 import { useDialog } from '../hooks/use-dialog'
 import { nativeMenuItems } from './config'
 import { CippBreadcrumbNav } from '../components/CippComponents/CippBreadcrumbNav'
+import { SsoMigrationDialog } from '../components/CippComponents/SsoMigrationDialog'
+import { ForcedSsoMigrationDialog } from '../components/CippComponents/ForcedSsoMigrationDialog'
+import { SubscriptionEndedDialog } from '../components/CippComponents/SubscriptionEndedDialog'
+import { FailedPaymentDialog } from '../components/CippComponents/FailedPaymentDialog'
+import { CippMaintenanceBanner } from '../components/CippComponents/CippMaintenanceBanner'
+import { CippImpersonationBanner } from '../components/CippComponents/CippImpersonationBanner'
+import {
+  BANNER_HEIGHT_VAR,
+  SIDE_NAV_COLLAPSED_WIDTH,
+  SIDE_NAV_WIDTH,
+  TOP_NAV_HEIGHT,
+} from './constants'
 
 const OnboardingWizardPage = dynamic(
   () => import('../components/CippWizard/OnboardingWizardPage.jsx'),
   { ssr: false }
 )
-
-const SIDE_NAV_WIDTH = 270
-const SIDE_NAV_PINNED_WIDTH = 50
-const TOP_NAV_HEIGHT = 50
 
 const useMobileNav = () => {
   const pathname = usePathname()
@@ -66,6 +73,9 @@ const useMobileNav = () => {
   }
 }
 
+// No breakpoint paddingLeft here: the side-nav offset is applied once, via the inline
+// `sx` on the rendered LayoutRoot (it depends on pinNav). A second static rule at lg+
+// used to fight that dynamic one over the same property.
 const LayoutRoot = styled('div')(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
   display: 'flex',
@@ -73,10 +83,7 @@ const LayoutRoot = styled('div')(({ theme }) => ({
   maxWidth: '100%',
   height: '100vh',
   overflow: 'hidden',
-  paddingTop: TOP_NAV_HEIGHT,
-  [theme.breakpoints.up('lg')]: {
-    paddingLeft: SIDE_NAV_WIDTH,
-  },
+  paddingTop: `calc(${TOP_NAV_HEIGHT}px + ${BANNER_HEIGHT_VAR})`,
 }))
 
 const LayoutContainer = styled('div')({
@@ -89,8 +96,11 @@ const LayoutContainer = styled('div')({
 })
 
 export const Layout = (props) => {
-  const { children, allTenantsSupport = true } = props
-  const mdDown = useMediaQuery((theme) => theme.breakpoints.down('md'))
+  // showBreadcrumb: the error routes opt out — there is no trail to a page that
+  // doesn't exist or just crashed, and the bookmark button lives in there too.
+  const { children, allTenantsSupport = true, showBreadcrumb = true } = props
+  // one gate for the swap: drawer, the hamburger that opens it (top-nav), the gutter below
+  const navCollapsed = useIsMobileLayout()
   const settings = useSettings()
   const mobileNav = useMobileNav()
   const [fetchingVisible, setFetchingVisible] = useState([])
@@ -128,22 +138,28 @@ export const Layout = (props) => {
         return
       }
 
-      setHideSidebar(false);
+      setHideSidebar(false)
 
-      // Get disabled pages from feature flags - only filter if we have valid data
-      let disabledPages = []
+      // A DISABLED flag hides its Pages; an ENABLED flag hides its HidesPages
+      // (Baselines supersedes classic Standards and Drift). Do not force the flag on.
+      let hiddenPages = []
       if (featureFlags.isSuccess && Array.isArray(featureFlags.data)) {
-        disabledPages = featureFlags.data
+        const disabledPages = featureFlags.data
           .filter((flag) => flag.Enabled === false || flag.enabled === false)
           .flatMap((flag) => flag.Pages || flag.pages || [])
           .filter((page) => typeof page === 'string')
+        const replacedPages = featureFlags.data
+          .filter((flag) => flag.Enabled === true || flag.enabled === true)
+          .flatMap((flag) => flag.HidesPages || flag.hidesPages || [])
+          .filter((page) => typeof page === 'string')
+        hiddenPages = [...disabledPages, ...replacedPages]
       }
 
       const filterItemsByRole = (items) => {
         return items
           .map((item) => {
-            // Check if page is disabled by feature flag
-            if (item.path && disabledPages.length > 0 && disabledPages.includes(item.path)) {
+            // Check if page is hidden by feature flag
+            if (item.path && hiddenPages.length > 0 && hiddenPages.includes(item.path)) {
               return null
             }
 
@@ -178,6 +194,7 @@ export const Layout = (props) => {
             // check sub-items
             if (item.items && item.items.length > 0) {
               const filteredSubItems = filterItemsByRole(item.items).filter(Boolean)
+              if (filteredSubItems.length === 0) return null
               return { ...item, items: filteredSubItems }
             }
 
@@ -213,7 +230,9 @@ export const Layout = (props) => {
     })
   }, [settings])
 
-  const offset = settings.pinNav ? SIDE_NAV_WIDTH : SIDE_NAV_PINNED_WIDTH
+  // Unpinned content offset must match the collapsed drawer's real width — the old 50px
+  // constant left 23px of content underneath the 73px rail.
+  const offset = settings.pinNav ? SIDE_NAV_WIDTH : SIDE_NAV_COLLAPSED_WIDTH
 
   const userSettingsAPI = ApiGetCall({
     url: '/api/ListUserSettings',
@@ -269,6 +288,11 @@ export const Layout = (props) => {
     keepPreviousData: true,
   })
 
+  const maintenanceAlert = useMemo(
+    () => alertsAPI.data?.find((alert) => alert.maintenance === true) ?? null,
+    [alertsAPI.data]
+  )
+
   useEffect(() => {
     if (!hideSidebar && version.isFetched && !alertsAPI.isFetched) {
       alertsAPI.waiting = true
@@ -287,15 +311,17 @@ export const Layout = (props) => {
   useEffect(() => {
     if (alertsAPI.isSuccess && !alertsAPI.isFetching) {
       if (alertsAPI.data.length > 0) {
-        alertsAPI.data.forEach((alert) => {
-          dispatch(
-            showToast({
-              message: alert.Alert,
-              title: alert.title,
-              toastError: alert,
-            })
-          )
-        })
+        alertsAPI.data
+          .filter((alert) => !alert.maintenance)
+          .forEach((alert) => {
+            dispatch(
+              showToast({
+                message: alert.Alert,
+                title: alert.title,
+                toastError: alert,
+              })
+            )
+          })
       }
     }
     if (alertsAPI.isSuccess && !alertsAPI.isFetching) {
@@ -310,19 +336,28 @@ export const Layout = (props) => {
 
   return (
     <>
+      {/* Rendered outside the hideSidebar check - maintenance applies to chrome-less pages too. */}
+      <CippMaintenanceBanner alert={maintenanceAlert} />
+      <CippImpersonationBanner />
       {hideSidebar === false && (
         <>
           <TopNav onNavOpen={mobileNav.handleOpen} openNav={mobileNav.open} />
-          {mdDown && (
-            <MobileNav items={menuItems} onClose={mobileNav.handleClose} open={mobileNav.open} />
+          {navCollapsed && (
+            <MobileNav
+              items={menuItems}
+              onClose={mobileNav.handleClose}
+              onOpen={mobileNav.handleOpen}
+              open={mobileNav.open}
+            />
           )}
-          {!mdDown && <SideNav items={menuItems} onPin={handleNavPin} pinned={!!settings.pinNav} />}
+          {!navCollapsed && <SideNav items={menuItems} onPin={handleNavPin} pinned={!!settings.pinNav} />}
         </>
       )}
       <LayoutRoot
         sx={{
+          // same gate as the side nav above, padding for chrome that isn't there is a dead gutter
           pl: {
-            md: (hideSidebar ? '0' : offset) + 'px',
+            lg: (hideSidebar ? '0' : offset) + 'px',
           },
         }}
       >
@@ -348,12 +383,18 @@ export const Layout = (props) => {
               </Container>
             </Box>
           )}
+          <SubscriptionEndedDialog
+            hostedSubscriptionEnded={currentRole.data?.hostedSubscriptionEnded}
+          />
+          <FailedPaymentDialog hostedFailedPayments={currentRole.data?.hostedFailedPayments} />
+          <SsoMigrationDialog meData={currentRole.data} />
+          <ForcedSsoMigrationDialog />
           {(currentTenant === 'AllTenants' || !currentTenant) && !allTenantsSupport ? (
             <Box sx={{ flexGrow: 1, py: 3 }}>
               <Container maxWidth={false}>
                 <CippBreadcrumbNav mode="hierarchical" />
                 <Grid container spacing={3}>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <CippImageCard
                       title="Not supported"
                       imageUrl="/assets/illustrations/undraw_website_ij0l.svg"
@@ -367,10 +408,9 @@ export const Layout = (props) => {
             </Box>
           ) : (
             <Stack>
-              <Box sx={{ mx: 3, mt: 3 }}>
-                <CippBreadcrumbNav mode="hierarchical" />
-              </Box>
-              <Divider sx={{ mb: 2 }} />
+              {/* The nav carries its own rail chrome (gutter + divider) so that when it
+                  renders nothing — a single crumb on a phone — no hairline is left behind. */}
+              {showBreadcrumb && <CippBreadcrumbNav withRail />}
               {children}
             </Stack>
           )}

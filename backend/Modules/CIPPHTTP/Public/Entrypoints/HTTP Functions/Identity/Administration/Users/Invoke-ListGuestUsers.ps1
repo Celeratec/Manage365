@@ -4,95 +4,129 @@ function Invoke-ListGuestUsers {
         Entrypoint
     .ROLE
         Identity.User.Read
+    .SYNOPSIS
+        List guest users with lifecycle status
+    .DESCRIPTION
+        Lists all guest accounts in a tenant with a computed lifecycle status (Active, Pending Acceptance, Stale, Never Signed In or Disabled) based on the invitation state and sign-in activity. Supports UseReportDB=true to serve cached data from the reporting database; AllTenants always uses the cache.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
-    $TenantFilter = $Request.Query.tenantFilter ?? $Request.Body.tenantFilter
 
+    # The tenant to list guest users for, or AllTenants for every tenant (served from the cache).
+    # Query wins; body is accepted for callers that post the filter.
+    $TenantFilter = $Request.Query.tenantFilter ?? $Request.Body.tenantFilter
     if (-not $TenantFilter) {
         return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::BadRequest
-            Body       = @{ Results = 'tenantFilter is required.' }
-        })
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{ Results = 'tenantFilter is required.' }
+            })
     }
 
+    # Days without any sign-in before an enabled guest is considered stale. Defaults to 90.
+    $StaleDays = $Request.Query.staleDays ? [int]$Request.Query.staleDays : 90
+    # Serve from the reporting database cache instead of live Graph. AllTenants always uses the cache.
+    $UseReportDB = $Request.Query.UseReportDB -eq $true
+
     try {
-        $SelectFields = 'id,displayName,mail,userPrincipalName,createdDateTime,accountEnabled,externalUserState,externalUserStateChangeDateTime,userType,signInActivity'
-        $GuestUsers = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/users?`$filter=userType eq 'Guest'&`$select=$SelectFields&`$top=999" -tenantid $TenantFilter -AsApp $true -ComplexFilter
+        if ($TenantFilter -eq 'AllTenants' -or $UseReportDB) {
+            # Cached rows carry a per-row signInLogsCapable stamp written by the cache job,
+            # so sign-in availability is judged per row below.
+            $SignInLogsCapable = $null
+            $GuestUsers = Get-CIPPGuestUsersReport -TenantFilter $TenantFilter
+        } else {
+            # signInActivity can only be requested on tenants with an Entra ID P1 license - Graph
+            # rejects the whole query on unlicensed tenants, so fall back to listing without
+            # sign-in data there and compute status from the invitation state alone.
+            $SignInLogsCapable = Test-CIPPStandardLicense -StandardName 'GuestLifecycle' -TenantFilter $TenantFilter -Preset Entra -SkipLog
+
+            $SelectFields = @(
+                'id', 'displayName', 'mail', 'userPrincipalName', 'createdDateTime',
+                'accountEnabled', 'externalUserState', 'externalUserStateChangeDateTime'
+            )
+            if ($SignInLogsCapable) { $SelectFields += 'signInActivity' }
+            # Graph caps the page size lower when signInActivity is selected
+            $Top = $SignInLogsCapable ? 500 : 999
+            $Uri = "https://graph.microsoft.com/beta/users?`$filter=userType eq 'Guest'&`$select=$($SelectFields -join ',')&`$count=true&`$top=$Top"
+            $GuestUsers = New-GraphGetRequest -uri $Uri -tenantid $TenantFilter -ComplexFilter
+        }
 
         $Now = Get-Date
-        $StaleThresholdDays = 90
+        $GraphRequest = foreach ($Guest in $GuestUsers) {
+            $RowCapable = ($null -eq $SignInLogsCapable) ? ($Guest.signInLogsCapable -eq $true) : $SignInLogsCapable
 
-        $EnrichedGuests = @($GuestUsers | ForEach-Object {
-            $Guest = $_
-            $SourceDomain = if ($Guest.mail) { ($Guest.mail -split '@')[1] } else { 'Unknown' }
-            $LastSignIn = $Guest.signInActivity.lastSignInDateTime
-            $DaysSinceSignIn = if ($LastSignIn) {
-                [math]::Round(($Now - [datetime]$LastSignIn).TotalDays)
-            } else {
-                $null
+            # Last sign-in is the most recent of the three signInActivity fields.
+            # lastSuccessfulSignInDateTime can run ahead of the other two, so leaving it
+            # out would report recently-active guests as stale.
+            $LastSignIn = $null
+            $Candidates = @(
+                $Guest.signInActivity.lastSignInDateTime
+                $Guest.signInActivity.lastNonInteractiveSignInDateTime
+                $Guest.signInActivity.lastSuccessfulSignInDateTime
+            )
+            foreach ($Candidate in $Candidates) {
+                if ($Candidate -and (-not $LastSignIn -or [datetime]$Candidate -gt [datetime]$LastSignIn)) {
+                    $LastSignIn = $Candidate
+                }
             }
-            $IsStale = $null -ne $DaysSinceSignIn -and $DaysSinceSignIn -gt $StaleThresholdDays
-            $NeverSignedIn = $null -eq $LastSignIn
+            $DaysSinceSignIn = $LastSignIn ? [math]::Round(($Now - [datetime]$LastSignIn).TotalDays) : $null
 
-            $Status = if (-not $Guest.accountEnabled) {
+            $Status = if ($Guest.accountEnabled -eq $false) {
                 'Disabled'
             } elseif ($Guest.externalUserState -eq 'PendingAcceptance') {
-                'Pending'
-            } elseif ($IsStale) {
-                'Stale'
-            } elseif ($NeverSignedIn) {
+                'Pending Acceptance'
+            } elseif (-not $RowCapable) {
+                'Unknown'
+            } elseif (-not $LastSignIn) {
                 'Never Signed In'
+            } elseif ($DaysSinceSignIn -ge $StaleDays) {
+                'Stale'
             } else {
                 'Active'
             }
 
-            [PSCustomObject]@{
-                id                = $Guest.id
-                displayName       = $Guest.displayName
-                mail              = $Guest.mail
-                userPrincipalName = $Guest.userPrincipalName
-                sourceDomain      = $SourceDomain
-                status            = $Status
-                accountEnabled    = $Guest.accountEnabled
-                externalUserState = $Guest.externalUserState
-                createdDateTime   = $Guest.createdDateTime
-                lastSignIn        = $LastSignIn
-                daysSinceSignIn   = $DaysSinceSignIn
-                isStale           = $IsStale
-                neverSignedIn     = $NeverSignedIn
+            $Row = [PSCustomObject]@{
+                id                               = $Guest.id
+                displayName                      = $Guest.displayName
+                mail                             = $Guest.mail
+                userPrincipalName                = $Guest.userPrincipalName
+                sourceDomain                     = $Guest.mail ? ($Guest.mail -split '@')[1] : $null
+                status                           = $Status
+                accountEnabled                   = $Guest.accountEnabled
+                externalUserState                = $Guest.externalUserState
+                externalUserStateChangeDateTime  = $Guest.externalUserStateChangeDateTime
+                createdDateTime                  = $Guest.createdDateTime
+                lastSignInDateTime               = $LastSignIn
+                lastInteractiveSignInDateTime    = $Guest.signInActivity.lastSignInDateTime
+                lastNonInteractiveSignInDateTime = $Guest.signInActivity.lastNonInteractiveSignInDateTime
+                lastSuccessfulSignInDateTime     = $Guest.signInActivity.lastSuccessfulSignInDateTime
+                daysSinceSignIn                  = $DaysSinceSignIn
+                # Manage365 fields kept alongside the upstream sign-in timestamps.
+                lastSignIn                       = $LastSignIn
+                isStale                          = ($Status -eq 'Stale')
+                neverSignedIn                    = ($Status -eq 'Never Signed In')
+                sponsors                         = $Guest.sponsors ? (@($Guest.sponsors | ForEach-Object { $_.displayName ?? $_.userPrincipalName }) -join ', ') : $null
             }
-        })
-
-        $Summary = @{
-            totalGuests      = $EnrichedGuests.Count
-            activeGuests     = ($EnrichedGuests | Where-Object { $_.status -eq 'Active' }).Count
-            staleGuests      = ($EnrichedGuests | Where-Object { $_.status -eq 'Stale' }).Count
-            pendingGuests    = ($EnrichedGuests | Where-Object { $_.status -eq 'Pending' }).Count
-            disabledGuests   = ($EnrichedGuests | Where-Object { $_.status -eq 'Disabled' }).Count
-            neverSignedIn    = ($EnrichedGuests | Where-Object { $_.status -eq 'Never Signed In' }).Count
-        }
-
-        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Listed $($EnrichedGuests.Count) guest users" -Sev 'Info'
-        $StatusCode = [HttpStatusCode]::OK
-        $Body = @{
-            Results = @{
-                guests  = $EnrichedGuests
-                summary = $Summary
+            if ($null -ne $Guest.CacheTimestamp) {
+                $Row | Add-Member -NotePropertyName 'CacheTimestamp' -NotePropertyValue $Guest.CacheTimestamp
             }
+            if ($Guest.Tenant) {
+                $Row | Add-Member -NotePropertyName 'Tenant' -NotePropertyValue $Guest.Tenant
+            }
+            $Row
         }
+        $StatusCode = [System.Net.HttpStatusCode]::OK
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to list guest users: $($ErrorMessage.NormalizedError)" -Sev 'Error' -LogData $ErrorMessage
-        $StatusCode = [HttpStatusCode]::InternalServerError
-        $Body = @{ Results = "Failed to list guest users: $($ErrorMessage.NormalizedError)" }
+        $StatusCode = [System.Net.HttpStatusCode]::InternalServerError
+        $GraphRequest = @{ Error = $ErrorMessage.NormalizedError }
     }
 
     return ([HttpResponseContext]@{
-        StatusCode = $StatusCode
-        Body       = $Body
-    })
+            StatusCode = $StatusCode
+            Body       = @($GraphRequest)
+        })
 }

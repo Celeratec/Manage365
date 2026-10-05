@@ -83,9 +83,10 @@ Function Invoke-ListUsers {
         }
     } elseif ($null -ne (Get-CippRequestContext).AllowedTenants) {
         # Deprecated cacheusers blob has no reliable per-tenant column, so it cannot be safely
-        # narrowed for a tenant-restricted caller (including zero allowed tenants). Return the
-        # deprecation message instead of leaking every tenant's users. Unrestricted callers keep
-        # the legacy behavior below ($null AllowedTenants).
+        # narrowed for a tenant-restricted caller - including one whose scope resolved to zero
+        # tenants, whose empty array is falsy and would otherwise fall through to the legacy
+        # path. Return the deprecation message instead of leaking every tenant's users.
+        # Unrestricted callers ($null scope) keep the legacy behavior below.
         [PSCustomObject]@{
             Message = 'This function has been deprecated for all users, please use ListGraphRequest instead'
         }

@@ -157,7 +157,7 @@ function DomainResultCard({ title, data, isFetching, info, type }) {
       ? {
           children: (
             <Grid container spacing={2}>
-              <Grid size={{ xs: 12 }}>
+              <Grid size={{ xs: 12, md: 8 }}>
                 {info}
               </Grid>
             </Grid>
@@ -508,7 +508,7 @@ export const CippDomainCards = ({ domain: propDomain = "", fullwidth = false }) 
             }
           >
             <Grid container spacing={2}>
-              <Grid size={{ xs: 8 }}>
+              <Grid size={{ xs: 12, md: 4 }}>
                 <Controller
                   name="domain"
                   control={control}
@@ -517,7 +517,7 @@ export const CippDomainCards = ({ domain: propDomain = "", fullwidth = false }) 
                   )}
                 />
               </Grid>
-              <Grid size={{ xs: 4 }}>
+              <Grid size={{ xs: 12 }}>
                 <Button type="submit" variant="contained" startIcon={<SearchIcon />}>
                   Check
                 </Button>

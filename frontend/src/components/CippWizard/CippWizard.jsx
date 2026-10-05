@@ -42,6 +42,9 @@ export const CippWizard = (props) => {
     });
   }, [stepsWithVisibility.length]);
 
+  // Counts against the VISIBLE steps. `steps` is the unfiltered prop — the onboarding
+  // wizard passes 14 and shows 3-7 — so clamping against it let activeStep run past the
+  // end of stepsWithVisibility, and the render below then read `.component` of undefined.
   const handleNext = useCallback(() => {
     setActiveStep((prevState) => {
       const current = Math.min(prevState, stepsWithVisibility.length - 1);
@@ -73,7 +76,7 @@ export const CippWizard = (props) => {
         {...currentStep.componentProps}
       />
     );
-  }, [boundedStep, handleNext, handleBack, stepsWithVisibility, formControl]);
+  }, [boundedStep, handleNext, handleBack, stepsWithVisibility, formControl, postUrl]);
 
   // Get the maxWidth for the current step, fallback to global setting
   const currentStepMaxWidth = useMemo(() => {
@@ -135,7 +138,9 @@ export const CippWizard = (props) => {
         </CardContent>
       ) : (
         <CardContent sx={{ p: smDown ? 1.5 : 3 }}>
-          <Stack spacing={smDown ? 2 : 4}>
+          {/* 48px under a three-line stepper is right; under the compact mobile header it
+              is dead space. */}
+          <Stack spacing={{ xs: 3, md: 6 }}>
             <Box>
               <WizardSteps
                 postUrl={postUrl}
@@ -145,10 +150,10 @@ export const CippWizard = (props) => {
               />
               {/* Selection summary chips - hidden on mobile as info is shown differently */}
               {selectedSummary.length > 0 && activeStep > 0 && !smDown && (
-                <Stack 
-                  direction="row" 
-                  spacing={1} 
-                  sx={{ mt: 2, justifyContent: 'center', flexWrap: 'wrap', gap: 1 }}
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{ mt: 2, justifyContent: "center", flexWrap: "wrap", gap: 1 }}
                 >
                   {selectedSummary.map((item) => (
                     <Chip
@@ -163,11 +168,10 @@ export const CippWizard = (props) => {
               )}
             </Box>
             <Box sx={{ px: smDown ? 0.5 : 0 }}>
-              <Container 
-                maxWidth={currentStepMaxWidth} 
-                sx={{ px: smDown ? 0 : 2 }}
-                disableGutters={smDown}
-              >
+              {/* Below md this Container clamps nothing — maxWidth is md/lg — and its
+                  gutters only duplicate the ones CardContent already pays. disableGutters
+                  with px at md restores exactly Container's own value from md up. */}
+              <Container maxWidth={currentStepMaxWidth} disableGutters sx={{ px: { md: 3 } }}>
                 {content}
               </Container>
             </Box>

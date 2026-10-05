@@ -10,6 +10,7 @@ import { useDispatch } from "react-redux";
 import { showToast } from "../store/toasts";
 import { getCippError } from "../utils/get-cipp-error";
 import { buildVersionedHeaders } from "../utils/cippVersion";
+import { impersonationCacheParams } from "../utils/impersonation";
 
 export const STALE_TIMES = {
   FAST: 60000,
@@ -136,7 +137,7 @@ export function ApiGetCall(props) {
           const element = data[i];
           const response = await axios.get(url, {
             signal: signal,
-            params: element,
+            params: { ...element, ...impersonationCacheParams() },
             headers: await buildVersionedHeaders(),
             timeout,
           });
@@ -175,7 +176,7 @@ export function ApiGetCall(props) {
       } else {
         const response = await axios.get(url, {
           signal: url === "/api/tenantFilter" ? null : signal,
-          params: data,
+          params: { ...data, ...impersonationCacheParams() },
           headers: await buildVersionedHeaders(),
           responseType: responseType,
           timeout,
@@ -344,7 +345,7 @@ export function ApiGetCallWithPagination({
     queryFn: async ({ pageParam = null, signal }) => {
       const response = await axios.get(url, {
         signal: signal,
-        params: { ...data, ...pageParam },
+        params: { ...data, ...pageParam, ...impersonationCacheParams() },
         headers: await buildVersionedHeaders(),
         timeout,
       });

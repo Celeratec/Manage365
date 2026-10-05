@@ -752,7 +752,10 @@ function Get-HelperSourceIndex {
     $Declaration = [regex]::new('(?im)^\s*function\s+([A-Za-z][\w-]*)\s*(\{|$)')
     foreach ($Root in $SearchPath) {
         if (-not (Test-Path $Root)) { continue }
-        foreach ($File in Get-ChildItem -Path $Root -Filter '*.ps1' -Recurse -File) {
+        # Sorted on a separator-normalized path: first declaration wins, and NTFS
+        # enumerates sorted while ext4 does not, so an unsorted scan makes the winner
+        # differ between a local build and the ubuntu runner.
+        foreach ($File in Get-ChildItem -Path $Root -Filter '*.ps1' -Recurse -File | Sort-Object { $_.FullName.Replace('\', '/') }) {
             foreach ($Match in $Declaration.Matches([IO.File]::ReadAllText($File.FullName))) {
                 $Name = $Match.Groups[1].Value
                 if (-not $Index.ContainsKey($Name)) { $Index[$Name] = $File.FullName }
@@ -1490,7 +1493,11 @@ function Get-TableWriterIndex {
 
     $Index = @{}
 
-    foreach ($File in Get-ChildItem -Path $SearchPath -Recurse -Filter '*.ps1' -File) {
+    # Sorted on a separator-normalized path: the type merge below is order-dependent
+    # (the first writer that states a type wins), and NTFS enumerates sorted while
+    # ext4 does not, so an unsorted scan types fields differently on the ubuntu
+    # runner than on a local Windows build and -Check reports a stale spec.
+    foreach ($File in Get-ChildItem -Path $SearchPath -Recurse -Filter '*.ps1' -File | Sort-Object { $_.FullName.Replace('\', '/') }) {
         $Tokens = $null; $Errs = $null
         $Ast = [System.Management.Automation.Language.Parser]::ParseFile($File.FullName, [ref]$Tokens, [ref]$Errs)
         if ($Errs.Count -gt 0) { continue }

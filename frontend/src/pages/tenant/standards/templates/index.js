@@ -3,7 +3,7 @@ import { Box, Stack } from "@mui/system";
 import { Layout as DashboardLayout } from "../../../../layouts/index.js";
 import { TabbedLayout } from "../../../../layouts/TabbedLayout";
 import Link from "next/link";
-import { CopyAll, Delete, PlayArrow, AddBox, Edit, GitHub, ContentCopy } from "@mui/icons-material";
+import { CopyAll, Delete, PlayArrow, AddBox, Edit, GitHub, ContentCopy, Schedule } from "@mui/icons-material";
 import { ApiGetCall, ApiPostCall } from "../../../../api/ApiCall";
 import { Grid } from "@mui/system";
 import { CippApiResults } from "../../../../components/CippComponents/CippApiResults";
@@ -89,6 +89,35 @@ const Page = () => {
         tenantFilter: "allTenants",
       },
       confirmText: "Are you sure you want to force a run of this template?",
+      multiPost: false,
+      category: "manage",
+    },
+    {
+      label: "Set Schedule",
+      title: "Set Schedule",
+      type: "POST",
+      url: "/api/ExecStandardTemplateSchedule",
+      icon: <Schedule />,
+      data: {
+        TemplateId: "GUID",
+      },
+      fields: [
+        {
+          label: "Schedule",
+          name: "runManually",
+          type: "select",
+          multiple: false,
+          creatable: false,
+          options: [
+            { label: "Disable schedule (run manually only)", value: "true" },
+            { label: "Enable schedule", value: "false" },
+          ],
+          required: true,
+          validators: { required: { value: true, message: "This field is required" } },
+        },
+      ],
+      confirmText: "Set the schedule for [templateName]?",
+      condition: (row) => row.type !== "drift",
       multiPost: false,
       category: "manage",
     },

@@ -161,7 +161,12 @@ export const CippChartCard = ({
                 spacing={1}
                 sx={{ py: rowPadding }}
               >
-                <Stack alignItems="center" direction="row" spacing={1} sx={{ flexGrow: 1 }}>
+                <Stack
+                  alignItems="center"
+                  direction="row"
+                  spacing={1}
+                  sx={{ flexGrow: 1, minWidth: 0 }}
+                >
                   <Box
                     sx={{
                       // Match ApexCharts' color cycling so the dot lines up with its bar/slice.
@@ -169,13 +174,18 @@ export const CippChartCard = ({
                       borderRadius: "50%",
                       height: 8,
                       width: 8,
+                      flexShrink: 0,
                     }}
                   />
-                  <Typography color="text.secondary" variant={labelVariant}>
+                  <Typography
+                    color="text.secondary"
+                    variant={labelVariant}
+                    sx={{ minWidth: 0, overflowWrap: "anywhere" }}
+                  >
                     {labels[index]}
                   </Typography>
                 </Stack>
-                <Typography color="text.secondary" variant={labelVariant}>
+                <Typography color="text.secondary" variant={labelVariant} sx={{ flexShrink: 0 }}>
                   {displayValue(item)}
                 </Typography>
               </Stack>
@@ -245,8 +255,21 @@ export const CippChartCard = ({
           // Horizontal layout: chart on left, legend on right
           <Box sx={{ display: "flex", height: "100%", alignItems: "center", gap: 2 }}>
             <Box sx={{ flex: "0 0 55%", minWidth: 0 }}>
-              {chartType === undefined || isFetching || chartSeries.length === 0 ? (
+              {chartType === undefined || isFetching ? (
                 <Skeleton variant="rounded" sx={{ height: horizontalChartHeight }} />
+              ) : chartSeries.length === 0 ? (
+                <Box
+                  sx={{
+                    height: horizontalChartHeight,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Typography color="text.secondary" variant="body2">
+                    No data to display
+                  </Typography>
+                </Box>
               ) : (
                 <Chart
                   height={horizontalChartHeight}
@@ -264,8 +287,21 @@ export const CippChartCard = ({
         ) : (
           // Vertical layout (default): chart on top, legend below
           <>
-            {chartType === undefined || isFetching || chartSeries.length === 0 ? (
+            {chartType === undefined || isFetching ? (
               <Skeleton variant="rounded" sx={{ height: chartHeight }} />
+            ) : chartSeries.length === 0 ? (
+              <Box
+                sx={{
+                  height: chartHeight,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Typography color="text.secondary" variant="body2">
+                  No data to display
+                </Typography>
+              </Box>
             ) : (
               <Chart
                 height={chartHeight}

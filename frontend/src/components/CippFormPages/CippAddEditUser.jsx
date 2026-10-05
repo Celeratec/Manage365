@@ -5,6 +5,7 @@ import { CippFormCondition } from '../CippComponents/CippFormCondition'
 import { CippFormDomainSelector } from '../CippComponents/CippFormDomainSelector'
 import { CippFormUserSelector } from '../CippComponents/CippFormUserSelector'
 import { getCippValidator } from '../../utils/get-cipp-validator'
+import { toAutoCompleteOptions } from '../../utils/to-autocomplete-options'
 import countryList from '../../data/countryList.json'
 import { CippFormLicenseSelector } from '../CippComponents/CippFormLicenseSelector'
 import { Grid } from '@mui/system'
@@ -24,6 +25,29 @@ import {
   Extension,
   FileCopy,
 } from '@mui/icons-material'
+
+// Exchange only sends a sharing invitation for these calendar access levels.
+const sharedCalendarPermissionOptions = [
+  { label: 'Editor', value: 'Editor' },
+  { label: 'Reviewer', value: 'Reviewer' },
+  { label: 'Limited Details', value: 'LimitedDetails' },
+  { label: 'Availability Only', value: 'AvailabilityOnly' },
+]
+
+const sharedMailboxPermissionOptions = [
+  { label: 'Full Access', value: 'FullAccess' },
+  { label: 'Send As', value: 'SendAs' },
+  { label: 'Send on Behalf', value: 'SendOnBehalf' },
+]
+
+// Both selectors offer the same set: only shared mailboxes of the tenant are accepted.
+const sharedMailboxApi = (tenantDomain) => ({
+  queryKey: `SharedMailboxes-${tenantDomain}`,
+  url: '/api/ListMailboxes',
+  data: { RecipientTypeDetails: 'SharedMailbox' },
+  labelField: (option) => `${option.displayName} (${option.UPN})`,
+  valueField: 'UPN',
+})
 
 // Section Header Component for consistent styling
 const SectionHeader = ({ icon: Icon, title }) => (
@@ -325,6 +349,24 @@ const CippAddEditUser = (props) => {
     })
     applyField('AddToGroups', groups, [])
 
+    // Shared mailbox/calendar selections may be stored as option objects or as bare values
+    // depending on when the template was saved, so normalise before handing them to the fields.
+    applyField('sharedMailboxes', toAutoCompleteOptions(template.sharedMailboxes), [])
+    applyField(
+      'sharedMailboxPermission',
+      toAutoCompleteOptions(template.sharedMailboxPermission, sharedMailboxPermissionOptions),
+      []
+    )
+    applyField('sharedCalendars', toAutoCompleteOptions(template.sharedCalendars), [])
+    applyField(
+      'sharedCalendarPermission',
+      toAutoCompleteOptions(
+        template.sharedCalendarPermission,
+        sharedCalendarPermissionOptions
+      )[0] ?? null,
+      null
+    )
+
     // Custom user attributes. On a switch, clear every known attribute field
     // first so attributes the new template doesn't define don't linger, then
     // apply the template's values.
@@ -573,6 +615,55 @@ const CippAddEditUser = (props) => {
           <Grid size={{ xs: 12 }}>
             <CippFormLicenseSelector label="Licenses" name="licenses" formControl={formControl} />
           </Grid>
+          {integrationSettings?.data?.Sherweb?.Enabled === true && (
+            <>
+              <CippFormCondition
+                formControl={formControl}
+                field="licenses"
+                compareType="labelContains"
+                compareValue="(0 available)"
+                labelCompare={true}
+              >
+                <Grid size={{ xs: 12 }}>
+                  <CippFormComponent
+                    type="switch"
+                    label="0 Licences available. Purchase new licence?"
+                    name="sherweb"
+                    formControl={formControl}
+                  />
+                </Grid>
+                <CippFormCondition
+                  formControl={formControl}
+                  field="sherweb"
+                  compareType="is"
+                  compareValue={true}
+                >
+                  <Grid size={{ xs: 12 }}>
+                    <Alert severity="info">
+                      This will Purchase a new Sherweb License for the user, according to the terms and
+                      conditions with Sherweb. When the license becomes available, CIPP will assign the
+                      license to this user.
+                    </Alert>
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <CippFormComponent
+                      type="autoComplete"
+                      api={{
+                        queryKey: `SKU-${tenantDomain}`,
+                        url: '/api/ListCSPsku',
+                        data: { currentSkuOnly: true },
+                        labelField: (option) => `${option?.productName} (${option?.sku})`,
+                        valueField: 'sku',
+                      }}
+                      label="Sherweb License"
+                      name="sherwebLicense"
+                      formControl={formControl}
+                    />
+                  </Grid>
+                </CippFormCondition>
+              </CippFormCondition>
+            </>
+          )}
         </Grid>
       </FormSection>
 
@@ -772,6 +863,58 @@ const CippAddEditUser = (props) => {
                 multiple={false}
               />
             </Grid>
+            {formType === 'add' && (
+              <>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <CippFormComponent
+                    type="autoComplete"
+                    label="Shared Mailboxes"
+                    name="sharedMailboxes"
+                    multiple={true}
+                    creatable={false}
+                    api={sharedMailboxApi(tenantDomain)}
+                    helperText="Access is granted 15 minutes after creation, once Exchange has provisioned the user's mailbox. With Full Access, Outlook adds the mailbox automatically."
+                    formControl={formControl}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <CippFormComponent
+                    type="autoComplete"
+                    label="Shared Mailbox Permissions"
+                    name="sharedMailboxPermission"
+                    multiple={true}
+                    creatable={false}
+                    options={sharedMailboxPermissionOptions}
+                    helperText="Defaults to Full Access. Select several to grant them together."
+                    formControl={formControl}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 8 }}>
+                  <CippFormComponent
+                    type="autoComplete"
+                    label="Shared Calendars"
+                    name="sharedCalendars"
+                    multiple={true}
+                    creatable={false}
+                    api={sharedMailboxApi(tenantDomain)}
+                    helperText="The user is sent a sharing invitation for these calendars 15 minutes after creation, once Exchange has provisioned their mailbox."
+                    formControl={formControl}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, md: 4 }}>
+                  <CippFormComponent
+                    type="autoComplete"
+                    label="Shared Calendar Permission"
+                    name="sharedCalendarPermission"
+                    multiple={false}
+                    creatable={false}
+                    options={sharedCalendarPermissionOptions}
+                    helperText="Defaults to Editor."
+                    formControl={formControl}
+                  />
+                </Grid>
+              </>
+            )}
             {formType === 'edit' && (
               <>
                 <Grid size={{ md: 6, xs: 12 }}>

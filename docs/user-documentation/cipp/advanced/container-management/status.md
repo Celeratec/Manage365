@@ -33,8 +33,8 @@ Build details are baked into the image when it is built, and some of them are si
 
 Two notices can appear directly below the status strip, and only when there is something to act on.
 
-* A **channel change is pending** — the running and configured channels differ, and the container needs to be restarted to apply the change. Both channels are named in the notice.
-* A **container update is available** — a newer image has been published on your channel, and restarting will pull it.
+* A **channel change is pending**: the running and configured channels differ, and the container needs to be restarted to apply the change. Both channels are named in the notice.
+* A **container update is available**: a newer image has been published on your channel, and restarting will pull it.
 
 ## Actions
 
@@ -52,11 +52,11 @@ Three buttons sit between the status strip and the settings cards.
 A manual update check is not always read-only. If **Auto-restart when an update is detected** is enabled, finding a newer image restarts the container immediately, causing brief downtime. The dialog warns you when this is the case and its button reads **Check & Apply** instead of **Check Now**. Use **Refresh Status** if you only want to re-read the current state.
 {% endhint %}
 
-With auto-restart off, a check only records what it found — nothing is pulled and nothing restarts until you restart the container yourself.
+With auto-restart off, a check only records what it found. Nothing is pulled and nothing restarts until you restart the container yourself.
 
 ### Restart Container
 
-Restarting causes a brief period of downtime while the container comes back up. The newest image on the current channel is pulled as it comes back, so a restart always updates to the latest image on the channel, whatever the reason for the restart — including a channel change or a pending update.
+Restarting causes a brief period of downtime while the container comes back up. The newest image on the current channel is pulled as it comes back, so a restart always updates to the latest image on the channel, whatever the reason for the restart, including a channel change or a pending update.
 
 ## Release Channel
 
@@ -70,20 +70,20 @@ This card selects which release channel the container follows. Changing the chan
 
 Choose a channel and select **Update Channel** to apply it. The change takes effect on the next container restart. Switching to Dev or Nightly may introduce unstable or untested changes.
 
-The channel list is read from the container registry when the page loads, grouped into **Standard channels** and any branch builds that currently exist. Use the refresh button on the field to reload the list without reloading the page — useful when waiting for a branch build to finish. The field also accepts a tag typed by hand as a fallback; whatever you enter is validated before it is saved.
+The channel list is read from the container registry when the page loads, grouped into **Standard channels** and any branch builds that currently exist. Use the refresh button on the field to reload the list without reloading the page, which is useful when waiting for a branch build to finish. The field also accepts a tag typed by hand as a fallback; whatever you enter is validated before it is saved.
 
 ### Branch builds
 
-Below the standard channels the list may also show **Branch builds** — images built from a branch that has not been merged yet, so a change can be tested on a real instance before it ships. They are named after the branch they came from, such as `fix-sso-multi-domain` or `feat-new-report`.
+Below the standard channels the list may also show **Branch builds**: images built from a branch that has not been merged yet, so a change can be tested on a real instance before it ships. They are named after the branch they came from, such as `fix-sso-multi-domain` or `feat-new-report`.
 
-A branch build tag follows its branch, in the same way `dev` and `nightly` do: if the branch is built again, the container picks up the newer image on its next restart. To hold one exact build instead, set the container image to its digest rather than its tag — the build summary in the GitHub Actions run prints the full reference to use.
+A branch build tag follows its branch, in the same way `dev` and `nightly` do: if the branch is built again, the container picks up the newer image on its next restart. To hold one exact build instead, set the container image to its digest rather than its tag. The build summary in the GitHub Actions run prints the full reference to use.
 
 Only builds that currently exist are listed, and the tag is checked before the change is saved, so a build that has already been removed cannot be selected by mistake.
 
 Branch builds are **not supported** and are intended for testing only:
 
 * They receive no updates, and the automatic update check does not apply to them.
-* They are deleted when their branch is deleted, and swept after 30 days. Once the image is gone the container cannot start until you switch back to a standard channel — so move off a branch build as soon as you have finished testing.
+* They are deleted when their branch is deleted, and swept after 30 days. Once the image is gone the container cannot start until you switch back to a standard channel, so move off a branch build as soon as you have finished testing.
 
 Selecting a branch build shows a warning in the card before you save it, and the Release Channel tile turns red once one is running.
 
@@ -102,5 +102,20 @@ This card configures how often CIPP asks the container registry whether a newer 
 Select **Save Settings** to store these options. Setting Check Interval to **Disabled** turns off scheduled checks and disables the other two settings, as neither has any effect without them; you can still check on demand with **Check for Updates**.
 
 Note that if the container restarts for any reason, the latest image for the current release channel is pulled regardless of these settings.
+
+## Update History
+
+The version changes recorded for this instance, newest first, so you can see when it landed on the build it is running and what it was on before.
+
+| Column           | Description                                                     |
+| ---------------- | --------------------------------------------------------------- |
+| Recorded At      | How long ago the change was recorded, such as `3 hours ago`.    |
+| Previous Version | The version the instance was running before the change.         |
+| New Version      | The version it moved to.                                        |
+| Image Tag        | The image tag it landed on.                                     |
+
+A change is recorded when the container starts on a different version from the one last seen, so the time recorded is when the new build first ran rather than when the image was published. The most recent 50 changes are shown.
+
+Until a change has been recorded the table is empty. Version transitions are recorded from the next update onward, so a newly deployed instance starts with an empty history rather than a backfilled one.
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

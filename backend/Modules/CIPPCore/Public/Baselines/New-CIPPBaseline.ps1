@@ -65,6 +65,10 @@ function New-CIPPBaseline {
         excludedTenants = (ConvertTo-Json -Compress -Depth 10 -InputObject $ExcludedValues)
         alertEmails     = "$($Baseline.alertEmails)"
         alertWebhookUrl = "$($Baseline.alertWebhookUrl)"
+        # 'Disable Scheduled Runs': the baseline only executes when an operator runs it.
+        # Negative flag on purpose: rows saved before the column existed default to
+        # scheduled, exactly right.
+        disableScheduledRuns = [bool]$Baseline.disableScheduledRuns
         Stages          = (ConvertTo-Json -Compress -Depth 100 -InputObject $StageDefinitions)
         updatedBy       = "$User"
         updatedAt       = $Now
@@ -125,7 +129,8 @@ function New-CIPPBaseline {
                     scopeName        = "$($Scope.scopeName)"
                     stage            = $StageNumber
                     expectedValue    = (ConvertTo-Json -Compress -Depth 100 -InputObject $Variables)
-                    remediateEnabled = [bool]$(if ($Config -is [string]) { $true } else { $Config.remediateEnabled ?? $true })
+                    # A missing flag must never fail open into auto-remediation.
+                    remediateEnabled = [bool]$(if ($Config -is [string]) { $false } else { $Config.remediateEnabled ?? $false })
                     alertEnabled     = [bool]$(if ($Config -is [string]) { $true } else { $Config.alertEnabled ?? $true })
                     alertOnRemediate = [bool]$(if ($Config -is [string]) { $false } else { $Config.alertOnRemediate ?? $false })
                     rolloutId        = "$RolloutId"

@@ -29,7 +29,6 @@ Select one group type. The type determines which additional settings appear belo
 | Security Group              | A standard security group, used for granting access to resources and for group-based licensing.                                                     |
 | Microsoft 365 Group         | A Microsoft 365 (unified) group with a shared mailbox, calendar, and associated SharePoint site.                                                    |
 | Dynamic Group               | A security group whose membership is calculated automatically from a membership rule.                                                               |
-| Dynamic Distribution Group  | An Exchange Online distribution group whose membership is resolved at send time from a recipient filter.                                            |
 | Distribution List           | An Exchange Online distribution group for delivering mail to a static list of recipients.                                                           |
 | Mail Enabled Security Group | A security group that can also receive mail, allowing it to be used both for permissions and for mail delivery.                                     |
 
@@ -41,11 +40,11 @@ These settings appear only for the group types listed against them.
 | --------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Disable group nesting (prevent other groups from being members) | Azure Role Group, Security Group, Microsoft 365 Group, Dynamic Group | Prevents other groups from being added as members, so the group can only contain users.                                                                                |
 | Licenses (optional)                                             | Security Group                                                       | Assigns one or more licences to the group, so members inherit them through group-based licensing. Each licence is listed with the number of units currently available. |
-| Let people outside the organization email the group             | Distribution List, Dynamic Distribution Group                        | Allows senders outside the organisation to email the group. When left off, only authenticated internal senders can deliver to it.                                      |
+| Let people outside the organization email the group             | Distribution List                                                    | Allows senders outside the organisation to email the group. When left off, only authenticated internal senders can deliver to it.                                      |
 | Email Aliases                                                   | Distribution List, Mail Enabled Security Group                       | Additional email addresses for the group, entered one per line as full SMTP addresses. These are added as secondary addresses alongside the primary address.           |
 | Hide this group from the Global Address List (GAL)              | Distribution List, Mail Enabled Security Group                       | Hides the group from address lists, so it does not appear when users browse or search for recipients.                                                                  |
 | Subscribe members to receive group emails                       | Microsoft 365 Group                                                  | Automatically subscribes new members to the group's conversations, so group mail is delivered to their own inbox as well as the group mailbox.                         |
-| Dynamic Group Parameters                                        | Dynamic Group, Dynamic Distribution Group                            | The rule that determines membership. Dynamic groups use Entra ID membership rule syntax; dynamic distribution groups use an Exchange Online recipient filter.          |
+| Dynamic Group Parameters                                        | Dynamic Group                                                        | The rule that determines membership, written in Entra ID membership rule syntax.                                                                                       |
 
 {% hint style="info" %}
 An example membership rule for a dynamic group, excluding guests and external users:
@@ -55,8 +54,6 @@ An example membership rule for a dynamic group, excluding guests and external us
 
 {% hint style="warning" %}
 Members entered on this page are ignored for a **Dynamic Group**, because membership is calculated from the rule rather than assigned directly. Owners are still applied.
-
-A **Dynamic Distribution Group** goes further and ignores owners, members and the description as well. Only the display name, the recipient filter, the email address and the external sender setting are used at creation, so anything else needed on the group has to be set afterwards from the edit.md page or Exchange Online.
 {% endhint %}
 
 {% hint style="warning" %}

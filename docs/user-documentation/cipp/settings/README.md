@@ -8,14 +8,24 @@ The General tab of the application settings brings together the instance-wide co
 
 ## Version
 
-Shows the versions currently running, with the frontend and backend reported separately.
+Shows the versions currently running, with the frontend and backend reported separately, together with how this instance is hosted.
 
-| Field    | Description                                               |
-| -------- | --------------------------------------------------------- |
-| Frontend | The version of the CIPP web interface currently deployed. |
-| Backend  | The version of the CIPP API currently deployed.           |
+| Field           | Description                                                                                                                  |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Frontend        | The version of the CIPP web interface currently deployed.                                                                    |
+| Backend         | The version of the CIPP API currently deployed.                                                                              |
+| Hosting         | Whether this is a CyberDrain-hosted instance or a self-hosted one.                                                           |
+| App Service SKU | The App Service plan the instance runs on, where the platform reports one.                                                   |
+| Runtime Stack   | The platform the API runs on: Flex Consumption, Linux, or Windows.                                                           |
+| Last Updated    | The most recent version change recorded for this instance, as the version it moved from and to, with the date and time in UTC. |
 
 Each version displays a tick when it is current, or a warning icon together with the newer version number when an update is available. Selecting **Check For Updates** re-queries both, which is worth doing after an upgrade rather than relying on a cached result.
+
+Selecting **Copy for Ticket** copies the whole card to your clipboard as plain text, ready to paste into a support ticket. The button reads **Copied!** for a couple of seconds to confirm.
+
+Version changes are recorded from the next update onward, so a freshly deployed instance shows **No update recorded yet** against Last Updated until it has moved between versions at least once. The full record is on the [status.md](../advanced/container-management/status.md "mention") page.
+
+Any detail the instance cannot report is shown as **Unknown**. The version numbers themselves fall back to Unknown when the check against the published release cannot reach GitHub, for example when the request has been rate-limited, so the rest of the card still gives you something to send with a ticket.
 
 {% hint style="info" %}
 The frontend and backend are versioned and deployed separately, so it is normal to see one flagged as out of date while the other is current during an upgrade. Both should match once the upgrade completes.

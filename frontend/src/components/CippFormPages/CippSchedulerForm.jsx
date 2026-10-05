@@ -774,7 +774,7 @@ const CippSchedulerForm = (props) => {
 
                       {addedConditions.map((condition, index) => (
                         <Grid container spacing={2} key={condition.id}>
-                          <Grid size={4}>
+                          <Grid size={{ xs: 12, md: 4 }}>
                             <CippFormComponent
                               type="textField"
                               name={`Trigger.DeltaConditions.${index}.Property`}
@@ -784,7 +784,7 @@ const CippSchedulerForm = (props) => {
                               required={true}
                             />
                           </Grid>
-                          <Grid size={3}>
+                          <Grid size={{ xs: 12, md: 3 }}>
                             <CippFormComponent
                               type="autoComplete"
                               multiple={false}
@@ -796,7 +796,7 @@ const CippSchedulerForm = (props) => {
                               disableClearable={true}
                             />
                           </Grid>
-                          <Grid size={4}>
+                          <Grid size={{ xs: 12, md: 4 }}>
                             <CippFormComponent
                               type="textField"
                               name={`Trigger.DeltaConditions.${index}.Value`}
@@ -805,8 +805,11 @@ const CippSchedulerForm = (props) => {
                               placeholder="*admin*"
                             />
                           </Grid>
-                          <Grid size={1}>
-                            <IconButton onClick={() => handleRemoveCondition(index)} color="error">
+                          <Grid size={{ xs: 12, md: 1 }}>
+                            <IconButton
+                              onClick={() => handleRemoveCondition(index)}
+                              color="error"
+                            >
                               <Delete />
                             </IconButton>
                           </Grid>

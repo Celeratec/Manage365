@@ -82,7 +82,7 @@ Endpoints that support `UseReportDB` today:
 | Security & Tenant | `ListMDEOnboarding`, `ListOAuthApps` |
 
 {% hint style="info" %}
-This list grows over time. The [endpoints.md](endpoints.md "mention") documentation is the authoritative source — if an endpoint lists a `UseReportDB` parameter, it supports this.
+This list grows over time. The API Documentation tab in your own instance is the authoritative source: if an endpoint lists a `UseReportDB` parameter, it supports this. See [endpoints.md](endpoints.md "mention") for how to open it.
 {% endhint %}
 
 ### Ask for every tenant in one call

@@ -37,6 +37,7 @@ import { CippDataTable } from "../../../components/CippTable/CippDataTable";
 import { useSettings } from "../../../hooks/use-settings";
 import { getCippFormatting } from "../../../utils/get-cipp-formatting";
 import { useMemo, useCallback } from "react";
+import { useCippReportDB } from "../../../components/CippComponents/CippReportDBControls";
 
 // Helper to calculate storage percentage
 const getStoragePercentage = (used, allocated) => {
@@ -105,6 +106,17 @@ const StorageProgressBar = ({ used, allocated, showLabel = true }) => {
 const Page = () => {
   const pageTitle = "OneDrive";
   const tenantFilter = useSettings().currentTenant;
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListSites?type=OneDriveUsageAccount",
+    queryKey: "ListSites-OneDriveUsageAccount",
+    cacheName: "OneDriveUsage",
+    syncTitle: "Sync OneDrive Report",
+    syncData: { Types: "OneDriveUsage" },
+    allowToggle: true,
+    defaultCached: false,
+    allowAllTenantSync: true,
+  });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
@@ -707,8 +719,9 @@ const Page = () => {
   const simpleColumns = useMemo(
     () =>
       isMobile
-        ? ["displayName", "storageUsedInGigabytes", "lastActivityDate"]
+        ? [...reportDB.cacheColumns, "displayName", "storageUsedInGigabytes", "lastActivityDate"]
         : [
+            ...reportDB.cacheColumns,
             "displayName",
             "ownerPrincipalName",
             "lastActivityDate",
@@ -717,23 +730,29 @@ const Page = () => {
             "storageAllocatedInGigabytes",
             "webUrl",
           ],
-    [isMobile]
+    [isMobile, reportDB.cacheColumns]
   );
 
   return (
-    <CippTablePage
-      title={pageTitle}
-      apiUrl="/api/ListSites?type=OneDriveUsageAccount"
-      actions={actions}
-      offCanvas={offCanvas}
-      simpleColumns={simpleColumns}
-      filters={filters}
-      cardConfig={cardConfig}
-      dataFreshnessField="reportRefreshDate"
-    />
+    <>
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        queryKey={reportDB.resolvedQueryKey}
+        actions={actions}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        filters={filters}
+        cardConfig={cardConfig}
+        dataFreshnessField="reportRefreshDate"
+        dataSourceControls={reportDB.controls}
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

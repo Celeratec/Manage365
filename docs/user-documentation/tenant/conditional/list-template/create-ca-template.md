@@ -169,4 +169,16 @@ Use **Add Named Location** to add an entry, and the delete icon on any entry to 
 A template deployed to a tenant is not linked to it afterwards. Editing the template later does not change policies already deployed from it, unless the template is applied through a standard, which redeploys on drift.
 {% endhint %}
 
+## Custom Variables
+
+Any field in this editor accepts a variable, written as `%variablename%`, which is replaced with the target tenant's value each time the template is deployed. That is what lets one template cover an estate where the details differ per client, such as a site name or an office IP range.
+
+Substitution happens before CIPP matches names in the target tenant, so a named location, authentication strength, or authentication context whose name is built from a variable is matched to the existing object of that name rather than created again on every deployment. Because the whole template is substituted at once, a variable used in a **Named Locations** display name resolves to the same value where it is referenced under **Include Locations** or **Exclude Locations**, so write the reference with the same variable text rather than a resolved value.
+
+Values are set for every tenant in [global-variables.md](../../administration/tenants/global-variables.md "mention"), or for one tenant in the Custom Variables box on [edit.md](../../manage/edit.md "mention"), where the tenant's own value wins.
+
+{% hint style="warning" %}
+The fields in this editor do not offer the [variable-auto-complete.md](../../../shared-features/variable-auto-complete.md "mention") list, so the variable name has to be typed in full. A name that matches nothing for the tenant being deployed to is left in place as literal text, which is covered under Unresolved Variables on [global-variables.md](../../administration/tenants/global-variables.md "mention").
+{% endhint %}
+
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

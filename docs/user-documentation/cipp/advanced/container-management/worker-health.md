@@ -26,7 +26,7 @@ At the top of the page, a bar of key indicators gives an at-a-glance view of the
 | Memory       | Container memory used versus its limit, with the usage percentage.                                      |
 | CPU          | Container and application CPU usage.                                                                    |
 
-Below the indicator bar, a compact stats panel breaks the same areas down in more detail: the HTTP and BG pools (size, busy count, invocations, utilisation, average duration, and faults); Jobs (running, queued, completed, failed); the Limiter (active/maximum, waiting, and throttle status); Memory (container used and limit, application RSS, other processes, GC heap, committed, GC limit, usage percentage, and garbage-collection counts); and CPU (container, application, and other). Any figure that crosses a warning threshold is shown in red.
+Below the indicator bar, a compact stats panel breaks the same areas down in more detail: the HTTP and BG pools (size, busy count, invocations, utilisation, average duration, and faults); Jobs (running, queued, completed, failed, and skipped); the Limiter (active/maximum, waiting, and throttle status); Memory (container used and limit, application RSS, other processes, GC heap, committed, GC limit, usage percentage, and garbage-collection counts); and CPU (container, application, and other). Any figure that crosses a warning threshold is shown in red. Skipped is never one of them, because a skipped job is a stale queue entry rather than a failure.
 
 ## Worker Pools
 
@@ -47,30 +47,29 @@ Two tables list every worker in the container: one for the HTTP pool, which hand
 
 ## Job Queue
 
-The Job Queue lists the background jobs known to the worker system, newest first. Queued jobs come from the durable job queue in table storage, so the list shows the full backlog of a large run — not just the handful of tasks the container has buffered for execution — and cancelling or reprioritizing a queued job takes effect even for work no container has picked up yet. Two toggles above the table control what is loaded: a status toggle (All, Queued, Running, Completed, Failed, or Cancelled) and a load limit (500, 2k, 5k, or 10k).
+The Job Queue lists the background jobs known to the worker system, newest first. Queued jobs come from the durable job queue in table storage, so the list shows the full backlog of a large run, not just the handful of tasks the container has buffered for execution, and cancelling or reprioritising a queued job takes effect even for work no container has picked up yet. Two toggles above the table control what is loaded: a status toggle (All, Queued, Running, Completed, Failed, Cancelled, or Skipped) and a load limit (500, 2k, 5k, or 10k).
 
 The status toggle filters on the server, before the load limit is applied, so the limit applies to the selected status rather than to all jobs. This matters on a busy instance: with a large backlog of completed jobs, loading All would fill the entire limit with completed work and show no queued jobs at all. Select Queued to see the jobs still waiting to run, regardless of how much history sits behind them.
 
 ### Table Details
 
-| Column          | Description                                                             |
-| --------------- | ----------------------------------------------------------------------- |
-| Name            | The name of the job's function.                                         |
-| RunName         | The name of the run that the job belongs to, where applicable.          |
-| Priority        | The job's priority, where 0 is the highest.                             |
-| Status          | The job's current state, such as Queued, Running, Completed, or Failed. |
-| QueuedUtc       | The date and time the job was queued, in UTC.                           |
-| WaitSeconds     | How long the job waited in the queue before it started running.         |
-| DurationSeconds | How long the job took to run.                                           |
+| Column           | Description                                                                         |
+| ---------------- | ----------------------------------------------------------------------------------- |
+| Name             | The name of the job's function.                                                     |
+| Run Name         | The name of the run that the job belongs to, where applicable.                      |
+| Priority         | The job's priority, where 0 is the highest.                                         |
+| Status           | The job's current state: Queued, Running, Completed, Failed, Cancelled, or Skipped. |
+| Queued Utc       | The date and time the job was queued.                                               |
+| Wait Seconds     | How long the job waited in the queue before it started running.                     |
+| Duration Seconds | How long the job took to run.                                                       |
+
+Skipped means the queue entry had gone stale: its task was already gone or had finished by the time the job was picked up, so nothing was run. It is not a failure.
 
 ### Table Actions
 
-| Action          | Description                                                                                      | Bulk Action Available |
-| --------------- | ------------------------------------------------------------------------------------------------ | --------------------- |
-| Cancel Job      | Cancels the selected job. Available for jobs that are still queued.                              | ☑                     |
-| Change Priority | Sets a new priority for the selected queued job, where 0 is the highest.                         | ☑                     |
-| Cancel Run      | Cancels every queued job belonging to the same run as the selected job.                          | ☑                     |
-| Delete          | Removes the selected job from the list. Available for jobs that are no longer queued or running. | ☑                     |
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Cancel Job</td><td>Cancels the selected job. Greyed out unless the job is still queued.</td><td>true</td></tr><tr><td>Change Priority</td><td>Sets a new priority for the selected queued job, where <code>0</code> is the highest. Greyed out unless the job is still queued.</td><td>true</td></tr><tr><td>Cancel Run</td><td>Cancels every queued job belonging to the same run as the selected job. Greyed out unless the job is still queued and belongs to a run.</td><td>true</td></tr><tr><td>Delete</td><td>Removes the selected job from the list. Greyed out while the job is still queued or running.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+
+The flyout adds the fields the table does not show: the job's id, when it started and completed, and the last error recorded for it.
 
 ## Historical Trends
 

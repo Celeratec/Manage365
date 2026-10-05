@@ -56,6 +56,9 @@ These settings pre-select the offboarding options used when a user in this tenan
 | Remove Teams Phone DID                        | Releases the phone number assigned to the user in Teams.                                                                 |
 | Clear Immutable ID                            | Clears the immutable ID, which is needed where the account is to be rematched or moved out of directory synchronisation. |
 | Disable OneDrive Sharing Links                | Disables the sharing links the user created from their OneDrive.                                                         |
+| Out of Office Message                         | The automatic reply set on the leaver's mailbox. Left blank, automatic replies are not touched. CIPP `%variable%` tokens, such as `%tenantname%` and this tenant's custom variables, stay literal in the editor and are resolved when the offboarding runs. See [offboarding-wizard.md](../../identity/administration/offboarding-wizard.md "mention"). |
+
+The tenant's saved defaults are applied in full, so an empty Out of Office message here is applied too, and a message saved in your own defaults is not used for this tenant.
 
 Under **Send results to**, choose where the outcome of an offboarding run is reported: Webhook, E-mail, or PSA.
 

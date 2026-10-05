@@ -30,10 +30,16 @@ You can get more granular with your permissions to block specific CIPP API endpo
 {% step %}
 ### Set API Permissions
 
-Using the categories listed, select whether the custom role will have `None`, `Read`, or `Read/Write` access to each category of permissions. Use the Information icon next to each category to display the CIPP API endpoints included in each category.
+Permissions are defined in one of two modes, chosen with the **Simple (patterns)** and **Advanced (per-category)** toggle. A new role opens in Simple mode.
+
+**Simple (patterns)** takes an **Include** list of patterns that grant access and an **Exclude** list that denies anything matching, with exclusions always winning, the same arrangement the built-in roles use. Patterns match permission names in the form `Category.Object.Level` and `*` matches anything, so `Identity.*.Read` grants read access to everything under Identity. **Start from a built-in role** fills both lists with an existing role's patterns as a starting point, and the **Live result** panel shows how many permissions each pattern matches so an ineffective pattern is easy to spot.
+
+**Advanced (per-category)** lists the categories individually, where you select whether the custom role will have `None`, `Read`, or `Read/Write` access to each. Use the Information icon next to each category to display the CIPP API endpoints included in each category.
 
 {% hint style="warning" %}
 Note that when creating a custom role to layer with the base role, any permission that you do not define will be evaluated as if you had selected `None`. If you want to preserve the functionality of the base role, be sure to select and option for every category.
+
+Saving in Simple mode replaces the role's permissions with the patterns on screen, so the two modes are not combined.
 {% endhint %}
 {% endstep %}
 {% endstepper %}

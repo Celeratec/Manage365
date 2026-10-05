@@ -1,49 +1,32 @@
 import { Layout as DashboardLayout } from "../../../../layouts/index.js";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
 import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
-import {
-  Paper,
-  Avatar,
-  Typography,
-  Chip,
-  Divider,
-  useTheme,
-  Button,
-  SvgIcon,
-  IconButton,
-  Tooltip,
-  Alert,
-} from "@mui/material";
+import { Paper, Avatar, Typography, Chip, Divider, useTheme } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import { Box, Stack } from "@mui/system";
-import { 
-  Edit, 
-  Block,
-  Person,
-  CalendarToday,
-  Badge,
-  Warning,
-  Sync,
-  Info,
-} from "@mui/icons-material";
+import { Edit, Block, Person, CalendarToday, Badge, Warning } from "@mui/icons-material";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
 import { getInitials, stringToColor } from "../../../../utils/get-initials";
-import { useSettings } from "../../../../hooks/use-settings";
-import { useDialog } from "../../../../hooks/use-dialog";
-import { CippApiDialog } from "../../../../components/CippComponents/CippApiDialog";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
 
 const Page = () => {
   const pageTitle = "Inactive users (6 months)";
-  const apiUrl = "/api/ListInactiveAccounts";
   const theme = useTheme();
-  const currentTenant = useSettings().currentTenant;
-  const syncDialog = useDialog();
-  const isAllTenants = currentTenant === "AllTenants";
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListInactiveAccounts",
+    queryKey: "inactive-users",
+    cacheName: "Users",
+    syncTitle: "Sync User Cache",
+    allowToggle: false,
+    defaultCached: true,
+    cacheColumns: ["lastRefreshedDateTime"],
+  });
 
   const actions = [
     {
       label: "View User",
-      link: "/identity/administration/users/user?userId=[azureAdUserId]",
+      link: "/identity/administration/users/user?userId=[azureAdUserId]&tenantFilter=[tenantId]",
       multiPost: false,
       icon: <EyeIcon />,
       color: "success",
@@ -51,7 +34,7 @@ const Page = () => {
     },
     {
       label: "Edit User",
-      link: "/identity/administration/users/user/edit?userId=[azureAdUserId]",
+      link: "/identity/administration/users/user/edit?userId=[azureAdUserId]&tenantFilter=[tenantId]",
       icon: <Edit />,
       color: "success",
       target: "_self",
@@ -88,6 +71,7 @@ const Page = () => {
       "createdDateTime",
       "lastSignInDateTime",
       "lastNonInteractiveSignInDateTime",
+      "lastSuccessfulSignInDateTime",
       "numberOfAssignedLicenses",
       "daysSinceLastSignIn",
       "lastRefreshedDateTime",
@@ -244,67 +228,30 @@ const Page = () => {
   };
 
   const simpleColumns = [
+    ...reportDB.cacheColumns.filter((c) => c === "Tenant"),
     "tenantDisplayName",
     "userPrincipalName",
     "displayName",
     "lastSignInDateTime",
     "lastNonInteractiveSignInDateTime",
+    "lastSuccessfulSignInDateTime",
     "numberOfAssignedLicenses",
     "daysSinceLastSignIn",
-    "lastRefreshedDateTime",
-  ];
-
-  const pageActions = [
-    <Stack direction="row" spacing={2} alignItems="center" key="actions-stack">
-      <Tooltip title="This report displays cached data from the Manage365 reporting database. Cache timestamps are shown in the table. Click the Sync button to update the user cache for the current tenant.">
-        <IconButton size="small">
-          <Info fontSize="small" />
-        </IconButton>
-      </Tooltip>
-      <Button
-        startIcon={
-          <SvgIcon fontSize="small">
-            <Sync />
-          </SvgIcon>
-        }
-        size="xs"
-        onClick={syncDialog.handleOpen}
-        disabled={isAllTenants}
-      >
-        Sync
-      </Button>
-    </Stack>,
+    ...reportDB.cacheColumns.filter((c) => c !== "Tenant"),
   ];
 
   return (
     <>
-      {currentTenant && currentTenant !== "" ? (
-        <CippTablePage
-          title={pageTitle}
-          apiUrl={apiUrl}
-          queryKey={["inactive-users", currentTenant]}
-          actions={actions}
-          offCanvas={offCanvas}
-          simpleColumns={simpleColumns}
-          cardButton={pageActions}
-        />
-      ) : (
-        <Alert severity="warning">Please select a tenant to view inactive users.</Alert>
-      )}
-      <CippApiDialog
-        createDialog={syncDialog}
-        title="Sync User Cache"
-        fields={[]}
-        api={{
-          type: "GET",
-          url: "/api/ExecCIPPDBCache",
-          confirmText: `Run user cache sync for ${currentTenant}? This will update user data including sign-in activity immediately.`,
-          relatedQueryKeys: ["inactive-users"],
-          data: {
-            Name: "Users",
-          },
-        }}
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        queryKey={reportDB.resolvedQueryKey}
+        actions={actions}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        dataSourceControls={reportDB.controls}
       />
+      {reportDB.syncDialog}
     </>
   );
 };

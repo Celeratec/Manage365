@@ -1,6 +1,7 @@
 import { Layout as DashboardLayout } from "../../../layouts/index.js";
 import { CippTablePage } from "../../../components/CippComponents/CippTablePage.jsx";
 import {
+  Alert,
   Button,
   Paper,
   Avatar,
@@ -38,6 +39,13 @@ import { useSettings } from "../../../hooks/use-settings";
 import { getCippFormatting } from "../../../utils/get-cipp-formatting";
 import { useMemo, useCallback } from "react";
 import { useCippSiteActions } from "../../../components/CippComponents/CippSiteActions";
+import { useCippReportDB } from "../../../components/CippComponents/CippReportDBControls";
+import {
+  CippAnonymizedReportAlert,
+  isReportAnonymized,
+  useReportAnonymized,
+} from "../../../components/CippComponents/CippAnonymizedReportAlert";
+import { CippSharePointQuotaCard } from "../../../components/CippCards/CippSharePointQuotaCard";
 
 // Helper function to get site type icon and color
 const getSiteTypeInfo = (template) => {
@@ -133,6 +141,31 @@ const Page = () => {
     });
     router.push(`/teams-share/sharepoint/site-details?${params.toString()}`);
   }, [router]);
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListSites?type=SharePointSiteUsage",
+    queryKey: "ListSites-SharePointSiteUsage",
+    cacheName: "SharePointSiteUsage",
+    syncTitle: "Sync SharePoint Sites Report",
+    syncData: { Types: "SharePointSiteUsage" },
+    allowToggle: true,
+    defaultCached: true,
+    allowAllTenantSync: true,
+  });
+
+  const anonymizedReport = useReportAnonymized({
+    url: reportDB.resolvedApiUrl,
+    data: reportDB.resolvedApiData,
+    queryKey: reportDB.resolvedQueryKey,
+    check: (rows) => isReportAnonymized(rows, ["ownerPrincipalName", "ownerDisplayName"]),
+  });
+
+  const noUsageData = useReportAnonymized({
+    url: reportDB.resolvedApiUrl,
+    data: reportDB.resolvedApiData,
+    queryKey: reportDB.resolvedQueryKey,
+    check: (rows) => rows.every((site) => !site?.reportRefreshDate),
+  });
 
   const actions = useCippSiteActions();
 
@@ -520,8 +553,9 @@ const Page = () => {
   const simpleColumns = useMemo(
     () =>
       isMobile
-        ? ["displayName", "storageUsedInGigabytes", "lastActivityDate"]
+        ? [...reportDB.cacheColumns, "displayName", "storageUsedInGigabytes", "lastActivityDate"]
         : [
+            ...reportDB.cacheColumns,
             "displayName",
             "rootWebTemplate",
             "ownerPrincipalName",
@@ -531,40 +565,62 @@ const Page = () => {
             "storageAllocatedInGigabytes",
             "webUrl",
           ],
-    [isMobile]
+    [isMobile, reportDB.cacheColumns]
   );
 
   return (
-    <CippTablePage
-      title={pageTitle}
-      apiUrl="/api/ListSites?type=SharePointSiteUsage"
-      actions={actions}
-      offCanvas={offCanvas}
-      simpleColumns={simpleColumns}
-      filters={filters}
-      cardConfig={cardConfig}
-      onCardClick={handleCardClick}
-      dataFreshnessField="reportRefreshDate"
-      cardButton={
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-          <Button component={Link} href="/teams-share/sharepoint/add-site" startIcon={<Add />}>
-            {isMobile ? "" : "Add Site"}
-          </Button>
-          {!isMobile && (
-            <Button
-              component={Link}
-              href="/teams-share/sharepoint/bulk-add-site"
-              startIcon={<AddToPhotos />}
-            >
-              Bulk Add Sites
+    <>
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        queryKey={reportDB.resolvedQueryKey}
+        actions={actions}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        filters={filters}
+        cardConfig={cardConfig}
+        onCardClick={handleCardClick}
+        dataFreshnessField="reportRefreshDate"
+        dataSourceControls={reportDB.controls}
+        cardButton={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button component={Link} href="/teams-share/sharepoint/add-site" startIcon={<Add />}>
+              {isMobile ? "" : "Add Site"}
             </Button>
-          )}
-        </Box>
-      }
-    />
+            {!isMobile && (
+              <Button
+                component={Link}
+                href="/teams-share/sharepoint/bulk-add-site"
+                startIcon={<AddToPhotos />}
+              >
+                Bulk Add Sites
+              </Button>
+            )}
+          </Stack>
+        }
+        tableFilter={
+          <>
+            <CippSharePointQuotaCard />
+            <CippAnonymizedReportAlert show={anonymizedReport}>
+              Site owner names in this report are pseudo-anonymised because Microsoft 365 report
+              anonymization is enabled for this tenant.
+            </CippAnonymizedReportAlert>
+            {!anonymizedReport && noUsageData && (
+              <Alert severity="info">
+                Microsoft returned no SharePoint usage report for this tenant, so activity,
+                storage and file count are blank. The site list itself is complete. Usage reports
+                can take up to 48 hours to appear on a new tenant.
+              </Alert>
+            )}
+          </>
+        }
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

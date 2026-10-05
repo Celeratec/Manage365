@@ -30,7 +30,7 @@ User and device information is written to a rich text field named **Microsoft 36
 | Reschedule next sync date                                                       | Sets a future date to delay the next scheduled synchronisation, which is useful for keeping the first run outside business hours. Leave blank to sync at the next scheduled time.                 |
 
 {% hint style="info" %}
-The Microsoft 365 and Entra portal links are always included. The Partner Center, Defender and Compliance links are optional because not every technician has access to them.
+The M365 Admin Portal, Exchange Admin Portal, Entra Portal, Intune, Teams Portal, SharePoint Portal, and Azure Portal links are always included. The Partner Center, Defender, and Compliance links are optional because not every technician has access to them.
 {% endhint %}
 
 ## Obtaining an API Key in Hudu
@@ -94,6 +94,10 @@ Work through the **Tenant Mapping** and **Field Mapping** tabs described below. 
 ## Organisation Mapping
 
 The **Tenant Mapping** tab pairs each CIPP tenant with a Hudu company. Only mapped tenants are synchronised, and mapping a tenant is what causes CIPP to schedule its daily synchronisation.
+
+{% hint style="warning" %}
+Saving on the **Tenant Mapping** and **Field Mapping** tabs requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
 
 To map manually, choose a tenant, choose the matching entry under **Select Hudu Company**, and select the add button. **Automap Companies** fills in matches automatically, and the refresh button reloads the company list from Hudu. Mappings are only written when you select **Submit**.
 

@@ -4,6 +4,10 @@ Custom data mappings connect a source of information to a custom data attribute 
 
 You need at least one directory extension or schema extension before a mapping can be created, because the mapping needs somewhere to write the value.
 
+{% hint style="warning" %}
+Creating, editing and deleting mappings requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups is refused these actions, and the list it sees is narrowed to the mappings that target tenants within its scope. See [roles.md](../../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 ## Action Buttons
 
 {% content-ref url="add.md" %}

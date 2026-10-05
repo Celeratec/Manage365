@@ -14,11 +14,13 @@ The report reads from cached scans rather than querying SharePoint and OneDrive 
 
 The time of the last completed scan is shown as "Last data refresh."
 
-Results are written as the scan works through the tenant, so the report fills in site by site rather than staying empty until every drive has been read. Refreshing part-way through shows what has been scanned so far, and the totals settle once the scan finishes.
+Results are written as the scan works through the tenant, so the report fills in library by library rather than staying empty until every drive has been read. Refreshing part-way through shows what has been scanned so far, and the totals settle once the scan finishes.
 
-The first scan of a tenant reads every drive in full. Later syncs collect only what has changed since the previous one, so they finish considerably faster, and a full rescan is run periodically to catch anything a change-only pass would miss. A scan interrupted before it finishes, by a timeout on a large tenant for example, picks up where it stopped rather than starting the tenant over.
+The first scan of a tenant reads every drive in full. Later syncs collect only what has changed since the previous one, so they finish considerably faster, and a full rescan is run periodically to catch anything a change-only pass would miss. A scan interrupted before it finishes, by a timeout on a large tenant for example, picks up where it stopped rather than starting the tenant over, and a library too large to read in one pass resumes by itself until it is done.
 
-Sites that could not be read keep the links an earlier scan found for them rather than dropping out of the report, so those rows may be out of date. Links belonging to sites or libraries that no longer exist in the tenant are removed once the scan finishes.
+Sites that could not be read keep the links an earlier scan found for them rather than dropping out of the report, so those rows may be out of date. The same applies to a library where Microsoft throttled the scan before every item could be read: its existing links are kept, and the library is read in full on the next sync.
+
+Links belonging to sites or libraries that no longer exist in the tenant are removed once the scan finishes, as are the links on a locked site: a lock blocks all access to that site's content, sharing links included, so those links no longer work. Locked sites are most often former employees' OneDrive accounts, and their links reappear at the next sync after the lock is lifted. The Preservation Hold Library is not scanned, as it holds retained copies that cannot be shared.
 
 ## Summary
 
@@ -51,7 +53,7 @@ A row of headline counts sits above two cards that break the environment down fu
 
 ## Charts
 
-Once a scan has data, the report charts the sharing links from several angles. The last two charts are added once usage data has been synced.
+Once a scan has data, the report charts the sharing links from several angles. A chart with nothing to show, such as Top External Recipients on a tenant that has no external shares, reads "No data to display" rather than sitting in a loading state. The last two charts are added once usage data has been synced.
 
 | Chart                          | Shows                                                         |
 | ------------------------------ | ------------------------------------------------------------- |

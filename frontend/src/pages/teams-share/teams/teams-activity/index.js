@@ -28,6 +28,11 @@ import {
 import { useSettings } from "../../../../hooks/use-settings";
 import { useMemo, useCallback } from "react";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
+import {
+  CippAnonymizedReportAlert,
+  useReportAnonymized,
+} from "../../../../components/CippComponents/CippAnonymizedReportAlert";
 
 // Helper to determine activity level
 const getActivityLevel = (totalActivity) => {
@@ -90,6 +95,21 @@ const Page = () => {
   const pageTitle = "Teams Activity";
   const tenantFilter = useSettings().currentTenant;
   const theme = useTheme();
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListTeamsActivity?type=TeamsUserActivityUser",
+    queryKey: "ListTeamsActivity-TeamsUserActivityUser",
+    cacheName: "TeamsActivity",
+    syncTitle: "Sync Teams Activity Report",
+    allowToggle: true,
+    defaultCached: false,
+  });
+
+  const anonymized = useReportAnonymized({
+    url: reportDB.resolvedApiUrl,
+    queryKey: reportDB.resolvedQueryKey,
+    fields: ["UPN"],
+  });
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const filters = useMemo(
@@ -495,8 +515,9 @@ const Page = () => {
   const simpleColumns = useMemo(
     () =>
       isMobile
-        ? ["displayName", "LastActive", "totalActivity"]
+        ? [...reportDB.cacheColumns, "displayName", "LastActive", "totalActivity"]
         : [
+            ...reportDB.cacheColumns,
             "displayName",
             "UPN",
             "LastActive",
@@ -506,22 +527,28 @@ const Page = () => {
             "MeetingCount",
             "totalActivity",
           ],
-    [isMobile]
+    [isMobile, reportDB.cacheColumns]
   );
 
   return (
-    <CippTablePage
-      title={pageTitle}
-      apiUrl="/api/ListTeamsActivity?type=TeamsUserActivityUser"
-      offCanvas={offCanvas}
-      simpleColumns={simpleColumns}
-      filters={filters}
-      cardConfig={cardConfig}
-      dataFreshnessField="reportRefreshDate"
-    />
+    <>
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        queryKey={reportDB.resolvedQueryKey}
+        tableFilter={<CippAnonymizedReportAlert show={anonymized} />}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        filters={filters}
+        cardConfig={cardConfig}
+        dataFreshnessField="reportRefreshDate"
+        dataSourceControls={reportDB.controls}
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

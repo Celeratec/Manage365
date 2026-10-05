@@ -40,10 +40,20 @@ import { useRouter } from "next/router";
 import { CippDataTable } from "../../../../components/CippTable/CippDataTable";
 import { useSettings } from "../../../../hooks/use-settings";
 import { useMemo, useCallback } from "react";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
 
 const Page = () => {
   const pageTitle = "Teams";
   const tenantFilter = useSettings().currentTenant;
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListTeams?type=list",
+    queryKey: "ListTeams-list",
+    cacheName: "Teams",
+    syncTitle: "Sync Teams Report",
+    allowToggle: true,
+    defaultCached: false,
+  });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const router = useRouter();
@@ -484,30 +494,45 @@ const Page = () => {
   const simpleColumns = useMemo(
     () =>
       isMobile
-        ? ["displayName", "visibility", "isArchived"]
-        : ["displayName", "description", "visibility", "mailNickname", "isArchived", "id"],
-    [isMobile]
+        ? [...reportDB.cacheColumns, "displayName", "visibility", "isArchived"]
+        : [
+            ...reportDB.cacheColumns,
+            "displayName",
+            "description",
+            "visibility",
+            "mailNickname",
+            "isArchived",
+            "id",
+          ],
+    [isMobile, reportDB.cacheColumns]
   );
 
   return (
-    <CippTablePage
-      title={pageTitle}
-      apiUrl="/api/ListTeams?type=list"
-      actions={actions}
-      offCanvas={offCanvas}
-      simpleColumns={simpleColumns}
-      filters={filters}
-      cardConfig={cardConfig}
-      onCardClick={handleCardClick}
-      cardButton={
-        <Button component={Link} href="/teams-share/teams/list-team/add" startIcon={<GroupAdd />}>
-          {isMobile ? "" : "Add Team"}
-        </Button>
-      }
-    />
+    <>
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        queryKey={reportDB.resolvedQueryKey}
+        actions={actions}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        filters={filters}
+        cardConfig={cardConfig}
+        onCardClick={handleCardClick}
+        cardButton={
+          <Stack direction="row" spacing={1} alignItems="center">
+            <Button component={Link} href="/teams-share/teams/list-team/add" startIcon={<GroupAdd />}>
+              {isMobile ? "" : "Add Team"}
+            </Button>
+          </Stack>
+        }
+        dataSourceControls={reportDB.controls}
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

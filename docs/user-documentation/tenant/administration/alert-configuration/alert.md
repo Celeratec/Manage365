@@ -117,6 +117,10 @@ Once the criteria and notification settings are complete, **Save Alert** on the 
 
 You can review the available alerts embedded below or navigate to [https://resources.cipp.app/?tab=alerts](https://resources.cipp.app/?tab=alerts).
 
+{% hint style="info" %}
+The **Alert on Huntress or CIPP Rogue Apps detected** alert checks tenants against both the public Huntress RogueApps feed and a list curated by CIPP, so it can report applications that do not appear on the Huntress website. See [rogue-apps.md](rogue-apps.md "mention") for how the list is built and which applications the CIPP list contains.
+{% endhint %}
+
 {% @cipp-external-webpage-block/cyberdrain url="https://resources.cipp.app/?tab=alerts" fullWidth="true" %}
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

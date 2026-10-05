@@ -309,37 +309,84 @@ function Invoke-EditGroup {
     }
 
     if ($GroupType -in @( 'Distribution List', 'Mail-Enabled Security') -and ($AddOwners -or $RemoveOwners)) {
-        $CurrentOwners = New-ExoRequest -tenantid $TenantId -cmdlet 'Get-DistributionGroup' -cmdParams @{ Identity = $GroupId } -UseSystemMailbox $true | Select-Object -ExpandProperty ManagedBy
+        $CurrentOwnersRaw = @(
+            New-ExoRequest -tenantid $TenantId -cmdlet 'Get-DistributionGroup' -cmdParams @{ Identity = $GroupId } -UseSystemMailbox $true |
+                Select-Object -ExpandProperty ManagedBy
+        )
+        $CurrentResolved = @(Resolve-CIPPDirectoryId -Identity $CurrentOwnersRaw -TenantFilter $TenantId)
 
-        $NewManagedBy = [System.Collections.Generic.List[string]]::new()
-        foreach ($CurrentOwner in $CurrentOwners) {
-            if ($RemoveOwners -and $RemoveOwners.value -contains $CurrentOwner) {
-                $OwnerToRemove = $RemoveOwners | Where-Object { $_.value -eq $CurrentOwner }
-                $ExoLogs.Add(@{
-                        message = "Removed owner $($OwnerToRemove.label) from $($GroupName) group"
-                        target  = $GroupId
-                    })
-                continue
-            }
-            $NewManagedBy.Add($CurrentOwner)
+        $RemoveIds = @()
+        if ($RemoveOwners) {
+            $RemoveIds = @(
+                Resolve-CIPPDirectoryId -Identity @($RemoveOwners.value) -TenantFilter $TenantId |
+                    Where-Object { $_.Resolved -and $_.Id } |
+                    ForEach-Object { $_.Id }
+            )
         }
+        $AddResolved = @()
         if ($AddOwners) {
-            foreach ($NewOwner in $AddOwners) {
-                $NewManagedBy.Add($NewOwner.value)
-                $ExoLogs.Add(@{
-                        message = "Added owner $($NewOwner.label) to $($GroupName) group"
-                        target  = $GroupId
-                    })
+            $AddResolved = @(Resolve-CIPPDirectoryId -Identity @($AddOwners.value) -TenantFilter $TenantId)
+        }
+
+        # Every owner change here is carried by the one Set-DistributionGroup call below, so they
+        # share an OperationGuid: the ManagedBy rewrite either applies in full or not at all, and
+        # reporting per-owner outcomes that disagree with each other would be a lie.
+        $OwnersGuid = [Guid]::NewGuid().ToString()
+        $NewManagedBy = [System.Collections.Generic.List[string]]::new()
+        $RemoveIdSet = [System.Collections.Generic.HashSet[string]]::new([string[]]$RemoveIds, [StringComparer]::OrdinalIgnoreCase)
+
+        foreach ($Entry in $CurrentResolved) {
+            if ($Entry.Resolved -and $Entry.Id) {
+                if ($RemoveIdSet.Contains($Entry.Id)) {
+                    $OwnerToRemove = $RemoveOwners | Where-Object {
+                        $_.value -eq $Entry.Id -or $_.value -eq $Entry.Input -or $_.addedFields.userPrincipalName -eq $Entry.UserPrincipalName
+                    } | Select-Object -First 1
+                    $ExoLogs.Add(@{
+                            message       = "Removed owner $($OwnerToRemove.label ?? $Entry.UserPrincipalName ?? $Entry.Id) from $($GroupName) group"
+                            target        = $GroupId
+                            OperationGuid = $OwnersGuid
+                        })
+                    continue
+                }
+                $NewManagedBy.Add($Entry.Id)
+            } else {
+                # Keep unresolved ManagedBy entries so a failed lookup cannot strip an owner.
+                if ($RemoveOwners -and ($RemoveOwners.value -contains $Entry.Input)) {
+                    $OwnerToRemove = $RemoveOwners | Where-Object { $_.value -eq $Entry.Input } | Select-Object -First 1
+                    $ExoLogs.Add(@{
+                            message       = "Removed owner $($OwnerToRemove.label) from $($GroupName) group"
+                            target        = $GroupId
+                            OperationGuid = $OwnersGuid
+                        })
+                    continue
+                }
+                $NewManagedBy.Add($Entry.Input)
             }
+        }
+        foreach ($NewOwner in $AddResolved) {
+            if (-not $NewOwner.Resolved -or -not $NewOwner.Id) { continue }
+            $NewManagedBy.Add($NewOwner.Id)
+            $OwnerLabel = ($AddOwners | Where-Object { $_.value -eq $NewOwner.Input -or $_.value -eq $NewOwner.Id } | Select-Object -First 1).label
+            $ExoLogs.Add(@{
+                    message       = "Added owner $($OwnerLabel ?? $NewOwner.UserPrincipalName ?? $NewOwner.Id) to $($GroupName) group"
+                    target        = $GroupId
+                    OperationGuid = $OwnersGuid
+                })
         }
 
         $NewManagedBy = $NewManagedBy | Sort-Object -Unique
-        $Params = @{ Identity = $GroupId; ManagedBy = $NewManagedBy }
+        # BypassSecurityGroupManagerCheck as everywhere else we write to Exchange: without it the
+        # check applies to mail-enabled security groups and Set-DistributionGroup refuses with
+        # "The executing user is not in the current organization", so owner changes on those groups
+        # silently do nothing. Plain distribution lists are unaffected, which is why this only
+        # showed up on mail-enabled security groups.
+        $Params = @{ Identity = $GroupId; ManagedBy = $NewManagedBy; BypassSecurityGroupManagerCheck = $true }
         $ExoBulkRequests.Add(@{
-                CmdletInput = @{
+                CmdletInput   = @{
                     CmdletName = 'Set-DistributionGroup'
                     Parameters = $Params
                 }
+                OperationGuid = $OwnersGuid
             })
     }
 
@@ -356,7 +403,9 @@ function Invoke-EditGroup {
         foreach ($GraphLog in $GraphLogs) {
             $GraphError = $RawGraphRequest | Where-Object { $_.id -eq $GraphLog.id -and $_.status -notmatch '^2[0-9]+' }
             if ($GraphError) {
-                $Message = Get-NormalizedError -message $GraphError.body.error
+                # body.error is an object; handing it to Get-NormalizedError whole renders it as
+                # "@{code=Request_BadRequest; message=...; innerError=}" in the operator's face.
+                $Message = Get-NormalizedError -message (Get-CippExoErrorText -ErrorRecord $GraphError.body)
                 $Sev = 'Error'
                 $Results.Add("Error - $Message")
             } else {
@@ -376,21 +425,19 @@ function Invoke-EditGroup {
         #Write-Warning 'EditUser - Executing Exo Bulk Requests - Completed'
         #Write-Information ($RawExoRequest | ConvertTo-Json -Depth 10)
 
-        $LastError = $RawExoRequest | Select-Object -Last 1
+        # Match each result back to the operation that produced it. Correlating by hand here used to
+        # report an operation as succeeded whenever the error carried no matching target - which is
+        # exactly what Set-DistributionGroup does - so a rejected owner change was shown to the
+        # operator as "Success - Added owner ..." while nothing had actually happened.
+        $ExoResults = Resolve-CippExoBulkResult -Response $RawExoRequest -Operations $ExoLogs
 
-        foreach ($ExoError in $LastError.error) {
-            $Sev = 'Error'
-            $Results.Add("Error - $ExoError")
-            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message $ExoError -Sev $Sev
-        }
-
-        foreach ($ExoLog in $ExoLogs) {
-            $ExoError = $LastError | Where-Object { $ExoLog.target -in $_.target -and $_.error }
-            if (!$LastError -or ($LastError.error -and $LastError.target -notcontains $ExoLog.target)) {
-                $Message = $ExoLog.message
-                $Sev = 'Info'
-                $Results.Add("Success - $Message")
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message $Message -Sev $Sev
+        foreach ($ExoResult in $ExoResults) {
+            if ($ExoResult.Success) {
+                $Results.Add("Success - $($ExoResult.Operation.message)")
+                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message $ExoResult.Operation.message -Sev 'Info'
+            } else {
+                $Results.Add("Error - $($ExoResult.ErrorMessage)")
+                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message "$($ExoResult.Operation.message) failed: $($ExoResult.ErrorMessage)" -Sev 'Error'
             }
         }
     }

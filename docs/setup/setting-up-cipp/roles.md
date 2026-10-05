@@ -103,6 +103,10 @@ For Allowed Tenants select a subset of tenants to manage, tenant groups, or AllT
 {% hint style="info" %}
 If AllTenants is selected, you can block a subset of tenants or tenant groups using Blocked Tenants.
 {% endhint %}
+
+{% hint style="warning" %}
+A handful of estate-wide operations are refused outright to a role that does not have unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. These are adding a tenant through the Setup Wizard, creating, editing and deleting custom data mappings, saving an integration's tenant or field mapping, and creating, editing, deleting or re-running the rules of a tenant group. A restricted role can still open these pages, but is refused at the point it tries to save.
+{% endhint %}
 {% endstep %}
 
 {% step %}
@@ -114,10 +118,25 @@ Optionally select the CIPP endpoints that you want to block for the role. For ex
 {% step %}
 ### API Permissions
 
-Select the API permission from the listed categories and choose from None, Read or Read/Write.
+Custom roles define their permissions in one of two ways, chosen with the **Simple (patterns)** and **Advanced (per-category)** toggle. A new role opens in Simple mode, and a role you open for editing opens in Advanced mode.
+
+**Simple (patterns)** works the way CIPP's built-in roles do. An **Include** list grants everything matching its patterns, an **Exclude** list then denies anything matching its own, and exclusions always win.
+
+* Patterns match permission names in the form `Category.Object.Level`, where the level is `Read` or `ReadWrite`, and `*` matches anything. `Identity.*.Read` grants read access to everything under Identity, and `*` grants everything.
+* A pattern holds up to three dot-separated segments of letters, numbers and `*`. Anything else is reported and dropped rather than saved.
+* **Start from a built-in role** replaces both lists with that role's own patterns, which you are then free to edit.
+* The **Live result** panel counts what each pattern matches and flags any pattern matching nothing, so a typo does not pass unnoticed.
+* Patterns are expanded every time permissions are evaluated, so a role built on wildcards picks up endpoints added in later CIPP releases on its own.
+
+**Advanced (per-category)** is the category list, where each category is set to None, Read or Read/Write.
 
 * To find out which API endpoints are affected by these selections, click on the Info button.
 * Not defining a category is the same as setting None. Be sure that you define all base role permissions you want to apply to the user.
+* A role defined this way grants only the categories that existed when you saved it, so review it after a CIPP update. See [how-cipp-evaluates-roles.md](../resources/how-cipp-evaluates-roles.md "mention").
+
+{% hint style="warning" %}
+The two modes are not merged. Saving in Simple mode replaces the role's permissions with the patterns on screen, and CIPP warns you when the categories and the patterns have diverged.
+{% endhint %}
 {% endstep %}
 
 {% step %}

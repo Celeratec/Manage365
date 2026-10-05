@@ -1,6 +1,6 @@
 # Add Vacation Schedule
 
-This wizard schedules a set of temporary changes for one or more users and the reversal of each, so a period of absence is set up once and undone automatically. Four kinds of change are available and any combination can be used, but at least one has to be enabled before the wizard will continue.
+This wizard schedules a set of temporary changes for one or more users and the reversal of each, so a period of absence is set up once and undone automatically. Five kinds of change are available and any combination can be used, but at least one has to be enabled before the wizard will continue.
 
 {% stepper %}
 {% step %}
@@ -18,22 +18,25 @@ The users the vacation applies to. Several can be selected, and the changes belo
 {% step %}
 ### Vacation Actions
 
-Four switches, each revealing its own settings. Enable whichever apply.
+Five switches, each revealing its own settings. Enable whichever apply.
 
 #### Enable CA Policy Exclusion
 
 Excludes the selected users from Conditional Access policies for the duration.
 
-| Field                                        | Description                                                                                                                                                                |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Conditional Access Policies                  | The policies to exclude the users from. At least one is required. The list is read from the tenant chosen in step one, so a tenant has to be selected before it populates. |
-| Exclude from location-based audit log alerts | Suppresses the alerts that would otherwise fire on sign-ins from an unusual location.                                                                                      |
-| Create temporary travel policy               | Creates a named location for the travel destination and a policy that blocks sign-ins from everywhere else, then deletes both at the end date.                             |
-| Travel destination countries                 | The countries the users are travelling to. Required when a travel policy is being created.                                                                                 |
+| Field                          | Description                                                                                                                                                                |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Conditional Access Policies    | The policies to exclude the users from. At least one is required. The list is read from the tenant chosen in step one, so a tenant has to be selected before it populates. |
+| Create temporary travel policy | Creates a named location for the travel destination and a policy that blocks sign-ins from everywhere else, then deletes both at the end date.                             |
+| Travel destination countries   | The countries the users are travelling to. Required when a travel policy is being created.                                                                                 |
 
 {% hint style="warning" %}
 Excluding someone from a Conditional Access policy allows sign-ins from anywhere, which is a wider gap than the trip usually warrants. The temporary travel policy is there to close it, restricting sign-ins to the destination for the same period.
 {% endhint %}
+
+#### Exclude from location-based audit log alerts
+
+Suppresses the alerts that would otherwise fire on sign-ins from an unusual location, by putting the users on the audit log alert exclusion list at the start date and taking them off again at the end date. This stands on its own: it needs no Conditional Access policy, so tenants without any still get to quiet the alerts for the trip.
 
 #### Enable Mailbox Permissions
 

@@ -69,6 +69,16 @@ If a user holds more than one custom role, their granted permissions are **combi
 Tenant scope is evaluated **per custom role**, not pooled across them. For any single action, one custom role must grant **both** the required permission **and** access to the target tenant. A user cannot borrow the permission from one custom role and the tenant access from another.
 {% endhint %}
 
+### A tenant scope that resolves to no tenants
+
+A custom role's tenant scope can end up covering nothing at all. The usual causes are a role whose Allowed Tenants are all named again under Blocked Tenants, because a blocked tenant always wins over an allowed one, and a role scoped to a tenant group that currently resolves to no tenants. A user whose only custom roles have since been deleted ends up in the same position.
+
+A role in that state reaches no tenant's data at all, whatever API permissions it holds. The tenant selector comes back empty, All Tenants pages show nothing, and reports drawn from cached data are empty too. A scope that grants nothing is treated as nothing rather than as everything.
+
+{% hint style="info" %}
+This is usually reported as CIPP showing no data rather than as an access problem, because nothing on screen says the tenant scope is empty. Check Allowed Tenants and Blocked Tenants on every custom role the user holds, and the membership of any tenant group either list names, before looking anywhere else.
+{% endhint %}
+
 ## Worked examples
 
 ### Example 1 — Built-in roles only
@@ -112,6 +122,32 @@ She is **not** in any group that maps to `editor`, `readonly`, `admin`, or `supe
 
 If Priya were also added to a second custom role granting **Endpoint: Read**, her access would be the **union** of the two: Reports read, Identity read, and Endpoint read.
 
+## When CIPP adds new permission categories
+
+CIPP updates occasionally add a permission category, or split an existing one so that a capability can be granted on its own rather than bundled with everything else in its area. The categories listed under **API Permissions** on a custom role are therefore not fixed for the life of an instance.
+
+Existing custom roles are not rewritten when this happens. They keep every permission they already grant, and the capability that moved into the new category becomes a deny, because any category that has not been set is treated as `None`. Users notice this as one part of their access disappearing while the rest of the role carries on working, which tends to be reported as a fault rather than as a permission change.
+
+How much this affects you depends on how the role was built. A role defined in **Simple** mode is a set of patterns, expanded against the current permission list every time it is evaluated, so a wildcard such as `Tenant.*` covers a newly added category in that area without being touched. A role defined in **Advanced** mode grants only the categories it names, as does a pattern written without a wildcard.
+
+After an update, open each custom role on the [cipp-roles](../../user-documentation/cipp/advanced/authentication/cipp-roles/ "mention") page and look through the **API Permissions** list for categories you have not set. Setting a new category to `Read` or `Read/Write` returns the capability to the role, and moving the role to Simple mode with a wildcard pattern avoids meeting the same problem at the next update.
+
+{% hint style="info" %}
+Users holding `admin` or `superadmin` are unaffected, as those roles bypass custom roles and receive new permissions automatically.
+{% endhint %}
+
+## Testing a role with impersonation
+
+Reasoning about a role on paper is one thing, seeing it is another. Super admins can select **Impersonate Role** against any role on the [cipp-roles](../../user-documentation/cipp/advanced/authentication/cipp-roles/ "mention") page. CIPP reloads and behaves as though they hold that role and nothing else, including its tenant restrictions, and a banner across the top of the page names the role until **Exit impersonation** is selected.
+
+The swap is enforced by the API rather than only by the interface, so anything the role cannot reach fails exactly as it would for a real user holding it. It can only ever narrow access, because the request is honoured only for genuine super admins, and the `superadmin` role itself cannot be impersonated. If the impersonated role cannot load CIPP at all, the banner still appears on the access denied page, so there is always a way back.
+
+{% hint style="warning" %}
+Impersonation shows a **single role in isolation**, which is not the same as showing a user. Someone holding a base role alongside one or more custom roles has their access shaped by the combinations described above, so their effective permissions can differ from what impersonation displays. IP restrictions are not simulated.
+{% endhint %}
+
+Starting impersonation is written to the logs and attributed to the super admin's real account, not to the role being impersonated.
+
 ## Quick reference
 
 | The user holds…​                           | What they get                                                                                               |
@@ -122,6 +158,7 @@ If Priya were also added to a second custom role granting **Endpoint: Read**, he
 | `editor`/`readonly` + several custom roles | **Union** of the custom roles' grants, still capped by the built-in ceiling; tenant scope checked per role. |
 | One custom role, **no** base role          | Exactly what that role explicitly grants — no ceiling. Unset categories are denied.                         |
 | Several custom roles, **no** base role     | **Union** of all the roles' explicit grants; tenant scope checked per role.                                 |
+| A custom role whose tenant scope resolves to no tenants | **No access to any tenant's data**, whatever permissions the role grants.                       |
 
 {% hint style="info" %}
 Because `admin`/`superadmin` bypass custom roles, the most common pattern for scoped access is to map a base role (`editor` or `readonly`) to one Entra group and a custom role to another, then add users to **both** — the base role provides a safe ceiling and the custom role tailors it. Custom-roles-only assignments also work, but without a base-role ceiling they grant exactly what is defined, so review them carefully. See [Custom Roles](../setting-up-cipp/roles.md#custom-roles) for the full setup steps.

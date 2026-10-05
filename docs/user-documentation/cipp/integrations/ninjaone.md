@@ -105,6 +105,10 @@ Work through the **Tenant Mapping** and **Field Mapping** tabs described below. 
 
 The **Tenant Mapping** tab pairs each CIPP tenant with a NinjaOne organisation. Only mapped tenants are synchronised, so this is what determines the scope of the integration.
 
+{% hint style="warning" %}
+Saving on the **Tenant Mapping** and **Field Mapping** tabs requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 To map manually, choose a tenant, choose the NinjaOne organisation under **Select NinjaOne Company**, and select the add button. **Automap Companies** matches automatically. Mappings are only written when you select **Submit**.
 
 | Column          | Description                                                    |

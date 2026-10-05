@@ -1,7 +1,8 @@
 # Start CIPP local dev environment for windows.
 #
 # Runs docker compose up which starts:
-#   1. Azurite (local Azure Storage emulator)
+#   1. Azurite (local Azure Storage emulator). Cache tables are emptied first if the
+#      on-disk LokiJS file is large enough to crash Azurite's Table service.
 #   2. Craft API container (mounts ./backend for PS modules)
 #   3. Next.js frontend started in ps directly since bind mounts are really slow in Docker for Windows
 #
@@ -29,6 +30,17 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host '  Docker is running.' -ForegroundColor Green
 
+$RepoRoot = (Get-Item $PSScriptRoot).Parent.Parent.FullName
+
+# Azurite loads all tables as one Node string (~512 MiB cap). Trim caches first if the
+# volume is already large enough to crash Table startup, and free 10000-10002 if we stop it.
+docker volume create cipp-ng_azurite-data | Out-Null
+try {
+    & (Join-Path $PSScriptRoot 'Clear-CippAzuriteCacheIfNeeded.ps1')
+} catch {
+    Write-Warning "Azurite cache trim skipped; continuing startup. $($_.Exception.Message)"
+}
+
 # Free host frontend port by stopping leftover Next.js/node processes from prior runs
 Get-Process node -ErrorAction SilentlyContinue | Stop-Process -ErrorAction SilentlyContinue
 
@@ -51,7 +63,6 @@ if ($blocked.Count -gt 0) {
 }
 Write-Host ("  Ports free: {0}" -f ($requiredPorts -join ', ')) -ForegroundColor Green
 
-$RepoRoot = (Get-Item $PSScriptRoot).Parent.Parent.FullName
 $frontendPath = Join-Path -Path $RepoRoot -ChildPath 'frontend'
 $dockerpath = Join-Path -Path $RepoRoot -ChildPath 'build'
 $frontendCommand = 'try { yarn install --network-timeout 500000; yarn run dev } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
@@ -60,7 +71,6 @@ $dockerCommand = 'try { ./tools/build-dev-modules.ps1; docker compose -f docker-
 $dockerEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($dockerCommand))
 $watcherCommand = 'try { ./tools/Watch-Cipp-Dev-Modules.ps1 -SkipInitialBuild } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
 $watcherEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($watcherCommand))
-docker volume create cipp-ng_azurite-data
 wt --title CIPP-Docker -d $dockerpath pwsh -EncodedCommand $dockerEncoded`; new-tab --title 'CIPP Modules' -d $dockerpath pwsh -EncodedCommand $watcherEncoded`; new-tab --title 'CIPP Frontend' -d $frontendPath pwsh -EncodedCommand $frontendEncoded
 
 Write-Host "`n  API + Frontend: http://localhost:5196" -ForegroundColor Green

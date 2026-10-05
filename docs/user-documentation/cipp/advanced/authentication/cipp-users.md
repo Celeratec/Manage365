@@ -1,6 +1,6 @@
 # CIPP Users
 
-The CIPP User Management page controls who can access CIPP and what they can do. Access is granted in two ways that work side by side. Users are automatically synced from your partner tenant every 15 minutes based on the Entra group memberships configured on the CIPP Roles page, and you can also add users or assign roles by hand. Manual assignments are held separately from the automatic sync, so they are never overwritten when the sync runs.
+The CIPP Users page controls who can access CIPP and what they can do. Access is granted in two ways that work side by side. Users are automatically synced from your partner tenant every 15 minutes based on the Entra group memberships configured on the CIPP Roles page, and you can also add users or assign roles by hand. Manual assignments are held separately from the automatic sync, so they are never overwritten when the sync runs.
 
 ## Table Details
 

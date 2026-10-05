@@ -25,6 +25,7 @@ import {
 import { useSettings } from "../../../../hooks/use-settings";
 import { useRouter } from "next/router";
 import { useMemo, useCallback } from "react";
+import { useCippReportDB } from "../../../../components/CippComponents/CippReportDBControls";
 
 const formatCapability = (cap) =>
   cap.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
@@ -85,6 +86,15 @@ const getAssignedToDisplay = (value) => {
 const Page = () => {
   const pageTitle = "Teams Business Voice";
   const tenantFilter = useSettings().currentTenant;
+
+  const reportDB = useCippReportDB({
+    apiUrl: "/api/ListTeamsVoice",
+    queryKey: "ListTeamsVoice",
+    cacheName: "TeamsVoice",
+    syncTitle: "Sync Teams Business Voice Report",
+    allowToggle: true,
+    defaultCached: false,
+  });
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -201,6 +211,14 @@ const Page = () => {
       {
         filterName: "User Assignment Capable",
         value: [{ id: "AcquiredCapabilities", value: "UserAssignment" }],
+        type: "column",
+      },
+      {
+        filterName: "Unassigned User Numbers",
+        value: [
+          { id: "AssignmentStatus", value: "Unassigned" },
+          { id: "AcquiredCapabilities", value: "UserAssignment" },
+        ],
         type: "column",
       },
     ],
@@ -502,12 +520,15 @@ const Page = () => {
   const simpleColumns = useMemo(
     () =>
       isMobile
-        ? ["TelephoneNumber", "AssignedTo", "AssignmentStatus"]
+        ? [...reportDB.cacheColumns, "TelephoneNumber", "AssignedTo", "AssignmentStatus"]
         : [
+            ...reportDB.cacheColumns,
+            "AssignedTo.userPrincipalName",
             "TelephoneNumber",
             "AssignedTo",
             "AssignmentStatus",
             "NumberType",
+            "EmergencyLocation",
             "AcquiredCapabilities",
             "IsoCountryCode",
             "PlaceName",
@@ -515,23 +536,28 @@ const Page = () => {
             "IsOperatorConnect",
             "AcquisitionDate",
           ],
-    [isMobile]
+    [isMobile, reportDB.cacheColumns]
   );
 
   return (
-    <CippTablePage
-      title={pageTitle}
-      apiUrl="/api/ListTeamsVoice"
-      actions={actions}
-      offCanvas={offCanvas}
-      simpleColumns={simpleColumns}
-      filters={filters}
-      cardConfig={cardConfig}
-      onCardClick={handleCardClick}
-    />
+    <>
+      <CippTablePage
+        title={pageTitle}
+        apiUrl={reportDB.resolvedApiUrl}
+        queryKey={reportDB.resolvedQueryKey}
+        actions={actions}
+        offCanvas={offCanvas}
+        simpleColumns={simpleColumns}
+        filters={filters}
+        cardConfig={cardConfig}
+        onCardClick={handleCardClick}
+        dataSourceControls={reportDB.controls}
+      />
+      {reportDB.syncDialog}
+    </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

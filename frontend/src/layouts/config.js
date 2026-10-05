@@ -1207,14 +1207,14 @@ export const nativeMenuItems = [
             path: "/tenant/standards/alignment",
             permissions: ["Tenant.Standards.*"],
           },
-          // Baselines preview — pages shipped; scheduled timer gated by FeatureFlags.Baselines.
-          // Uncomment nav after smoke test, or open /tenant/baselines directly.
-          // {
-          //   title: "Baselines (Preview)",
-          //   path: "/tenant/baselines",
-          //   permissions: ["Tenant.Standards.*"],
-          //   scope: "global",
-          // },
+          // Flag-gated swap: Baselines Pages are hidden while the flag is off, and
+          // classic Standards/Drift paths in HidesPages are hidden while it is on.
+          {
+            title: "Baselines",
+            path: "/tenant/baselines",
+            permissions: ["Tenant.Baselines.*"],
+            scope: "global",
+          },
           {
             title: "Best Practice Analyser",
             path: "/tenant/standards/bpa-report",
@@ -1337,6 +1337,21 @@ export const nativeMenuItems = [
             title: "Mail Test",
             path: "/email/tools/mail-test",
             permissions: ["Exchange.Mailbox.*"],
+          },
+          {
+            title: "Message Viewer",
+            path: "/email/tools/message-viewer",
+            permissions: ["Exchange.Mailbox.*"],
+          },
+          {
+            title: "Mailbox Restores",
+            path: "/email/tools/mailbox-restores",
+            permissions: ["Exchange.Mailbox.*"],
+          },
+          {
+            title: 'Message Encryption',
+            path: '/email/tools/message-encryption',
+            permissions: ['Exchange.Mailbox.*'],
           },
         ],
       },

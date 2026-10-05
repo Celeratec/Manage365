@@ -18,6 +18,10 @@ Choose **Add a tenant** to bring a new tenant into an existing CIPP deployment. 
 
 Detailed steps for the GDAP and direct paths are in [gdap-invite-wizard.md](../../setup/installation/gdap-invite-wizard.md "mention").
 
+{% hint style="warning" %}
+Adding a tenant requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can reach the wizard but is refused at the point the tenant is saved. See [roles.md](../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 ### Add GDAP Tenant
 
 For Microsoft CSP partners. This walks you through creating a GDAP relationship, selecting the admin roles to request, and generating an invite link to send to the customer.

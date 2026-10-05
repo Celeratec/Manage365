@@ -38,7 +38,9 @@ export const CippWizardOffboarding = (props) => {
   const currentTenant = formControl.watch("tenantFilter");
   const selectedUsers = useWatch({ control: formControl.control, name: "user" }) || [];
   const [showAlert, setShowAlert] = useState(false);
-  const userSettingsDefaults = useSettings().userSettingsDefaults;
+  const settings = useSettings();
+  const userSettingsDefaults = settings.userSettingsDefaults;
+  const userOffboardingDefaults = settings?.offboardingDefaults;
   const disableForwarding = useWatch({ control: formControl.control, name: "disableForwarding" });
 
   // Watch risky offboarding fields for inline coaching
@@ -108,25 +110,31 @@ export const CippWizardOffboarding = (props) => {
       const tenantDefaults = currentTenant?.addedFields?.offboardingDefaults;
       
       if (tenantDefaults) {
-        // Apply tenant defaults
+        // Apply tenant defaults; always clear OOO when the blob omits it so user defaults do not leak
         Object.entries(tenantDefaults).forEach(([key, value]) => {
           formControl.setValue(key, value);
         });
-        // Set the source indicator
+        formControl.setValue("OOO", tenantDefaults.OOO ?? "");
         formControl.setValue("HIDDEN_defaultsSource", "tenant");
-      } else if (userSettingsDefaults?.offboardingDefaults) {
-        // Apply user defaults if no tenant defaults
-        userSettingsDefaults.offboardingDefaults.forEach((setting) => {
-          formControl.setValue(setting.name, setting.value);
-        });
-        // Set the source indicator
+      } else if (userOffboardingDefaults || userSettingsDefaults?.offboardingDefaults) {
+        const userDefaults = userOffboardingDefaults || userSettingsDefaults.offboardingDefaults;
+        if (Array.isArray(userDefaults)) {
+          userDefaults.forEach((setting) => {
+            formControl.setValue(setting.name, setting.value);
+          });
+        } else {
+          Object.entries(userDefaults).forEach(([key, value]) => {
+            formControl.setValue(key, value);
+          });
+        }
+        formControl.setValue("OOO", userDefaults.OOO ?? "");
         formControl.setValue("HIDDEN_defaultsSource", "user");
       }
       
       // Mark that we've applied defaults for this tenant
       formControl.setValue("HIDDEN_appliedDefaultsForTenant", currentTenantId);
     }
-  }, [currentTenant?.value, userSettingsDefaults, formControl]);
+  }, [currentTenant?.value, userSettingsDefaults, userOffboardingDefaults, formControl]);
 
   useEffect(() => {
     if (disableForwarding) {
@@ -430,6 +438,54 @@ export const CippWizardOffboarding = (props) => {
                     }}
                   />
                   <CippFormComponent
+                    name="AccessSendAs"
+                    label="Grant Send As Access"
+                    type="autoComplete"
+                    placeholder="Leave blank if not needed"
+                    formControl={formControl}
+                    multi
+                    api={{
+                      tenantFilter: currentTenant ? currentTenant.value : undefined,
+                      labelField: (option) => `${option.displayName} (${option.userPrincipalName})`,
+                      valueField: "userPrincipalName",
+                      url: "/api/ListGraphRequest",
+                      dataKey: "Results",
+                      queryKey: "Offboarding-Users",
+                      data: {
+                        Endpoint: "users",
+                        manualPagination: true,
+                        $select: "id,userPrincipalName,displayName",
+                        $count: true,
+                        $orderby: "displayName",
+                        $top: 999,
+                      },
+                    }}
+                  />
+                  <CippFormComponent
+                    name="AccessSendOnBehalf"
+                    label="Grant Send on Behalf Access"
+                    type="autoComplete"
+                    placeholder="Leave blank if not needed"
+                    formControl={formControl}
+                    multi
+                    api={{
+                      tenantFilter: currentTenant ? currentTenant.value : undefined,
+                      labelField: (option) => `${option.displayName} (${option.userPrincipalName})`,
+                      valueField: "userPrincipalName",
+                      url: "/api/ListGraphRequest",
+                      dataKey: "Results",
+                      queryKey: "Offboarding-Users",
+                      data: {
+                        Endpoint: "users",
+                        manualPagination: true,
+                        $select: "id,userPrincipalName,displayName",
+                        $count: true,
+                        $orderby: "displayName",
+                        $top: 999,
+                      },
+                    }}
+                  />
+                  <CippFormComponent
                     name="OnedriveAccess"
                     label="Grant Onedrive Full Access"
                     type="autoComplete"
@@ -503,6 +559,7 @@ export const CippWizardOffboarding = (props) => {
                         label="Keep a copy of forwarded mail"
                         type="switch"
                         formControl={formControl}
+                        disabled={!!watchDeleteUser}
                       />
                     </Stack>
                   </CippFormCondition>
@@ -513,14 +570,26 @@ export const CippWizardOffboarding = (props) => {
                   <Typography variant={smDown ? "body2" : "subtitle2"} fontWeight={600} color="text.secondary">
                     Out of Office
                   </Typography>
-                  <CippFormComponent
-                    name="OOO"
-                    label="Out of Office Message"
-                    type="richText"
-                    placeholder="Leave blank to not set"
-                    fullWidth
-                    formControl={formControl}
-                  />
+                  <Box
+                    sx={
+                      watchDeleteUser
+                        ? { pointerEvents: "none", opacity: 0.5, userSelect: "none" }
+                        : {}
+                    }
+                  >
+                    <CippFormComponent
+                      name="OOO"
+                      label="Out of Office Message"
+                      type="richText"
+                      placeholder="Leave blank to not set"
+                      fullWidth
+                      formControl={formControl}
+                    />
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                      CIPP %variable% tokens (for example %tenantname%) stay literal here and are
+                      resolved when the offboarding job runs. %username% is not the offboarded user.
+                    </Typography>
+                  </Box>
                 </Stack>
               </Stack>
             </CardContent>

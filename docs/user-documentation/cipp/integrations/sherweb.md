@@ -90,6 +90,10 @@ The role restriction applies to subscription changes made through CIPP by a sign
 
 The **Tenant Mapping** tab pairs each CIPP tenant with a Sherweb customer, so CIPP knows which Sherweb account to place orders against. Licence purchasing and automated migrations both depend on this, and an unmapped tenant is simply skipped.
 
+{% hint style="warning" %}
+Saving on the **Tenant Mapping** tab requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 To map manually, choose a tenant, choose the matching entry under **Select Sherweb Company**, and select the add button. **Automap Companies** fills in matches automatically, and the refresh button reloads the customer list from Sherweb. Mappings are only written when you select **Submit**.
 
 | Column          | Description                                               |

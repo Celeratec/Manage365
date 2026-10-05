@@ -332,7 +332,9 @@ export const CippQueueTracker = ({
                         <Stack spacing={0.5} sx={{ mt: 1 }}>
                           {data.Tasks.map((task, i) => (
                             <Stack key={i} direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography variant="caption">{task.Name}</Typography>
+                              <Typography variant="caption" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                                {task.Name}
+                              </Typography>
                               <Typography
                                 variant="caption"
                                 sx={{

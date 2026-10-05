@@ -14,6 +14,7 @@ import {
   Recycling,
   ManageAccounts,
   GroupAdd,
+  RemoveModerator,
 } from "@mui/icons-material";
 
 // Shared between the MEM devices list page and the View Device detail page.
@@ -324,7 +325,22 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
       "Are you sure you want to update the Windows Defender signatures for [deviceName]?",
     category: "security",
   },
+  {
+    label: "Offboard from Defender for Endpoint",
+    type: "POST",
+    icon: <RemoveModerator />,
+    url: "/api/ExecDeviceAction",
+    data: {
+      GUID: "azureADDeviceId",
+      Action: "offboardMDEDevice",
+    },
+    condition: (row) => row.operatingSystem === "Windows",
+    confirmText:
+      "Are you sure you want to offboard [deviceName] from Microsoft Defender for Endpoint? This queues an offboarding action via the MDE API and cannot be undone without re-onboarding the device.",
+    category: "security",
+  },
   // This endpoint currently does not work, Graph just returns an error. Leaving this here for now in case it is fixed in the future.
+
   // {
   //   label: "Generate logs and ship to MEM",
   //   type: "POST",
@@ -374,7 +390,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     url: "/api/ExecDeviceAction",
     data: {
       GUID: "id",
-      Action: "cleanWindowsDevice",
+      Action: "wipe",
       keepUserData: false,
       keepEnrollmentData: true,
     },
@@ -389,7 +405,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     url: "/api/ExecDeviceAction",
     data: {
       GUID: "id",
-      Action: "cleanWindowsDevice",
+      Action: "wipe",
       keepUserData: false,
       keepEnrollmentData: false,
     },
@@ -404,7 +420,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     url: "/api/ExecDeviceAction",
     data: {
       GUID: "id",
-      Action: "cleanWindowsDevice",
+      Action: "wipe",
       keepEnrollmentData: true,
       keepUserData: false,
       useProtectedWipe: true,
@@ -421,7 +437,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     url: "/api/ExecDeviceAction",
     data: {
       GUID: "id",
-      Action: "cleanWindowsDevice",
+      Action: "wipe",
       keepEnrollmentData: false,
       keepUserData: false,
       useProtectedWipe: true,
@@ -432,6 +448,27 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     category: "danger",
   },
   {
+    label: "Wipe Device",
+    type: "POST",
+    icon: <RestartAlt />,
+    url: "/api/ExecDeviceAction",
+    data: {
+      GUID: "id",
+      Action: "wipe",
+    },
+    fields: [
+      {
+        type: "textField",
+        name: "macOsUnlockCode",
+        label: "Recovery PIN (optional, 6 digits)",
+      },
+    ],
+    condition: (row) => row.operatingSystem === "macOS",
+    confirmText:
+      "Are you sure you want to wipe [deviceName]? This erases all content and settings and cannot be undone. Intel Macs without a T2 security chip require the recovery PIN to unlock the device after the wipe.",
+    category: "danger",
+  },
+  {
     label: "Autopilot Reset",
     type: "POST",
     icon: <AutoMode />,
@@ -439,8 +476,8 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     data: {
       GUID: "id",
       Action: "wipe",
-      keepUserData: "false",
-      keepEnrollmentData: "true",
+      keepUserData: false,
+      keepEnrollmentData: true,
     },
     condition: (row) => row.operatingSystem === "Windows",
     confirmText: "Are you sure you want to Autopilot Reset [deviceName]?",

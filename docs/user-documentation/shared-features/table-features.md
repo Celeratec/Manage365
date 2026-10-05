@@ -86,7 +86,13 @@ When a page has queued a long-running background task, a queue status button app
 
 ### Narrow Screens
 
-On smaller viewports, and whenever the toolbar runs out of room, the **Filters**, **Columns** and **Export** buttons collapse into a single menu behind the vertical ellipsis. That menu also offers **Fullscreen**, which expands the table to fill the window, and **Exit Fullscreen** to return.
+Whenever the toolbar runs out of room, the **Filters**, **Columns** and **Export** buttons collapse into a single menu behind the vertical ellipsis. That menu also offers **Fullscreen**, which expands the table to fill the window, and **Exit Fullscreen** to return.
+
+On a phone the ellipsis opens a sheet instead, holding the same filters, presets, column selection, exports and refresh, along with a **Rows per page** section in place of the footer's page size control.
+
+{% hint style="info" %}
+Below roughly 900px, tables are presented as a list of cards rather than as a table, with their own search, sort and filter controls. Everything on this page still applies, and the full table remains available. See [mobile-layout.md](mobile-layout.md "mention").
+{% endhint %}
 
 ## Row Selection and Actions
 

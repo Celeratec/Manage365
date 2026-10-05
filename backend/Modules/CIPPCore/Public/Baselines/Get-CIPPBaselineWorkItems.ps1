@@ -64,7 +64,9 @@ function Get-CIPPBaselineWorkItems {
         $Definition = $Definitions | Where-Object { $_.name -eq $BaseName } | Select-Object -First 1
         if ($Definition.instanceIdentity) {
             $IdentityValue = $Variables.$($Definition.instanceIdentity)
-            if ($IdentityValue -is [System.Management.Automation.PSCustomObject]) { $IdentityValue = $IdentityValue.value }
+            # .value ?? unwraps option objects whether they arrive as PSCustomObject or
+            # Hashtable - the durable pipeline delivers both shapes.
+            $IdentityValue = $IdentityValue.value ?? $IdentityValue
             if ("$IdentityValue") { return ('{0}#{1}' -f $BaseName, $IdentityValue) }
         }
         $InstanceKey
@@ -150,6 +152,9 @@ function Get-CIPPBaselineWorkItems {
                         StageName        = $StageNames[$InstanceKey]
                         AlertEmails      = $Baseline.alertEmails
                         AlertWebhookUrl  = $Baseline.alertWebhookUrl
+                        # 'Disable Scheduled Runs': the scheduled orchestrator skips these
+                        # items (but still counts them for reconciliation).
+                        DisableScheduledRuns = [bool]$Baseline.disableScheduledRuns
                         Tiers            = @([PSCustomObject]@{
                                 templateName     = $Baseline.templateName
                                 assignedTo       = ($Baseline.assignedTenants -join ', ')

@@ -1,4 +1,4 @@
-import { Button, Stack, useMediaQuery, Box, CircularProgress } from "@mui/material";
+import { Button, useMediaQuery, Box, CircularProgress } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { useFormState } from "react-hook-form";
 import { createPortal } from "react-dom";
@@ -6,6 +6,7 @@ import { ApiPostCall } from "../../api/ApiCall";
 import { CippApiResults } from "../CippComponents/CippApiResults";
 import { ArrowBack, ArrowForward, Check, Refresh } from "@mui/icons-material";
 import { useCippWizardDialog } from "./CippWizardDialogContext";
+import { CippWizardActionsRow } from "./CippWizardActionsRow";
 
 export const CippWizardStepButtons = (props) => {
   const {
@@ -54,24 +55,18 @@ export const CippWizardStepButtons = (props) => {
   // Mobile-optimized button styles with proper touch targets (min 44px)
   const mobileButtonSx = {
     minHeight: 48,
-    fontSize: '1rem',
+    fontSize: "1rem",
   };
 
   const buttonContent = (
-    <Stack
-      alignItems={smDown ? "stretch" : "center"}
-      direction={smDown ? "column-reverse" : "row"}
-      justifyContent={smDown ? "stretch" : "flex-end"}
-      spacing={smDown ? 1.5 : 2}
-      sx={dialogContext?.actionsEl ? {} : { mt: 3 }}
-    >
+    <CippWizardActionsRow sx={dialogContext?.actionsEl ? {} : { mt: 3 }}>
       {dialogContext?.onClose && (
         <Button
           color="inherit"
           onClick={dialogContext.onClose}
           size="large"
           type="button"
-          sx={{ mr: "auto" }}
+          sx={{ mr: { xs: 0, md: "auto" } }}
         >
           Close
         </Button>
@@ -126,7 +121,17 @@ export const CippWizardStepButtons = (props) => {
           </Button>
         </form>
       )}
-    </Stack>
+      {dialogContext?.completionButton && currentStep === lastStep && sendForm.isSuccess && (
+        <Button
+          size="large"
+          variant="contained"
+          color="success"
+          onClick={dialogContext.completionButton.onClick}
+        >
+          {dialogContext.completionButton.label}
+        </Button>
+      )}
+    </CippWizardActionsRow>
   );
 
   return (

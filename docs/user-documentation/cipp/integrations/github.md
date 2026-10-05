@@ -53,8 +53,20 @@ Paste the token into **GitHub Personal Access Token**, then select **Submit** an
 ### Test
 
 Select **Test**. A successful result names the GitHub account CIPP authenticated as, and lists the scopes attached to the token, so you can confirm at a glance whether you have granted enough for what you plan to do.
+
+If GitHub rejects the token, the result says so and repeats the reason GitHub gave, so an expired or revoked token is obvious here rather than appearing to work.
 {% endstep %}
 {% endstepper %}
+
+## When the Token Stops Working
+
+Personal Access Tokens expire, get revoked, and run into rate limits. When GitHub rejects the token you configured, CIPP falls back to the built-in shared token for anything that only reads, so browsing and importing from public community repositories carry on working. Anything that writes, such as publishing a template or creating a repository, keeps failing until the token is replaced.
+
+Every rejection is written to the [logs](../logs/ "mention") as a **GitHub** entry naming the status GitHub returned, so a token that has quietly expired shows up there before anyone reports a failure.
+
+{% hint style="info" %}
+**Test** is the exception to the fallback. It always reports on the token you configured, never on the shared one, so it stays a reliable check on the token even while reads are quietly succeeding through the fallback.
+{% endhint %}
 
 ## What the Integration Enables
 

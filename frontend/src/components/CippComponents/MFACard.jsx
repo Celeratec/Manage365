@@ -230,8 +230,8 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
         }
         sx={{ pb: compact ? 0.5 : 1 }}
       />
-      <CardContent sx={{ pb: compact ? 1.5 : 2, pt: compact ? 1.5 : 2 }}>
-        <Box sx={{ height: chartHeight }}>
+      <CardContent sx={{ pb: compact ? 1.5 : 0, pt: compact ? 1.5 : 2 }}>
+        <Box sx={{ height: compact ? chartHeight : { xs: 360, md: 300 } }}>
           {isLoading ? (
             <Skeleton variant="rectangular" width="100%" height={chartHeight} />
           ) : processedData ? (

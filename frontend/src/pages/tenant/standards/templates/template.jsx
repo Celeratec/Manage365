@@ -363,10 +363,10 @@ const Page = () => {
 
       <Stack spacing={2}>
         <Stack
-          direction="row"
+          direction={{ xs: 'column', sm: 'row' }}
           justifyContent="space-between"
-          alignItems="center"
-          spacing={4}
+          alignItems={{ xs: 'stretch', sm: 'center' }}
+          spacing={{ xs: 2, sm: 4 }}
           sx={{ mb: 3 }}
         >
           <Typography variant="h4">
@@ -378,7 +378,12 @@ const Page = () => {
                 ? "Add Drift Template"
                 : "Add Standards Template"}
           </Typography>
-          <Stack direction="row" spacing={2}>
+          <Stack
+            direction="row"
+            spacing={2}
+            useFlexGap
+            sx={{ flexWrap: 'wrap' }}
+          >
             <Button
               variant="contained"
               color="primary"

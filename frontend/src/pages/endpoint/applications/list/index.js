@@ -20,6 +20,7 @@ import { useCallback } from 'react'
 import { useRouter } from 'next/router'
 import { useSettings } from '../../../../hooks/use-settings.js'
 import { useDialog } from '../../../../hooks/use-dialog.js'
+import { useCippReportDB } from '../../../../components/CippComponents/CippReportDBControls'
 import { getCippFormatting } from '../../../../utils/get-cipp-formatting'
 import { getInitials, stringToColor } from '../../../../utils/get-initials'
 
@@ -66,6 +67,15 @@ const Page = () => {
   const pageTitle = 'Applications'
   const syncDialog = useDialog()
   const tenant = useSettings().currentTenant
+
+  const reportDB = useCippReportDB({
+    apiUrl: '/api/ListApps',
+    queryKey: 'ListApps',
+    cacheName: 'IntuneApplications',
+    syncTitle: 'Sync Intune Applications Report',
+    allowToggle: true,
+    defaultCached: false,
+  })
   const theme = useTheme()
   const router = useRouter()
 
@@ -640,6 +650,7 @@ const Page = () => {
   }
 
   const simpleColumns = [
+    ...reportDB.cacheColumns,
     'displayName',
     'AppAssignment',
     'AppExclude',
@@ -652,18 +663,20 @@ const Page = () => {
     <>
       <CippTablePage
         title={pageTitle}
-        apiUrl="/api/ListApps"
+        apiUrl={reportDB.resolvedApiUrl}
+        queryKey={reportDB.resolvedQueryKey}
         actions={actions}
         offCanvas={offCanvas}
         simpleColumns={simpleColumns}
         cardButton={
-          <Box sx={{ display: 'flex', gap: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center">
             <CippApplicationDeployDrawer />
             <Button onClick={syncDialog.handleOpen} startIcon={<Sync />}>
               Sync VPP
             </Button>
-          </Box>
+          </Stack>
         }
+        dataSourceControls={reportDB.controls}
         cardConfig={cardConfig}
         onCardClick={handleCardClick}
         offCanvasOnRowClick={true}
@@ -678,9 +691,10 @@ const Page = () => {
           confirmText: `Are you sure you want to sync Apple Volume Purchase Program (VPP) tokens? This will sync all VPP tokens for ${tenant}.`,
         }}
       />
+      {reportDB.syncDialog}
     </>
   )
 }
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>
+Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>
 export default Page

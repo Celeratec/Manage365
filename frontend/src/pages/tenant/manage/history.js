@@ -82,6 +82,8 @@ const Page = () => {
 
   const { startDate, endDate } = getDateRange(daysToLoad);
 
+  // Hoisted so the header actions invalidate the same query this page reads.
+  const logsQueryKey = `Listlogs-${tenant}-${startDate}-${endDate}`;
   const logsData = ApiGetCallWithPagination({
     url: `/api/Listlogs`,
     data: {
@@ -90,7 +92,7 @@ const Page = () => {
       EndDate: endDate,
       Filter: true,
     },
-    queryKey: `Listlogs-${tenant}-${startDate}-${endDate}`,
+    queryKey: logsQueryKey,
   });
 
   // ListLogs serves multi-day ranges in day batches; keep following
@@ -171,6 +173,7 @@ const Page = () => {
       tabOptions={tabOptions}
       title={title}
       actions={actions}
+      queryKeys={logsQueryKey}
       actionsData={{}}
       isFetching={logsData.isLoading}
     >

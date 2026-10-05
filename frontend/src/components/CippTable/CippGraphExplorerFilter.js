@@ -76,7 +76,9 @@ const CippGraphExplorerFilter = ({
 
   const defaultGraphExplorerTitle = 'Graph Explorer'
 
-  var gridItemSize = 6
+  // Accordion (the Graph Explorer page) lays fields out two-up; the card variant used in
+  // the table filter drawer is single-column. Either way a phone gets one column.
+  var gridItemSize = { xs: 12, md: 6 }
   if (component !== 'accordion') {
     gridItemSize = 12
   }
@@ -111,13 +113,16 @@ const CippGraphExplorerFilter = ({
     waiting: false,
   })
 
-  var presetFilter = {}
-  if (endpointFilter) {
-    if (formControl.getValues('endpoint') !== endpointFilter) {
+  // Seeding the form from the endpointFilter prop is a side effect: doing it during render
+  // updates the subscribed Controller mid-render ("Cannot update a component while rendering
+  // a different component"). It fires twice on mobile, where the table remounts as cards.
+  useEffect(() => {
+    if (endpointFilter && formControl.getValues('endpoint') !== endpointFilter) {
       formControl.setValue('endpoint', endpointFilter)
     }
-    presetFilter = { Endpoint: endpointFilter }
-  }
+  }, [endpointFilter, formControl])
+
+  const presetFilter = endpointFilter ? { Endpoint: endpointFilter } : {}
 
   // API call for available presets
   const presetList = ApiGetCall({
@@ -737,7 +742,7 @@ const CippGraphExplorerFilter = ({
         </Grid>
         <Grid container spacing={1} sx={{ mt: 2 }}>
           {/* Reverse Tenant Lookup Switch */}
-          <Grid size={{ xs: 6, sm: gridSwitchSize }}>
+          <Grid size={{ xs: 12, sm: gridSwitchSize }}>
             <CippFormComponent
               type="switch"
               name="ReverseTenantLookup"
@@ -751,7 +756,7 @@ const CippGraphExplorerFilter = ({
             compareValue={true}
           >
             {/* Reverse Tenant Lookup Property Field */}
-            <Grid size={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <CippFormComponent
                 type="textField"
                 name="ReverseTenantLookupProperty"
@@ -762,7 +767,7 @@ const CippGraphExplorerFilter = ({
             </Grid>
           </CippFormCondition>
           {/* No Pagination Switch */}
-          <Grid size={{ xs: 6, sm: gridSwitchSize }}>
+          <Grid size={{ xs: 12, sm: gridSwitchSize }}>
             <CippFormComponent
               type="switch"
               name="NoPagination"
@@ -771,7 +776,7 @@ const CippGraphExplorerFilter = ({
             />
           </Grid>
           {/* $count Switch */}
-          <Grid size={{ xs: 6, sm: gridSwitchSize }}>
+          <Grid size={{ xs: 12, sm: gridSwitchSize }}>
             <CippFormComponent
               type="switch"
               name="$count"
@@ -781,7 +786,7 @@ const CippGraphExplorerFilter = ({
           </Grid>
 
           {/* AsApp switch */}
-          <Grid size={{ xs: 6, sm: gridSwitchSize }}>
+          <Grid size={{ xs: 12, sm: gridSwitchSize }}>
             <CippFormComponent
               name="AsApp"
               type="switch"
@@ -804,7 +809,11 @@ const CippGraphExplorerFilter = ({
             <Stack spacing={2}>
               <CippApiResults apiObject={savePresetApi} />
               {component === 'accordion' ? (
-                <Stack spacing={1.5} direction="row" sx={{ display: 'flex', alignItems: 'center' }}>
+                <Stack
+                  spacing={1.5}
+                  direction={{ xs: 'column', md: 'row' }}
+                  sx={{ display: 'flex', alignItems: { xs: 'stretch', md: 'center' } }}
+                >
                   <Button
                     variant="contained"
                     color="primary"
@@ -863,7 +872,7 @@ const CippGraphExplorerFilter = ({
                 </Stack>
               ) : (
                 <Grid container spacing={1.5}>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -874,7 +883,7 @@ const CippGraphExplorerFilter = ({
                       Apply Filter
                     </Button>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Button
                       startIcon={<CalendarMonthTwoTone />}
                       variant="outlined"
@@ -884,7 +893,7 @@ const CippGraphExplorerFilter = ({
                       Schedule Report
                     </Button>
                   </Grid>
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Button
                       variant="outlined"
                       onClick={handleSavePreset}
@@ -895,7 +904,7 @@ const CippGraphExplorerFilter = ({
                     </Button>
                   </Grid>
 
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Button
                       startIcon={<Delete />}
                       variant="outlined"
@@ -907,7 +916,7 @@ const CippGraphExplorerFilter = ({
                     </Button>
                   </Grid>
 
-                  <Grid size={6}>
+                  <Grid size={{ xs: 12, sm: 6 }}>
                     <Button
                       onClick={handleImport}
                       variant="outlined"
@@ -918,7 +927,7 @@ const CippGraphExplorerFilter = ({
                       Import/Export
                     </Button>
                   </Grid>
-                  <Grid size={6} sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <Grid size={{ xs: 12, sm: 6 }} sx={{ display: 'flex', justifyContent: 'center' }}>
                     <CippFormComponent
                       name="IsShared"
                       type="switch"

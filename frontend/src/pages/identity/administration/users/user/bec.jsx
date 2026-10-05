@@ -15,6 +15,7 @@ import {
 import { ShieldExclamationIcon } from "@heroicons/react/24/outline";
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions";
+import { CippUserSwitcher } from "../../../../../components/CippComponents/CippUserSwitcher";
 import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
 import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
 import { Box, Stack } from "@mui/system";
@@ -184,6 +185,15 @@ const Page = () => {
 
   const getAppMessage = () => {
     if (!becPollingCall.data) return null;
+    const maliciousAddedCount = (becPollingCall.data.AddedApps || []).filter(
+      (app) => app?.MaliciousMatch,
+    ).length;
+    const maliciousPresentCount = becPollingCall.data.MaliciousSPs?.length || 0;
+    if (maliciousAddedCount > 0 || maliciousPresentCount > 0) {
+      return `Potential breach found: ${
+        maliciousAddedCount + maliciousPresentCount
+      } application(s) in this tenant match the known-malicious application catalog. Consent-based access survives a password reset, so remove these applications unless their presence is explained.`;
+    }
     if (becPollingCall.data.AddedApps && becPollingCall.data.AddedApps.length > 0) {
       return "New applications have been found. Please review the list below and take action as needed.";
     }
@@ -192,11 +202,13 @@ const Page = () => {
 
   const getMailboxPermissionMessage = () => {
     if (!becPollingCall.data) return null;
-    if (
-      becPollingCall.data.MailboxPermissionChanges &&
-      becPollingCall.data.MailboxPermissionChanges.length > 0
-    ) {
-      return "Mailbox permission changes have been found.";
+    const changes = becPollingCall.data.MailboxPermissionChanges || [];
+    if (changes.length > 0) {
+      const targeting = changes.filter((change) => change?.TargetsSuspect === true).length;
+      if (targeting > 0) {
+        return `${changes.length} mailbox permission change(s) found across the tenant in the last 7 days, ${targeting} of which target this mailbox. Review those first.`;
+      }
+      return `${changes.length} mailbox permission change(s) found across the tenant in the last 7 days. None appear to target this mailbox, but verify the list below.`;
     }
     return "No mailbox permission changes found.";
   };
@@ -289,6 +301,13 @@ const Page = () => {
     <HeaderedTabbedLayout
       tabOptions={tabOptions}
       title={getTitle()}
+      titleControl={
+        <CippUserSwitcher
+          title={getTitle()}
+          currentUserId={userId}
+          tenantFilter={userSettingsDefaults.currentTenant}
+        />
+      }
       subtitle={subtitle}
       actions={userActions}
       actionsData={userRequest.data?.[0]}
@@ -414,7 +433,7 @@ const Page = () => {
         >
           <Grid container spacing={2}>
             {/* Remediation Card */}
-            <Grid size={{ xs: 12, md: 5 }}>
+            <Grid size={{ xs: 12, lg: 5 }}>
               <CippRemediationCard
                 userPrincipalName={userRequest.data[0].userPrincipalName}
                 userId={userRequest.data[0].id}
@@ -424,7 +443,7 @@ const Page = () => {
               />
             </Grid>
             {/* Check 1 Card with Loading */}
-            <Grid size={{ xs: 12, md: 7 }}>
+            <Grid size={{ xs: 12, lg: 7 }}>
               <CippButtonCard
                 variant="outlined"
                 isFetching={false}
@@ -455,7 +474,7 @@ const Page = () => {
         >
           <Grid container spacing={2}>
             {/* Remediation Card */}
-            <Grid size={{ xs: 12, md: 5 }}>
+            <Grid size={{ xs: 12, lg: 5 }}>
               <CippRemediationCard
                 userPrincipalName={userRequest.data[0].userPrincipalName}
                 userId={userRequest.data[0].id}
@@ -465,7 +484,7 @@ const Page = () => {
               />
             </Grid>
             {/* All Steps */}
-            <Grid size={{ xs: 12, md: 7 }}>
+            <Grid size={{ xs: 12, lg: 7 }}>
               <Stack spacing={3}>
                 <BecCheckCard title="Log Information">
                   <Typography variant="body2" gutterBottom>

@@ -23,6 +23,7 @@ import {
 } from "@mui/icons-material";
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions";
+import { CippUserSwitcher } from "../../../../../components/CippComponents/CippUserSwitcher";
 import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
 import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
 import { Box, Stack } from "@mui/system";
@@ -1468,6 +1469,13 @@ const Page = () => {
     <HeaderedTabbedLayout
       tabOptions={tabOptions}
       title={title}
+      titleControl={
+        <CippUserSwitcher
+          title={title}
+          currentUserId={userId}
+          tenantFilter={userSettingsDefaults.currentTenant}
+        />
+      }
       subtitle={subtitle}
       actions={CippExchangeActions()}
       actionsData={userRequest.data?.[0]?.MailboxActionsData}
@@ -1513,7 +1521,7 @@ const Page = () => {
               "Microsoft.Exchange.Configuration.Tasks.ManagementObjectNotFoundException",
             ) && (
               <>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, lg: 4 }}>
                   <CippExchangeInfoCard
                     exchangeData={data}
                     isLoading={userRequest.isLoading}
@@ -1523,7 +1531,7 @@ const Page = () => {
                     userId={userId}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 8 }}>
+                <Grid size={{ xs: 12, lg: 8 }}>
                   <Stack spacing={3}>
                     {/* Email Configuration Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>

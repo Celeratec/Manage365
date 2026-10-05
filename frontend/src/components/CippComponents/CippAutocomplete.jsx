@@ -24,6 +24,12 @@ const MemoTextField = React.memo(function MemoTextField({
   params,
   label,
   placeholder,
+  variant,
+  // Field-level required: asterisk on the label. HTML5 required is separate because
+  // Autocomplete (especially multiple) clears the input after selection — a static
+  // required on the input would falsely block submit even when chips/value exist.
+  required = false,
+  htmlRequired = false,
   // Autocomplete-specific props that must not be forwarded to TextField/DOM
   getOptionLabel,
   isOptionEqualToValue,
@@ -40,14 +46,16 @@ const MemoTextField = React.memo(function MemoTextField({
     <Tooltip title={label || ''} placement="top" arrow>
       <TextField
         {...otherParams}
+        {...otherProps}
         label={label}
         placeholder={placeholder}
-        {...otherProps}
+        variant={variant}
+        required={htmlRequired}
         slotProps={{
           inputLabel: {
             shrink: true,
             sx: { transition: 'none' },
-            required: otherProps.required,
+            required,
           },
           input: {
             ...InputProps,
@@ -90,6 +98,8 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
     renderGroup,
     customAction,
     handleHomeEndKeys = false,
+    // TextField-bound, MUI Autocomplete would pass it through to its root div
+    variant,
     ...other
   } = props
 
@@ -137,6 +147,13 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
       })
     }
   }, [value, defaultValue])
+
+  // Controlled value wins; otherwise use the onChange-tracked selection (FormComponent
+  // often drives via defaultValue + onChange rather than a controlled value prop).
+  const currentSelection = value !== undefined && value !== null ? value : internalValue
+  const hasSelection = multiple
+    ? Array.isArray(currentSelection) && currentSelection.length > 0
+    : currentSelection != null && currentSelection !== ''
 
   // This is our paginated call
   const actionGetRequest = ApiGetCallWithPagination({
@@ -341,17 +358,45 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
     api?.autoSelectFirstItem,
   ])
 
+  // single mode: live options win over the form-held copy, a stored label goes stale
+  // when its option refetches under it (e.g. renamed preset), resolve by value id.
+  // Values are not always unique (the alert wizard's property options share a type
+  // string as value), so only let a value-only match win when it's unambiguous —
+  // otherwise require the label to match too, and keep the stored copy if none does.
+  const resolvedDefaultValue = useMemo(() => {
+    if (
+      multiple ||
+      Array.isArray(defaultValue) ||
+      typeof defaultValue !== 'object' ||
+      defaultValue === null
+    ) {
+      return defaultValue
+    }
+    const valueMatches = memoizedOptions.filter((option) => option.value === defaultValue.value)
+    if (valueMatches.length === 1) {
+      return valueMatches[0]
+    }
+    return valueMatches.find((option) => option.label === defaultValue.label) ?? defaultValue
+  }, [defaultValue, multiple, memoizedOptions])
+
   // Create a stable key that only changes when necessary inputs change
   const stableKey = useMemo(() => {
     // Only regenerate the key when these values change
     const keyParts = [
-      JSON.stringify(defaultValue),
+      JSON.stringify(resolvedDefaultValue),
       JSON.stringify(preselectedValue),
       api?.url,
       currentTenant,
     ]
     return keyParts.join('-')
-  }, [defaultValue, preselectedValue, api?.url, currentTenant])
+  }, [resolvedDefaultValue, preselectedValue, api?.url, currentTenant])
+
+  // keyed remount orphans an open single-mode popup (input unfocused, no close path), multiple refocuses in onChange
+  useEffect(() => {
+    if (!multiple) {
+      setOpen(false)
+    }
+  }, [stableKey, multiple])
 
   const lookupOptionByValue = useCallback(
     (value) => {
@@ -360,6 +405,22 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
     },
     [memoizedOptions]
   )
+
+  // shape the seed for MUI: option arrays stay arrays, single objects wrap in multiple mode, strings resolve to options
+  const normalizedDefaultValue = useMemo(() => {
+    if (Array.isArray(resolvedDefaultValue)) {
+      return resolvedDefaultValue.map((item) =>
+        typeof item === 'string' ? lookupOptionByValue(item) : item
+      )
+    }
+    if (typeof resolvedDefaultValue === 'object' && multiple) {
+      return [resolvedDefaultValue]
+    }
+    if (typeof resolvedDefaultValue === 'string') {
+      return lookupOptionByValue(resolvedDefaultValue)
+    }
+    return resolvedDefaultValue
+  }, [resolvedDefaultValue, multiple, lookupOptionByValue])
 
   return (
     <>
@@ -412,17 +473,7 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
           return filtered
         }}
         size={size}
-        defaultValue={
-          Array.isArray(defaultValue)
-            ? defaultValue.map((item) =>
-                typeof item === 'string' ? lookupOptionByValue(item) : item
-              )
-            : typeof defaultValue === 'object' && multiple
-              ? [defaultValue]
-              : typeof defaultValue === 'string'
-                ? lookupOptionByValue(defaultValue)
-                : defaultValue
-        }
+        defaultValue={normalizedDefaultValue}
         name={name}
         onChange={(event, newValue) => {
           // Store scroll position before processing the change
@@ -598,15 +649,17 @@ export const CippAutoComplete = React.forwardRef((props, ref) => {
               : InputProps
 
           return (
-            <Stack direction="row" spacing={1} sx={{ width: "100%", alignItems: "flex-start" }}>
+            <Stack direction="row" spacing={1} sx={{ width: '100%', alignItems: 'flex-start' }}>
               <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                {/* caller props stay on <Autocomplete>, anything spread here reaches the input as a DOM attr */}
                 <MemoTextField
                   params={{ ...otherParams, InputProps: modifiedInputProps }}
                   label={label}
                   placeholder={placeholder}
+                  variant={variant}
                   required={required}
+                  htmlRequired={required && !hasSelection}
                   fullWidth
-                  {...other}
                 />
               </Box>
               {api?.url && api?.showRefresh && (

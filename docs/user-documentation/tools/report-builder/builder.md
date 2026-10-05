@@ -114,6 +114,10 @@ Custom blocks use a rich text editor with headings, bold, italic, underline, str
 
 The chip beside the title switches the display between **Table (Text)**, **CSV** and **JSON**. Below it, a checkbox list controls which columns appear, with **Select All** and **Deselect All** for working quickly through a wide data source.
 
+Some values are presented for readability rather than shown as the data source holds them. Licence assignments appear as product names, such as Microsoft 365 Business Premium, separated by commas. A Cloud PC that reports no encryption state is shown as **Encrypted (platform-managed)**, because Cloud PCs are encrypted by the platform rather than by BitLocker. Both apply in all three formats.
+
+The preview lists every licence assigned, falling back to the licence's SKU name and then its identifier where the product name is not known. A generated report names licences the way the rest of CIPP does, so the licences you have excluded in [licenses.md](../../cipp/settings/licenses.md "mention") do not appear in it. Where CIPP holds no licence data for the tenant, the raw values are shown instead.
+
 ### Structured Block Editing
 
 Chart, Score Cards and Progress Bars blocks are edited as small tables of values. Add a row for each data point, giving it a label and a value, with an optional colour on chart data points. Charts also take a caption, and a donut chart takes a centre label and an optional maximum.

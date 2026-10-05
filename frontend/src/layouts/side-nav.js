@@ -11,10 +11,12 @@ import { Scrollbar } from "../components/scrollbar";
 import { SideNavItem } from "./side-nav-item";
 import { SideNavBookmarks } from "./side-nav-bookmarks";
 import { useSettings } from "../hooks/use-settings";
-
-const SIDE_NAV_WIDTH = 270;
-const SIDE_NAV_COLLAPSED_WIDTH = 73; // icon size + padding + border right
-const TOP_NAV_HEIGHT = 64;
+import {
+  BANNER_HEIGHT_VAR,
+  SIDE_NAV_COLLAPSED_WIDTH,
+  SIDE_NAV_WIDTH,
+  TOP_NAV_HEIGHT,
+} from "./constants";
 
 // Find all parent menus that should be open based on current path
 // Returns an array of menu titles that form the path to the active item
@@ -196,9 +198,9 @@ export const SideNav = memo((props) => {
         },
         sx: {
           backgroundColor: "background.default",
-          height: `calc(100% - ${TOP_NAV_HEIGHT}px)`,
+          height: `calc(100% - ${TOP_NAV_HEIGHT}px - ${BANNER_HEIGHT_VAR})`,
           overflowX: "hidden",
-          top: TOP_NAV_HEIGHT,
+          top: `calc(${TOP_NAV_HEIGHT}px + ${BANNER_HEIGHT_VAR})`,
           transition: "width 250ms ease-in-out",
           width: collapse ? SIDE_NAV_COLLAPSED_WIDTH : SIDE_NAV_WIDTH,
           zIndex: (theme) => theme.zIndex.appBar - 100,
@@ -221,6 +223,8 @@ export const SideNav = memo((props) => {
             flexDirection: "column",
             height: "100%",
             p: 2,
+            // Align the bookmarks row with the breadcrumb rail under the top nav.
+            pt: "10px",
           }}
         >
           <Box
@@ -234,8 +238,8 @@ export const SideNav = memo((props) => {
           >
             {showSidebarBookmarks && (
               <>
-                <SideNavBookmarks collapse={collapse} />
-                <Divider sx={{ my: 1, transition: "opacity 250ms ease-in-out", ...(collapse && { opacity: 0 }) }} />
+                <SideNavBookmarks collapse={collapse} alignWithRail />
+                <Divider sx={{ mt: 1, mb: 1, transition: "opacity 250ms ease-in-out", ...(collapse && { opacity: 0 }) }} />
               </>
             )}
             {renderItems({

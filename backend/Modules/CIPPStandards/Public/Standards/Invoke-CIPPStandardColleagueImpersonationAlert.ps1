@@ -21,6 +21,8 @@ function Invoke-CIPPStandardColleagueImpersonationAlert {
         ADDEDCOMPONENT
             {"type":"heading","label":"Alert Banner (HTML)","required":false}
             {"type":"textField","name":"standards.ColleagueImpersonationAlert.disclaimerHtml","label":"Disclaimer HTML – Paste the full HTML for the warning banner","required":true}
+            {"type":"heading","label":"Display Name Matching","required":false}
+            {"type":"textField","name":"standards.ColleagueImpersonationAlert.displayNameSeparator","label":"Display name separator – Optional, for example |","required":false} 
             {"type":"heading","label":"Keyword Exclusions (Exclude certain users by keywords)","required":false}
             {"type":"autoComplete","name":"standards.ColleagueImpersonationAlert.excludedMailboxes","label":"Exclude mailboxes by keywords for example any Displayname starting with (Leaver)","multiple":true,"creatable":true,"required":false}
             {"type":"heading","label":"Exempt Senders (Email Accounts)","required":false}
@@ -41,17 +43,18 @@ function Invoke-CIPPStandardColleagueImpersonationAlert {
         UPDATECOMMENTBLOCK
             Run the Tools\Update-StandardsComments.ps1 script to update this comment block
     .LINK
-        https://docs.cipp.app/user-documentation/tenant/standards/list-standards
+        https://docs.cipp.app/user-documentation/tenant/standards/alignment/templates/available-standards
     #>
 
     param($Tenant, $Settings)
     $TestResult = Test-CIPPStandardLicense -StandardName 'ColleagueImpersonationAlert' -TenantFilter $Tenant -Preset Exchange
-    
+
     if ($TestResult -eq $false) {
-        return $true 
+        return $true
     } #we're done.
 
     $ruleHtml = $Settings.disclaimerHtml
+    $displayNameSeparator = [string]$Settings.displayNameSeparator
 
     $excludeKeywords = @(
         @($Settings.excludedMailboxes) | ForEach-Object {
@@ -135,8 +138,26 @@ function Invoke-CIPPStandardColleagueImpersonationAlert {
             $range    = $entry.Key
             $pattern  = $entry.Value
             $ruleName = "($range) Colleague Impersonation Alert"
-            $names    = @($displayNames | Where-Object { $_ -match $pattern })
-            if ($names.Count -eq 0) { $names = @("($range)") }
+            $names = @(
+                $displayNames | Where-Object { $_ -match $pattern } | ForEach-Object {
+                    $fullName = $_.Trim()
+
+                    [regex]::Escape($fullName)
+
+                    if (-not [string]::IsNullOrWhiteSpace($displayNameSeparator)) {
+                        $separatorPattern = [regex]::Escape($displayNameSeparator.Trim())
+
+                        if ($fullName -match $separatorPattern) {
+                            $shortName = ($fullName -split "\s*$separatorPattern\s*", 2)[0].Trim()
+
+                            if (-not [string]::IsNullOrWhiteSpace($shortName) -and $shortName -ne $fullName) {
+                                [regex]::Escape($shortName)
+                            }
+                        }
+                    }
+                } | Sort-Object -Unique
+            ) 
+            if ($names.Count -eq 0) { $names = @([regex]::Escape("($range)")) }
             $existing = $Rules | Where-Object { $_.Name -eq $ruleName } | Select-Object -First 1
 
             $namesMatch    = $false

@@ -1,5 +1,7 @@
 import PropTypes from "prop-types";
 import CheckIcon from "@heroicons/react/24/outline/CheckIcon";
+import { useIsMobileLayout } from "../../hooks/use-breakpoint";
+import { CippWizardProgressHeader } from "./CippWizardProgressHeader";
 import {
   Box,
   Step,
@@ -9,10 +11,9 @@ import {
   Stepper,
   SvgIcon,
   Typography,
-  useMediaQuery,
   CircularProgress,
 } from "@mui/material";
-import { styled, useTheme } from "@mui/material/styles";
+import { styled } from "@mui/material/styles";
 import { ClearIcon } from "@mui/x-date-pickers";
 
 const WizardStepConnector = styled(StepConnector)(({ theme }) => ({
@@ -140,43 +141,19 @@ const WizardStepIcon = (props) => {
 
 export const WizardSteps = (props) => {
   const { activeStep = 1, orientation = "vertical", steps = [] } = props;
-  const theme = useTheme();
   const isHorizontal = orientation === "horizontal";
-  const smDown = useMediaQuery(theme.breakpoints.down("sm"));
+  const isMobile = useIsMobileLayout();
 
   // Create a custom step icon component that passes the compact prop
   const CompactStepIcon = (stepIconProps) => (
     <WizardStepIcon {...stepIconProps} compact={isHorizontal} />
   );
 
-  // Mobile-friendly step indicator
-  if (smDown && isHorizontal) {
-    const currentStepData = steps[activeStep];
-    return (
-      <Box sx={{ textAlign: 'center', py: 1 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1 }}>
-          Step {activeStep + 1} of {steps.length}
-        </Typography>
-        <Typography variant="subtitle1" fontWeight={600}>
-          {currentStepData?.description}
-        </Typography>
-        {/* Mobile step dots */}
-        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1, mt: 1.5 }}>
-          {steps.map((step, index) => (
-            <Box
-              key={index}
-              sx={{
-                width: index === activeStep ? 24 : 8,
-                height: 8,
-                borderRadius: 4,
-                bgcolor: index <= activeStep ? 'primary.main' : 'action.disabled',
-                transition: 'all 0.3s ease',
-              }}
-            />
-          ))}
-        </Box>
-      </Box>
-    );
+  // Only the horizontal stepper is wizard navigation. The vertical one is a status list —
+  // GDAP onboarding feeds it server-side steps where each step's message and pass/fail
+  // state IS the content, so collapsing it to a progress bar would delete that.
+  if (isMobile && orientation === "horizontal") {
+    return <CippWizardProgressHeader activeStep={activeStep} steps={steps} />;
   }
 
   return (
@@ -193,10 +170,12 @@ export const WizardSteps = (props) => {
           }),
         }}
       >
+        {/* Onboarding's steps carry only a description, so keying on title alone made
+            every key undefined and reconciliation index-driven by accident. */}
         {steps.map((step, index) => (
-          <Step key={step.title || index}>
-            <StepLabel 
-              error={step.error ?? false} 
+          <Step key={step.title ?? step.description ?? index}>
+            <StepLabel
+              error={step.error ?? false}
               slots={{ stepIcon: CompactStepIcon }}
               slotProps={{ stepIcon: { loading: step.loading ?? false } }}
               sx={{
