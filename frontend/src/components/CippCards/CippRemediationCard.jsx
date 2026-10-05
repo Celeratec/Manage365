@@ -129,7 +129,9 @@ export default function CippRemediationCard(props) {
         compromised. All data is retrieved from the last 7 days of logs.
       </Typography>
 
-      <Typography color="text.secondary">
+      <Typography sx={{
+        color: "text.secondary"
+      }}>
         Hit the button below to execute the following tasks:
       </Typography>
       <List>

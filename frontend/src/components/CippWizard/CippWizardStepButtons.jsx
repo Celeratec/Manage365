@@ -22,6 +22,8 @@ export const CippWizardStepButtons = (props) => {
     replacementBehaviour,
     queryKeys,
     sticky = false,
+    jobProgress,
+    onSubmit,
     ...other
   } = props;
   const theme = useTheme();
@@ -49,6 +51,7 @@ export const CippWizardStepButtons = (props) => {
         newData[key] = value;
       }
     });
+    onSubmit?.();
     sendForm.mutate({ url: postUrl, data: newData });
   };
 
@@ -136,7 +139,7 @@ export const CippWizardStepButtons = (props) => {
 
   return (
     <>
-      <CippApiResults apiObject={sendForm} />
+      <CippApiResults apiObject={sendForm} jobProgress={jobProgress} />
       {dialogContext?.actionsEl ? (
         createPortal(buttonContent, dialogContext.actionsEl)
       ) : sticky ? (

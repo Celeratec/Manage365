@@ -24,12 +24,15 @@ Opens a drawer that creates a retention policy in one or more tenants from a tem
 | ---------------------- | ------------------------------------------------------------------------------------------------------- |
 | Name                   | The policy name.                                                                                        |
 | Enabled                | Whether the policy is currently switched on.                                                            |
-| Workload               | The Microsoft 365 workloads the policy covers, such as Exchange, SharePoint, OneDrive or Teams.          |
-| Rule Count             | How many retention rules belong to this policy. Counted by CIPP, so a policy with no rules shows zero.   |
+| Scoped Locations       | The Microsoft 365 locations the policy actually covers: Exchange, SharePoint, OneDrive, Microsoft 365 Groups, Teams Chats, Teams Channels, Skype, Public Folders or Adaptive Scope. |
+| Rule Count             | How many retention rules belong to this policy.                                                         |
+| Retention Action       | What happens to content when the retention period ends, taken from the first rule attached to the policy. |
+| Retention Duration     | How long content is retained before that action applies, taken from the same rule. Shows **Unlimited** when the rule has no duration set. |
 | Restrictive Retention  | Whether Preservation Lock is set on the policy.                                                          |
 | Created By             | The account that created the policy.                                                                    |
-| When Created UTC       | When the policy was created, in UTC.                                                                    |
 | When Changed UTC       | When the policy was last modified, in UTC.                                                              |
+
+The Extended Info flyout also breaks **Scoped Locations** out into its individual location fields, and adds the policy's comment and creation date.
 
 {% hint style="danger" %}
 Preservation Lock cannot be undone. Once it is set on a policy, nobody, including a Global Administrator, can disable or delete that policy, remove locations from it, or shorten its retention period. Locations can still be added and the retention period extended, but nothing can be taken back. **Disable Policy** and **Delete Policy** will fail against a locked policy.
@@ -37,8 +40,8 @@ Preservation Lock cannot be undone. Once it is set on a policy, nobody, includin
 Microsoft does not offer this setting in the Purview portal at all, specifically to guard against it being applied by accident. In CIPP it is reachable through the deploy drawer, and a template carrying it applies it to every tenant you deploy to without a confirmation step. Check what a template sets before deploying it. See [Preservation Lock](https://learn.microsoft.com/purview/retention-preservation-lock) for Microsoft's guidance.
 {% endhint %}
 
-{% hint style="warning" %}
-Microsoft returns the individual location lists on a retention policy empty, with the real scope carried in **Workload** instead. Read **Workload** to see what a policy covers, rather than the per workload location fields in the Extended Info flyout. Saving the policy as a template rebuilds the locations from **Workload**, so templates stay deployable.
+{% hint style="info" %}
+**Scoped Locations** is worked out from which location fields the policy actually returns populated, rather than from Microsoft's own **Workload** field: Workload is a fixed list of every location a retention policy can ever target, not what this particular policy covers. **Create template based on policy** captures the policy's current locations when it builds the template, so the result stays deployable.
 {% endhint %}
 
 ## Table Actions

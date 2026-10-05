@@ -1,12 +1,9 @@
 import { Drawer, Box, Button, IconButton, Typography, Divider } from "@mui/material";
+import { CippIcons } from "../../utils/icon-registry";
 import { CippPropertyListCard } from "../CippCards/CippPropertyListCard";
 import { getCippTranslation } from "../../utils/get-cipp-translation";
 import { getCippFormatting } from "../../utils/get-cipp-formatting";
 import { useMediaQuery, Grid } from "@mui/system";
-import CloseIcon from "@mui/icons-material/Close";
-import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { renderUrlValue } from "../../utils/render-url-value";
 import { useHistoryDismiss } from "../../hooks/use-history-dismiss";
 
@@ -35,7 +32,6 @@ export const CippOffCanvas = (props) => {
   } = props;
 
   const mdDown = useMediaQuery((theme) => theme.breakpoints.down("md"));
-  const smDown = useMediaQuery((theme) => theme.breakpoints.down("sm"));
   // Pages that hand-pick extendedInfoFields expect the flat text rendering. richFormatting
   // asks for the same nodes the table cells use — copy chips, links, status icons — which
   // is what the card view's generated fallback needs, since its fields ARE table columns.
@@ -82,7 +78,6 @@ export const CippOffCanvas = (props) => {
         copyItems={true}
         actionItems={actions}
         data={extendedData}
-        actionsCollapsedByDefault={true}
       />
     </Grid>
   );
@@ -102,9 +97,6 @@ export const CippOffCanvas = (props) => {
   return (
     <>
       <Drawer
-        PaperProps={{
-          sx: { width: drawerWidth },
-        }}
         ModalProps={{
           keepMounted: keepMounted,
         }}
@@ -114,22 +106,20 @@ export const CippOffCanvas = (props) => {
         anchor={"right"}
         open={visible}
         onClose={onClose}
+        slotProps={{
+          paper: {
+            sx: { width: drawerWidth },
+          }
+        }}
       >
         <Box
-          sx={{ 
-            display: "flex", 
-            justifyContent: "space-between", 
-            alignItems: "center", 
-            p: smDown ? 2 : 1.5,
-            // Safe area for notched phones
-            paddingTop: smDown ? 'max(16px, env(safe-area-inset-top))' : 1.5,
-          }}
+          sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", p: 1.5 }}
         >
           {/* Phone convention: back chevron on the left — the drawer reads as a detail page */}
           {mdDown ? (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
               <IconButton onClick={onClose} aria-label="Back" sx={{ ml: -0.5 }}>
-                <ArrowBackIosNewIcon fontSize="small" />
+                <CippIcons.ArrowBackIosNew fontSize="small" />
               </IconButton>
               <Typography variant="h6" noWrap>
                 {title}
@@ -138,39 +128,30 @@ export const CippOffCanvas = (props) => {
           ) : (
             <Typography variant="h5">{title}</Typography>
           )}
-          <Box sx={{ display: "flex", gap: 0.5, flexShrink: 0 }}>
+          <Box sx={{ display: "flex", gap: 0.5 }}>
             {hasRowNavigation && !mdDown && (
               <>
                 <IconButton
                   onClick={onNavigateUp}
                   disabled={!canNavigateUp}
-                  size={smDown ? "medium" : "small"}
+                  size="small"
                   title="Previous row"
-                  sx={{ 
-                    // Minimum 44px touch target for mobile
-                    minWidth: smDown ? 44 : 'auto',
-                    minHeight: smDown ? 44 : 'auto',
-                  }}
                 >
-                  <KeyboardArrowUpIcon />
+                  <CippIcons.KeyboardArrowUp />
                 </IconButton>
                 <IconButton
                   onClick={onNavigateDown}
                   disabled={!canNavigateDown}
-                  size={smDown ? "medium" : "small"}
+                  size="small"
                   title="Next row"
-                  sx={{ 
-                    minWidth: smDown ? 44 : 'auto',
-                    minHeight: smDown ? 44 : 'auto',
-                  }}
                 >
-                  <KeyboardArrowDownIcon />
+                  <CippIcons.KeyboardArrowDown />
                 </IconButton>
               </>
             )}
             {!mdDown && (
-              <IconButton onClick={onClose} size="small">
-                <CloseIcon />
+              <IconButton onClick={onClose} aria-label="Close" title="Close">
+                <CippIcons.Close />
               </IconButton>
             )}
           </Box>
@@ -249,7 +230,7 @@ export const CippOffCanvas = (props) => {
               <Button
                 variant="outlined"
                 color="inherit"
-                startIcon={<KeyboardArrowUpIcon />}
+                startIcon={<CippIcons.KeyboardArrowUp />}
                 onClick={onNavigateUp}
                 disabled={!canNavigateUp}
                 sx={{ flex: 1, minHeight: 44, borderColor: "divider" }}
@@ -257,14 +238,19 @@ export const CippOffCanvas = (props) => {
                 Prev
               </Button>
               {navigationPosition?.total > 0 && (
-                <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: "text.secondary",
+                    whiteSpace: "nowrap"
+                  }}>
                   {navigationPosition.index} of {navigationPosition.total}
                 </Typography>
               )}
               <Button
                 variant="outlined"
                 color="inherit"
-                endIcon={<KeyboardArrowDownIcon />}
+                endIcon={<CippIcons.KeyboardArrowDown />}
                 onClick={onNavigateDown}
                 disabled={!canNavigateDown}
                 sx={{ flex: 1, minHeight: 44, borderColor: "divider" }}

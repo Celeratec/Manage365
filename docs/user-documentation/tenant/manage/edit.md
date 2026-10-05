@@ -49,7 +49,8 @@ These settings pre-select the offboarding options used when a user in this tenan
 | Remove all Rules                              | Deletes the inbox rules on the user's mailbox, including any forwarding rules.                                           |
 | Reset Password                                | Sets the account password to a new random value.                                                                         |
 | Keep copy of forwarded mail in source mailbox | Where forwarding is configured during offboarding, retains a copy of each forwarded message in the leaver's mailbox.     |
-| Delete user                                   | Deletes the user account.                                                                                                |
+| Delete User                                   | Deletes the user account.                                                                                                |
+| Wipe Mobile Devices (account data only)       | Wipes the Exchange account data from the leaver's registered mobile devices, without removing the devices themselves.    |
 | Remove all Mobile Devices                     | Removes the mobile devices registered against the user.                                                                  |
 | Disable Sign in                               | Blocks the account from signing in while leaving it in place.                                                            |
 | Remove all MFA Devices                        | Removes the user's registered authentication methods.                                                                    |

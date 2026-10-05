@@ -37,7 +37,7 @@ Below roughly 900px, tables are presented as a list of cards, one card per row. 
 | Details            | Up to three further fields, shown as label and value pairs.                           |
 | **+N more fields** | Everything else on the row. Selecting it opens the full detail view.                  |
 
-Where a row has more information than the card shows, tapping the card opens the same detail flyout that **More Info** opens on a desktop. Tapping the button in the card's top right corner opens the row's actions, exactly the actions the ellipsis offers on a desktop.
+Where a row has more information than the card shows, tapping the card opens the same detail flyout that **More Info** opens on a desktop. Tapping the button in the card's top right corner opens the row's actions, exactly the actions the ellipsis offers on a desktop. Text on a card can be selected and copied, and dragging to select it does not open the flyout.
 
 The first batch of cards is drawn using your **Default Page Size** preference, up to a maximum of 50, so a large page size does not turn into hundreds of cards on a phone. A count beneath the list reads **Showing 50 of 340**, with a **Load 50 more** button while there is more to show.
 

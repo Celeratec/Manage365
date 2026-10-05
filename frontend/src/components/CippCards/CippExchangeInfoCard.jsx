@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useState, useEffect } from "react";
+import { CippIcons } from "../../utils/icon-registry";
 import {
   Card,
   CardContent,

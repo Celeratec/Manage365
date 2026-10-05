@@ -17,7 +17,7 @@ Username is the Microsoft 365 mail nickname, which has to be unique within a ten
 {% endhint %}
 
 {% hint style="info" %}
-**Username** and **Email Aliases** accept variables, so a single template can produce tenant-appropriate addresses. `%tenantfilter%` is replaced with the target tenant's domain when the template is applied, as in `postmaster@%tenantfilter%`.
+Any field in a template accepts a variable, written as `%variablename%`, which is replaced with the target tenant's value when the template is applied. `%tenantfilter%` gives the tenant's default domain, as in `postmaster@%tenantfilter%`, and `%tenantname%` gives the tenant's name, so a **Display Name** of `%tenantname% Administrators` produces an appropriately named group in each tenant. Values for your own variables are set for every tenant in [global-variables.md](../../../tenant/administration/tenants/global-variables.md "mention"), or for one tenant in the Custom Variables box on [edit.md](../../../tenant/manage/edit.md "mention"), where the tenant's own value wins.
 {% endhint %}
 
 ## Group Type

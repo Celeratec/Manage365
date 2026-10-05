@@ -18,24 +18,29 @@ services:
     image: mcr.microsoft.com/azure-storage/azurite:latest
     container_name: cipp-azurite
     restart: unless-stopped
+    # The prestart guard empties regenerable cache tables when the LokiJS file has
+    # grown past the point where azurite can load it without OOM crash-looping.
+    entrypoint: ["/bin/sh", "-c"]
     command: >
-      azurite
+      "node /azurite-prestart.js /workspace &&
+      exec azurite
       --blobHost 0.0.0.0
       --queueHost 0.0.0.0
       --tableHost 0.0.0.0
       --location /workspace
       --loose
       --skipApiVersionCheck
-      --disableTelemetry
+      --disableTelemetry"
     ports:
-      - "10000:10000"
-      - "10001:10001"
-      - "10002:10002"
+      - "127.0.0.1:10000:10000"
+      - "127.0.0.1:10001:10001"
+      - "127.0.0.1:10002:10002"
     environment:
       - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
       - NODE_OPTIONS=--max-old-space-size=8192
     volumes:
       - cipp-ng_azurite-data:/workspace
+      - ./tools/azurite-prestart.js:/azurite-prestart.js:ro
     networks:
       - cipp-network
 
@@ -78,10 +83,11 @@ services:
     container_name: cipp-api
     restart: unless-stopped
     ports:
-      - "5196:8080"
+      - "127.0.0.1:5196:8080"
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - CRAFT_VERBOSE=true
+      - CRAFT_API_EGRESS_LIMIT_ENABLED=true
       - App__Setup__Enabled=false
       # Where the SearchDocs MCP tool finds the docs. Only needed in dev: the image puts them
       # at $CIPPRootPath/Docs, which Get-CippDocsRoot probes by default.
@@ -118,6 +124,13 @@ services:
       #- REGION_NAME=eastus
     volumes:
       - ./config/appsettings.Local.Development.json:/app/appsettings.Development.json:ro
+      # Optional Proxyman TLS trust. We proxy at the SYSTEM level, so Docker routes this
+      # container's outbound HTTPS through Proxyman, which re-signs certs — the distroless
+      # runtime must trust Proxyman's CA or all Graph/token calls fail. When build/.env sets
+      # CIPP_API_CA_MOUNT (written by build/tools/Export-ProxymanCert.ps1) this mounts the
+      # combined roots+Proxyman bundle OVER the image root store; unset, it is a /dev/null
+      # no-op so contributors without Proxyman are unaffected. See docs in Export-ProxymanCert.ps1.
+      - "${CIPP_API_CA_MOUNT:-/dev/null:/dev/null:ro}"
       # Live backend source. rw because runtime permission extraction writes
       # Config/function-permissions.json back into the repo (gitignored).
       - ../backend:/app/API
@@ -175,13 +188,20 @@ services:
     # which is unreachable from the cipp-api container's proxy — bind 0.0.0.0 here.
     command: sh -c "yarn install --network-timeout 500000 && npx next dev -H 0.0.0.0"
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - CHOKIDAR_USEPOLLING=true # Watch for file changes so the dev server reloads when frontend source files change
+      # Optional Proxyman TLS trust for yarn/npm fetches. The system proxy re-signs the
+      # registry's cert, so a fresh `yarn install` fails with SELF_SIGNED_CERT_IN_CHAIN
+      # unless Node trusts Proxyman's CA. build/.env sets CIPP_NODE_CA to the mounted
+      # bundle path when enabled; empty (default) is a no-op Node ignores silently.
+      - NODE_EXTRA_CA_CERTS=${CIPP_NODE_CA:-}
     volumes:
       - ../frontend:/app
       - cipp-frontend_node_modules:/app/node_modules
       - cipp-frontend_out_dev:/app/out/dev
+      # Paired with NODE_EXTRA_CA_CERTS above; /dev/null no-op when CIPP_NODE_CA_MOUNT is unset.
+      - "${CIPP_NODE_CA_MOUNT:-/dev/null:/dev/null:ro}"
     # cipp-storybook shares this container's node_modules volume and must not run its own
     # `yarn install` against it. A TCP connect to the dev server is the signal that install
     # finished AND next dev is listening — cheap, and it doesn't wait on a route compile the
@@ -225,14 +245,17 @@ services:
       sh -c "npx playwright install --with-deps chromium &&
       npx storybook dev -p 6006 --host 0.0.0.0 --no-open"
     ports:
-      - "6006:6006"
+      - "127.0.0.1:6006:6006"
     environment:
       - CHOKIDAR_USEPOLLING=true # story/source edits trigger a rebuild over the bind mount
       - NODE_OPTIONS=--max-old-space-size=4096
+      # Optional Proxyman TLS trust (playwright/npx fetches); see cipp-frontend above.
+      - NODE_EXTRA_CA_CERTS=${CIPP_NODE_CA:-}
     volumes:
       - ../frontend:/app
       - cipp-frontend_node_modules:/app/node_modules
       - cipp-storybook_playwright:/root/.cache/ms-playwright
+      - "${CIPP_NODE_CA_MOUNT:-/dev/null:/dev/null:ro}"
     depends_on:
       cipp-frontend:
         condition: service_healthy

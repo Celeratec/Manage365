@@ -98,6 +98,7 @@ export const CippWizardConfirmation = (props) => {
     columns = 2,
     replacementBehaviour,
     queryKeys,
+    jobProgress,
   } = props;
   
   const theme = useTheme();
@@ -429,6 +430,7 @@ export const CippWizardConfirmation = (props) => {
         noSubmitButton={formValues?.noSubmitButton}
         replacementBehaviour={replacementBehaviour}
         queryKeys={queryKeys}
+        jobProgress={jobProgress}
       />
     </Stack>
   );

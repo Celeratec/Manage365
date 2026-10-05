@@ -8,6 +8,9 @@ function Invoke-ExecCippReplacemap {
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
+    $APIName = $Request.Params.CIPPEndpoint
+    $Headers = $Request.Headers
+
     $Table = Get-CippTable -tablename 'CippReplacemap'
     $Action = $Request.Query.Action ?? $Request.Body.Action
     $TenantId = $Request.Query.tenantId ?? $Request.Body.tenantId
@@ -48,7 +51,9 @@ function Invoke-ExecCippReplacemap {
             }
 
             Add-CIPPAzDataTableEntity @Table -Entity $VariableEntity -Force
-            $Body = @{ Results = "Variable '$VariableName' saved successfully" }
+            $Result = "Variable '$VariableName' saved successfully"
+            Write-LogMessage -headers $Headers -API $APIName -tenant $customerId -message $Result -Sev 'Info'
+            $Body = @{ Results = $Result }
         }
         'Delete' {
             $VariableName = $Request.Body.RowKey
@@ -56,7 +61,9 @@ function Invoke-ExecCippReplacemap {
             $VariableEntity = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq '$customerId' and RowKey eq '$VariableName'"
             if ($VariableEntity) {
                 Remove-CIPPAzDataTableEntity @Table -Entity $VariableEntity -Force
-                $Body = @{ Results = "Variable '$VariableName' deleted successfully" }
+                $Result = "Variable '$VariableName' deleted successfully"
+                Write-LogMessage -headers $Headers -API $APIName -tenant $customerId -message $Result -Sev 'Info'
+                $Body = @{ Results = $Result }
             } else {
                 $Body = @{ Results = "Variable '$VariableName' not found" }
             }

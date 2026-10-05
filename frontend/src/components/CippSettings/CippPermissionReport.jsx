@@ -8,7 +8,7 @@ import {
   SvgIcon,
   Tooltip,
 } from "@mui/material";
-import { Close, ContentPasteGo, FileDownload, FileUpload } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry";
 import { ApiGetCall } from "../../api/ApiCall";
 import { useDialog } from "../../hooks/use-dialog";
 import { useIsMobileLayout } from "../../hooks/use-breakpoint";
@@ -194,7 +194,7 @@ export const CippPermissionReport = (props) => {
           onClick={createDialog.handleOpen}
           startIcon={
             <SvgIcon fontSize="small">
-              <FileDownload />
+              <CippIcons.FileDownload />
             </SvgIcon>
           }
         >
@@ -207,7 +207,7 @@ export const CippPermissionReport = (props) => {
           color="primary"
           startIcon={
             <SvgIcon fontSize="small">
-              <FileUpload />
+              <CippIcons.FileUpload />
             </SvgIcon>
           }
         >
@@ -227,7 +227,7 @@ export const CippPermissionReport = (props) => {
           onClick={handleImportFromClipboard}
           startIcon={
             <SvgIcon fontSize="small">
-              <ContentPasteGo />
+              <CippIcons.ContentPasteGo />
             </SvgIcon>
           }
         >
@@ -242,7 +242,7 @@ export const CippPermissionReport = (props) => {
               onClick={() => setImportReport(false)}
               endIcon={
                 <SvgIcon fontSize="small">
-                  <Close />
+                  <CippIcons.Close />
                 </SvgIcon>
               }
             >
@@ -258,7 +258,7 @@ export const CippPermissionReport = (props) => {
             onClick={() => setImportError(false)}
             endIcon={
               <SvgIcon fontSize="small">
-                <Close />
+                <CippIcons.Close />
               </SvgIcon>
             }
           >
@@ -279,7 +279,7 @@ export const CippPermissionReport = (props) => {
           <List sx={{ py: 0 }}>
             <ListItemButton onClick={createDialog.handleOpen} sx={{ minHeight: 48 }}>
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <FileDownload fontSize="small" />
+                <CippIcons.FileDownload fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="Export Report" />
             </ListItemButton>
@@ -287,21 +287,21 @@ export const CippPermissionReport = (props) => {
                 sheet closing while the OS file picker is up. */}
             <ListItemButton component="label" sx={{ minHeight: 48 }}>
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <FileUpload fontSize="small" />
+                <CippIcons.FileUpload fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="Import Report" />
               <input type="file" hidden onChange={handleImportReport} accept=".json" />
             </ListItemButton>
             <ListItemButton onClick={handleImportFromClipboard} sx={{ minHeight: 48 }}>
               <ListItemIcon sx={{ minWidth: 40 }}>
-                <ContentPasteGo fontSize="small" />
+                <CippIcons.ContentPasteGo fontSize="small" />
               </ListItemIcon>
               <ListItemText primary="Paste Report" />
             </ListItemButton>
             {importReport && (
               <ListItemButton onClick={() => setImportReport(false)} sx={{ minHeight: 48 }}>
                 <ListItemIcon sx={{ minWidth: 40 }}>
-                  <Close fontSize="small" />
+                  <CippIcons.Close fontSize="small" />
                 </ListItemIcon>
                 <ListItemText primary={`Close report — ${currentFile.name}`} />
               </ListItemButton>
@@ -312,7 +312,7 @@ export const CippPermissionReport = (props) => {
                 sx={{ minHeight: 48, color: "error.main" }}
               >
                 <ListItemIcon sx={{ minWidth: 40, color: "error.main" }}>
-                  <Close fontSize="small" />
+                  <CippIcons.Close fontSize="small" />
                 </ListItemIcon>
                 <ListItemText primary={importError} />
               </ListItemButton>

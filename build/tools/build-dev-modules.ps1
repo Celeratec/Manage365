@@ -16,7 +16,11 @@
 param(
     [string]   $SourceModules = "$PSScriptRoot\..\..\backend\Modules",
     [string]   $OutputModules = "$PSScriptRoot\..\.devmodules",
-    [string[]] $Modules       = @('CIPPCore','CIPPHTTP','CIPPStandards','CIPPDB','CIPPAlerts','CIPPActivityTriggers','CippExtensions', 'CIPPTests')
+    [string[]] $Modules       = @('CIPPCore','CIPPHTTP','CIPPStandards','CIPPDB','CIPPAlerts','CIPPActivityTriggers','CippExtensions', 'CIPPTests'),
+    # Skip the openapi.json regeneration (the slowest step). The watcher passes this so a
+    # CIPPHTTP edit's container restart is not blocked on the spec, then regenerates it in
+    # the background itself. The initial build leaves it off so the spec is present at startup.
+    [switch]   $SkipOpenApi
 )
 
 $ErrorActionPreference = 'Stop'
@@ -125,7 +129,7 @@ if ($Modules -contains 'CIPPCore') {
 # unlike function-parameters.json this file IS committed, so a change here shows up
 # as a working-tree diff — that diff is the point, it belongs in the same commit as
 # the endpoint change
-if ($Modules -contains 'CIPPHTTP') {
+if ($Modules -contains 'CIPPHTTP' -and -not $SkipOpenApi) {
     $backendPath = Split-Path -Parent $sourceModulesPath
     try {
         & (Join-Path $PSScriptRoot 'build-openapi.ps1') `

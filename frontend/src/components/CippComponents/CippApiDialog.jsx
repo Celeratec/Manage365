@@ -151,15 +151,16 @@ export const CippApiDialog = (props) => {
 
   const tenantFilter = useSettings().currentTenant;
 
-  const handleActionClick = (row, action, formData) => {
-    setIsFormSubmitted(true);
-    const resolvedFormData = mergeCsvFormFields(formData, fields);
-    let finalData = {};
-    let isBulkRequest = false;
-    if (typeof api?.customDataformatter === "function") {
-      finalData = api.customDataformatter(row, action, resolvedFormData);
-      // If customDataformatter returns an array, enable bulk request mode
-      isBulkRequest = Array.isArray(finalData);
+  const handleActionClick = (row, action, rawFormData) => {
+    setIsFormSubmitted(true)
+    // The typed-confirmation field only gates the submit button; it never reaches the API.
+    const { __confirmPhrase, ...formData } = rawFormData ?? {}
+    const resolvedFormData = mergeCsvFormFields(formData, fields)
+    let finalData = {}
+    let isBulkRequest = false
+    if (typeof api?.customDataformatter === 'function') {
+      finalData = api.customDataformatter(row, action, resolvedFormData)
+      isBulkRequest = Array.isArray(finalData)
     } else {
       if (action.multiPost === undefined) action.multiPost = false;
 
@@ -323,19 +324,25 @@ export const CippApiDialog = (props) => {
       !linkOpenedRef.current
     ) {
       linkOpenedRef.current = true;
-      // Values are URL encoded on the way in: group types and display names
-      // contain spaces, which getSafeInternalRoute rejects as unsafe.
-      const linkWithData = api.link.replace(/\[([^\]]+)\]/g, (_, key) => {
-        const value = getRawNestedValue(row, key);
-        return value || value === 0 ? encodeURIComponent(value) : `[${key}]`;
-      });
-      const safeRoute = getSafeInternalRoute(linkWithData);
-      if (safeRoute && !api?.external) {
-        router.push(safeRoute, undefined, { shallow: true });
-      } else if (api?.external || linkWithData.startsWith("//")) {
-        openSafeExternalUrl(linkWithData, api.target || "_blank");
+      const placeholder = /\[([^\]]+)\]/g;
+      const hasValue = (value) => value !== undefined && value !== null && value !== "";
+      if (api.link.startsWith("/") && !api?.external) {
+        const internalLink = api.link.replace(placeholder, (_, key) => {
+          const value = getRawNestedValue(row, key);
+          return hasValue(value) ? encodeURIComponent(String(value)) : `[${key}]`;
+        });
+        const safeRoute = getSafeInternalRoute(internalLink);
+        if (safeRoute) {
+          router.push(safeRoute, undefined, { shallow: true });
+        } else {
+          console.warn(`Refusing to navigate to unsafe or unresolved link: ${internalLink}`);
+        }
       } else {
-        console.warn(`Refusing to navigate to unsafe or unresolved link: ${linkWithData}`);
+        const externalLink = api.link.replace(placeholder, (_, key) => {
+          const value = getRawNestedValue(row, key);
+          return hasValue(value) ? value : `[${key}]`;
+        });
+        openSafeExternalUrl(externalLink, api.target || "_blank");
       }
       createDialog.handleClose();
     }
@@ -402,6 +409,26 @@ export const CippApiDialog = (props) => {
   // Destructive actions are marked with category "danger" and/or colour
   // "danger"/"error" depending on the page, so accept any of them here
   const isDanger = isDangerAction(api);
+  // Optional typed confirmation: api.confirmPhrase is a string (with [field] interpolation from
+  // the row) or a function of the row / selected rows returning the phrase, or null/'' to skip.
+  // While set, the Confirm button stays disabled until the user types the phrase exactly.
+  let confirmPhrase = null
+  if (api?.confirmPhrase) {
+    if (typeof api.confirmPhrase === 'function') {
+      confirmPhrase = api.confirmPhrase(row)
+    } else if (Array.isArray(row)) {
+      confirmPhrase =
+        row.length > 1
+          ? `CONFIRM ${row.length} ITEMS`
+          : api.confirmPhrase.replace(/\[([^\]]+)\]/g, (_, key) => getNestedValue(row[0], key) || '')
+    } else {
+      confirmPhrase = api.confirmPhrase.replace(
+        /\[([^\]]+)\]/g,
+        (_, key) => getNestedValue(row, key) || ''
+      )
+    }
+    if (typeof confirmPhrase !== 'string' || confirmPhrase.trim() === '') confirmPhrase = null
+  }
 
   return (
     <>
@@ -555,6 +582,22 @@ export const CippApiDialog = (props) => {
                 )}
               </Stack>
             </DialogContent>
+            {confirmPhrase && (
+              <DialogContent>
+                <CippFormComponent
+                  type="textField"
+                  name="__confirmPhrase"
+                  label={`Type ${confirmPhrase} to confirm`}
+                  formControl={formHook}
+                  autoComplete="off"
+                  validators={{
+                    validate: (value) =>
+                      (value ?? '').trim() === confirmPhrase ||
+                      `Type ${confirmPhrase} exactly to enable Confirm`,
+                  }}
+                />
+              </DialogContent>
+            )}
             <DialogContent>
               <CippApiResults apiObject={{ ...selectedType, data: partialResults }} />
             </DialogContent>

@@ -77,6 +77,67 @@ $TemplateFilePath = Join-Path $PSScriptRoot 'cipp-migration.json'
 # cmdlets, so each call passes -WarningAction SilentlyContinue instead. Kept per-call rather
 # than script-wide so this script's own Write-Warning output still reaches the user.
 
+# ── Transient-error retry helpers ─────────────────────────────────────────────
+# Transient control-plane faults (5xx, 429, HttpClient timeouts/cancellations). Every
+# wrapped call is a read or idempotent, so re-issuing is safe; other errors re-throw.
+$TransientAzurePattern = 'Internal\s*Server\s*Error|HttpClient\.Timeout|An error occurred while sending the request|request was canceled|operation was canceled|timed out|TooManyRequests|ServiceUnavailable|GatewayTimeout|BadGateway|temporarily unavailable|please try again'
+
+function Invoke-AzWithRetry {
+    # Retries a scriptblock through transient Azure control-plane malfunctions.
+    param(
+        [Parameter(Mandatory)][scriptblock]$ScriptBlock,
+        [string]$OperationName = 'Azure operation',
+        [int]$MaxRetries = 5,
+        [int]$DelaySeconds = 15
+    )
+    $transient = $TransientAzurePattern
+    $attempt = 0
+    while ($true) {
+        try {
+            return & $ScriptBlock
+        } catch {
+            if ($_.Exception.Message -match $transient -and $attempt -lt $MaxRetries) {
+                $attempt++
+                Write-Information "  $OperationName hit a transient Azure error — retrying in ${DelaySeconds}s ($attempt/$MaxRetries)... ($($_.Exception.Message -split "`n" | Select-Object -First 1))"
+                Start-Sleep -Seconds $DelaySeconds
+                continue
+            }
+            throw
+        }
+    }
+}
+
+function Invoke-AzRestMethodWithRetry {
+    # Retries transient transport failures on Invoke-AzRestMethod. Always passes
+    # -WhatIf:$false: reads must run under -WhatIf; mutating call sites are
+    # already ShouldProcess-guarded.
+    param(
+        [Parameter(Mandatory)][string]$OperationName,
+        [Parameter(Mandatory)][string]$Method,
+        [Parameter(Mandatory)][string]$Uri,
+        [string]$Payload,
+        [int]$MaxRetries = 4,
+        [int]$DelaySeconds = 10
+    )
+    $RestArgs = @{ Method = $Method; Uri = $Uri }
+    if ($PSBoundParameters.ContainsKey('Payload')) { $RestArgs.Payload = $Payload }
+    $transient = $TransientAzurePattern
+    $attempt = 0
+    while ($true) {
+        try {
+            return Invoke-AzRestMethod @RestArgs -WhatIf:$false
+        } catch {
+            if ($_.Exception.Message -match $transient -and $attempt -lt $MaxRetries) {
+                $attempt++
+                Write-Information "  $OperationName hit a transient error — retrying in ${DelaySeconds}s ($attempt/$MaxRetries)..."
+                Start-Sleep -Seconds $DelaySeconds
+                continue
+            }
+            throw
+        }
+    }
+}
+
 # ── AzBobbyTables module check ────────────────────────────────────────────────
 if (-not (Get-Module -ListAvailable -Name AzBobbyTables)) {
     Write-Warning 'AzBobbyTables module not found.'
@@ -340,7 +401,9 @@ if (-not $SsoReady) {
 }
 
 # ── App service plans ─────────────────────────────────────────────────────────
-$appServicePlans = Get-AzAppServicePlan -ResourceGroupName $ResourceGroupName
+$appServicePlans = Invoke-AzWithRetry -OperationName "Get-AzAppServicePlan in '$ResourceGroupName'" -ScriptBlock {
+    Get-AzAppServicePlan -ResourceGroupName $ResourceGroupName
+}
 
 # ── Static Web App ────────────────────────────────────────────────────────────
 Write-Information "Detecting Static Web App in '$ResourceGroupName'..."
@@ -368,7 +431,9 @@ if ($swa) {
 
 # ── Check for existing Key Vault ───────────────────────────────────────────────
 Write-Information 'Checking for existing Key Vault...'
-$existingKv = Get-AzKeyVault -ResourceGroupName $ResourceGroupName | Select-Object -First 1
+$existingKv = Invoke-AzWithRetry -OperationName "Get-AzKeyVault in '$ResourceGroupName'" -ScriptBlock {
+    Get-AzKeyVault -ResourceGroupName $ResourceGroupName
+} | Select-Object -First 1
 if ($existingKv) {
     Write-Information "Found existing Key Vault '$($existingKv.VaultName)'."
 } else {
@@ -448,11 +513,11 @@ if ($TestOnly.IsPresent) {
 $swaUsers = @()
 if ($swa) {
     Write-Information 'Migrating SWA role assignments to allowedUsers table...'
-    # -WhatIf:$false — listUsers is a read despite being a POST
-    $aadUsersResponse = Invoke-AzRestMethod `
+    # listUsers is a read despite being a POST
+    $aadUsersResponse = Invoke-AzRestMethodWithRetry `
+        -OperationName 'Listing SWA users' `
         -Method POST `
-        -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/authproviders/all/listUsers?api-version=2022-09-01" `
-        -WhatIf:$false
+        -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/authproviders/all/listUsers?api-version=2022-09-01"
     $swaUsers = @(($aadUsersResponse.Content | ConvertFrom-Json).value)
 } else {
     Write-Information 'No Static Web App — skipping SWA user migration (allowedUsers was populated on the original run).'
@@ -552,16 +617,17 @@ if ($swaUsers.Count -gt 0) {
 # ── Remove SWA linked backend ─────────────────────────────────────────────────
 if ($swa) {
     Write-Information "Removing SWA linked backend from '$SwaName'..."
-    $backendResponse = Invoke-AzRestMethod `
+    $backendResponse = Invoke-AzRestMethodWithRetry `
+        -OperationName 'Listing linked backends' `
         -Method GET `
-        -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/builds/default/linkedBackends?api-version=2022-09-01" `
-        -WhatIf:$false
+        -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/builds/default/linkedBackends?api-version=2022-09-01"
     $backend = ($backendResponse.Content | ConvertFrom-Json).value | Select-Object -First 1
 
     if ($backend.id) {
         Write-Information "  Unlinking backend: $($backend.name)"
         if ($PSCmdlet.ShouldProcess($backend.name, 'Unlink SWA backend')) {
-            $null = Invoke-AzRestMethod `
+            $null = Invoke-AzRestMethodWithRetry `
+                -OperationName 'Unlinking backend' `
                 -Method DELETE `
                 -Uri "https://management.azure.com$($backend.id)?isCleaningAuthConfig=false&api-version=2022-09-01"
         }
@@ -573,29 +639,62 @@ if ($swa) {
 # ── Remove old function apps and app service plans ────────────────────────────
 if ($allFunctionApps.Count -gt 0) {
     Write-Information 'Removing old function apps and app service plans...'
-    $FunctionsToDelete = [System.Collections.Generic.List[psobject]]::new()
-    foreach ($fa in $allFunctionApps) { $FunctionsToDelete.Add($fa) }
 
-    foreach ($fa in $FunctionsToDelete) {
+    # Phase 1 — delete every function app first: offloading apps share the primary's
+    # plan, and a plan can't be removed until all of its apps are gone.
+    foreach ($fa in $allFunctionApps) {
         Write-Information "  Removing function app: $($fa.Name)"
         if ($PSCmdlet.ShouldProcess($fa.Name, 'Remove function app')) {
-            Remove-AzWebApp -Name $fa.Name -ResourceGroupName $ResourceGroupName -Force
-        }
-
-        $plan = $appServicePlans | Where-Object { $_.Id -eq $fa.ServerFarmId }
-        if ($plan) {
-            if ($plan.ResourceGroup -ne $ResourceGroupName) {
-                Write-Information "  Skipping shared app service plan '$($plan.Name)' (in resource group '$($plan.ResourceGroup)')."
-            } else {
-                do {
-                    Write-Information "  Removing app service plan: $($plan.Name)"
-                    if ($PSCmdlet.ShouldProcess($plan.Name, 'Remove app service plan')) {
-                        Remove-AzAppServicePlan -Name $plan.Name -ResourceGroupName $ResourceGroupName -Force
-                    }
-                    Start-Sleep -Seconds 5
-                    $plan = Get-AzAppServicePlan -Name $plan.Name -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
-                } while ($plan)
+            # Still fatal on a genuine failure: the new web app reuses this name.
+            Invoke-AzWithRetry -OperationName "Removing function app '$($fa.Name)'" -ScriptBlock {
+                Remove-AzWebApp -Name $fa.Name -ResourceGroupName $ResourceGroupName -Force
             }
+        }
+    }
+
+    # Phase 2 — remove the now-orphaned plans (unique; skip plans in another resource group).
+    $funcPlanIds = @($allFunctionApps | ForEach-Object { $_.ServerFarmId } | Sort-Object -Unique)
+    $plansToRemove = @($appServicePlans | Where-Object { $_.Id -in $funcPlanIds })
+    foreach ($plan in $plansToRemove) {
+        if ($plan.ResourceGroup -ne $ResourceGroupName) {
+            Write-Information "  Skipping shared app service plan '$($plan.Name)' (in resource group '$($plan.ResourceGroup)')."
+            continue
+        }
+        if (-not $PSCmdlet.ShouldProcess($plan.Name, 'Remove app service plan')) { continue }
+        # Function app deletion is async: the plan returns Conflict until its apps
+        # finish detaching, so retry (bounded).
+        $planName = $plan.Name
+        $planRetries = 0
+        $maxPlanRetries = 18   # ~3 min at 10s between attempts
+        while ($true) {
+            if (-not (Get-AzAppServicePlan -Name $planName -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue)) {
+                Write-Information "  App service plan '$planName' removed."
+                break
+            }
+            try {
+                Write-Information "  Removing app service plan: $planName"
+                Remove-AzAppServicePlan -Name $planName -ResourceGroupName $ResourceGroupName -Force -ErrorAction Stop
+            } catch {
+                # Conflict = the just-deleted function apps are still detaching.
+                if ($_.Exception.Message -match 'Conflict' -and $planRetries -lt $maxPlanRetries) {
+                    $planRetries++
+                    Write-Information "  Plan '$planName' still has a resource attached (function app deletion in progress) — retrying in 10s ($planRetries/$maxPlanRetries)..."
+                    Start-Sleep -Seconds 10
+                    continue
+                }
+                # Still Conflict with sites attached: other apps run on it — leave it.
+                if ($_.Exception.Message -match 'Conflict') {
+                    $livePlan = Get-AzAppServicePlan -Name $planName -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
+                    if ($livePlan -and [int]$livePlan.NumberOfSites -gt 0) {
+                        Write-Warning "Plan '$planName' still hosts $($livePlan.NumberOfSites) app(s) — left in place; remove it manually once empty."
+                        break
+                    }
+                }
+                # Not fatal: the apps are gone and the deploy can proceed.
+                Write-Warning "Could not remove plan '$planName': $($_.Exception.Message) — left in place; remove it manually."
+                break
+            }
+            Start-Sleep -Seconds 5
         }
     }
 } else {
@@ -605,8 +704,15 @@ if ($allFunctionApps.Count -gt 0) {
 # ── Remove Application Insights and smart detector alert rules ────────────────
 Write-Information 'Checking for Application Insights and smart detector alert rules to remove...'
 
-# Smart detector alert rules first — they reference the App Insights components
-$smartDetectorRules = @(Get-AzResource -ResourceGroupName $ResourceGroupName -ResourceType 'microsoft.alertsmanagement/smartDetectorAlertRules' -ErrorAction SilentlyContinue)
+# Smart detector alert rules first — they reference the App Insights components.
+# From here to the deploy nothing may throw fatally: the function apps are already
+# gone, so any abort here is downtime over cleanup.
+$smartDetectorRules = @()
+try {
+    $smartDetectorRules = @(Invoke-AzWithRetry -OperationName 'Listing smart detector rules' -ScriptBlock {
+            Get-AzResource -ResourceGroupName $ResourceGroupName -ResourceType 'microsoft.alertsmanagement/smartDetectorAlertRules' -ErrorAction SilentlyContinue
+        })
+} catch { Write-Warning "  Could not list smart detector rules: $($_.Exception.Message)" }
 foreach ($rule in $smartDetectorRules) {
     Write-Information "  Removing smart detector alert rule: $($rule.Name)"
     if ($PSCmdlet.ShouldProcess($rule.Name, 'Remove smart detector alert rule')) {
@@ -618,7 +724,12 @@ foreach ($rule in $smartDetectorRules) {
     }
 }
 
-$appInsights = @(Get-AzResource -ResourceGroupName $ResourceGroupName -ResourceType 'Microsoft.Insights/components' -ErrorAction SilentlyContinue)
+$appInsights = @()
+try {
+    $appInsights = @(Invoke-AzWithRetry -OperationName 'Listing Application Insights' -ScriptBlock {
+            Get-AzResource -ResourceGroupName $ResourceGroupName -ResourceType 'Microsoft.Insights/components' -ErrorAction SilentlyContinue
+        })
+} catch { Write-Warning "  Could not list Application Insights: $($_.Exception.Message)" }
 foreach ($ai in $appInsights) {
     Write-Information "  Removing Application Insights: $($ai.Name)"
     if ($PSCmdlet.ShouldProcess($ai.Name, 'Remove Application Insights component')) {
@@ -635,18 +746,93 @@ if ($smartDetectorRules.Count -eq 0 -and $appInsights.Count -eq 0) {
 }
 
 # ── Remove storage file shares ────────────────────────────────────────────────
+# Never fatal — a leftover share costs cents. Data-plane cmdlets throw transport
+# errors regardless of -ErrorAction, so retry, then warn and move on.
 Write-Information 'Checking for file shares to remove...'
-$storageCtx = $storageAccount.Context
-$fileShares = Get-AzStorageShare -Context $storageCtx -ErrorAction SilentlyContinue
-if ($fileShares) {
-    foreach ($share in $fileShares) {
-        Write-Information "  Removing file share: $($share.Name)"
-        if ($PSCmdlet.ShouldProcess($share.Name, 'Remove storage file share')) {
-            Remove-AzStorageShare -Context $storageCtx -Name $share.Name -Force
+try {
+    $storageCtx = $storageAccount.Context
+    $fileShares = @(Invoke-AzWithRetry -OperationName 'Listing file shares' -MaxRetries 3 -DelaySeconds 5 -ScriptBlock {
+            Get-AzStorageShare -Context $storageCtx -ErrorAction Stop
+        })
+    if ($fileShares.Count) {
+        foreach ($share in $fileShares) {
+            Write-Information "  Removing file share: $($share.Name)"
+            if ($PSCmdlet.ShouldProcess($share.Name, 'Remove storage file share')) {
+                try {
+                    Remove-AzStorageShare -Context $storageCtx -Name $share.Name -Force
+                } catch {
+                    Write-Warning "  Failed to remove file share '$($share.Name)': $($_.Exception.Message)"
+                }
+            }
+        }
+    } else {
+        Write-Information '  No file shares found.'
+    }
+} catch {
+    Write-Warning "  Could not enumerate file shares: $($_.Exception.Message)"
+}
+
+# ── Remove stale role assignments on the target site scope ───────────────────
+# The legacy template granted the function app Contributor on itself, and Azure removes
+# a deleted site's role assignments asynchronously - often minutes after the delete
+# returns. Deploying a same-named site while that row lingers fails the deploy
+# (RoleAssignmentUpdateNotPermitted) or loses the new grant to the late cleanup.
+# The site is about to be (re)created, so any assignment scoped exactly to it is
+# stale; inherited (resource group / subscription) rows are left alone.
+if (-not $SkipDeployment) {
+    $targetSiteScope = "/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/sites/$TargetWebAppName"
+    $targetSiteExists = [bool](Get-AzWebApp -ResourceGroupName $ResourceGroupName -Name $TargetWebAppName -ErrorAction SilentlyContinue)
+    if ($targetSiteExists) {
+        Write-Information "Web app '$TargetWebAppName' already exists - keeping its role assignments."
+    } else {
+        Write-Information "Checking for stale role assignments on '$TargetWebAppName'..."
+        $staleAssignments = @()
+        try {
+            $staleAssignments = @(Invoke-AzWithRetry -OperationName 'Listing role assignments' -ScriptBlock {
+                    Get-AzRoleAssignment -Scope $targetSiteScope -ErrorAction Stop
+                } | Where-Object { $_.Scope -eq $targetSiteScope })
+        } catch {
+            # Some Az versions 404 the list when the resource behind the scope is gone —
+            # that just means nothing lingers. Anything else: warn and proceed; aborting
+            # here (old apps deleted, nothing deployed) is guaranteed downtime.
+            if ($_.Exception.Message -notmatch 'NotFound') {
+                Write-Warning "  Could not list role assignments on '$TargetWebAppName': $($_.Exception.Message) — continuing; the deploy may fail if a stale assignment lingers."
+            }
+        }
+        foreach ($assignment in $staleAssignments) {
+            Write-Information "  Removing stale '$($assignment.RoleDefinitionName)' assignment for $($assignment.ObjectType) $($assignment.ObjectId)"
+            if ($PSCmdlet.ShouldProcess($assignment.RoleAssignmentId, 'Remove stale role assignment')) {
+                try {
+                    Invoke-AzWithRetry -OperationName 'Removing stale role assignment' -ScriptBlock {
+                        Remove-AzRoleAssignment -InputObject $assignment -ErrorAction Stop
+                    }
+                } catch {
+                    # NotFound: Azure's own cleanup beat us to it. Anything else: warn —
+                    # aborting here is guaranteed downtime, a lingering row only might fail the deploy.
+                    if ($_.Exception.Message -notmatch 'does not exist|NotFound') {
+                        Write-Warning "  Could not remove stale assignment $($assignment.RoleAssignmentId): $($_.Exception.Message) — continuing."
+                    }
+                }
+            }
+        }
+        if ($staleAssignments.Count -eq 0) {
+            Write-Information '  None found.'
+        } elseif (-not $WhatIfPreference) {
+            # Deletes are eventually consistent on the ARM side too - confirm they are gone
+            # before the deploy re-creates the scope.
+            $sweepAttempts = 0
+            do {
+                Start-Sleep -Seconds 5
+                $sweepAttempts++
+                $remainingAssignments = @(Get-AzRoleAssignment -Scope $targetSiteScope -ErrorAction SilentlyContinue | Where-Object { $_.Scope -eq $targetSiteScope })
+            } while ($remainingAssignments.Count -gt 0 -and $sweepAttempts -lt 12)
+            if ($remainingAssignments.Count -gt 0) {
+                Write-Warning "Stale role assignment(s) on '$TargetWebAppName' are still listed after $($sweepAttempts * 5)s - the deploy may fail with RoleAssignmentUpdateNotPermitted; re-run if it does."
+            } else {
+                Write-Information '  Stale role assignments removed.'
+            }
         }
     }
-} else {
-    Write-Information '  No file shares found.'
 }
 
 # ── Deploy cipp ─────────────────────────────────────────────────────────────
@@ -656,7 +842,26 @@ if ($SkipDeployment) {
 } else {
     Write-Information 'Deploying cipp ARM template...'
     if ($PSCmdlet.ShouldProcess($ResourceGroupName, 'Deploy cipp ARM template')) {
-        $Deployment = New-AzResourceGroupDeployment -Name 'cipp-migration' @DeploymentParams -Verbose -ErrorAction Stop
+        # A failed deploy here is an outage (the old apps are gone), so retry transients.
+        # FailedIdentityOperation / "pending delete": the reused site name can still have
+        # its old managed identity tearing down; clears within a couple of minutes.
+        $TransientDeployPattern = 'FailedIdentityOperation|pending delete operation|' + $TransientAzurePattern
+        $MaxDeployAttempts = 4
+        for ($DeployAttempt = 1; $DeployAttempt -le $MaxDeployAttempts; $DeployAttempt++) {
+            try {
+                $Deployment = New-AzResourceGroupDeployment -Name 'cipp-migration' @DeploymentParams -Verbose -ErrorAction Stop
+                break
+            } catch {
+                $DeployError = $_.Exception.Message
+                if ($DeployAttempt -lt $MaxDeployAttempts -and $DeployError -match $TransientDeployPattern) {
+                    $DelaySeconds = 60 * $DeployAttempt
+                    Write-Information "Deployment hit a transient error — retrying in ${DelaySeconds}s ($DeployAttempt/$MaxDeployAttempts)... ($($DeployError -split "`n" | Select-Object -First 1))"
+                    Start-Sleep -Seconds $DelaySeconds
+                    continue
+                }
+                throw
+            }
+        }
         Write-Information 'Deployment completed.'
     }
 }
@@ -673,15 +878,68 @@ if ($NewHostname) {
 }
 Write-Information "Key Vault        : $NewKvName"
 
+# ── Verify the web app identity's grants ─────────────────────────────────────
+# The template creates both grants, but the deploy can capture a principal that MSI
+# later replaces, and Azure's late cleanup of the deleted function app can remove a
+# fresh role assignment. Without Contributor the setup wizard cannot write app
+# settings; without the vault policy the backend cannot read its SAM credentials.
+# Re-check against the live identity and repair; a brand-new principal is rejected
+# for a minute or two while Entra replicates it, hence the retries.
+$liveWebApp = if (-not $WhatIfPreference) { Get-AzWebApp -ResourceGroupName $ResourceGroupName -Name $NewWebAppName -ErrorAction SilentlyContinue }
+$livePrincipalId = $liveWebApp.Identity.PrincipalId
+if ($livePrincipalId) {
+    Write-Information "Verifying grants for the web app identity ($livePrincipalId)..."
+    $siteScope = $liveWebApp.Id
+    $grants = @(
+        @{
+            Name  = "Contributor on '$NewWebAppName'"
+            Test  = { [bool](Get-AzRoleAssignment -Scope $siteScope -ObjectId $livePrincipalId -ErrorAction SilentlyContinue | Where-Object { $_.Scope -eq $siteScope -and $_.RoleDefinitionName -eq 'Contributor' }) }
+            Grant = { $null = New-AzRoleAssignment -ObjectId $livePrincipalId -RoleDefinitionName Contributor -Scope $siteScope -ObjectType ServicePrincipal -ErrorAction Stop }
+            Fix   = "New-AzRoleAssignment -ObjectId $livePrincipalId -RoleDefinitionName Contributor -Scope $siteScope"
+        }
+        @{
+            Name  = "secrets access on Key Vault '$NewKvName'"
+            Test  = { [bool]((Get-AzKeyVault -VaultName $NewKvName -ResourceGroupName $ResourceGroupName).AccessPolicies | Where-Object { $_.ObjectId -eq $livePrincipalId -and ($_.PermissionsToSecrets -contains 'all' -or $_.PermissionsToSecrets -contains 'get') }) }
+            Grant = { Set-AzKeyVaultAccessPolicy -VaultName $NewKvName -ResourceGroupName $ResourceGroupName -ObjectId $livePrincipalId -PermissionsToSecrets all -ErrorAction Stop }
+            Fix   = "Set-AzKeyVaultAccessPolicy -VaultName $NewKvName -ObjectId $livePrincipalId -PermissionsToSecrets all"
+        }
+    )
+    foreach ($grant in $grants) {
+        # A Test throw (e.g. Graph 404 on a not-yet-replicated principal) = not verified;
+        # fall through to the grant ladder rather than abort post-deploy.
+        try { $ok = & $grant.Test } catch { $ok = $false }
+        foreach ($delay in @(10, 20, 30, 60, 60)) {
+            if ($ok) { break }
+            if (-not $PSCmdlet.ShouldProcess($NewWebAppName, "Grant $($grant.Name)")) { break }
+            Write-Information "  $($grant.Name) missing - granting..."
+            try { & $grant.Grant; $ok = $true } catch {
+                if ($_.Exception.Message -match 'already exists') { $ok = $true; break }
+                Write-Information "  Failed: $($_.Exception.Message -split "`n" | Select-Object -First 1) - retrying in ${delay}s"
+                Start-Sleep -Seconds $delay
+            }
+        }
+        if ($ok) { Write-Information "  $($grant.Name): OK" } else { Write-Warning "Missing $($grant.Name). CIPP will not work until it is granted: $($grant.Fix)" }
+    }
+} elseif (-not $WhatIfPreference) {
+    Write-Warning "Could not read the managed identity of '$NewWebAppName' - verify its Contributor assignment and Key Vault access policy manually."
+}
+
 # ── Remove custom domains from SWA before deletion ───────────────────────────
 if ($swaCustomDomains.Count -gt 0) {
     Write-Information "Removing custom domains from '$SwaName' before deletion..."
     foreach ($domain in $swaCustomDomains) {
         Write-Information "  Removing custom domain: $($domain.DomainName)"
         if ($PSCmdlet.ShouldProcess($domain.DomainName, 'Remove SWA custom domain')) {
-            $null = Invoke-AzRestMethod `
-                -Method DELETE `
-                -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/customDomains/$($domain.DomainName)?api-version=2022-09-01"
+            # Post-deploy: the instance is up, so SWA cleanup failures warn instead of
+            # aborting (the summary's DNS instructions must still print).
+            try {
+                $null = Invoke-AzRestMethodWithRetry `
+                    -OperationName "Removing custom domain '$($domain.DomainName)'" `
+                    -Method DELETE `
+                    -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName/customDomains/$($domain.DomainName)?api-version=2022-09-01"
+            } catch {
+                Write-Warning "  Failed to remove custom domain '$($domain.DomainName)': $($_.Exception.Message)"
+            }
         }
     }
 
@@ -710,10 +968,15 @@ if ($swaCustomDomains.Count -gt 0) {
 if ($swa) {
     Write-Information "Deleting Static Web App '$SwaName'..."
     if ($PSCmdlet.ShouldProcess($SwaName, 'Delete Static Web App')) {
-        $null = Invoke-AzRestMethod `
-            -Method DELETE `
-            -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName`?api-version=2022-09-01"
-        Write-Information "  '$SwaName' deleted."
+        try {
+            $null = Invoke-AzRestMethodWithRetry `
+                -OperationName "Deleting Static Web App '$SwaName'" `
+                -Method DELETE `
+                -Uri "https://management.azure.com/subscriptions/$SubscriptionId/resourceGroups/$ResourceGroupName/providers/Microsoft.Web/staticSites/$SwaName`?api-version=2022-09-01"
+            Write-Information "  '$SwaName' deleted."
+        } catch {
+            Write-Warning "Failed to delete Static Web App '$SwaName': $($_.Exception.Message) — delete it in the portal; it no longer serves CIPP."
+        }
     }
 }
 

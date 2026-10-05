@@ -38,7 +38,7 @@ Review the values and submit. The group is created in every tenant selected in t
 {% endstepper %}
 
 {% hint style="info" %}
-**Group Username** and **Email Aliases** accept variables, so one template can produce tenant-appropriate addresses across a multi-tenant deployment. `%tenantfilter%` is replaced with the target tenant's domain, as in `postmaster@%tenantfilter%`.
+Any of the fields above accepts a variable, written as `%variablename%`, which is replaced with each target tenant's value as the group is created. `%tenantfilter%` gives the tenant's default domain, as in `postmaster@%tenantfilter%`, and `%tenantname%` gives the tenant's name, so one deployment can give every tenant a correctly named group. Values for your own variables are set for every tenant in [global-variables.md](../../../tenant/administration/tenants/global-variables.md "mention"), or for one tenant in the Custom Variables box on [edit.md](../../../tenant/manage/edit.md "mention"), where the tenant's own value wins.
 {% endhint %}
 
 {% hint style="info" %}

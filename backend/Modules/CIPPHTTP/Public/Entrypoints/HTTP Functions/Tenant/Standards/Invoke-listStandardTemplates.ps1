@@ -24,12 +24,14 @@ function Invoke-listStandardTemplates {
             return
         }
         if ($Data) {
-            $Data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.GUID -Force
-            $Data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
-            $Data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
+            $DataProps = [ordered]@{
+                GUID     = $_.GUID
+                source   = $_.Source
+                isSynced = (![string]::IsNullOrEmpty($_.SHA))
+            }
 
             if (!$Data.excludedTenants) {
-                $Data | Add-Member -NotePropertyName 'excludedTenants' -NotePropertyValue @() -Force
+                $DataProps['excludedTenants'] = @()
             } else {
                 # Handle case where excludedTenants is the literal string 'excludedTenants' (data corruption)
                 if ($Data.excludedTenants -eq 'excludedTenants') {
@@ -41,6 +43,7 @@ function Invoke-listStandardTemplates {
                     }
                 }
             }
+            $Data | Add-Member -NotePropertyMembers $DataProps -Force
 
             # Ensure standards key always exists (prevents frontend crash on missing property)
             if (!$Data.standards) {

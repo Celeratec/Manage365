@@ -29,6 +29,10 @@ Range Or Location is composed by CIPP rather than returned by Graph, so it shows
 <table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Rename named location</td><td>Changes the display name. Policies referencing the location by name follow the rename.</td><td>true</td></tr><tr><td>Mark as Trusted</td><td>Marks the location as trusted. Only shown on IP locations that are not already trusted.</td><td>true</td></tr><tr><td>Mark as Untrusted</td><td>Removes the trusted flag. Only shown on IP locations that are currently trusted.</td><td>true</td></tr><tr><td>Add location to named location</td><td>Adds a country to the location. Countries already present are not offered. Only shown on country locations.</td><td>true</td></tr><tr><td>Remove location from named location</td><td>Removes one or more countries. At least one country must remain, so this is only shown on country locations holding more than one.</td><td>true</td></tr><tr><td>Add IP to named location</td><td>Adds a CIDR range. Only shown on IP locations.</td><td>true</td></tr><tr><td>Remove IP from named location</td><td>Removes one or more CIDR ranges. At least one range must remain, so this is only shown on IP locations holding more than one.</td><td>true</td></tr><tr><td>Delete named location</td><td>Deletes the named location. This cannot be undone.</td><td>true</td></tr></tbody></table>
 
 {% hint style="warning" %}
+A named location that a Conditional Access template deploys is rewritten to the template's stored values every time that template is applied through a standard, so edits made here are undone on the next run. Change the ranges on the template instead, as described on [create-ca-template.md](../list-template/create-ca-template.md "mention").
+{% endhint %}
+
+{% hint style="warning" %}
 Deleting a named location does not update the Conditional Access policies that reference it. Check which policies use a location before removing it, or you may leave a policy with a condition that no longer resolves.
 {% endhint %}
 

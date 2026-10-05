@@ -1,13 +1,6 @@
 import { Box, Grid, Tooltip, Avatar, Typography, Skeleton } from '@mui/material'
+import { CippIcons } from '../../utils/icon-registry'
 import { useRouter } from 'next/router'
-import {
-  Person as UserIcon,
-  PersonOutline as GuestIcon,
-  Group as GroupIcon,
-  Apps as AppsIcon,
-  Devices as DevicesIcon,
-  PhoneAndroid as ManagedIcon,
-} from '@mui/icons-material'
 
 const formatNumber = (num) => {
   if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M'
@@ -22,42 +15,42 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
     {
       label: 'Users',
       value: data?.UserCount || 0,
-      icon: UserIcon,
+      icon: CippIcons.Person,
       color: 'primary',
       path: '/identity/administration/users',
     },
     {
       label: 'Guests',
       value: data?.GuestCount || 0,
-      icon: GuestIcon,
+      icon: CippIcons.PersonOutlined,
       color: 'info',
       path: '/identity/administration/users',
     },
     {
       label: 'Groups',
       value: data?.GroupCount || 0,
-      icon: GroupIcon,
+      icon: CippIcons.Group,
       color: 'secondary',
       path: '/identity/administration/groups',
     },
     {
       label: 'Service Principals',
       value: data?.ApplicationCount || 0,
-      icon: AppsIcon,
+      icon: CippIcons.Apps,
       color: 'error',
       path: '/tenant/administration/applications/enterprise-apps',
     },
     {
       label: 'Devices',
       value: data?.DeviceCount || 0,
-      icon: DevicesIcon,
+      icon: CippIcons.Devices,
       color: 'warning',
       path: '/identity/administration/devices',
     },
     {
       label: 'Managed',
       value: data?.ManagedDeviceCount || 0,
-      icon: ManagedIcon,
+      icon: CippIcons.PhoneAndroid,
       color: 'success',
       path: '/identity/administration/devices',
     },
@@ -70,7 +63,7 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
   }
 
   return (
-    <Grid container spacing={1}>
+    <Grid container spacing={2}>
       {metrics.map((metric) => {
         const IconComponent = metric.icon
         // Two-up at every width on purpose, phones included: the tile is sized for a
@@ -85,17 +78,17 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
               <Box
                 onClick={() => handleClick(metric)}
                 sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                  p: 1.25,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: { xs: 1, sm: 1.5 },
+                  p: { xs: 1, sm: 1.5, md: 2 },
                   border: 1,
                   borderColor: 'divider',
                   borderRadius: 1,
-                  cursor: "pointer",
+                  cursor: 'pointer',
                   minWidth: 0,
-                  transition: "all 0.2s ease-in-out",
-                  "&:hover": {
+                  transition: 'all 0.2s ease-in-out',
+                  '&:hover': {
                     borderColor: `${metric.color}.main`,
                     backgroundColor: 'action.hover',
                     transform: 'translateY(-2px)',
@@ -107,25 +100,46 @@ export const TenantMetricsGrid = ({ data, isLoading }) => {
                   sx={{
                     bgcolor: `${metric.color}.main`,
                     color: `${metric.color}.contrastText`,
-                    width: 28,
-                    height: 28,
+                    width: { xs: 28, sm: 32, md: 34 },
+                    height: { xs: 28, sm: 32, md: 34 },
+                    flexShrink: 0,
                   }}
                 >
-                  <IconComponent sx={{ fontSize: 18, color: "inherit" }} />
+                  <IconComponent
+                    sx={{
+                      fontSize: { xs: 18, sm: 22, md: 24 },
+                      color: 'inherit',
+                    }}
+                  />
                 </Avatar>
                 <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="caption" color="text.secondary" fontSize="0.65rem" noWrap>
+                  <Typography
+                    variant="caption"
+                    noWrap
+                    sx={{
+                      color: "text.secondary",
+                      fontSize: { xs: '0.6rem', sm: '0.65rem', md: '0.7rem' }
+                    }}>
                     {metric.label}
                   </Typography>
-                  <Typography variant="subtitle1" fontWeight={600} fontSize="0.95rem" lineHeight={1.2}>
-                    {isLoading ? <Skeleton width={40} /> : formatNumber(metric.value)}
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontSize: { xs: '0.9rem', sm: '1rem', md: '1.125rem' }
+                    }}
+                  >
+                    {isLoading ? (
+                      <Skeleton width={40} />
+                    ) : (
+                      formatNumber(metric.value)
+                    )}
                   </Typography>
                 </Box>
               </Box>
             </Tooltip>
           </Grid>
-        )
+        );
       })}
     </Grid>
-  )
+  );
 }

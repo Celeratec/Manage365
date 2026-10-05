@@ -1,5 +1,5 @@
 import { Box, Card, CardHeader, CardContent, Typography, Skeleton } from "@mui/material";
-import { People as UsersIcon } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry";
 import { CippSankey } from "./CippSankey";
 import { useRouter } from "next/router";
 
@@ -47,7 +47,7 @@ export const AuthMethodCard = ({ data, isLoading, compact = false }) => {
     let whfbCount = 0;
 
     enabledUsers.forEach((user) => {
-      const methods = Array.isArray(user.MFAMethods) ? user.MFAMethods : [];
+      const methods = Array.isArray(user.MFAMethods) ? user.MFAMethods : user.MFAMethods ? [user.MFAMethods] : [];
       const perUser = user.PerUser === "enforced" || user.PerUser === "enabled";
       const hasRegistered = user.MFARegistration === true;
 

@@ -118,7 +118,7 @@ To map manually, choose a tenant, choose the NinjaOne organisation under **Selec
 | TenantDomain    | The default domain name of the mapped tenant.                  |
 | TenantId        | The tenant's Microsoft customer ID.                            |
 
-Individual mappings can be removed with the **Delete Mapping** row action.
+Each row also offers two actions: **Sync Now** queues an on-demand synchronisation for that tenant only, without waiting for the next scheduled run, and **Delete Mapping** removes the mapping.
 
 {% hint style="info" %}
 Automapping works in two passes. It first matches tenants whose display name is identical to a NinjaOne organisation name. Any tenant left over is then matched on hardware: CIPP compares Intune devices against NinjaOne devices by serial number and then by device name, and maps the tenant to whichever organisation owns the matching devices. Devices with duplicate or placeholder serial numbers are ignored.
@@ -140,7 +140,7 @@ If a previously mapped NinjaOne field is deleted or its API permission is change
 
 A full synchronisation runs once every 24 hours for every mapped tenant. CIPP assigns each installation its own slot in the day rather than running everything at midnight, and tenants whose previous run did not complete are automatically picked up on a later pass.
 
-Synchronisation can also be triggered on demand. **Force Sync** on this page queues every mapped tenant, and the Integration Sync page shows per-tenant status and allows a single tenant to be queued on its own.
+Synchronisation can also be triggered on demand. **Force Sync** on this page queues every mapped tenant, and the **Sync Now** row action on the **Tenant Mapping** table queues a single tenant on its own. NinjaOne synchronises through its own orchestrator rather than the scheduled task queue, so mapped tenants do not appear on the [integration-sync.md](integration-sync.md "mention") page.
 
 Intune device compliance is handled separately. CIPP subscribes to Graph change notifications for device compliance, so the Intune Device Compliance Status field updates within minutes of a change in Microsoft 365 rather than waiting for the daily run. This requires the compliance field to be mapped.
 

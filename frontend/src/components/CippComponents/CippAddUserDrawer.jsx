@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { Button, Box } from "@mui/material";
+import { CippIcons } from "../../utils/icon-registry"
+import { Alert, Button, Box } from "@mui/material";
 import { useForm, useWatch, useFormState } from "react-hook-form";
-import { PersonAdd } from "@mui/icons-material";
 import { CippOffCanvas } from "./CippOffCanvas";
 import { CippApiResults } from "./CippApiResults";
 import { useSettings } from "../../hooks/use-settings";
@@ -22,6 +22,13 @@ export const CippAddUserDrawer = ({
   // Create button stays disabled. Remounting restores the same state as a fresh open.
   const [formResetKey, setFormResetKey] = useState(0);
   const userSettingsDefaults = useSettings();
+
+  // User creation targets a single tenant. Under "All Tenants" the tenant does not resolve, and
+  // the Graph write helpers silently no-op while /api/AddUser still reports success, so guard the
+  // submit rather than letting it appear to succeed while creating nothing.
+  const isAllTenants =
+    !userSettingsDefaults?.currentTenant ||
+    userSettingsDefaults.currentTenant === "AllTenants";
 
   const formControl = useForm({
     mode: "onChange",
@@ -104,7 +111,14 @@ export const CippAddUserDrawer = ({
     });
   };
 
-  const handleCloseDrawer = () => {
+  const handleCloseDrawer = (event, reason) => {
+    // Closing resets the form, so a stray backdrop click or Escape would silently wipe
+    // everything typed so far (#390). A dirty-check is no help: the domain selector
+    // auto-picks the default domain on open, so the form is dirty before the user types.
+    // Ignore those dismissals — the X and Close buttons call this without a reason.
+    if (reason === "backdropClick" || reason === "escapeKeyDown") {
+      return;
+    }
     setDrawerVisible(false);
     const resetValues = {
       tenantFilter: userSettingsDefaults.currentTenant,
@@ -138,9 +152,9 @@ export const CippAddUserDrawer = ({
   return (
     <>
       <PermissionButton
-        requiredPermissions={requiredPermissions}
+        {...(PermissionButton !== Button ? { requiredPermissions } : {})}
         onClick={handleOpenDrawer}
-        startIcon={<PersonAdd />}
+        startIcon={<CippIcons.PersonAdd />}
         {...buttonProps}
       >
         {buttonText}
@@ -158,7 +172,12 @@ export const CippAddUserDrawer = ({
                 variant="contained"
                 color="primary"
                 onClick={formControl.handleSubmit(handleSubmit)}
-                disabled={createUser.isPending || !isValid || (!isDirty && !createUser.isSuccess)}
+                disabled={
+                  isAllTenants ||
+                  createUser.isPending ||
+                  !isValid ||
+                  (!isDirty && !createUser.isSuccess)
+                }
               >
                 {createUser.isPending
                   ? "Creating User..."
@@ -174,6 +193,12 @@ export const CippAddUserDrawer = ({
         }
       >
         <Box sx={{ my: 2 }}>
+          {isAllTenants && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              User creation is single-tenant only. Select a specific tenant using the tenant
+              selector before adding a user — with "All Tenants" selected no user will be created.
+            </Alert>
+          )}
           <CippAddEditUser
             key={formResetKey}
             formControl={formControl}

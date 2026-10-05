@@ -1,17 +1,10 @@
 import { useEffect, useState, memo, useMemo } from "react";
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { CippIcons } from "../../../../../utils/icon-registry";
+import { Layout as DashboardLayout } from "../../../../../layouts/index";
 import { useSettings } from "../../../../../hooks/use-settings";
 import { useRouter } from "next/router";
 import { ApiGetCall } from "../../../../../api/ApiCall";
-import CalendarIcon from "@heroicons/react/24/outline/CalendarIcon";
-import {
-  Download,
-  Mail,
-  Fingerprint,
-  Launch,
-  Error as ErrorIcon,
-  Security,
-} from "@mui/icons-material";
+import { Error as ErrorIcon, Security } from "@mui/icons-material";
 import { ShieldExclamationIcon } from "@heroicons/react/24/outline";
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions";
@@ -22,17 +15,7 @@ import { Box, Stack } from "@mui/system";
 import { Grid } from "@mui/system";
 import CippRemediationCard from "../../../../../components/CippCards/CippRemediationCard";
 import CippButtonCard from "../../../../../components/CippCards/CippButtonCard";
-import {
-  SvgIcon,
-  Typography,
-  CircularProgress,
-  Button,
-  Chip,
-  Alert,
-  Paper,
-  Avatar,
-  Skeleton,
-} from "@mui/material";
+import { Chip, SvgIcon, Typography, CircularProgress, Button } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
 import { PropertyList } from "../../../../../components/property-list";
 import { PropertyListItem } from "../../../../../components/property-list-item";
@@ -40,11 +23,8 @@ import { CippHead } from "../../../../../components/CippComponents/CippHead";
 import { useCippUserActions } from "../../../../../components/CippComponents/CippUserActions";
 import { BECRemediationReportButton } from "../../../../../components/BECRemediationReportButton";
 import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
+import { getBecIntuneDeviceActions } from "../../../../../components/CippComponents/CippIntuneDeviceActions.jsx";
 
-const checkItemSx = { px: 2, py: 0.75 };
-
-// Compact collapsible check card with a count chip (amber when there are findings).
-// Memoized to prevent unnecessary re-renders.
 const BecCheckCard = memo(({ title, count, children }) => (
   <CippButtonCard
     variant="outlined"
@@ -53,10 +33,11 @@ const BecCheckCard = memo(({ title, count, children }) => (
       <Stack
         direction="row"
         spacing={2}
-        alignItems="center"
-        justifyContent="space-between"
-        sx={{ width: "100%" }}
-      >
+        sx={{
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: '100%'
+        }}>
         <Box>{title}</Box>
         {typeof count === "number" && (
           <Chip size="small" label={count} color={count > 0 ? "warning" : "default"} />
@@ -252,15 +233,15 @@ const Page = () => {
   const subtitle = userRequest.isSuccess
     ? [
         {
-          icon: <Mail />,
+          icon: <CippIcons.Mail />,
           text: <CippCopyToClipBoard type="chip" text={userRequest.data?.[0]?.userPrincipalName} />,
         },
         {
-          icon: <Fingerprint />,
+          icon: <CippIcons.Fingerprint />,
           text: <CippCopyToClipBoard type="chip" text={userRequest.data?.[0]?.id} />,
         },
         {
-          icon: <CalendarIcon />,
+          icon: <CippIcons.CalendarIcon />,
           text: (
             <>
               Created: <CippTimeAgo data={userRequest.data?.[0]?.createdDateTime} />
@@ -268,7 +249,7 @@ const Page = () => {
           ),
         },
         {
-          icon: <Launch style={{ color: "#757575" }} />,
+          icon: <CippIcons.Launch />,
           text: (
             <Button
               color="muted"
@@ -448,7 +429,9 @@ const Page = () => {
                 variant="outlined"
                 isFetching={false}
                 title={
-                  <Stack direction="row" justifyContent={"space-between"}>
+                  <Stack direction="row" sx={{
+                    justifyContent: 'space-between'
+                  }}>
                     <Box>Loading data</Box>
                     <CircularProgress size={20} />
                   </Stack>
@@ -506,7 +489,12 @@ const Page = () => {
                     {getRuleMessage()}
                   </Typography>
                   {becPollingCall.data?.NewRules?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {[...becPollingCall.data.NewRules]
                           .sort(
@@ -528,7 +516,9 @@ const Page = () => {
                     </Box>
                   )}
                   {becPollingCall.data?.InboxRuleChanges?.length > 0 && (
-                    <Box mt={2}>
+                    <Box sx={{
+                      mt: 2
+                    }}>
                       <Typography variant="subtitle2" gutterBottom>
                         Rule changes in the last 7 days
                       </Typography>
@@ -559,7 +549,12 @@ const Page = () => {
                     {getUserMessage()}
                   </Typography>
                   {becPollingCall.data?.NewUsers?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {becPollingCall.data.NewUsers.map((user, index) => (
                           <PropertyListItem
@@ -584,7 +579,12 @@ const Page = () => {
                     {getAppMessage()}
                   </Typography>
                   {becPollingCall.data?.AddedApps?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {becPollingCall.data.AddedApps.map((app, index) => (
                           <PropertyListItem
@@ -595,6 +595,29 @@ const Page = () => {
                           />
                         ))}
                       </PropertyList>
+                    </Box>
+                  )}
+                  {becPollingCall.data?.MaliciousSPs?.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Known-malicious applications present in the tenant (any age)
+                      </Typography>
+                      <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                        <PropertyList>
+                          {becPollingCall.data.MaliciousSPs.map((app, index) => (
+                            <PropertyListItem
+                              key={index}
+                              sx={checkItemSx}
+                              label={`${app?.displayName} - ${app?.appId}`}
+                              value={`Catalog: ${app?.CatalogName}${
+                                app?.Categories?.length ? ` (${app.Categories.join(', ')})` : ''
+                              } | Enabled: ${app?.accountEnabled} | Added: ${app?.createdDateTime}`}
+                            />
+                          ))}
+                        </PropertyList>
+                      </Box>
                     </Box>
                   )}
                 </BecCheckCard>
@@ -608,7 +631,12 @@ const Page = () => {
                     {getMailboxPermissionMessage()}
                   </Typography>
                   {becPollingCall.data?.MailboxPermissionChanges?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {becPollingCall.data.MailboxPermissionChanges.map((permission, index) => (
                           <PropertyListItem
@@ -631,8 +659,60 @@ const Page = () => {
                   <Typography variant="body2" gutterBottom>
                     {getSentMessagesMessage()}
                   </Typography>
+                  {becPollingCall.data?.SentMessageAnalysis?.RepeatedSubjects?.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Repeated subjects
+                      </Typography>
+                      <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                        <PropertyList>
+                          {becPollingCall.data.SentMessageAnalysis.RepeatedSubjects.map(
+                            (group, index) => (
+                              <PropertyListItem
+                                key={index}
+                                sx={checkItemSx}
+                                label={
+                                  group?.Flagged
+                                    ? `${group?.Subject} - possible campaign`
+                                    : group?.Subject
+                                }
+                                value={`${group?.MessageCount} message(s) to ${group?.RecipientCount} recipient(s) between ${group?.FirstSent} and ${group?.LastSent}`}
+                              />
+                            )
+                          )}
+                        </PropertyList>
+                      </Box>
+                    </Box>
+                  )}
+                  {becPollingCall.data?.SentMessageAnalysis?.Bursts?.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        Send bursts
+                      </Typography>
+                      <Box sx={{ maxHeight: 300, overflowY: 'auto' }}>
+                        <PropertyList>
+                          {becPollingCall.data.SentMessageAnalysis.Bursts.map((burst, index) => (
+                            <PropertyListItem
+                              key={index}
+                              sx={checkItemSx}
+                              label={`${burst?.MessageCount} message(s) to ${burst?.RecipientCount} recipient(s) within ${burst?.WindowMinutes} minutes`}
+                              value={`Starting ${burst?.WindowStart}${
+                                burst?.TopSubject ? ` | Most common subject: ${burst.TopSubject}` : ''
+                              }`}
+                            />
+                          ))}
+                        </PropertyList>
+                      </Box>
+                    </Box>
+                  )}
                   {becPollingCall.data?.SentMessages?.length > 0 && (
-                    <Box mt={2}>
+                    <Box sx={{
+                      mt: 2
+                    }}>
                       <CippDataTable
                         noCard={true}
                         hideTitle={true}
@@ -655,7 +735,12 @@ const Page = () => {
                       : "No MFA devices registered for this user."}
                   </Typography>
                   {becPollingCall.data?.MFADevices?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {becPollingCall.data.MFADevices.map((device, index) => (
                           <PropertyListItem
@@ -682,7 +767,12 @@ const Page = () => {
                       : "No recent password changes detected."}
                   </Typography>
                   {becPollingCall.data?.ChangedPasswords?.length > 0 && (
-                    <Box mt={2} sx={{ maxHeight: 300, overflowY: "auto" }}>
+                    <Box
+                      sx={{
+                        mt: 2,
+                        maxHeight: 300,
+                        overflowY: 'auto'
+                      }}>
                       <PropertyList>
                         {becPollingCall.data.ChangedPasswords.map((user, index) => (
                           <PropertyListItem
@@ -711,7 +801,9 @@ const Page = () => {
                     {getSafelistMessage()}
                   </Typography>
                   {senderRows.length > 0 && (
-                    <Box mt={2}>
+                    <Box sx={{
+                      mt: 2
+                    }}>
                       <CippDataTable
                         noCard={true}
                         hideTitle={true}
@@ -722,7 +814,9 @@ const Page = () => {
                     </Box>
                   )}
                   {becPollingCall.data?.SafelistChanges?.length > 0 && (
-                    <Box mt={2}>
+                    <Box sx={{
+                      mt: 2
+                    }}>
                       <Typography variant="subtitle2" gutterBottom>
                         Changes in the last 7 days
                       </Typography>
@@ -744,7 +838,114 @@ const Page = () => {
                   )}
                 </BecCheckCard>
 
-                {/* Report Download Card */}
+                <BecCheckCard
+                  title="Check 9: Intune Devices"
+                  count={
+                    becPollingCall.data?.IntuneDevicesError ? undefined : recentIntuneDeviceCount
+                  }
+                >
+                  <Typography
+                    variant="body2"
+                    gutterBottom
+                    color={becPollingCall.data?.IntuneDevicesError ? 'error' : 'inherit'}
+                  >
+                    {getIntuneDevicesMessage()}
+                  </Typography>
+                  {intuneDevices.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <CippDataTable
+                        noCard={true}
+                        hideTitle={true}
+                        title="Intune Devices"
+                        data={intuneDevices}
+                        simpleColumns={[
+                          'deviceName',
+                          'operatingSystem',
+                          'osVersion',
+                          'complianceState',
+                          'enrolledDateTime',
+                          'lastSyncDateTime',
+                          'deviceEnrollmentType',
+                          'serialNumber',
+                        ]}
+                        actions={intuneDeviceActions}
+                      />
+                    </Box>
+                  )}
+                </BecCheckCard>
+
+                {/* Check 10: Sign-in Locations */}
+                <BecCheckCard
+                  title="Check 10: Sign-in Locations"
+                  count={
+                    becPollingCall.data?.SuspectUserSignInsError ? undefined : foreignActivityCount
+                  }
+                >
+                  <Typography
+                    variant="body2"
+                    gutterBottom
+                    color={becPollingCall.data?.SuspectUserSignInsError ? 'error' : 'inherit'}
+                  >
+                    {getSignInLocationMessage()}
+                  </Typography>
+                  {becPollingCall.data?.SuspectUserSignIns?.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <CippDataTable
+                        noCard={true}
+                        hideTitle={true}
+                        title="Sign-in Locations"
+                        data={becPollingCall.data.SuspectUserSignIns}
+                        simpleColumns={[
+                          'CreatedDateTime',
+                          'AppDisplayName',
+                          'Status',
+                          'IPAddress',
+                          'Country',
+                          'City',
+                          'ForeignLocation',
+                        ]}
+                      />
+                    </Box>
+                  )}
+                </BecCheckCard>
+
+                {/* Check 11: Sharing Links */}
+                <BecCheckCard
+                  title="Check 11: Sharing Links"
+                  count={becPollingCall.data?.SharingChanges?.length || 0}
+                >
+                  <Typography variant="body2" gutterBottom>
+                    {getSharingMessage()}
+                  </Typography>
+                  {becPollingCall.data?.SharingChanges?.length > 0 && (
+                    <Box sx={{
+                      mt: 2
+                    }}>
+                      <CippDataTable
+                        noCard={true}
+                        hideTitle={true}
+                        title="Sharing Links"
+                        data={becPollingCall.data.SharingChanges}
+                        simpleColumns={[
+                          'Date',
+                          'Operation',
+                          'FileName',
+                          'Target',
+                          'Workload',
+                          'ClientIP',
+                          'Country',
+                          'ForeignLocation',
+                        ]}
+                      />
+                    </Box>
+                  )}
+                </BecCheckCard>
+
+                {/* Report Data */}
                 <BecCheckCard title="Download Report">
                   <Typography variant="body2" gutterBottom>
                     Generate a comprehensive PDF report for documentation, compliance, or end-user
@@ -774,7 +975,7 @@ const Page = () => {
                           variant="outlined"
                           startIcon={
                             <SvgIcon fontSize="small">
-                              <Download />
+                              <CippIcons.Download />
                             </SvgIcon>
                           }
                         >

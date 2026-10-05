@@ -17,6 +17,9 @@ import { chartPink } from "../../theme/colors";
 
 const useChartOptions = (labels, chartType, customColors = null) => {
   const theme = useTheme();
+  const longBarLabels =
+    chartType === "bar" &&
+    (labels.length > 6 || labels.some((label) => String(label ?? "").length > 18));
 
   const defaultColors = [
     theme.palette.success.main,
@@ -45,17 +48,32 @@ const useChartOptions = (labels, chartType, customColors = null) => {
     dataLabels: {
       enabled: false,
     },
+    // ApexCharts' theme.mode does not touch the grid, so its #e0e0e0 default draws
+    // near-white rules on a dark card. Both are the theme's own divider instead.
+    grid: {
+      borderColor: theme.palette.divider,
+    },
 
     xaxis: {
       // Categories drive the bar/line axis labels and the tooltip title. Without this, a bar
       // chart's tooltip falls back to the auto series name ("series-1") instead of the label.
       categories: labels,
       labels: {
-        show: true,
+        // Long SharePoint/site names overlap when forced upright under every bar. The card already
+        // lists full names below; keep categories for tooltips and hide the crowded axis text.
+        show: !longBarLabels,
         rotate: 0,
+        hideOverlappingLabels: true,
+        trim: true,
         style: {
           fontSize: "12px",
         },
+      },
+      axisBorder: {
+        color: theme.palette.divider,
+      },
+      axisTicks: {
+        color: theme.palette.divider,
       },
       tickPlacement: "on",
     },

@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
+import { CippIcons } from "../../utils/icon-registry"
 import {
   Box,
   Button,
@@ -19,21 +20,7 @@ import {
 import { Grid } from "@mui/system";
 import { ApiGetCall, ApiPostCall } from "../../api/ApiCall";
 import { CippDataTable } from "../CippTable/CippDataTable";
-import { PlusIcon, ShieldCheckIcon, WrenchIcon } from "@heroicons/react/24/outline";
 import CippFormComponent from "./CippFormComponent";
-import {
-  Apps,
-  Delete,
-  Download,
-  Error,
-  ExpandMore,
-  Save,
-  Sync,
-  TaskAlt,
-  Undo,
-  Upload,
-  WarningAmberOutlined,
-} from "@mui/icons-material";
 import { useWatch } from "react-hook-form";
 import { CippCardTabPanel } from "./CippCardTabPanel";
 import { CippApiResults } from "./CippApiResults";
@@ -610,7 +597,7 @@ const CippAppPermissionBuilder = ({
                         >
                           <Button variant="outlined" disabled={!currentAppPermission}>
                             <SvgIcon fontSize="small">
-                              <PlusIcon />
+                              <CippIcons.PlusIcon />
                             </SvgIcon>
                           </Button>
                         </div>
@@ -625,7 +612,7 @@ const CippAppPermissionBuilder = ({
                     actions={[
                       {
                         label: "Delete Permission",
-                        icon: <Delete />,
+                        icon: <CippIcons.Delete />,
                         noConfirm: true,
                         condition: (row) => !row.required,
                         customFunction: (row) => handleRemoveRow("applicationPermissions", row),
@@ -637,7 +624,7 @@ const CippAppPermissionBuilder = ({
                 </Stack>
               </>
             ) : (
-              <Alert color="warning" icon={<WarningAmberOutlined />} sx={{ mb: 3 }}>
+              <Alert color="warning" icon={<CippIcons.WarningAmberOutlined />} sx={{ mb: 3 }}>
                 No Application Permissions found.
               </Alert>
             )}
@@ -645,7 +632,7 @@ const CippAppPermissionBuilder = ({
           <CippCardTabPanel value={value} index={1}>
             <Stack spacing={2}>
               {spInfo?.Results?.publishedPermissionScopes?.length === 0 && (
-                <Alert color="warning" icon={<WarningAmberOutlined />}>
+                <Alert color="warning" icon={<CippIcons.WarningAmberOutlined />}>
                   No Published Delegated Permissions found.
                 </Alert>
               )}
@@ -675,7 +662,7 @@ const CippAppPermissionBuilder = ({
                     >
                       <Button variant="outlined" disabled={!currentDelegatedPermission}>
                         <SvgIcon fontSize="small">
-                          <PlusIcon />
+                          <CippIcons.PlusIcon />
                         </SvgIcon>
                       </Button>
                     </div>
@@ -692,7 +679,7 @@ const CippAppPermissionBuilder = ({
                 actions={[
                   {
                     label: "Delete Permission",
-                    icon: <Delete />,
+                    icon: <CippIcons.Delete />,
                     noConfirm: true,
                     condition: (row) => !row.required,
                     customFunction: (row) => handleRemoveRow("delegatedPermissions", row),
@@ -706,7 +693,7 @@ const CippAppPermissionBuilder = ({
 
           <Button
             variant="contained"
-            startIcon={<Save />}
+            startIcon={<CippIcons.Save />}
             onClick={handleSavePermissions}
             disabled={!permissionsChanged}
           >
@@ -727,20 +714,24 @@ const CippAppPermissionBuilder = ({
               <Grid
                 container
                 spacing={2}
-                sx={{ display: "flex", alignItems: "center" }}
-                justifyContent="space-between"
-              >
+                sx={{
+                  justifyContent: "space-between",
+                  display: "flex",
+                  alignItems: "center"
+                }}>
                 <Grid size={{ xl: 8, xs: 12 }}>
                   <Stack direction="row" spacing={1}>
                     {servicePrincipals?.Metadata?.Success && (
-                      <Box width="100%">
+                      <Box sx={{
+                        width: "100%"
+                      }}>
                         <CippFormComponent
                           type="autoComplete"
                           fullWidth
                           label="Add a Service Principal (optional)"
                           placeholder="Select a Service Principal or enter an AppId if not listed"
                           name="servicePrincipal"
-                          createOption={true}
+                          creatable={true}
                           onCreateOption={onCreateServicePrincipal}
                           isFetching={spFetching}
                           options={servicePrincipals?.Results.map((sp) => {
@@ -755,7 +746,7 @@ const CippAppPermissionBuilder = ({
                       onClick={() => refetchServicePrincipals()}
                       disabled={servicePrincipals.isFetching}
                     >
-                      <Sync />
+                      <CippIcons.Sync />
                     </IconButton>
                   </Stack>
                 </Grid>
@@ -788,7 +779,7 @@ const CippAppPermissionBuilder = ({
                           disabled={!currentSelectedSp?.value || isDeprecatedSp}
                         >
                           <SvgIcon fontSize="small">
-                            <PlusIcon />
+                            <CippIcons.PlusIcon />
                           </SvgIcon>
                         </Button>
                       </div>
@@ -802,7 +793,7 @@ const CippAppPermissionBuilder = ({
                         variant="outlined"
                       >
                         <SvgIcon fontSize="small">
-                          <Undo />
+                          <CippIcons.Undo />
                         </SvgIcon>
                       </Button>
                     </Tooltip>
@@ -814,7 +805,7 @@ const CippAppPermissionBuilder = ({
                         }}
                       >
                         <SvgIcon fontSize="small">
-                          <Download />
+                          <CippIcons.Download />
                         </SvgIcon>
                       </Button>
                     </Tooltip>
@@ -827,7 +818,7 @@ const CippAppPermissionBuilder = ({
                         }}
                       >
                         <SvgIcon fontSize="small">
-                          <Upload />
+                          <CippIcons.Upload />
                         </SvgIcon>
                       </Button>
                     </Tooltip>
@@ -875,7 +866,7 @@ const CippAppPermissionBuilder = ({
                   </Grid>
                 </Grid>
                 {manifestError && (
-                  <Alert color="error" icon={<Error />} sx={{ mt: 4 }}>
+                  <Alert color="error" icon={<CippIcons.Error />} sx={{ mt: 4 }}>
                     Invalid manifest. Please ensure the manifest is in the correct format.
                   </Alert>
                 )}
@@ -883,7 +874,7 @@ const CippAppPermissionBuilder = ({
                   <>
                     <Grid container sx={{ mt: 2 }} spacing={2}>
                       <Grid size={12}>
-                        <Alert color="success" icon={<TaskAlt />}>
+                        <Alert color="success" icon={<CippIcons.TaskAlt />}>
                           Manifest is valid. Click Import to apply the permissions.
                         </Alert>
                       </Grid>
@@ -893,7 +884,7 @@ const CippAppPermissionBuilder = ({
                           onClick={() => importManifest()}
                           startIcon={
                             <SvgIcon fontSize="small">
-                              <Save />
+                              <CippIcons.Save />
                             </SvgIcon>
                           }
                         >
@@ -927,7 +918,7 @@ const CippAppPermissionBuilder = ({
               {isDeprecatedSp && (
                 <Grid container>
                   <Grid size={{ xl: 8, xs: 12 }}>
-                    <Alert color="error" icon={<WarningAmberOutlined />}>
+                    <Alert color="error" icon={<CippIcons.WarningAmberOutlined />}>
                       {currentSelectedSp.label} is deprecated and cannot be added. Please select a
                       different service principal.
                     </Alert>
@@ -967,7 +958,7 @@ const CippAppPermissionBuilder = ({
                     <Grid container sx={{ width: "100%", mt: 3 }} spacing={2}>
                       {hasMissing && (
                         <Grid size={{ xl: 8, xs: 12 }}>
-                          <Alert color="warning" icon={<WarningAmberOutlined />}>
+                          <Alert color="warning" icon={<CippIcons.WarningAmberOutlined />}>
                             <b>
                               Permissions missing from the {appDisplayName} app registration (run
                               Repair Permissions to add, then a CPV refresh to apply to tenants)
@@ -984,7 +975,7 @@ const CippAppPermissionBuilder = ({
                       )}
                       {hasExtra && (
                         <Grid size={{ xl: 8, xs: 12 }}>
-                          <Alert color="info" icon={<WarningAmberOutlined />}>
+                          <Alert color="info" icon={<CippIcons.WarningAmberOutlined />}>
                             <b>
                               Extra permissions present on the {appDisplayName} app registration that
                               are not part of the CIPP defaults or your additional permissions
@@ -1016,7 +1007,7 @@ const CippAppPermissionBuilder = ({
                       slotProps={{ transition: { unmountOnExit: true } }}
                     >
                       <AccordionSummary
-                        expandIcon={<ExpandMore />}
+                        expandIcon={<CippIcons.ExpandMore />}
                         // Flex children default to min-width:auto, so without this the
                         // 36-character app-id chip refuses to shrink and pushes the whole
                         // summary — display name first — off the left edge of a phone.
@@ -1025,11 +1016,14 @@ const CippAppPermissionBuilder = ({
                         <Stack
                           direction={{ xs: "column", md: "row" }}
                           spacing={{ xs: 1, md: 2 }}
-                          justifyContent="space-between"
-                          alignItems={{ xs: "flex-start", md: "center" }}
                           useFlexGap
-                          sx={{ width: "100%", mr: 1, minWidth: 0 }}
-                        >
+                          sx={{
+                            justifyContent: "space-between",
+                            alignItems: { xs: "flex-start", md: "center" },
+                            width: "100%",
+                            mr: 1,
+                            minWidth: 0
+                          }}>
                           <Typography
                             variant="h6"
                             sx={{
@@ -1045,14 +1039,13 @@ const CippAppPermissionBuilder = ({
                           <Stack
                             direction="row"
                             spacing={{ xs: 1, md: 2 }}
-                            alignItems="center"
                             useFlexGap
                             sx={{
+                              alignItems: "center",
                               flexWrap: { xs: "wrap", md: "nowrap" },
                               minWidth: 0,
-                              maxWidth: "100%",
-                            }}
-                          >
+                              maxWidth: "100%"
+                            }}>
                             <Tooltip title="Copy Application ID to clipboard">
                               <Chip
                                 label={sp.appId}
@@ -1066,7 +1059,7 @@ const CippAppPermissionBuilder = ({
                                 }}
                                 icon={
                                   <SvgIcon>
-                                    <Apps />
+                                    <CippIcons.Apps />
                                   </SvgIcon>
                                 }
                                 onClick={(e) => {
@@ -1084,7 +1077,7 @@ const CippAppPermissionBuilder = ({
                                 sx={{ width: "100px", flexShrink: 0 }}
                                 icon={
                                   <SvgIcon fontSize="small">
-                                    <ShieldCheckIcon />
+                                    <CippIcons.ShieldCheckIcon />
                                   </SvgIcon>
                                 }
                               />
@@ -1107,7 +1100,7 @@ const CippAppPermissionBuilder = ({
                                   color="error"
                                 >
                                   <SvgIcon fontSize="small">
-                                    <Delete />
+                                    <CippIcons.Delete />
                                   </SvgIcon>
                                 </IconButton>
                               </div>
@@ -1138,7 +1131,7 @@ const CippAppPermissionBuilder = ({
                 variant="contained"
                 startIcon={
                   <SvgIcon fontSize="small">
-                    <Save />
+                    <CippIcons.Save />
                   </SvgIcon>
                 }
                 type="submit"

@@ -137,7 +137,8 @@ function Add-CIPPDbItem {
             # This avoids the expensive delete-all-then-rewrite pattern
             $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}0'" -f $TenantFilter, $Type
             $ExistingRowKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            $ExistingEntities = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, ETag
+            # Project split markers so part-rows reassemble; a property subset makes the module drop them.
+            $ExistingEntities = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, ETag, OriginalEntityId, RunId, PartIndex, PartCount
             if ($ExistingEntities) {
                 foreach ($entity in @($ExistingEntities)) {
                     [void]$ExistingRowKeys.Add($entity.RowKey)

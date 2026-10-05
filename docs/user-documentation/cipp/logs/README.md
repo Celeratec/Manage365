@@ -2,7 +2,7 @@
 
 The Logbook records every action CIPP performs, whether triggered by a technician, a scheduled task, an alert, or a background process. It is the primary tool for monitoring and troubleshooting, letting you confirm that an operation ran, see why one failed, and trace what CIPP was doing at a given moment.
 
-By default the table shows entries for the current day only. Results are also scoped to the tenant currently selected in CIPP, and to the tenants your role gives you access to. Entries CIPP records against itself rather than a customer are always included.
+By default the table shows entries for the current day only, newest first. Results are also scoped to the tenant currently selected in CIPP, and to the tenants your role gives you access to. Entries CIPP records against itself rather than a customer are always included.
 
 ## Using the Logbook for Troubleshooting
 

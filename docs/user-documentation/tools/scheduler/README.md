@@ -10,6 +10,12 @@ Scheduling a task in the past makes it run at the next interval the scheduler ru
 
 The scheduler operates on 15-minute intervals, and no other cadence is available. A task created through the API for 10:10 runs at 10:15. A recurring task returns to a planned state immediately after it executes.
 
+A banner above the table counts down to the next scheduler run, shows the time it is due, and reports how many tasks that run will pick up. A task whose scheduled time has already passed stays **Planned** until that run, so a time in the recent past is not a sign the task has failed.
+
+The count covers the tasks currently listed, so it follows the **Show System Jobs** toggle: with system jobs hidden it counts only your own tasks. Tasks in a stuck state that the scheduler recovers on its own are not included.
+
+A second count appears whenever tasks are already being worked on. Once the scheduler picks a task up it leaves **Planned** and stops being due, so it moves out of the due count and is reported as in progress until it finishes. A task shown as **Pending** has therefore already been claimed rather than being sat waiting for the next run.
+
 ## Action Buttons
 
 <details>
@@ -34,6 +40,7 @@ Every task needs a tenant, a name, and a command. The rest depends on which of t
 | Task Name              | The name the task appears under in the table.                                                                                                        |
 | Post Execution Actions | Where the results go once the task has run. Choose any combination of Webhook, Email, and PSA, or none to leave the results on the task itself.      |
 | PSA Ticket Strategy    | How many tickets the task raises. Only shown once PSA is among the post execution actions.                                                           |
+| HaloPSA Ticket         | An existing HaloPSA ticket to add the task's results to as a note, instead of raising a new ticket. Only shown once PSA is among the post execution actions and the HaloPSA integration is enabled. |
 | Reference              | An optional note identifying the task. It is also added to the title of any notification the task sends, which makes it useful for routing in a PSA. |
 
 **PSA Ticket Strategy** overrides the HaloPSA **Link Tickets to affected Users** toggle for this task alone, which is useful for a task with a wide result set, such as a list of users without MFA, where the number of tickets raised matters.
@@ -47,6 +54,10 @@ Whichever option matches the current HaloPSA integration setting is labelled as 
 
 {% hint style="info" %}
 The field always holds one of the two options rather than an inherited setting. Selecting PSA and saving therefore fixes a strategy on the task even if you never opened the dropdown, and that strategy stays with the task afterwards regardless of how the integration setting is later changed.
+{% endhint %}
+
+{% hint style="info" %}
+If the ticket entered in **HaloPSA Ticket** is closed or can no longer be found, CIPP raises a new ticket instead of adding a note to it.
 {% endhint %}
 
 A pair of buttons then selects the task type:
@@ -74,6 +85,15 @@ Each section shows a one-line summary of its current settings in its header, so 
 
 </details>
 
+## Filters
+
+| Filter    | Shows                                                |
+| --------- | ---------------------------------------------------- |
+| Running   | Tasks that are currently running.                    |
+| Planned   | Tasks that are waiting for their next scheduled run. |
+| Failed    | Tasks whose most recent run failed.                  |
+| Completed | Tasks whose most recent run completed successfully.  |
+
 ## Table Details
 
 Preset filters above the table narrow the list to tasks that are **Running**, **Planned**, **Failed**, or **Completed**.
@@ -81,7 +101,7 @@ Preset filters above the table narrow the list to tasks that are **Running**, **
 | Column         | Description                                                                                   |
 | -------------- | --------------------------------------------------------------------------------------------- |
 | Executed Time  | The relative time since the task last ran.                                                    |
-| Task State     | Whether the task is Planned, Running, Completed, or Failed.                                   |
+| Task State     | Whether the task is Planned, Running, Completed, Failed, or Failed - Planned.                 |
 | Tenant         | The tenant the task runs against.                                                             |
 | Name           | The task's name.                                                                              |
 | Scheduled Time | The relative time since the task ran, or until it is next due to run.                         |
@@ -89,12 +109,19 @@ Preset filters above the table narrow the list to tasks that are **Running**, **
 | Parameters     | The parameters passed to that command.                                                        |
 | Post Execution | Where the results are delivered after the task runs.                                          |
 | Reference      | The reference recorded against the task, used to identify it in logging and delivered output. |
+| Psa Ticket Id  | The HaloPSA ticket the task's results are added to, when one was given instead of raising a new ticket. |
 | Recurrence     | How often the task repeats.                                                                   |
 | Results        | The results of the most recent execution.                                                     |
 
+{% hint style="info" %}
+A recurring task that fails keeps its schedule rather than stopping. It is listed as **Failed - Planned**, which leaves the failure visible while the task stays due to run again at its next interval. A task set to run once is listed as **Failed** and does not run again.
+
+A task scoped to a tenant group that resolves to no tenants records **No tenants in scope for this task.** in its results, then moves on to its next scheduled run. Nothing is executed against any tenant, and this is not counted as a failure.
+{% endhint %}
+
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View Task Details</td><td>Opens the full read-only <a data-mention href="task.md">task.md</a> page for the task.</td><td>false</td></tr><tr><td>Run Now</td><td>Queues the task to run at the next quarter hour rather than waiting for its schedule.</td><td>true</td></tr><tr><td>Edit Job</td><td>Opens the <a data-mention href="./#add-task">#add-task</a> drawer with the task loaded for editing.</td><td>true</td></tr><tr><td>Clone Job</td><td>Opens the <a data-mention href="./#add-task">#add-task</a> drawer with a copy of the task, ready to adjust and save as a new one.</td><td>true</td></tr><tr><td>Delete Job</td><td>Removes the task from the schedule.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View Task Details</td><td>Opens the full read-only <a data-mention href="task.md">task.md</a> page for the task.</td><td>false</td></tr><tr><td>Run Now</td><td>Queues the task to run at the next quarter hour rather than waiting for its schedule.</td><td>true</td></tr><tr><td>Edit Job</td><td>Opens the Add Task drawer with the task loaded for editing.</td><td>true</td></tr><tr><td>Clone Job</td><td>Opens the Add Task drawer with a copy of the task, ready to adjust and save as a new one.</td><td>true</td></tr><tr><td>Delete Job</td><td>Removes the task from the schedule.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% hint style="info" %}
 The actions available depend on your permissions. Viewing task details requires read access to the scheduler; running, editing, cloning, and deleting all require read and write access, and are hidden otherwise.

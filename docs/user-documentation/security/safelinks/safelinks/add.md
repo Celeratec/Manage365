@@ -2,6 +2,10 @@
 
 Creates a new Safe Links policy and the rule that scopes it, in the tenant you currently have selected. The form builds both objects together, so the configuration lands complete rather than as a policy with nobody attached to it.
 
+{% hint style="info" %}
+This page needs a single tenant selected and does not support All Tenants.
+{% endhint %}
+
 ## Safe Links Policy Configuration
 
 **Policy Settings**

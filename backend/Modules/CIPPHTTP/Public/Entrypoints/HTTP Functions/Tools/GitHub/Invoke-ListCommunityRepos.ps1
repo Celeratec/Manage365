@@ -45,7 +45,17 @@ function Invoke-ListCommunityRepos {
                     Permissions   = [string]($Repo.RepoPermissions | ConvertTo-Json -ErrorAction SilentlyContinue -Compress)
                 }
                 Add-CIPPAzDataTableEntity @Table -Entity $Entity -Force
-                $DefaultsMissing = $true
+                $DefaultsChanged = $true
+            } elseif ($Existing.TemplateTypes -ne $TemplateTypesJson -or $Existing.BuiltIn -ne $Repo.BuiltIn -or $Existing.Description -ne $Repo.Description -or $Existing.Name -ne $Repo.Name) {
+                # Upgrade path: sync built-in metadata onto rows seeded by older versions
+                $Existing | Add-Member -NotePropertyMembers ([ordered]@{
+                        TemplateTypes = $TemplateTypesJson
+                        BuiltIn       = $Repo.BuiltIn
+                        Description   = $Repo.Description
+                        Name          = $Repo.Name
+                    }) -Force
+                Add-CIPPAzDataTableEntity @Table -Entity $Existing -Force
+                $DefaultsChanged = $true
             }
         }
         if ($DefaultsMissing) {

@@ -30,7 +30,7 @@ Three groups of settings, described below.
 {% step %}
 ### Confirmation
 
-A summary of everything selected. Submitting creates the offboarding job.
+A summary of everything selected, which folds away once you submit. Submitting creates the offboarding job. When the job runs immediately, the wizard stays open and shows each user's progress live, one line per selected action, until every action has finished. Each user's block can be copied as text, **Re-run** queues that user's full set of actions again, and the arrow next to a single action runs just that one again.
 {% endstep %}
 {% endstepper %}
 
@@ -48,6 +48,7 @@ The options are pre-filled from your saved offboarding defaults each time the te
 | Remove user's mailbox permissions  | Removes the user's access to every other mailbox.                                                               |
 | Remove user's calendar permissions | Removes the user's access to every other calendar.                                                              |
 | Remove all Rules                   | Deletes the inbox rules on the user's mailbox.                                                                  |
+| Wipe Mobile Devices (account data only) | Wipes only the Exchange account data (mail, contacts, calendar) from each mobile device registered on the mailbox, without removing the device itself or its personal data. Delivered the next time the device connects to Exchange, and needs a modern ActiveSync client; an older device fails the wipe rather than falling back to a full device wipe. |
 | Remove all Mobile Devices          | Removes the mobile devices registered against the mailbox.                                                      |
 | Remove from all groups             | Removes the user from every group they belong to.                                                               |
 | Remove Licenses                    | Strips every licence from the account.                                                                          |
@@ -66,6 +67,10 @@ Deleting the user removes the mailbox with it, so it cannot be combined with con
 
 {% hint style="warning" %}
 Converting a mailbox that is at or near 50 GB may fail, and a converted mailbox over that size stops receiving mail once its licence is removed unless an Exchange Online Plan 2 licence is assigned. The wizard checks the size of the selected mailboxes and warns before you submit.
+{% endhint %}
+
+{% hint style="info" %}
+The account-only wipe is issued before sessions are revoked, sign-in is disabled or mobile devices are removed, whatever order those settings appear in above. The wipe depends on the account still being able to authenticate and the device's ActiveSync partnership still existing at the point it is issued.
 {% endhint %}
 
 ## Permissions and forwarding
@@ -97,11 +102,22 @@ Selecting **Delete user** greys out the mailbox access, forwarding and out of of
 | Schedule this offboarding  | Defers the job to a chosen date instead of running it immediately, and reveals the settings below.                        |
 | Scheduled Offboarding Date | When the job should run.                                                                                                  |
 | Webhook, E-mail, PSA       | Which channels are notified when the job completes. Each has to be configured in CIPP's notification settings to deliver. |
+| HaloPSA Ticket             | An existing HaloPSA ticket to add the results to as a note, instead of raising a new ticket. Only shown once PSA is selected and the HaloPSA integration is enabled. |
 | Reference                  | Free text added to the notification so the job can be recognised later.                                                   |
 
 {% hint style="info" %}
 Selecting three or more users turns scheduling on by itself, since a large offboarding is better queued than run against every account at once. The date can still be set to whatever suits.
 {% endhint %}
+
+## Progress
+
+Every job reports its progress as it runs. Opening a job from the table, or choosing **View Task Details**, shows a **Progress** section that lists each selected action with its current state and outcome, refreshing on its own until the job finishes. It is the same view the wizard shows for a job that runs immediately.
+
+An action that reports an error line, such as a group the user could not be removed from, is shown as failed even when its other items succeeded, and the user's overall result follows the same rule. Each user's block has a copy button that places the block on the clipboard as text.
+
+Notification channels chosen for the job (webhook, e-mail, PSA) are the last steps of the user's block from the start. They run once every action has finished and show whether each delivery succeeded, and the outcomes are recorded on the task as well.
+
+**Re-run** queues that user's full set of actions again, the same as **Run Now** on the task. The arrow next to a single action runs only that action again: it is queued as its own job, named after the action, so it has results and logs of its own, and it reports into the same progress block. Both use the wizard's own permission, and actions that are not repeatable without effect, such as a password reset, happen again.
 
 ## Filters
 

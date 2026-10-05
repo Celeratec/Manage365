@@ -117,6 +117,15 @@ def main():
             coll["idIndex"] = []
         coll["dirtyIds"] = []
         coll["maxId"] = 0
+        # Binary indices hold positions into data, so emptying the rows without emptying the
+        # indices leaves LokiJS resolving point lookups - the single-entity get, merge and
+        # delete paths - to rows that are not there, which the Table service reports as a 404
+        # while range queries, which scan data directly, still succeed. An empty index is the
+        # correct index for an emptied collection, so it is marked clean: LokiJS never rebuilds
+        # a dirty index on a collection using adaptiveBinaryIndices anyway.
+        for index in (coll.get("binaryIndices") or {}).values():
+            index["values"] = []
+            index["dirty"] = False
         emptied.append((coll.get("name", table), n))
 
     tmp = PATH + ".tmp"

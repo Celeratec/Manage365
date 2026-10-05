@@ -27,6 +27,17 @@ const matchesWildcardPattern = (queryKey, pattern) => wildcardToRegExp(pattern).
 
 const DEFAULT_GET_TIMEOUT_MS = 90000;
 const AUTH_LOGIN_REDIRECT_PATH = "/.auth/login/aad";
+
+const assertRelativeApiPath = (value) => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("Refusing empty API path");
+  }
+  const trimmed = value.trim();
+  if (trimmed.includes("://") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+    throw new Error("Refusing non-relative API path");
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+};
 const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 503, 504];
 
 const getRedirectLocation = (headers) => {
@@ -88,6 +99,19 @@ const createApiRetryFn = ({ maxRetries, queryClient, dispatch, toast, getToastTi
     return returnRetry;
   };
 };
+// The server's Retry-After (seconds) as ms, capped so a large hint can't hang a request indefinitely.
+const getRetryAfterMs = (error) => {
+  if (!isAxiosError(error)) return null;
+  const headers = error.response?.headers;
+  const raw = headers?.get?.("retry-after") ?? headers?.["retry-after"];
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 60000) : null;
+};
+
+// react-query's default exponential backoff, but honouring the server's Retry-After when present so a
+// throttled retry lands after the limit clears instead of hammering inside the window.
+const retryDelayWithRetryAfter = (failureCount, error) =>
+  getRetryAfterMs(error) ?? Math.min(1000 * 2 ** failureCount, 30000);
 
 export function ApiGetCall(props) {
   const {
@@ -131,15 +155,17 @@ export function ApiGetCall(props) {
     enabled: waiting,
     queryKey: [queryKey],
     queryFn: async ({ signal }) => {
+      const safeUrl = assertRelativeApiPath(url);
       if (bulkRequest && Array.isArray(data)) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           const element = data[i];
-          const response = await axios.get(url, {
+          const response = await axios.get(safeUrl, {
             signal: signal,
             params: { ...element, ...impersonationCacheParams() },
             headers: await buildVersionedHeaders(),
             timeout,
+            cippQueryKey: queryKey,
           });
           results.push(response.data);
           if (onResult) {
@@ -174,12 +200,13 @@ export function ApiGetCall(props) {
         }
         return results;
       } else {
-        const response = await axios.get(url, {
+        const response = await axios.get(safeUrl, {
           signal: url === "/api/tenantFilter" ? null : signal,
           params: { ...data, ...impersonationCacheParams() },
           headers: await buildVersionedHeaders(),
           responseType: responseType,
           timeout,
+          cippQueryKey: queryKey,
         });
 
         let responseData = response.data;
@@ -234,6 +261,7 @@ export function ApiGetCall(props) {
     placeholderData: keepPreviousData ? keepPreviousDataFn : undefined,
     refetchInterval: refetchInterval,
     retry: retryFn,
+    retryDelay: retryDelayWithRetryAfter,
   });
   return queryInfo;
 }
@@ -244,6 +272,7 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
   const mutation = useMutation({
     mutationFn: async (props) => {
       const { url, data, bulkRequest } = props;
+      const safeUrl = assertRelativeApiPath(url);
       // Timeout so long-running backend calls don't hang the app (e.g. large site delete, slow APIs).
       const timeoutMs = props.timeout ?? 90000; // 90 seconds default
       const requestConfig = {
@@ -254,7 +283,7 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           let element = data[i];
-          const response = await axios.post(url, element, requestConfig);
+          const response = await axios.post(safeUrl, element, requestConfig);
           results.push(response.data);
           if (onResult) {
             onResult(response.data); // Emit each result as it arrives
@@ -262,7 +291,7 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
         }
         return results;
       } else {
-        const response = await axios.post(url, data, requestConfig);
+        const response = await axios.post(safeUrl, data, requestConfig);
         if (onResult) {
           onResult(response.data); // Emit each result as it arrives
         }
@@ -343,19 +372,22 @@ export function ApiGetCallWithPagination({
     queryKey: [queryKey],
     enabled: waiting,
     queryFn: async ({ pageParam = null, signal }) => {
-      const response = await axios.get(url, {
+      const safeUrl = assertRelativeApiPath(url);
+      const response = await axios.get(safeUrl, {
         signal: signal,
         params: { ...data, ...pageParam, ...impersonationCacheParams() },
         headers: await buildVersionedHeaders(),
         timeout,
+        cippQueryKey: queryKey,
       });
       return response.data;
     },
     getNextPageParam: (lastPage) => {
+      // AllTenants pages only when the page opted into manualPagination.
       if (
         data?.noPagination ||
         data?.manualPagination === false ||
-        data?.tenantFilter === "AllTenants"
+        (data?.tenantFilter === "AllTenants" && data?.manualPagination !== true)
       ) {
         return undefined;
       }
@@ -365,6 +397,7 @@ export function ApiGetCallWithPagination({
     refetchOnWindowFocus: false,
     refetchOnMount: refetchOnMount,
     retry: retryFn,
+    retryDelay: retryDelayWithRetryAfter,
   });
 
   return queryInfo;

@@ -8,7 +8,7 @@ import {
   Divider,
   IconButton,
 } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry";
 import { CippWizard } from "./CippWizard";
 import { CippHead } from "../CippComponents/CippHead";
 import { CippWizardDialogContext } from "./CippWizardDialogContext";
@@ -54,19 +54,21 @@ const CippWizardPage = (props) => {
         fullWidth
         maxWidth="xl"
         fullScreen={isMobile}
-        PaperProps={{
-          sx: {
-            display: "flex",
-            flexDirection: "column",
-            ...(!isMobile && { height: "90vh" }),
-          },
+        slotProps={{
+          paper: {
+            sx: {
+              display: "flex",
+              flexDirection: "column",
+              ...(!isMobile && { height: "90vh" }),
+            },
+          }
         }}
       >
         <DialogTitle sx={{ display: "flex", alignItems: "center", gap: 1, p: 2 }}>
           {dialogIcon}
           {wizardTitle}
           <IconButton aria-label="close" onClick={onClose} sx={{ ml: "auto" }}>
-            <Close />
+            <CippIcons.Close />
           </IconButton>
         </DialogTitle>
         <Divider />

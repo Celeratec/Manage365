@@ -1,126 +1,115 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
-import { useSettings } from "../../../../../hooks/use-settings";
-import { useRouter } from "next/router";
-import { ApiGetCall, ApiPostCall } from "../../../../../api/ApiCall";
-import CippFormSkeleton from "../../../../../components/CippFormPages/CippFormSkeleton";
-import CalendarIcon from "@heroicons/react/24/outline/CalendarIcon";
-import {
-  PhoneAndroid,
-  Computer,
-  PhoneIphone,
-  Laptop,
-  Launch,
-  CheckCircle,
-  Warning,
-  Sync,
-  Fingerprint,
-  Group,
-} from "@mui/icons-material";
-import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
-import { CippEntitySwitcher } from "../../../../../components/CippComponents/CippEntitySwitcher";
-import tabOptions from "./tabOptions";
-import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
-import { getIntuneDeviceActions } from "../../../../../components/CippComponents/CippIntuneDeviceActions.jsx";
-import { Box, Stack } from "@mui/system";
-import { Grid } from "@mui/system";
-import { SvgIcon, Typography, Card, CardHeader, Divider, Tooltip, IconButton } from "@mui/material";
-import { CippBannerListCard } from "../../../../../components/CippCards/CippBannerListCard";
-import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
-import { useEffect, useState, useRef } from "react";
-import { PropertyList } from "../../../../../components/property-list";
-import { PropertyListItem } from "../../../../../components/property-list-item";
-import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
-import { CippHead } from "../../../../../components/CippComponents/CippHead";
-import { Button } from "@mui/material";
-import { getCippFormatting } from "../../../../../utils/get-cipp-formatting";
-import { getGroupTypeLabel } from "../../../../../utils/group-types";
-import { PencilIcon, EyeIcon } from "@heroicons/react/24/outline";
+import { Layout as DashboardLayout } from '../../../../../layouts/index'
+import { CippIcons } from '../../../../../utils/icon-registry'
+import { useSettings } from '../../../../../hooks/use-settings'
+import { useRouter } from 'next/router'
+import { ApiGetCall, ApiPostCall } from '../../../../../api/ApiCall'
+import CippFormSkeleton from '../../../../../components/CippFormPages/CippFormSkeleton'
+import { HeaderedTabbedLayout } from '../../../../../layouts/HeaderedTabbedLayout'
+import { CippEntitySwitcher } from '../../../../../components/CippComponents/CippEntitySwitcher'
+import tabOptions from './tabOptions'
+import { CippCopyToClipBoard } from '../../../../../components/CippComponents/CippCopyToClipboard'
+import { getIntuneDeviceActions } from '../../../../../components/CippComponents/CippIntuneDeviceActions.jsx'
+import { Box, Stack } from '@mui/system'
+import { Grid } from '@mui/system'
+import { SvgIcon, Typography, Card, CardHeader, Divider, Tooltip, IconButton } from '@mui/material'
+import { CippBannerListCard } from '../../../../../components/CippCards/CippBannerListCard'
+import { CippTimeAgo } from '../../../../../components/CippComponents/CippTimeAgo'
+import { useEffect, useState, useRef } from 'react'
+import { PropertyList } from '../../../../../components/property-list'
+import { PropertyListItem } from '../../../../../components/property-list-item'
+import { CippDataTable } from '../../../../../components/CippTable/CippDataTable'
+import { CippHead } from '../../../../../components/CippComponents/CippHead'
+import { Button } from '@mui/material'
+import { getCippFormatting } from '../../../../../utils/get-cipp-formatting'
+import { CippDevicePolicySettingStates } from '../../../../../components/CippComponents/CippDevicePolicySettingStates'
 
 const Page = () => {
-  const userSettingsDefaults = useSettings();
-  const router = useRouter();
-  const { deviceId } = router.query;
-  const [waiting, setWaiting] = useState(false);
+  const userSettingsDefaults = useSettings()
+  const router = useRouter()
+  const { deviceId } = router.query
+  const [waiting, setWaiting] = useState(false)
 
   useEffect(() => {
     if (deviceId) {
-      setWaiting(true);
+      setWaiting(true)
     }
-  }, [deviceId]);
+  }, [deviceId])
 
   const deviceRequest = ApiGetCall({
-    url: "/api/ListGraphRequest",
+    url: '/api/ListGraphRequest',
     data: {
       Endpoint: `deviceManagement/managedDevices/${deviceId}`,
       tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
     },
     queryKey: `ManagedDevice-${deviceId}`,
     waiting: waiting,
-  });
+  })
 
   const deviceBulkRequest = ApiPostCall({
     urlFromData: true,
-  });
+  })
+  const bulkFetchedForId = useRef(null)
 
   // Handle response structure - ListGraphRequest may wrap single items in Results array
   // Try Results array first, then Results as object, then data directly
-  let deviceData = null;
+  let deviceData = null
   if (deviceRequest.isSuccess && deviceRequest.data) {
     if (Array.isArray(deviceRequest.data.Results)) {
-      deviceData = deviceRequest.data.Results[0];
+      deviceData = deviceRequest.data.Results[0]
     } else if (deviceRequest.data.Results) {
-      deviceData = deviceRequest.data.Results;
+      deviceData = deviceRequest.data.Results
     } else {
-      deviceData = deviceRequest.data;
+      deviceData = deviceRequest.data
     }
   }
 
   function refreshFunction() {
-    if (!deviceId) return;
+    if (!deviceId) return
     const requests = [
       {
-        id: "deviceCompliance",
+        id: 'deviceCompliance',
         url: `/deviceManagement/managedDevices/${deviceId}/deviceCompliancePolicyStates`,
-        method: "GET",
+        method: 'GET',
       },
       {
-        id: "deviceConfiguration",
+        id: 'deviceConfiguration',
         url: `/deviceManagement/managedDevices/${deviceId}/deviceConfigurationStates`,
-        method: "GET",
+        method: 'GET',
       },
       {
-        id: "detectedApps",
+        id: 'detectedApps',
         url: `/deviceManagement/managedDevices/${deviceId}/detectedApps`,
-        method: "GET",
+        method: 'GET',
       },
       {
-        id: "users",
+        id: 'users',
         url: `/deviceManagement/managedDevices/${deviceId}/users`,
-        method: "GET",
+        method: 'GET',
       },
-    ];
+    ]
 
     // /devices/{id} requires the Entra directory object, not the Intune managedDevice id,
     // so address it by alternate key. All-zeros means the device is not Entra-joined.
-    const azureADDeviceId = deviceData?.azureADDeviceId;
-    if (azureADDeviceId && azureADDeviceId !== "00000000-0000-0000-0000-000000000000") {
+    const azureADDeviceId = deviceData?.azureADDeviceId
+    if (azureADDeviceId && azureADDeviceId !== '00000000-0000-0000-0000-000000000000') {
       requests.push({
-        id: "deviceMemberOf",
+        id: 'deviceMemberOf',
         // No /microsoft.graph.group cast: OData cast is an advanced query needing
         // ConsistencyLevel=eventual + $count, and silently returns [] without them.
         // Groups are filtered client-side on @odata.type below.
         url: `/devices(deviceId='${azureADDeviceId}')/transitiveMemberOf`,
-        method: "GET",
-      });
+        method: 'GET',
+      })
     }
 
+    bulkFetchedForId.current = deviceId
     deviceBulkRequest.mutate({
-      url: "/api/ListGraphBulkRequest",
+      url: '/api/ListGraphBulkRequest',
       data: {
         Requests: requests,
-        tenantFilter: userSettingsDefaults.currentTenant,
+        tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
       },
-    });
+    })
   }
 
   useEffect(() => {
@@ -129,47 +118,63 @@ const Page = () => {
       deviceId &&
       userSettingsDefaults.currentTenant &&
       deviceRequest.isSuccess &&
-      !deviceBulkRequest.isSuccess
+      bulkFetchedForId.current !== deviceId
     ) {
-      refreshFunction();
+      refreshFunction()
     }
-  }, [deviceId, userSettingsDefaults.currentTenant, deviceRequest.isSuccess, deviceBulkRequest.isSuccess]);
+  }, [
+    deviceId,
+    userSettingsDefaults.currentTenant,
+    deviceRequest.isSuccess,
+  ])
 
-  const bulkData = deviceBulkRequest?.data?.data ?? [];
-  const deviceComplianceData = bulkData?.find((item) => item.id === "deviceCompliance");
-  const deviceConfigurationData = bulkData?.find((item) => item.id === "deviceConfiguration");
-  const detectedAppsData = bulkData?.find((item) => item.id === "detectedApps");
-  const usersData = bulkData?.find((item) => item.id === "users");
-  const deviceMemberOfData = bulkData?.find((item) => item.id === "deviceMemberOf");
+  const bulkData = deviceBulkRequest?.data?.data ?? []
+  const deviceComplianceData = bulkData?.find((item) => item.id === 'deviceCompliance')
+  const deviceConfigurationData = bulkData?.find((item) => item.id === 'deviceConfiguration')
+  const detectedAppsData = bulkData?.find((item) => item.id === 'detectedApps')
+  const usersData = bulkData?.find((item) => item.id === 'users')
+  const deviceMemberOfData = bulkData?.find((item) => item.id === 'deviceMemberOf')
 
-  const deviceCompliance = deviceComplianceData?.body?.value || [];
-  const deviceConfiguration = deviceConfigurationData?.body?.value || [];
-  const detectedApps = detectedAppsData?.body?.value || [];
-  const users = usersData?.body?.value || [];
-  const deviceMemberOf = deviceMemberOfData?.body?.value || [];
+  const deviceCompliance = deviceComplianceData?.body?.value || []
+  const deviceConfiguration = deviceConfigurationData?.body?.value || []
+  const detectedApps = detectedAppsData?.body?.value || []
+  const users = usersData?.body?.value || []
+  const deviceMemberOf = deviceMemberOfData?.body?.value || []
+
+  // Graph bulk items omit `error.message` on many failures (message is under body.error),
+  // and a missing item makes `status !== 200` true — treat only real HTTP failures as errors.
+  const isBulkRequestFailed = (item) =>
+    item != null && typeof item.status === 'number' && (item.status < 200 || item.status >= 300)
+
+  const getBulkFailureMessage = (item, fallback) =>
+    item?.error?.message ||
+    item?.body?.error?.message ||
+    (typeof item?.body?.error === 'string' ? item.body.error : null) ||
+    (item?.status ? `Unable to load this data (HTTP ${item.status}).` : null) ||
+    fallback
 
   // Helper function to format bytes to GB (matching getCippFormatting pattern)
   const formatBytesToGB = (bytes) => {
-    if (!bytes || bytes === 0) return "N/A";
-    const gb = bytes / 1024 / 1024 / 1024;
-    return `${gb.toFixed(2)} GB`;
-  };
+    if (!bytes || bytes === 0) return 'N/A'
+    const gb = bytes / 1024 / 1024 / 1024
+    return `${gb.toFixed(2)} GB`
+  }
 
   // Set the title and subtitle for the layout
-  const title = deviceRequest.isSuccess ? deviceData?.deviceName : "Loading...";
+  const title = deviceRequest.isSuccess ? deviceData?.deviceName : 'Loading...'
 
   const subtitle = deviceRequest.isSuccess
     ? [
         {
-          icon: <Computer />,
+          icon: <CippIcons.Computer />,
           text: <CippCopyToClipBoard type="chip" text={deviceData?.deviceName} />,
         },
         {
-          icon: <Fingerprint />,
+          icon: <CippIcons.Fingerprint />,
           text: <CippCopyToClipBoard type="chip" text={deviceData?.id} />,
         },
         {
-          icon: <CalendarIcon />,
+          icon: <CippIcons.CalendarIcon />,
           text: (
             <>
               Last Sync: <CippTimeAgo data={deviceData?.lastSyncDateTime} />
@@ -177,7 +182,7 @@ const Page = () => {
           ),
         },
         {
-          icon: <Launch style={{ color: "#667085" }} />,
+          icon: <CippIcons.Launch />,
           text: (
             <Button
               color="muted"
@@ -192,286 +197,311 @@ const Page = () => {
           ),
         },
       ]
-    : [];
+    : []
 
-  const data = deviceData;
+  const data = deviceData
 
-  // Shared with the devices table page; link-type actions are filtered out of
-  // the detail page's ActionsMenu (see components/actions-menu.js).
   const deviceActions = getIntuneDeviceActions({
     tenantFilter: userSettingsDefaults.currentTenant,
-  });
+  })
 
   // Get device icon based on OS
   const getDeviceIcon = () => {
-    if (!data?.operatingSystem) return <Computer />;
-    const os = data.operatingSystem.toLowerCase();
-    if (os.includes("android")) return <PhoneAndroid />;
-    if (os.includes("ios") || os.includes("iphone") || os.includes("ipad")) return <PhoneIphone />;
-    if (os.includes("windows") || os.includes("macos")) return <Laptop />;
-    return <Computer />;
-  };
+    if (!data?.operatingSystem) return <CippIcons.Computer />
+    const os = data.operatingSystem.toLowerCase()
+    if (os.includes('android')) return <CippIcons.PhoneAndroid />
+    if (os.includes('ios') || os.includes('iphone') || os.includes('ipad')) return <CippIcons.PhoneIphone />
+    if (os.includes('windows') || os.includes('macos')) return <CippIcons.Laptop />
+    return <CippIcons.Computer />
+  }
+
+  const tenantFilter = router.query.tenantFilter ?? userSettingsDefaults.currentTenant
 
   // Prepare compliance policy items
-  let compliancePolicyItems = [];
+  let compliancePolicyItems = []
   if (deviceCompliance.length > 0) {
     compliancePolicyItems = deviceCompliance.map((policy, index) => ({
-      id: index,
+      id: policy.id || `compliance-${index}`,
       cardLabelBox: {
-        cardLabelBoxHeader: policy.complianceState === "compliant" ? <CheckCircle /> : <Warning />,
+        cardLabelBoxHeader: policy.complianceState === 'compliant' ? <CippIcons.CheckCircle /> : <CippIcons.Warning />,
       },
-      text: policy.displayName || "Unknown Policy",
-      subtext: `State: ${policy.complianceState || "Unknown"}`,
-      statusColor: policy.complianceState === "compliant" ? "success.main" : "warning.main",
-      statusText: policy.complianceState || "Unknown",
+      text: policy.displayName || 'Unknown Policy',
+      subtext: `State: ${policy.complianceState || 'Unknown'}`,
+      statusColor: policy.complianceState === 'compliant' ? 'success.main' : 'warning.main',
+      statusText: policy.complianceState || 'Unknown',
       propertyItems: [
         {
-          label: "Setting Count",
-          value: policy.settingCount || "N/A",
-        },
-        {
-          label: "Setting States",
-          value: policy.settingStates?.length || 0,
+          label: 'Setting Count',
+          value: policy.settingCount || 'N/A',
         },
       ],
-    }));
-  } else if (deviceComplianceData?.status !== 200) {
+      children: policy.id ? (
+        <CippDevicePolicySettingStates
+          deviceId={deviceId}
+          policyStateId={policy.id}
+          tenantFilter={tenantFilter}
+          statesCollection="deviceCompliancePolicyStates"
+        />
+      ) : null,
+    }))
+  } else if (isBulkRequestFailed(deviceComplianceData) || deviceBulkRequest.isError) {
     compliancePolicyItems = [
       {
         id: 1,
-        cardLabelBox: "!",
-        text: "Error loading compliance policies",
-        subtext: deviceComplianceData?.error?.message || "Unknown error",
-        statusColor: "error.main",
-        statusText: "Error",
+        cardLabelBox: '!',
+        text: 'Error loading compliance policies',
+        subtext: getBulkFailureMessage(
+          deviceComplianceData,
+          'Unable to load compliance policies. Try refreshing the device.'
+        ),
+        statusColor: 'error.main',
+        statusText: 'Error',
         propertyItems: [],
       },
-    ];
+    ]
   } else {
     compliancePolicyItems = [
       {
         id: 1,
-        cardLabelBox: "-",
-        text: "No compliance policies available",
-        subtext: "This device does not have any compliance policies assigned.",
-        statusColor: "warning.main",
-        statusText: "No Policies",
+        cardLabelBox: '-',
+        text: 'No compliance policies available',
+        subtext: 'This device does not have any compliance policies assigned.',
+        statusColor: 'warning.main',
+        statusText: 'No Policies',
         propertyItems: [],
       },
-    ];
+    ]
   }
 
   // Prepare configuration policy items
-  let configurationPolicyItems = [];
+  let configurationPolicyItems = []
   if (deviceConfiguration.length > 0) {
     configurationPolicyItems = deviceConfiguration.map((policy, index) => ({
-      id: index,
+      id: policy.id || `configuration-${index}`,
       cardLabelBox: {
-        cardLabelBoxHeader: policy.state === "compliant" ? <CheckCircle /> : <Warning />,
+        cardLabelBoxHeader: policy.state === 'compliant' ? <CippIcons.CheckCircle /> : <CippIcons.Warning />,
       },
-      text: policy.displayName || "Unknown Policy",
-      subtext: `State: ${policy.state || "Unknown"}`,
-      statusColor: policy.state === "compliant" ? "success.main" : "warning.main",
-      statusText: policy.state || "Unknown",
+      text: policy.displayName || 'Unknown Policy',
+      subtext: `State: ${policy.state || 'Unknown'}`,
+      statusColor: policy.state === 'compliant' ? 'success.main' : 'warning.main',
+      statusText: policy.state || 'Unknown',
       propertyItems: [
         {
-          label: "Setting Count",
-          value: policy.settingCount || "N/A",
-        },
-        {
-          label: "Setting States",
-          value: policy.settingStates?.length || 0,
+          label: 'Setting Count',
+          value: policy.settingCount || 'N/A',
         },
       ],
-    }));
-  } else if (deviceConfigurationData?.status !== 200) {
+      children: policy.id ? (
+        <CippDevicePolicySettingStates
+          deviceId={deviceId}
+          policyStateId={policy.id}
+          tenantFilter={tenantFilter}
+          statesCollection="deviceConfigurationStates"
+        />
+      ) : null,
+    }))
+  } else if (isBulkRequestFailed(deviceConfigurationData) || deviceBulkRequest.isError) {
     configurationPolicyItems = [
       {
         id: 1,
-        cardLabelBox: "!",
-        text: "Error loading configuration policies",
-        subtext: deviceConfigurationData?.error?.message || "Unknown error",
-        statusColor: "error.main",
-        statusText: "Error",
+        cardLabelBox: '!',
+        text: 'Error loading configuration policies',
+        subtext: getBulkFailureMessage(
+          deviceConfigurationData,
+          'Unable to load configuration policies. Try refreshing the device.'
+        ),
+        statusColor: 'error.main',
+        statusText: 'Error',
         propertyItems: [],
       },
-    ];
+    ]
   } else {
     configurationPolicyItems = [
       {
         id: 1,
-        cardLabelBox: "-",
-        text: "No configuration policies available",
-        subtext: "This device does not have any configuration policies assigned.",
-        statusColor: "warning.main",
-        statusText: "No Policies",
+        cardLabelBox: '-',
+        text: 'No configuration policies available',
+        subtext: 'This device does not have any configuration policies assigned.',
+        statusColor: 'warning.main',
+        statusText: 'No Policies',
         propertyItems: [],
       },
-    ];
+    ]
   }
 
   // Prepare detected apps items
-  let detectedAppsItems = [];
+  let detectedAppsItems = []
   if (detectedApps.length > 0) {
     detectedAppsItems = [
       {
         id: 1,
         cardLabelBox: {
-          cardLabelBoxHeader: <CheckCircle />,
+          cardLabelBoxHeader: <CippIcons.CheckCircle />,
         },
-        text: "Detected Applications",
+        text: 'Detected Applications',
         subtext: `${detectedApps.length} application(s) detected`,
         statusText: `${detectedApps.length} App(s)`,
-        statusColor: "info.main",
+        statusColor: 'info.main',
         table: {
-          title: "Detected Applications",
+          title: 'Detected Applications',
           hideTitle: true,
           data: detectedApps,
-          simpleColumns: ["displayName", "version", "platform"],
+          simpleColumns: ['displayName', 'version', 'platform'],
           refreshFunction: refreshFunction,
         },
       },
-    ];
-  } else if (detectedAppsData?.status !== 200) {
+    ]
+  } else if (isBulkRequestFailed(detectedAppsData) || deviceBulkRequest.isError) {
     detectedAppsItems = [
       {
         id: 1,
-        cardLabelBox: "!",
-        text: "Error loading detected applications",
-        subtext: detectedAppsData?.error?.message || "Unknown error",
-        statusColor: "error.main",
-        statusText: "Error",
+        cardLabelBox: '!',
+        text: 'Error loading detected applications',
+        subtext: getBulkFailureMessage(
+          detectedAppsData,
+          'Unable to load detected applications. Try refreshing the device.'
+        ),
+        statusColor: 'error.main',
+        statusText: 'Error',
         propertyItems: [],
       },
-    ];
+    ]
   } else {
     detectedAppsItems = [
       {
         id: 1,
-        cardLabelBox: "-",
-        text: "No detected applications",
-        subtext: "No applications have been detected on this device.",
-        statusColor: "warning.main",
-        statusText: "No Apps",
+        cardLabelBox: '-',
+        text: 'No detected applications',
+        subtext: 'No applications have been detected on this device.',
+        statusColor: 'warning.main',
+        statusText: 'No Apps',
         propertyItems: [],
       },
-    ];
+    ]
   }
 
   // Prepare users items
-  let usersItems = [];
+  let usersItems = []
   if (users.length > 0) {
     usersItems = [
       {
         id: 1,
         cardLabelBox: {
-          cardLabelBoxHeader: <CheckCircle />,
+          cardLabelBoxHeader: <CippIcons.CheckCircle />,
         },
-        text: "Device Users",
+        text: 'Device Users',
         subtext: `${users.length} user(s) associated with this device`,
         statusText: `${users.length} User(s)`,
-        statusColor: "info.main",
+        statusColor: 'info.main',
         table: {
-          title: "Device Users",
+          title: 'Device Users',
           hideTitle: true,
           data: users,
-          simpleColumns: ["displayName", "userPrincipalName", "mail"],
+          simpleColumns: ['displayName', 'userPrincipalName', 'mail'],
           refreshFunction: refreshFunction,
           actions: [
             {
-              icon: <EyeIcon />,
-              label: "View User",
+              icon: <CippIcons.EyeIcon />,
+              label: 'View User',
+              category: 'view',
               link: `/identity/administration/users/user?userId=[id]&tenantFilter=${userSettingsDefaults.currentTenant}`,
-              category: "view",
+              pinned: true,
             },
           ],
         },
       },
-    ];
-  } else if (usersData?.status !== 200) {
+    ]
+  } else if (isBulkRequestFailed(usersData) || deviceBulkRequest.isError) {
     usersItems = [
       {
         id: 1,
-        cardLabelBox: "!",
-        text: "Error loading device users",
-        subtext: usersData?.error?.message || "Unknown error",
-        statusColor: "error.main",
-        statusText: "Error",
+        cardLabelBox: '!',
+        text: 'Error loading device users',
+        subtext: getBulkFailureMessage(
+          usersData,
+          'Unable to load associated users. Try refreshing the device.'
+        ),
+        statusColor: 'error.main',
+        statusText: 'Error',
         propertyItems: [],
       },
-    ];
+    ]
   } else {
     usersItems = [
       {
         id: 1,
-        cardLabelBox: "-",
-        text: "No users associated",
-        subtext: "No users are currently associated with this device.",
-        statusColor: "warning.main",
-        statusText: "No Users",
+        cardLabelBox: '-',
+        text: 'No users associated',
+        subtext: 'No users are currently associated with this device.',
+        statusColor: 'warning.main',
+        statusText: 'No Users',
         propertyItems: [],
       },
-    ];
+    ]
   }
 
   // Prepare group membership items
-  const groupMembershipItems = deviceMemberOf.length > 0
-    ? [
-        {
-          id: 1,
-          cardLabelBox: {
-            cardLabelBoxHeader: <Group />,
+  const groupMembershipItems =
+    deviceMemberOf.length > 0
+      ? [
+          {
+            id: 1,
+            cardLabelBox: {
+              cardLabelBoxHeader: <CippIcons.Group />,
+            },
+            text: 'Groups',
+            subtext: 'List of groups the device is a member of',
+            statusText: ` ${
+              deviceMemberOf?.filter((item) => item?.['@odata.type'] === '#microsoft.graph.group')
+                .length
+            } Group(s)`,
+            statusColor: 'info.main',
+            table: {
+              title: 'Group Memberships',
+              hideTitle: true,
+              actions: [
+                {
+                  icon: <CippIcons.Edit />,
+                  label: 'Edit Group',
+                category: 'edit',
+                  link: '/identity/administration/groups/edit?groupId=[id]&groupType=[calculatedGroupType]',
+                  pinned: true,
+                },
+              ],
+              data: deviceMemberOf?.filter(
+                (item) => item?.['@odata.type'] === '#microsoft.graph.group'
+              ),
+              refreshFunction: refreshFunction,
+              simpleColumns: ['displayName', 'groupTypes', 'securityEnabled', 'mailEnabled'],
+            },
           },
-          text: "Groups",
-          subtext: "List of groups the device is a member of",
-          statusText: ` ${
-            deviceMemberOf?.filter((item) => item?.["@odata.type"] === "#microsoft.graph.group")
-              .length
-          } Group(s)`,
-          statusColor: "info.main",
-          table: {
-            title: "Group Memberships",
-            hideTitle: true,
-            actions: [
-              {
-                icon: <PencilIcon />,
-                label: "Edit Group",
-                link: "/identity/administration/groups/edit?groupId=[id]&groupType=[groupType]",
-                category: "edit",
-              },
-            ],
-            // Raw Graph groups have no groupType field, but the edit page needs the label
-            data: deviceMemberOf
-              ?.filter((item) => item?.["@odata.type"] === "#microsoft.graph.group")
-              .map((group) => ({ ...group, groupType: getGroupTypeLabel(group) })),
-            refreshFunction: refreshFunction,
-            simpleColumns: ["displayName", "groupTypes", "securityEnabled", "mailEnabled"],
-          },
-        },
-      ]
-    : deviceMemberOfData && deviceMemberOfData.status !== 200
-    ? [
-        {
-          id: 1,
-          cardLabelBox: "!",
-          text: "Error loading device group memberships",
-          subtext: deviceMemberOfData?.error?.message || "Unknown error",
-          statusColor: "error.main",
-          statusText: "Error",
-          propertyItems: [],
-        },
-      ]
-    : [
-        {
-          id: 1,
-          cardLabelBox: "-",
-          text: "No group memberships",
-          subtext: "This device is not a member of any groups.",
-          statusColor: "warning.main",
-          statusText: "No Groups",
-          propertyItems: [],
-        },
-      ];
+        ]
+      : isBulkRequestFailed(deviceMemberOfData) || deviceBulkRequest.isError
+        ? [
+            {
+              id: 1,
+              cardLabelBox: '!',
+              text: 'Error loading device group memberships',
+              subtext: getBulkFailureMessage(
+                deviceMemberOfData,
+                'Unable to load group memberships. Try refreshing the device.'
+              ),
+              statusColor: 'error.main',
+              statusText: 'Error',
+              propertyItems: [],
+            },
+          ]
+        : [
+            {
+              id: 1,
+              cardLabelBox: '-',
+              text: 'No group memberships',
+              subtext: 'This device is not a member of any groups.',
+              statusColor: 'warning.main',
+              statusText: 'No Groups',
+              propertyItems: [],
+            },
+          ]
 
   return (
     <HeaderedTabbedLayout
@@ -523,11 +553,11 @@ const Page = () => {
                       <IconButton
                         size="small"
                         onClick={() => {
-                          deviceRequest.refetch();
-                          refreshFunction();
+                          deviceRequest.refetch()
+                          refreshFunction()
                         }}
                       >
-                        <Sync fontSize="small" />
+                        <CippIcons.Sync fontSize="small" />
                       </IconButton>
                     </Tooltip>
                   }
@@ -537,10 +567,14 @@ const Page = () => {
                   <PropertyListItem
                     divider
                     value={
-                      <Stack alignItems="center" spacing={1}>
+                      <Stack spacing={1} sx={{
+                        alignItems: "center"
+                      }}>
                         <SvgIcon sx={{ fontSize: 64 }}>{getDeviceIcon()}</SvgIcon>
-                        <Typography variant="h6">{data?.deviceName || "N/A"}</Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="h6">{data?.deviceName || 'N/A'}</Typography>
+                        <Typography variant="body2" sx={{
+                          color: "text.secondary"
+                        }}>
                           {data?.manufacturer} {data?.model}
                         </Typography>
                       </Stack>
@@ -552,117 +586,160 @@ const Page = () => {
                     value={
                       <Grid container spacing={2}>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Device Name:
                           </Typography>
                           <Typography variant="inherit">
-                            {getCippFormatting(data?.deviceName, "deviceName") || "N/A"}
+                            {getCippFormatting(data?.deviceName, 'deviceName') || 'N/A'}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Device ID:
                           </Typography>
                           <Typography variant="inherit">
-                            {getCippFormatting(data?.id, "id") || "N/A"}
+                            {getCippFormatting(data?.id, 'id') || 'N/A'}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Operating System:
                           </Typography>
                           <Typography variant="inherit">
-                            {data?.operatingSystem || "N/A"} {data?.osVersion || ""}
+                            {data?.operatingSystem || 'N/A'} {data?.osVersion || ''}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Manufacturer:
                           </Typography>
-                          <Typography variant="inherit">{data?.manufacturer || "N/A"}</Typography>
+                          <Typography variant="inherit">{data?.manufacturer || 'N/A'}</Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Model:
                           </Typography>
-                          <Typography variant="inherit">{data?.model || "N/A"}</Typography>
+                          <Typography variant="inherit">{data?.model || 'N/A'}</Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Serial Number:
                           </Typography>
-                          <Typography variant="inherit">{data?.serialNumber || "N/A"}</Typography>
+                          <Typography variant="inherit">{data?.serialNumber || 'N/A'}</Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Compliance State:
                           </Typography>
                           <Typography variant="inherit">
-                            {getCippFormatting(data?.complianceState, "complianceState") || "N/A"}
+                            {getCippFormatting(data?.complianceState, 'complianceState') || 'N/A'}
                           </Typography>
                         </Grid>
+                        {data?.complianceGracePeriodExpirationDateTime && (
+                          <Grid size={{ xs: 12 }}>
+                            <Typography variant="inherit" gutterBottom sx={{
+                              color: "text.primary"
+                            }}>
+                              Grace period expires:
+                            </Typography>
+                            <Typography variant="inherit">
+                              {new Date(data.complianceGracePeriodExpirationDateTime).toLocaleString()}
+                            </Typography>
+                          </Grid>
+                        )}
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Enrolled Date:
                           </Typography>
                           <Typography variant="inherit">
                             {data?.enrolledDateTime
                               ? new Date(data.enrolledDateTime).toLocaleString()
-                              : "N/A"}
+                              : 'N/A'}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Last Sync:
                           </Typography>
                           <Typography variant="inherit">
                             {data?.lastSyncDateTime
                               ? new Date(data.lastSyncDateTime).toLocaleString()
-                              : "N/A"}
+                              : 'N/A'}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Owner Type:
                           </Typography>
                           <Typography variant="inherit">
-                            {getCippFormatting(data?.managedDeviceOwnerType, "managedDeviceOwnerType") ||
-                              "N/A"}
+                            {getCippFormatting(
+                              data?.managedDeviceOwnerType,
+                              'managedDeviceOwnerType'
+                            ) || 'N/A'}
                           </Typography>
                         </Grid>
                         <Grid size={{ xs: 12 }}>
-                          <Typography variant="inherit" color="text.primary" gutterBottom>
+                          <Typography variant="inherit" gutterBottom sx={{
+                            color: "text.primary"
+                          }}>
                             Enrollment Type:
                           </Typography>
                           <Typography variant="inherit">
-                            {getCippFormatting(data?.deviceEnrollmentType, "deviceEnrollmentType") ||
-                              "N/A"}
+                            {getCippFormatting(
+                              data?.deviceEnrollmentType,
+                              'deviceEnrollmentType'
+                            ) || 'N/A'}
                           </Typography>
                         </Grid>
                         {data?.userPrincipalName && (
                           <Grid size={{ xs: 12 }}>
-                            <Typography variant="inherit" color="text.primary" gutterBottom>
+                            <Typography variant="inherit" gutterBottom sx={{
+                              color: "text.primary"
+                            }}>
                               Primary User:
                             </Typography>
                             <Typography variant="inherit">
-                              {getCippFormatting(data?.userPrincipalName, "userPrincipalName") || "N/A"}
+                              {getCippFormatting(data?.userPrincipalName, 'userPrincipalName') ||
+                                'N/A'}
                             </Typography>
                           </Grid>
                         )}
                         {data?.totalStorageSpaceInBytes && (
                           <Grid size={{ xs: 12 }}>
-                            <Typography variant="inherit" color="text.primary" gutterBottom>
+                            <Typography variant="inherit" gutterBottom sx={{
+                              color: "text.primary"
+                            }}>
                               Storage:
                             </Typography>
                             <Typography variant="inherit">
-                              {formatBytesToGB(data.freeStorageSpaceInBytes || 0)} free of{" "}
+                              {formatBytesToGB(data.freeStorageSpaceInBytes || 0)} free of{' '}
                               {formatBytesToGB(data.totalStorageSpaceInBytes)}
                               {data.freeStorageSpaceInBytes &&
                                 data.totalStorageSpaceInBytes &&
                                 ` (${Math.round(
                                   ((data.totalStorageSpaceInBytes - data.freeStorageSpaceInBytes) /
                                     data.totalStorageSpaceInBytes) *
-                                    100,
+                                    100
                                 )}% used)`}
                             </Typography>
                           </Grid>
@@ -712,8 +789,8 @@ const Page = () => {
       )}
     </HeaderedTabbedLayout>
   );
-};
+}
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>
 
-export default Page;
+export default Page

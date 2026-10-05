@@ -1,7 +1,6 @@
 import { useState } from 'react'
+import { CippIcons } from '../../utils/icon-registry'
 import { Button, Box } from '@mui/material'
-import { ReceiptLongOutlined } from '@mui/icons-material'
-import { EyeIcon } from '@heroicons/react/24/outline'
 import { CippOffCanvas } from './CippOffCanvas'
 import { CippDataTable } from '../CippTable/CippDataTable'
 
@@ -11,6 +10,7 @@ export const CippApiLogsDrawer = ({
   tenantFilter = null,
   standardFilter = null,
   scheduledTaskFilter = null,
+  baselineRunFilter = null,
   requiredPermissions = [],
   PermissionButton = Button,
   title = 'API Logs',
@@ -26,12 +26,15 @@ export const CippApiLogsDrawer = ({
     setDrawerVisible(true)
   }
 
-  // Build the API URL with the filter
+  // Build the API URL with the filter. Scoped drawers (a standard template, a scheduled task or a
+  // baseline run) cover the last 7 days: their runs are scheduled, so "today only" is empty for
+  // most of the day after a run that finished overnight.
+  const isScoped = Boolean(standardFilter || scheduledTaskFilter || baselineRunFilter)
   const apiUrl = `/api/ListLogs?Filter=true${apiFilter ? `&API=${apiFilter}` : ''}${
     tenantFilter ? `&Tenant=${tenantFilter}` : ''
   }${standardFilter ? `&StandardTemplateId=${standardFilter}` : ''}${
     scheduledTaskFilter ? `&ScheduledTaskId=${scheduledTaskFilter}` : ''
-  }`
+  }${baselineRunFilter ? `&BaselineRunId=${baselineRunFilter}` : ''}${isScoped ? '&Days=7' : ''}`
 
   // Define the columns for the logs table
   const simpleColumns = [
@@ -49,9 +52,10 @@ export const CippApiLogsDrawer = ({
 
   const actions = [
     {
-      label: "View Log Entry",
-      link: "/cipp/logs/logentry?logentry=[RowKey]&date=[PartitionKey]",
-      icon: <EyeIcon />,
+      label: 'View Log Entry',
+      link: '/cipp/logs/logentry?logentry=[RowKey]',
+      pinned: true,
+      icon: <CippIcons.EyeIcon />,
       color: 'primary',
       category: "view",
     },
@@ -62,7 +66,7 @@ export const CippApiLogsDrawer = ({
       <PermissionButton
         {...(PermissionButton !== Button ? { requiredPermissions } : {})}
         onClick={handleOpenDrawer}
-        startIcon={<ReceiptLongOutlined />}
+        startIcon={<CippIcons.ReceiptLongOutlined />}
         {...props}
       >
         {buttonText}

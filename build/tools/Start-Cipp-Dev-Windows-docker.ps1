@@ -67,7 +67,11 @@ $frontendPath = Join-Path -Path $RepoRoot -ChildPath 'frontend'
 $dockerpath = Join-Path -Path $RepoRoot -ChildPath 'build'
 $frontendCommand = 'try { yarn install --network-timeout 500000; yarn run dev } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
 $frontendEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($frontendCommand))
-$dockerCommand = 'try { ./tools/build-dev-modules.ps1; docker compose -f docker-compose-no-frontend.yml up --pull always --watch } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
+# Proxyman trust (when set up via Export-ProxymanCert.ps1) is applied automatically through
+# the optional CA mount in docker-compose-no-frontend.yml + build/.env, which Compose loads
+# on its own — no -f overlay needed here. The frontend runs on the host in this loop, so it
+# trusts Proxyman via the Windows certificate store, not a container mount.
+$dockerCommand = "try { ./tools/build-dev-modules.ps1; docker compose -f docker-compose-no-frontend.yml up --pull always --watch } catch { Write-Error `$_.Exception.Message } finally { Read-Host 'Press Enter to exit' }"
 $dockerEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($dockerCommand))
 $watcherCommand = 'try { ./tools/Watch-Cipp-Dev-Modules.ps1 -SkipInitialBuild } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
 $watcherEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($watcherCommand))

@@ -120,6 +120,15 @@ Deploys Microsoft 365 Apps using Intune's built-in Office suite deployment.
 | Use Custom XML Configuration    | Replaces the options above with a configuration XML of your own.                                                                                                                                                            |
 | Custom Office Configuration XML | The configuration to apply when the switch above is enabled. Every other Office option on this form is ignored when custom XML is supplied. Use the [Office Customization Tool](https://config.office.com/) to generate it. |
 
+**Microsoft Edge**
+
+Deploys Microsoft Edge using Intune's built-in Edge deployment. Nothing is packaged or uploaded; Intune installs it from Microsoft's own source. Edge is a singleton per tenant, so a tenant that already has it is skipped rather than given a second copy.
+
+| Field            | Description                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Edge Channel     | The servicing channel the installation follows: Stable, Beta or Dev. Required.                                            |
+| Display Language | The language the browser interface is shown in. Optional, and left to the device's own language when it is not set. |
+
 **Custom Application**
 
 Packages a pair of PowerShell scripts as a Win32 application, for anything that is not covered by the other types.
@@ -147,12 +156,12 @@ Every application type except the MSP apps offers the same assignment choices at
 
 | Option                          | Description                                                                                                                    |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Do not assign                   | Creates the application in Intune without targeting anyone.                                                                    |
-| Assign to all users             | Targets all licensed users in each selected tenant.                                                                            |
-| Assign to all devices           | Targets all devices in each selected tenant.                                                                                   |
-| Assign to all users and devices | Targets both of the above.                                                                                                     |
+| Do Not Assign                   | Creates the application in Intune without targeting anyone.                                                                    |
+| Assign to All Users             | Targets all licensed users in each selected tenant.                                                                            |
+| Assign to All Devices           | Targets all devices in each selected tenant.                                                                                   |
+| Assign to All Users and Devices | Targets both of the above.                                                                                                     |
 | Assign to Custom Group          | Targets named groups. Enter the group display names separated by commas, where `*` may be used as a wildcard.                  |
-| Exclude Group Names             | Shown for every option except Do not assign. Excludes the named groups, again comma separated and accepting `*` as a wildcard. |
+| Exclude Group Names             | Shown for every option except Do Not Assign. Excludes the named groups, again comma separated and accepting `*` as a wildcard. |
 
 {% hint style="info" %}
 Group names here are matched by display name across every selected tenant, so a wildcard such as `SEC-Workstations*` lets one deployment target similarly named groups in each customer without listing them individually.
@@ -181,7 +190,7 @@ CIPP adds the following columns by resolving each application's assignments agai
 
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Assign to All Users</td><td>Assigns the application to all licensed users in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign to All Devices</td><td>Assigns the application to all devices in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign Globally (All Users / All Devices)</td><td>Assigns the application to both all licensed users and all devices in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign to Custom Group</td><td>Assigns the application to specific groups, or excludes specific groups from it, using the chosen assignment intent and an optional assignment filter. Selecting Exclude together with Replace and no groups clears all existing exclusions while leaving the included assignments in place.</td><td>true</td></tr><tr><td>Save as Template</td><td>Saves the selected application(s) as a named application template that can be redeployed to other tenants from Application Templates.</td><td>true</td></tr><tr><td>Delete Application</td><td>Removes the application from Intune for the tenant. This also removes its assignments, and the application will be uninstalled or stop being offered depending on how it was assigned.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Assign to All Users</td><td>Assigns the application to all licensed users in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign to All Devices</td><td>Assigns the application to all devices in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign Globally (All Users / All Devices)</td><td>Assigns the application to both all licensed users and all devices in the tenant using the chosen assignment intent, with optional exclusion groups and an optional assignment filter.</td><td>true</td></tr><tr><td>Assign to Custom Group</td><td>Assigns the application to specific groups, or excludes specific groups from it, using the chosen assignment intent and an optional assignment filter. Selecting Exclude together with Replace and no groups clears all existing exclusions while leaving the included assignments in place.</td><td>true</td></tr><tr><td>Save as Template</td><td>Saves the selected application(s) as a named application template that can be redeployed to other tenants from Application Templates. Greyed out for anything other than a Microsoft Office or Microsoft Edge deployment, because every other template type is rebuilt from a package or a script at deployment and a Win32 application's uploaded installer content stays inside Intune. Rebuild one of those as a Custom Application whose install script fetches the installer.</td><td>true</td></tr><tr><td>Delete Application</td><td>Removes the application from Intune for the tenant. This also removes its assignments, and the application will be uninstalled or stop being offered depending on how it was assigned.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% hint style="info" %}
 Every assignment action offers an assignment mode. **Append** keeps the existing assignments and adds or overwrites only the targets you selected. **Replace** overwrites existing assignments, and for Assign to Custom Group it replaces only the direction you chose (include or exclude), leaving the other direction and any All Users or All Devices targets intact.

@@ -1,23 +1,14 @@
-import {
-  Launch,
-  Delete,
-  Key,
-  Security,
-  Block,
-  CheckCircle,
-  ContentCopy,
-  Visibility,
-} from '@mui/icons-material'
+import { CippIcons } from '../../utils/icon-registry'
 import { CippFormComponent } from './CippFormComponent.jsx'
 import { CertificateCredentialRemovalForm } from './CertificateCredentialRemovalForm.jsx'
 
 const headerLinkProps = { showInActionsMenu: true }
 
 const viewInEntraAction = {
-  icon: <Launch />,
+  icon: <CippIcons.Launch />,
   label: 'View Application',
-  category: "view",
   link: `https://entra.microsoft.com/[Tenant]/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/~/Overview/objectId/[id]/appId/[appId]`,
+  pinned: true,
   color: 'info',
   target: '_blank',
   multiPost: false,
@@ -26,9 +17,8 @@ const viewInEntraAction = {
 
 export const getEnterpriseAppPostActions = (canWriteApplication) => [
   {
-    icon: <ContentCopy />,
+    icon: <CippIcons.ContentCopy />,
     label: 'Create Template from App',
-    category: "manage",
     type: 'POST',
     color: 'info',
     multiPost: false,
@@ -47,12 +37,12 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
     ],
     confirmText:
       "'[displayName]' is a multi-tenant app, so a multi-tenant Enterprise App template will be created. This copies all permissions into a reusable template.",
-    condition: (row) => canWriteApplication && row?.signInAudience === 'AzureADMultipleOrgs',
+    condition: (row) =>
+      canWriteApplication && row?.signInAudience === 'AzureADMultipleOrgs',
   },
   {
-    icon: <Key />,
+    icon: <CippIcons.Key />,
     label: 'Remove Password Credentials',
-    category: "security",
     type: 'POST',
     color: 'warning',
     multiPost: false,
@@ -71,7 +61,9 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
           label="Select Password Credentials to Remove"
           multiple
           creatable={false}
-          validators={{ required: 'Please select at least one password credential' }}
+          validators={{
+            required: 'Please select at least one password credential',
+          }}
           options={
             row?.passwordCredentials?.map((cred) => ({
               label: `${cred.displayName || 'Unnamed'} (Expiration: ${new Date(
@@ -83,13 +75,14 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
         />
       )
     },
-    confirmText: 'Are you sure you want to remove the selected password credentials?',
-    condition: (row) => canWriteApplication && row?.passwordCredentials?.length > 0,
+    confirmText:
+      'Are you sure you want to remove the selected password credentials?',
+    condition: (row) =>
+      canWriteApplication && row?.passwordCredentials?.length > 0,
   },
   {
-    icon: <Security />,
+    icon: <CippIcons.Security />,
     label: 'Remove Certificate Credentials',
-    category: "security",
     type: 'POST',
     color: 'warning',
     multiPost: false,
@@ -102,13 +95,13 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
     children: ({ formHook, row }) => {
       return <CertificateCredentialRemovalForm formHook={formHook} row={row} />
     },
-    confirmText: 'Are you sure you want to remove the selected certificate credentials?',
+    confirmText:
+      'Are you sure you want to remove the selected certificate credentials?',
     condition: (row) => canWriteApplication && row?.keyCredentials?.length > 0,
   },
   {
-    icon: <Block />,
+    icon: <CippIcons.Block />,
     label: 'Disable Service Principal',
-    category: "manage",
     type: 'POST',
     color: 'warning',
     multiPost: false,
@@ -126,9 +119,8 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
     condition: (row) => canWriteApplication && row?.accountEnabled === true,
   },
   {
-    icon: <CheckCircle />,
+    icon: <CippIcons.CheckCircle />,
     label: 'Enable Service Principal',
-    category: "manage",
     type: 'POST',
     color: 'success',
     multiPost: false,
@@ -145,9 +137,41 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
     condition: (row) => canWriteApplication && row?.accountEnabled === false,
   },
   {
-    icon: <Delete />,
+    icon: <CippIcons.VisibilityOff />,
+    label: 'Hide from MyApps portal',
+    type: 'POST',
+    color: 'warning',
+    multiPost: false,
+    url: '/api/ExecApplication',
+    data: {
+      Id: 'id',
+      Type: 'servicePrincipals',
+      Action: 'Hide',
+    },
+    confirmText:
+      "Hide '[displayName]' from the MyApps portal? Users will no longer see it at myapps.microsoft.com.",
+    condition: (row) =>
+      canWriteApplication && !(row?.tags ?? []).includes('HideApp'),
+  },
+  {
+    icon: <CippIcons.EyeIcon />,
+    label: 'Show in MyApps portal',
+    type: 'POST',
+    color: 'success',
+    multiPost: false,
+    url: '/api/ExecApplication',
+    data: {
+      Id: 'id',
+      Type: 'servicePrincipals',
+      Action: 'Show',
+    },
+    confirmText: "Make '[displayName]' visible to users in the MyApps portal?",
+    condition: (row) =>
+      canWriteApplication && (row?.tags ?? []).includes('HideApp'),
+  },
+  {
+    icon: <CippIcons.Delete />,
     label: 'Delete Service Principal',
-    category: "danger",
     type: 'POST',
     color: 'error',
     multiPost: false,
@@ -165,10 +189,11 @@ export const getEnterpriseAppPostActions = (canWriteApplication) => [
 
 export const getEnterpriseAppListActions = (canWriteApplication) => [
   {
-    icon: <Visibility />,
+    icon: <CippIcons.EyeIcon />,
     label: 'View in Manage365',
-    category: "view",
+    category: 'view',
     link: '/tenant/administration/applications/enterprise-app?spId=[id]&tenantFilter=[Tenant]',
+    pinned: true,
     color: 'info',
     multiPost: false,
     external: false,

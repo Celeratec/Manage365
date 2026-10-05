@@ -136,7 +136,7 @@ A scheduled decrease checks the tenant's actual assignment state before it runs,
 
 Automated migrations identify licences at a non-Sherweb CSP that are approaching their transfer window, and — depending on the strategy chosen — notify you, purchase the equivalent licence at Sherweb, or additionally cancel the legacy subscription.
 
-Once the integration is enabled, CIPP registers a daily background check for each mapped tenant. Each run looks for subscriptions renewing within the next seven days, compares them against the subscriptions already held at Sherweb, and treats anything without an equivalent as a candidate for migration.
+Once automated migrations are enabled, CIPP registers a daily background check for each mapped tenant. Each run looks for subscriptions renewing within the next seven days, compares them against the subscriptions already held at Sherweb, and treats anything without an equivalent as a candidate for migration. Turning the setting back off removes the background check as well, so no further alerts or purchases follow.
 
 {% hint style="danger" %}
 Only enable automated migrations after extensive testing. Run with the notify strategy for at least a month before allowing automatic purchases. Neither Sherweb nor CyberDrain is responsible for purchases made through the API.

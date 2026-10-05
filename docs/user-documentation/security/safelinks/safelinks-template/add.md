@@ -2,6 +2,10 @@
 
 Creates Safe Links policies in one or more tenants from templates you have already saved. Both fields accept several values, so you can push a set of templates across a set of customers in a single submission.
 
+{% hint style="info" %}
+The page itself needs a single tenant selected in the tenant selector and does not support All Tenants there, separately from the **Select Tenants** field below, which still lets you target several tenants or All Tenants for the deployment itself.
+{% endhint %}
+
 | Field | Description |
 | ----- | ----------- |
 | Select Tenants | Required. The tenants to create the policies in. Pick one or several, or All Tenants to cover everything you manage. |

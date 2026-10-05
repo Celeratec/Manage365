@@ -20,7 +20,7 @@ Additional columns are available through the **Toggle Column Visibility** button
 
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View Report</td><td>Opens the report, rendered as a PDF preview with a Download PDF option.</td><td>true</td></tr><tr><td>Delete</td><td>Permanently deletes the selected generated report. The template it was generated from is not affected.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View Report</td><td>Opens the report, rendered as a PDF preview with a <strong>Download PDF</strong> option.</td><td>false</td></tr><tr><td>Delete</td><td>Permanently deletes the selected generated report. The template it was generated from is not affected.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% hint style="warning" %}
 Deletion is immediate and cannot be undone. Where a report was produced for a client or an audit, download the PDF before removing it.

@@ -43,6 +43,10 @@ A summary panel counts the deviations by how they have been handled.
 
 Results are presented as cards grouped into sections, each showing what the template expects and what the tenant currently has.
 
+{% hint style="info" %}
+Where a deviation's Intune, Conditional Access or reusable settings template has been deleted from the template library, the card names the deleted template instead of showing an unresolved id, and says to remove it from the drift template or select the template again.
+{% endhint %}
+
 | Section                                 | Contains                                                                              |
 | --------------------------------------- | ------------------------------------------------------------------------------------- |
 | New Deviations                          | Differences that have not yet been actioned. These are the items awaiting a decision. |
@@ -83,6 +87,7 @@ For deviations that come from an Intune template standard, a **Compare** button 
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | Not deployed notice | Shown where the policy does not exist in the tenant at all, naming the policy that is missing.                                           |
 | Summary             | States whether the two are identical, or how many differences were found.                                                                |
+| Assignments differ  | Shown when the standard also verifies assignments and the tenant's do not match what the standard expects, listing why. Only settings are compared above it, so this can appear even when the summary reports the two as identical, and is why the drift report still lists the policy as a deviation. |
 | Differences table   | Lists each differing property with its Baseline and Tenant values, and whether the values differ or the setting exists on only one side. |
 | Full settings       | The complete configuration of both the baseline and the tenant policy, for reviewing settings the comparison treated as matching.        |
 

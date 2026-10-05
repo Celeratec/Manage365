@@ -2,13 +2,14 @@
 
 This page lists the messages Microsoft Defender for Office 365 and Exchange Online Protection have quarantined for the selected tenant. From here you can inspect a message safely, trace how it arrived, and release, deny, or delete it without going into the Defender portal.
 
-Quarantine is split into three tabs, one for each type of quarantined item. This page covers the **Email** tab, which is the one you land on.
+Quarantine is split into four tabs. This page covers the **Email** tab, which is the one you land on.
 
 | Tab            | Contents                                                                                             |
 | -------------- | ------------------------------------------------------------------------------------------------------ |
 | Email          | Quarantined email messages, with the full set of investigation and remediation actions.              |
 | Files          | Files quarantined from SharePoint, OneDrive, and Microsoft Teams. See [files.md](files.md "mention"). |
 | Teams Messages | Quarantined Microsoft Teams messages. See [teams.md](teams.md "mention").                             |
+| User Reported  | Messages users reported as phishing, junk, or not junk. See [user-reported.md](user-reported.md "mention"). |
 
 ## Filters
 
@@ -50,7 +51,7 @@ Fields with no value are left out rather than shown empty, so the sections vary 
 Where Microsoft Defender for Office 365 has analysed the message, the delivery, authentication, URL, and attachment detail comes from Microsoft's own analysis. Where it has not, CIPP falls back to reading the message headers and the message itself, and the flyout says so. The fallback still lists the links and attachments it finds, but Microsoft's per-link verdicts are not available for them.
 
 {% hint style="info" %}
-The enriched detail needs the `SecurityAnalyzedMessage.Read.All` permission on your Secure Application Model application. Without it the flyout falls back to the header-based view. Check your permissions under **CIPP > Application Settings > Permissions** if the sections look thinner than expected.
+The enriched detail needs the `SecurityAnalyzedMessage.Read.All` permission on your Secure Application Model application. Where that permission is missing, the flyout says so directly and links to the [Permissions](../../../cipp/settings/permissions.md) page, where **Repair Permissions** adds it. Where the message could not be analysed for another reason, the flyout falls back to the header-based view instead.
 {% endhint %}
 
 ## Table Actions

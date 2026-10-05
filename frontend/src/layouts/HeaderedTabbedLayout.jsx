@@ -325,7 +325,8 @@ HeaderedTabbedLayout.propTypes = {
   subtitle: PropTypes.arrayOf(
     PropTypes.shape({
       icon: PropTypes.node.isRequired,
-      text: PropTypes.string.isRequired,
+      // Often a copy chip or other node, not plain text.
+      text: PropTypes.node.isRequired,
     })
   ),
   actions: PropTypes.arrayOf(

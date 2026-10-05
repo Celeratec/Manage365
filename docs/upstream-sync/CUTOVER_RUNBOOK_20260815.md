@@ -61,10 +61,18 @@ slots) to the single Manage365 container. Companion to
      -ContainerImage 'DOCKER|ghcr.io/celeratec/manage365:v6.0.0'
    ```
 
-   The script preserves SAM credentials + API client auth, migrates SWA role assignments
-   into the `allowedUsers` table, deletes the SWA, and removes ALL function apps/plans/App
-   Insights in the RG (main, processor, standards, audit, user-tasks slots included).
-4. Point DNS per the script's summary; verify EasyAuth sign-in and role mapping for each
+   The script preserves the storage account, its tables, blobs, and queues, and the Key Vault
+   that holds SAM credentials. It migrates SWA role assignments into the `allowedUsers` table,
+   deletes the SWA, and removes ALL function apps, plans, and App Insights in the RG.
+
+   v10.10 also deletes every **file share** in that storage account. Tables, blobs, and queues
+   stay. Take a CIPP backup and download it before the live run. The new site is a Linux
+   container Web App whose name must match the Key Vault. Owner (or Contributor plus User
+   Access Administrator) is required. SSO must already be `secrets_stored` or `complete`;
+   `-TestOnly` only warns about that, it does not stop.
+4. Point DNS per the script's summary. Add the custom domain on the new Web App, then use
+   CIPP → Advanced → Authentication → SSO → Refresh Sign-in URLs so the new hostname has an
+   `/.auth/login/aad/callback` redirect. Verify EasyAuth sign-in and role mapping for each
    admin user.
 5. Re-run the Stage 1 smoke checklist against production data (read-only checks first).
 
@@ -79,5 +87,6 @@ slots) to the single Manage365 container. Companion to
 
 Until Stage 2 step 3 completes, rollback = do nothing (production untouched). After the
 migration script has run, rollback requires redeploying the SWA + function apps from the
-archived fork repos against the same storage account (the script does not delete storage)
-— stop the container app first so queues/timers are not double-consumed.
+archived fork repos against the same storage account. The account, its tables, blobs, queues,
+and the Key Vault remain. File shares do not. Stop the new Web App first so queues and timers
+are not double-consumed.

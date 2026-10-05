@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CippIcons } from "../../utils/icon-registry";
 import {
   Button,
   Collapse,
@@ -14,14 +15,6 @@ import {
   useTheme,
 } from "@mui/material";
 import { Grid } from "@mui/system";
-import SearchIcon from "@mui/icons-material/Search";
-import ClearIcon from "@mui/icons-material/Clear";
-import SettingsIcon from "@mui/icons-material/Settings";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import ErrorIcon from "@mui/icons-material/Error";
-import WarningIcon from "@mui/icons-material/Warning";
-import HelpIcon from "@mui/icons-material/Help";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Controller, useForm } from "react-hook-form";
 import { ApiGetCall } from "../../api/ApiCall";
 import CippButtonCard from "./CippButtonCard";
@@ -31,43 +24,40 @@ import { CippPropertyListCard } from "./CippPropertyListCard";
 import { getCippFormatting } from "../../utils/get-cipp-formatting";
 import punycode from "punycode";
 
-const ResultList = ({ passes = [], warns = [], fails = [] }) => {
-  const theme = useTheme();
-  return (
-    <Stack direction="column" sx={{ mt: 1 }}>
-      {passes.map((pass, index) => (
-        <Typography
-          variant="body2"
-          key={index}
-          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-        >
-          <CheckCircleIcon sx={{ color: "success.main", mr: 0.5, fontSize: 18 }} />
-          {pass}
-        </Typography>
-      ))}
-      {warns.map((warn, index) => (
-        <Typography
-          variant="body2"
-          key={index}
-          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-        >
-          <WarningIcon sx={{ color: "warning.main", mr: 0.5, fontSize: 18 }} />
-          {warn}
-        </Typography>
-      ))}
-      {fails.map((fail, index) => (
-        <Typography
-          variant="body2"
-          key={index}
-          sx={{ display: "flex", alignItems: "center", mb: 1 }}
-        >
-          <ErrorIcon sx={{ color: "error.main", mr: 0.5, fontSize: 18 }} />
-          {fail}
-        </Typography>
-      ))}
-    </Stack>
-  );
-};
+const ResultList = ({ passes = [], warns = [], fails = [] }) => (
+  <Stack direction="column" sx={{ mt: 1 }}>
+    {passes.map((pass, index) => (
+      <Typography
+        variant="body2"
+        key={index}
+        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
+      >
+        <CippIcons.CheckCircle style={{ color: "green", marginRight: "4px" }} />
+        {pass}
+      </Typography>
+    ))}
+    {warns.map((warn, index) => (
+      <Typography
+        variant="body2"
+        key={index}
+        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
+      >
+        <CippIcons.Warning style={{ color: "orange", marginRight: "4px" }} />
+        {warn}
+      </Typography>
+    ))}
+    {fails.map((fail, index) => (
+      <Typography
+        variant="body2"
+        key={index}
+        sx={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
+      >
+        <CippIcons.Error style={{ color: "red", marginRight: "4px" }} />
+        {fail}
+      </Typography>
+    ))}
+  </Stack>
+);
 
 // Custom MX Results Card component
 const MXResultsCard = ({ domain, mxData, isFetching }) => {
@@ -90,7 +80,7 @@ const MXResultsCard = ({ domain, mxData, isFetching }) => {
     <CippButtonCard
       title={
         <div style={{ display: "flex", alignItems: "center" }}>
-          {allPassed && <CheckCircleIcon sx={{ color: "success.main", mr: 1 }} />}
+          {allPassed && <CippIcons.CheckCircle style={{ color: "green", marginRight: "8px" }} />}
           MX Records
         </div>
       }
@@ -99,14 +89,14 @@ const MXResultsCard = ({ domain, mxData, isFetching }) => {
         <>
           {helpUrl && (
             <Tooltip title="Help">
-              <IconButton href={helpUrl} target="_blank" aria-label="Help documentation">
-                <HelpIcon />
+              <IconButton href={helpUrl} target="_blank">
+                <CippIcons.Help />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title="Details">
-            <IconButton onClick={handleDetailsClick} aria-label="View details">
-              <MoreVertIcon />
+            <IconButton onClick={handleDetailsClick}>
+              <CippIcons.MoreVert />
             </IconButton>
           </Tooltip>
           <CippOffCanvas
@@ -336,13 +326,13 @@ function DomainResultCard({ title, data, isFetching, info, type }) {
       title={
         <div style={{ display: "flex", alignItems: "center" }}>
           {data?.ValidationFails?.length === 0 && data?.ValidationWarns?.length === 0 && (
-            <CheckCircleIcon sx={{ color: "success.main", mr: 1 }} />
+            <CippIcons.CheckCircle style={{ color: "green", marginRight: "8px" }} />
           )}
           {data?.ValidationFails?.length > 0 && (
-            <ErrorIcon sx={{ color: "error.main", mr: 1 }} />
+            <CippIcons.Error style={{ color: "red", marginRight: "8px" }} />
           )}
-          {data?.ValidationWarns?.length > 0 && data?.ValidationFails?.length === 0 && (
-            <WarningIcon sx={{ color: "warning.main", mr: 1 }} />
+          {data?.ValidationWarns?.length > 0 && (
+            <CippIcons.Warning style={{ color: "orange", marginRight: "8px" }} />
           )}
           {title}
         </div>
@@ -352,14 +342,14 @@ function DomainResultCard({ title, data, isFetching, info, type }) {
         <>
           {data?._Comment && (
             <Tooltip title="Help">
-              <IconButton href={data?._Comment} target="_blank" aria-label="Help documentation">
-                <HelpIcon />
+              <IconButton href={data?._Comment} target="_blank">
+                <CippIcons.Help />
               </IconButton>
             </Tooltip>
           )}
           <Tooltip title="Details">
-            <IconButton onClick={() => setVisible(true)} aria-label="View details">
-              <MoreVertIcon />
+            <IconButton onClick={() => setVisible(true)}>
+              <CippIcons.MoreVert />
             </IconButton>
           </Tooltip>
         </>
@@ -502,7 +492,7 @@ export const CippDomainCards = ({ domain: propDomain = "", fullwidth = false }) 
             cardActions={
               <Tooltip title="Settings">
                 <IconButton onClick={() => setOptionsVisible(!optionsVisible)}>
-                  <SettingsIcon />
+                  <CippIcons.Settings />
                 </IconButton>
               </Tooltip>
             }
@@ -518,7 +508,7 @@ export const CippDomainCards = ({ domain: propDomain = "", fullwidth = false }) 
                 />
               </Grid>
               <Grid size={{ xs: 12 }}>
-                <Button type="submit" variant="contained" startIcon={<SearchIcon />}>
+                <Button type="submit" variant="contained" startIcon={<CippIcons.Search />}>
                   Check
                 </Button>
               </Grid>
@@ -561,7 +551,7 @@ export const CippDomainCards = ({ domain: propDomain = "", fullwidth = false }) 
                 <Button
                   variant="outlined"
                   color="error"
-                  startIcon={<ClearIcon />}
+                  startIcon={<CippIcons.Clear />}
                   onClick={handleClear}
                   className="mt-2"
                 >

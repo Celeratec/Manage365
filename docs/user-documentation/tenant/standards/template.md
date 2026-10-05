@@ -53,6 +53,10 @@ The toolbar above the list has **All**, **Configured**, and **Unconfigured** but
 {% hint style="info" %}
 **Fuzzy Match Distance** (available on some standards) sets how closely a policy name must match before it is treated as the same policy. The value is the Levenshtein distance, which is the number of single-character changes needed to turn one name into another. 0 requires an exact match, 1 tolerates a single character difference, 2 tolerates two, and so on. Higher values match more loosely but risk matching unrelated policies.
 {% endhint %}
+
+{% hint style="info" %}
+**What state should we deploy this template in?**, on the Conditional Access Template standard, sets the state the policy is deployed in and takes precedence over the state saved in the template itself. A template built as enabled but assigned with **Set to report only** deploys as report only. Choose **Do not change state** to deploy whatever state the template defines.
+{% endhint %}
 {% endstep %}
 
 {% step %}
@@ -138,6 +142,10 @@ For each standard, set the automatic remediation toggle if you want the change r
 
 {% hint style="info" %}
 **Set All Actions** is not available on drift templates, since drift standards do not take a free choice of actions.
+{% endhint %}
+
+{% hint style="info" %}
+On the Conditional Access Template standard, **What state should we deploy this template in?** takes precedence over the state saved in the template itself, the same as it does in a standards template. Choose **Do not change state** to deploy whatever state the template defines.
 {% endhint %}
 {% endstep %}
 

@@ -2,6 +2,10 @@
 
 Safe Links rewrites and checks links in mail, Teams and Office documents at the moment someone clicks them. In Exchange Online this is really two objects: a policy holding the protection settings, and a rule deciding who the policy applies to. CIPP joins the pair back together so each row is one complete configuration, and flags the cases where the pair has come apart.
 
+{% hint style="info" %}
+This page needs a single tenant selected and does not support All Tenants.
+{% endhint %}
+
 ## Action Buttons
 
 {% content-ref url="add.md" %}
@@ -66,6 +70,6 @@ Changes to Safe Links policies and rules may take up to 6 hours to propagate thr
 
 Microsoft's preset security policies and the built-in protection policy are managed by Microsoft and cannot be changed here, so every action below is greyed out on those rows.
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Safe Links Policy</td><td>Opens the <a data-mention href="edit.md">edit.md</a> page for the selected policy.</td><td>false</td></tr><tr><td>Enable Rule</td><td>Switches the configuration on. Greyed out when it is already enabled.</td><td>true</td></tr><tr><td>Disable Rule</td><td>Switches the configuration off, leaving it in place but not applying. Greyed out when it is already disabled.</td><td>true</td></tr><tr><td>Set Priority</td><td>Changes the order the rule is evaluated in, prompting for the new priority number. Lower numbers are evaluated first, and the value must be at least 0.</td><td>false</td></tr><tr><td>Create template based on policy</td><td>Saves the selected policy and its rule as a Safe Links policy template, so it can be redeployed to other tenants.</td><td>false</td></tr><tr><td>Delete Rule</td><td>Permanently removes both the policy and the rule.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Safe Links Policy</td><td>Opens the <a data-mention href="edit.md">edit.md</a> page for the selected policy.</td><td>false</td></tr><tr><td>Enable Rule</td><td>Switches the configuration on. Greyed out when it is already enabled.</td><td>true</td></tr><tr><td>Disable Rule</td><td>Switches the configuration off, leaving it in place but not applying. Greyed out when it is already disabled.</td><td>true</td></tr><tr><td>Set Priority</td><td>Changes the order the rule is evaluated in, prompting for the new priority number. Lower numbers are evaluated first, and the value must be at least 0.</td><td>false</td></tr><tr><td>Create template based on policy</td><td>Saves the selected policy and its rule as a Safe Links policy template, named after the policy, so it can be redeployed to other tenants.</td><td>false</td></tr><tr><td>Delete Rule</td><td>Permanently removes both the policy and the rule.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

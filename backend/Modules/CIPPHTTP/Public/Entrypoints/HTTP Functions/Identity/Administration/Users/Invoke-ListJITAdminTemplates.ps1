@@ -29,9 +29,11 @@ function Invoke-ListJITAdminTemplates {
     $Templates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter) | ForEach-Object {
         try {
             $row = $_
-            $data = $row.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
-            $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $row.GUID -Force
-            $data | Add-Member -NotePropertyName 'RowKey' -NotePropertyValue $row.RowKey -Force
+            $data = $row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+            $data | Add-Member -NotePropertyMembers ([ordered]@{
+                    GUID   = $row.GUID
+                    RowKey = $row.RowKey
+                }) -Force
             $data
         } catch {
             Write-LogMessage -headers $Headers -API $APIName -message "Failed to process JIT Admin template: $($row.RowKey) - $($_.Exception.Message)" -sev 'Warning'

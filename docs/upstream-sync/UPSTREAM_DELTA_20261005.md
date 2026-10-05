@@ -30,6 +30,20 @@ Cycle: **Major** — CyberDrain CIPP **10.8.5 → 11.0.2**, applied on the monor
 | Report list pages | **Adapt** | Shared report-database sync. Manage365 card views, drawers, and custom actions kept |
 | CippDataTable, toolbar, user actions, offboarding wizard | **Adapt** | Both card/action behavior and upstream mobile, filter, and new actions |
 
+## v10.10.3 triage
+
+Merged onto the v10.9.1 result. Conflicts were files both sides changed after 10.9.1 (MUI 9 renames to `.jsx`, Graph message trace, JIT/PIM, GDAP templates).
+
+| Area | Outcome | Notes |
+|------|---------|-------|
+| CyberDrain workflows, dashboard v1, add-subscription, Sherweb licence report and migration | **Skip** | Kept deleted |
+| Quarantine page | **Adapt** | Manage365 EXO portal kept |
+| Standards catalog and standards/drift pages | **Adapt** | Union. Baselines flag left off. Standards pages stay available |
+| Navigation and version card | **Adapt** | Union of menus. Manage365 version card kept |
+| Message trace, JIT/PIM, GDAP templates, report pagination | **Apply** | Upstream behavior, with Manage365 card views and action categories kept |
+| Retired `.js` pages (`404`, roles, message trace, bulk add, GDAP roles, icon registry) | **Apply** | Removed where a `.jsx` page or redirect already covers the route |
+| Cutover script | **Apply** | Upstream script is in-tree. Runbook updated: live run deletes file shares; storage account, tables, blobs, queues, and Key Vault stay. Script was not executed |
+
 ## Still open in this cycle
 
 - v10.10.3 and v11.0.2 are not merged yet.

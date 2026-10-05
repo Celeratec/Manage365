@@ -12,9 +12,9 @@ Opens a drawer that applies a saved policy template to one or more tenants.
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Select Tenants                     | The tenants to deploy to. Several can be selected, and the same template is applied to each.                                                                            |
 | Please choose a template to apply. | The policy template to deploy, chosen from those saved in Policy Templates. **Refresh Templates** reloads the list if a template was added since the drawer was opened. |
-| Assignment                         | Who the deployed policy is assigned to: Do not assign, Assign to all users, Assign to all devices, Assign to all users and devices, or Assign to Custom Group.          |
+| Assignment                         | Who the deployed policy is assigned to: Do Not Assign, Assign to All Users, Assign to All Devices, Assign to All Users and Devices, or Assign to Custom Group.          |
 | Custom Group Names                 | Shown when Assign to Custom Group is chosen. Group display names separated by commas, where `*` may be used as a wildcard.                                              |
-| Exclude Group Names                | Shown for every option except Do not assign. Group display names to exclude, again comma separated and accepting `*` as a wildcard.                                     |
+| Exclude Group Names                | Shown for every option except Do Not Assign. Group display names to exclude, again comma separated and accepting `*` as a wildcard.                                     |
 | Assignment Filter (Optional)       | An assignment filter from the tenant to narrow which devices the policy applies to.                                                                                     |
 | Assignment Filter Mode             | Whether the filter includes or excludes matching devices. Shown once a filter is chosen.                                                                                |
 

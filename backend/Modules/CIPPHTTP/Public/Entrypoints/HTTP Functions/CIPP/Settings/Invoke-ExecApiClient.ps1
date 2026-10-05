@@ -243,7 +243,20 @@ function Invoke-ExecApiClient {
                 # Advertise the MCP resource scope via App Service PRM so connectors request
                 # a scope that matches the resource app. Cleared when no MCP clients.
                 if ($McpClientIds.Count -gt 0 -and $env:WEBSITE_HOSTNAME) {
-                    $null = Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $RGName -AppSetting @{ 'WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES' = "https://$($env:WEBSITE_HOSTNAME)/user_impersonation" }
+                    # Advertise the OIDC + offline_access scopes alongside the resource scope so
+                    # discovery-based MCP clients (ChatGPT, VS Code, Copilot CLI) request a refresh
+                    # token. offline_access is what makes Entra issue one; without it the client
+                    # re-consents every ~hour. Claude appends offline_access itself, but stricter
+                    # clients only request what the metadata advertises, so it has to be in the
+                    # challenge header and the discovery docs, not just one of them. The values come
+                    # from Get-CippMcpScopeAppSettings so the Initialize-CIPPAuth warmup reconcile
+                    # writes byte-identical settings and the two paths never fight each other.
+                    # NOTE: Copilot Studio does NOT read any of this. Entra has no RFC 7591 DCR, so
+                    # Copilot Studio uses Manual OAuth with a maker-typed scope; its refresh token
+                    # depends on offline_access being consented on the MCP client app registration
+                    # (Set-CIPPMCPClientApp / Grant-CippAppGraphConsent), not on these documents.
+                    $McpAppSettings = Get-CippMcpScopeAppSettings -Hostname $env:WEBSITE_HOSTNAME -TenantId $env:TenantID -IsCippNg:([bool]$env:CIPPNG)
+                    $null = Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $RGName -AppSetting $McpAppSettings
                 } else {
                     $null = Update-CIPPAzFunctionAppSetting -Name $FunctionAppName -ResourceGroupName $RGName -AppSetting @{} -RemoveKeys @('WEBSITE_AUTH_PRM_DEFAULT_WITH_SCOPES')
                 }

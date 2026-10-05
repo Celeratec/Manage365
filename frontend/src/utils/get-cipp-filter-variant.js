@@ -1,5 +1,43 @@
 import { getCippUniqueLicenses } from "./get-cipp-unique-licenses";
 
+// Named (not inline) so it can be registered under a string key in CippDataTable's
+// filterFns — an inline function here leaves MRT unable to resolve a "Filter Mode" label.
+export const licenseIncludesFilterFn = (row, columnId, filterValue) => {
+  const userLicenses = row.original.assignedLicenses;
+  const hasLicenses = Array.isArray(userLicenses) && userLicenses.length > 0;
+  if (filterValue === "licensed") return hasLicenses;
+  if (filterValue === "unlicensed") return !hasLicenses;
+  if (Array.isArray(filterValue)) {
+    if (filterValue.includes("licensed")) return hasLicenses;
+    if (filterValue.includes("unlicensed")) return !hasLicenses;
+  }
+  if (!filterValue || !Array.isArray(filterValue) || filterValue.length === 0) {
+    return true;
+  }
+
+  const hasNoLicenseFilter = filterValue.includes("__no_license__");
+  const otherFilters = filterValue.filter((v) => v !== "__no_license__");
+  const isUnlicensed = !userLicenses || !Array.isArray(userLicenses) || userLicenses.length === 0;
+
+  // If user selected "No Licenses Assigned" and this user is unlicensed → match
+  if (hasNoLicenseFilter && isUnlicensed) {
+    return true;
+  }
+
+  // If only "No Licenses Assigned" is selected and user has licenses → no match
+  if (hasNoLicenseFilter && otherFilters.length === 0 && !isUnlicensed) {
+    return false;
+  }
+
+  // Check other license filters
+  if (isUnlicensed) {
+    return false;
+  }
+
+  const userSkuIds = userLicenses.map((license) => license.skuId).filter(Boolean);
+  return otherFilters.some((selectedSkuId) => userSkuIds.includes(selectedSkuId));
+};
+
 export const getCippFilterVariant = (providedColumnKeys, arg) => {
   // Back-compat + new options mode
   const isOptions =
@@ -59,52 +97,9 @@ export const getCippFilterVariant = (providedColumnKeys, arg) => {
       return {
         filterVariant: "multi-select",
         sortingFn: "alphanumeric",
-        filterFn: (row, columnId, filterValue) => {
-          const userLicenses = row.original.assignedLicenses;
-          const hasLicenses = userLicenses && Array.isArray(userLicenses) && userLicenses.length > 0;
-          
-          // Handle special "licensed"/"unlicensed" filter values (from preset filters)
-          if (filterValue === "licensed") {
-            return hasLicenses;
-          }
-          if (filterValue === "unlicensed") {
-            return !hasLicenses;
-          }
-
-          // Handle array of filter values (could be skuIds or special values)
-          if (Array.isArray(filterValue)) {
-            if (filterValue.length === 0) {
-              return true;
-            }
-            // Check for special string values first
-            if (filterValue.includes("licensed")) {
-              return hasLicenses;
-            }
-            if (filterValue.includes("unlicensed")) {
-              return !hasLicenses;
-            }
-            // Upstream: handle "__no_license__" (No Licenses Assigned)
-            const hasNoLicenseFilter = filterValue.includes("__no_license__");
-            const otherFilters = filterValue.filter((v) => v !== "__no_license__");
-            const isUnlicensed = !hasLicenses;
-
-            if (hasNoLicenseFilter && isUnlicensed) {
-              return true;
-            }
-            if (hasNoLicenseFilter && otherFilters.length === 0 && !isUnlicensed) {
-              return false;
-            }
-            if (isUnlicensed) {
-              return false;
-            }
-            // Otherwise filter by skuId
-            const userSkuIds = userLicenses.map((license) => license.skuId).filter(Boolean);
-            return otherFilters.some((selectedSkuId) => userSkuIds.includes(selectedSkuId));
-          }
-
-          // No filter or unrecognized format - show all
-          return true;
-        },
+        // string name (registered in CippDataTable's FILTER_FNS) so MRT can resolve a
+        // "Filter Mode" label — an inline function here can't be looked up by name.
+        filterFn: "licenseIncludes",
         filterSelectOptions: filterSelectOptions,
       };
     case "accountEnabled":

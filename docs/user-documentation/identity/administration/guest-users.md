@@ -48,7 +48,11 @@ The flyout adds the user principal name, the object ID, the raw invitation state
 
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View User</td><td>Opens the <a data-mention href="users/user/">user</a> page for the selected guest.</td><td>false</td></tr><tr><td>Re-invite Guest</td><td>Sends the guest invitation email again, pointing the guest at the My Apps portal. Greyed out for guests with no email address, and for any status other than <strong>Pending Acceptance</strong> or <strong>Stale</strong>.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>View User</td><td>Opens the <a data-mention href="users/user/">user</a> page for the selected guest.</td><td>false</td></tr><tr><td>Re-invite Guest</td><td>Sends the guest invitation email again, pointing the guest at the My Apps portal. Greyed out for guests with no email address, and for any status other than <strong>Pending Acceptance</strong> or <strong>Stale</strong>.</td><td>true</td></tr><tr><td>Set Sign In State</td><td>Blocks or restores the guest account's ability to sign in.</td><td>true</td></tr><tr><td>Delete Guest</td><td>Deletes the guest account. Deleted accounts remain recoverable from Deleted Items for 30 days.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+
+{% hint style="info" %}
+Set Sign In State and Delete Guest need user write access, and are greyed out without it.
+{% endhint %}
 
 {% hint style="warning" %}
 Reading sign-in activity needs an Entra ID P1 licence in the tenant. Without it, only Disabled and Pending Acceptance can be determined and every other guest is reported as Unknown, so an Unknown-heavy table means the licensing is missing rather than that the guests are inactive.

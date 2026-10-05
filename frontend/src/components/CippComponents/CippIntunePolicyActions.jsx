@@ -1,12 +1,4 @@
-import { Book, LaptopChromebook } from '@mui/icons-material'
-import {
-  DocumentDuplicateIcon,
-  GlobeAltIcon,
-  PencilIcon,
-  TrashIcon,
-  UserIcon,
-  UserGroupIcon,
-} from '@heroicons/react/24/outline'
+import { CippIcons } from '../../utils/icon-registry'
 
 const assignmentModeOptions = [
   { label: 'Replace existing assignments', value: 'replace' },
@@ -226,7 +218,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
         URLName: policyType === 'URLName' ? 'URLName' : policyType,
       },
       confirmText: 'Are you sure you want to create a template based on this policy?',
-      icon: <Book />,
+      icon: <CippIcons.Book />,
       color: 'info',
       multiPost: false,
       category: 'manage',
@@ -240,7 +232,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
       type: 'POST',
       url: '/api/EditIntunePolicy',
       multiPost: false,
-      icon: <PencilIcon />,
+      icon: <CippIcons.Edit />,
       color: 'info',
       data: {
         ID: 'id',
@@ -275,7 +267,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
       type: 'POST',
       url: '/api/AddIntunePolicyClone',
       multiPost: false,
-      icon: <DocumentDuplicateIcon />,
+      icon: <CippIcons.DocumentDuplicateIcon />,
       color: 'info',
       data: templateData || {
         ID: 'id',
@@ -320,7 +312,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     fields: getBroadAssignFields(),
     customDataformatter: getCustomDataFormatter('allLicensedUsers'),
     confirmText: 'Are you sure you want to assign "[displayName]" to all users?',
-    icon: <UserIcon />,
+    icon: <CippIcons.UserIcon />,
     color: 'info',
     category: 'edit',
   })
@@ -341,7 +333,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     fields: getBroadAssignFields(),
     customDataformatter: getCustomDataFormatter('AllDevices'),
     confirmText: 'Are you sure you want to assign "[displayName]" to all devices?',
-    icon: <LaptopChromebook />,
+    icon: <CippIcons.LaptopChromebook />,
     color: 'info',
     category: 'edit',
   })
@@ -362,7 +354,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     fields: getBroadAssignFields(),
     customDataformatter: getCustomDataFormatter('AllDevicesAndUsers'),
     confirmText: 'Are you sure you want to assign "[displayName]" to all users and devices?',
-    icon: <GlobeAltIcon />,
+    icon: <CippIcons.GlobeAltIcon />,
     color: 'info',
     category: 'edit',
   })
@@ -373,7 +365,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
     type: 'POST',
     url: '/api/ExecAssignPolicy',
     allowResubmit: true,
-    icon: <UserGroupIcon />,
+    icon: <CippIcons.UserGroupIcon />,
     color: 'info',
     confirmText: 'Select the target groups for "[displayName]".',
     multiPost: false,
@@ -393,7 +385,7 @@ export const useCippIntunePolicyActions = (tenant, policyType, options = {}) => 
         URLName: deleteUrlName === 'URLName' ? 'URLName' : deleteUrlName,
       },
       confirmText: 'Are you sure you want to delete this policy?',
-      icon: <TrashIcon />,
+      icon: <CippIcons.Delete />,
       color: 'danger',
       category: 'danger',
     })

@@ -32,8 +32,16 @@ Function Invoke-ExecExtensionMapping {
         $Result = Get-HuduFieldMapping -CIPPMapping $Table
       }
       'HaloPSAFields' {
-        $TicketTypes = Get-HaloTicketType
-        $Outcomes = Get-HaloTicketOutcome
+        # Outcomes and priorities are scoped to a ticket type. The settings page sends the
+        # ticket type currently selected in the form so the lists follow the dropdown; without
+        # it both fall back to whatever ticket type was last saved.
+        # @() on each: PowerShell unrolls single-element output, so a ticket type with one outcome
+        # (or a lookup that answers with a single explanatory row) would otherwise serialise as a
+        # bare object and break callers that expect a list.
+        $SelectedTicketType = $Request.Query.TicketType
+        $TicketTypes = @(Get-HaloTicketType)
+        $Outcomes = @(Get-HaloTicketOutcome -TicketType $SelectedTicketType)
+        $Priorities = @(Get-HaloPriority -TicketType $SelectedTicketType)
         $Result = @{
           'TicketTypes' = $TicketTypes
           'Outcomes'    = $Outcomes
@@ -98,7 +106,7 @@ Function Invoke-ExecExtensionMapping {
   catch {
     $ErrorMessage = Get-CippException -Exception $_
     $Result = "Mapping API failed. $($ErrorMessage.NormalizedError)"
-    Write-LogMessage -API $APIName -headers $Headers -message $Result -Sev 'Error' -LogData $ErrorMessage
+    Write-LogMessage -API $APIName -tenant 'Global' -headers $Headers -message $Result -Sev 'Error' -LogData $ErrorMessage
     $StatusCode = [HttpStatusCode]::InternalServerError
   }
 
@@ -118,6 +126,7 @@ Function Invoke-ExecExtensionMapping {
           $InstanceId = Start-CIPPOrchestrator -InputObject $InputObject
           Write-Host "Started permissions orchestration with ID = '$InstanceId'"
           $Result = 'AutoMapping Request has been queued. Exact name matches will appear first and matches on device names and serials will take longer. Please check the CIPP Logbook and refresh the page once complete.'
+          Write-LogMessage -API $APIName -tenant 'Global' -headers $Headers -message $Result -Sev 'Info'
         }
 
       }
@@ -127,7 +136,7 @@ Function Invoke-ExecExtensionMapping {
   catch {
     $ErrorMessage = Get-CippException -Exception $_
     $Result = "Mapping API failed. $($ErrorMessage.NormalizedError)"
-    Write-LogMessage -API $APIName -headers $Headers -message $Result -Sev 'Error' -LogData $ErrorMessage
+    Write-LogMessage -API $APIName -tenant 'Global' -headers $Headers -message $Result -Sev 'Error' -LogData $ErrorMessage
     $StatusCode = [HttpStatusCode]::InternalServerError
   }
 

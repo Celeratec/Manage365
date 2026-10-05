@@ -67,7 +67,7 @@ const formatErrorValue = (value) => {
       return value.message;
     }
 
-    for (const key of ["error", "Error", "result"]) {
+    for (const key of ["error", "Error", "result", "Results", "message", "Message", "NormalizedError", "resultText"]) {
       if (value[key] != null && value[key] !== value) {
         const formatted = formatErrorValue(value[key]);
         if (formatted) {

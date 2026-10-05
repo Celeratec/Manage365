@@ -232,6 +232,10 @@ Each metric is clickable and takes you to the corresponding area of CIPP for a d
 
 How the tenant scored against the selected test suite, broken down by Identity, Devices, and Custom, with an overall figure and a pass, fail, and skip split. The suite's name and description are shown on the card.
 
+{% hint style="info" %}
+Selecting Identity, Devices, or Custom jumps to that tab, keeping the same test suite selected so the detail lines up with what you clicked from.
+{% endhint %}
+
 </details>
 
 <details>

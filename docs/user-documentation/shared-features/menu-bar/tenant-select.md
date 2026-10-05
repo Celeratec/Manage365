@@ -26,7 +26,9 @@ The list is grouped, so the tenants you work with most sit at the top rather tha
 | --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | **Favorites**   | Tenants you have starred, in the order you starred them.                                                                           |
 | **Recent**      | The tenants you have selected most recently, newest first, up to eight. A tenant that is already a favourite is not repeated here. |
-| **All tenants** | Everything else, sorted alphabetically.                                                                                            |
+| **All tenants** | Every tenant you manage, sorted alphabetically.                                                                                    |
+
+Favourites and Recent are shortcuts rather than a move: a tenant listed there still appears in its usual alphabetical position under **All tenants** as well.
 
 Each row carries a star on the right. Select it to add that tenant to **Favorites**, or select it again to remove it. Selecting the star does not change tenant, so you can reorganise the list without leaving the page you are on.
 
