@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index.jsx";
 import { CippIcons } from "../../../utils/icon-registry";
 import { usePermissions } from "../../../hooks/use-permissions";
 import { CippEditSitePropertiesForm } from "../../../components/CippComponents/CippEditSitePropertiesForm";

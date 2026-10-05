@@ -1,6 +1,6 @@
 import { Box, Container, Stack, Typography, Paper, Button } from "@mui/material";
 import Head from "next/head";
-import { Layout as DashboardLayout } from "../layouts/index.js";
+import { Layout as DashboardLayout } from "../layouts/index.jsx";
 import { alpha, useTheme } from "@mui/material/styles";
 import { Lock, Home, ArrowBack } from "@mui/icons-material";
 import { useRouter } from "next/router";

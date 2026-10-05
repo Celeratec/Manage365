@@ -1,7 +1,7 @@
 import { Box, Container, Stack, Typography, Paper, Button, Alert, Collapse, IconButton } from "@mui/material";
 import { Grid } from "@mui/system";
 import Head from "next/head";
-import { Layout as DashboardLayout } from "../layouts/index.js";
+import { Layout as DashboardLayout } from "../layouts/index.jsx";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router.js";
 import { alpha, useTheme } from "@mui/material/styles";

@@ -1,6 +1,6 @@
 // Shared layout chrome dimensions.
 //
-// These used to be redeclared per file and had drifted apart - layouts/index.js padded the content
+// These used to be redeclared per file and had drifted apart - layouts/index.jsx padded the content
 // by 50px against a nav that top-nav.js and side-nav.js both rendered at 64px, so content sat 14px
 // underneath it. Keep them here so the fixed nav, the side nav, and the content offset can't
 // disagree again.

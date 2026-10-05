@@ -39,7 +39,7 @@ export const TopNav = (props) => {
   const { onNavOpen } = props
   const settings = useSettings()
   const { bookmarks, setBookmarks } = useUserBookmarks()
-  // same gate as the side nav in layouts/index.js, the hamburger below is the drawer's only opener
+  // same gate as the side nav in layouts/index.jsx, the hamburger below is the drawer's only opener
   const navCollapsed = useIsMobileLayout()
   const showPopoverBookmarks = settings.bookmarkPopover === true
   const reorderMode = settings.bookmarkReorderMode || 'arrows'

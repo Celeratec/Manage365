@@ -1,6 +1,6 @@
 import { Alert, Button, Chip, Tooltip, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { TabbedLayout } from "../../../../layouts/TabbedLayout";
 import Link from "next/link";
 import { CopyAll, Delete, PlayArrow, AddBox, Edit, GitHub, ContentCopy, Schedule } from "@mui/icons-material";
@@ -11,7 +11,7 @@ import { EyeIcon, DocumentTextIcon, ClockIcon, UserIcon, PlayCircleIcon, ListBul
 import tabOptions from "../tabOptions.json";
 import { useSettings } from "../../../../hooks/use-settings.js";
 import { CippPolicyImportDrawer } from "../../../../components/CippComponents/CippPolicyImportDrawer.jsx";
-import { PermissionButton } from "../../../../utils/permissions.js";
+import { PermissionButton } from "../../../../utils/permissions.jsx";
 import { CippRemovableTenantChips } from "../../../../components/CippComponents/CippRemovableTenantChips";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage";

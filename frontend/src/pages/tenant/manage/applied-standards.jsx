@@ -18,7 +18,7 @@ import {
   Menu,
   MenuItem,
 } from '@mui/material'
-import { Layout as DashboardLayout } from '../../../layouts/index.js'
+import { Layout as DashboardLayout } from '../../../layouts/index.jsx'
 import { HeaderedTabbedLayout } from '../../../layouts/HeaderedTabbedLayout'
 import {
   CheckCircle,
@@ -53,7 +53,7 @@ import DOMPurify from 'dompurify'
 import { ClockIcon } from '@heroicons/react/24/outline'
 import ReactMarkdown from 'react-markdown'
 import tabOptions from './tabOptions.json'
-import { createDriftManagementActions } from './driftManagementActions'
+import { createDriftManagementActions } from '../../../components/CippComponents/CippDriftManagementActions'
 import { CippApiLogsDrawer } from '../../../components/CippComponents/CippApiLogsDrawer'
 import { CippHead } from '../../../components/CippComponents/CippHead'
 

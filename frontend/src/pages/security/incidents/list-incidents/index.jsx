@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { CippIcons } from "../../../../utils/icon-registry";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
 import {
   Paper,

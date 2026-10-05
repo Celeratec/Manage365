@@ -1,5 +1,5 @@
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { TabbedLayout } from "../../../../layouts/TabbedLayout";
 import tabOptions from "./tabOptions.json";
 import { useSettings } from "../../../../hooks/use-settings.js";

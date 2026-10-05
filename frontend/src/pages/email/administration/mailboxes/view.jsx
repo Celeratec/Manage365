@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { useRouter } from "next/router";
 import { useSettings } from "../../../../hooks/use-settings";
 import { ApiGetCall, ApiPostCall } from "../../../../api/ApiCall";

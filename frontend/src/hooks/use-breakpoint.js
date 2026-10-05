@@ -3,7 +3,7 @@ import { useSettings } from "./use-settings";
 
 // Shared breakpoint hooks so the two mobile thresholds sit next to each other.
 
-// Chrome pivots where the side nav gives way to the drawer (layouts/index.js). Everything that
+// Chrome pivots where the side nav gives way to the drawer (layouts/index.jsx). Everything that
 // has to agree with the nav reads this: content gutter, top-nav hamburger, page toolbars.
 export const useIsMobileLayout = () => useMediaQuery((theme) => theme.breakpoints.down("lg"));
 

@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index.jsx";
 import { useRouter } from "next/router";
 import { Policy, Restore, ExpandMore } from "@mui/icons-material";
 import {
@@ -21,7 +21,7 @@ import { CippHead } from "../../../components/CippComponents/CippHead";
 import { CippFormComponent } from "../../../components/CippComponents/CippFormComponent";
 import { ApiPostCall } from "../../../api/ApiCall";
 import { CippApiResults } from "../../../components/CippComponents/CippApiResults";
-import { createDriftManagementActions } from "./driftManagementActions";
+import { createDriftManagementActions } from "../../../components/CippComponents/CippDriftManagementActions";
 import { useSettings } from "../../../hooks/use-settings";
 
 const RecoverPoliciesPage = () => {

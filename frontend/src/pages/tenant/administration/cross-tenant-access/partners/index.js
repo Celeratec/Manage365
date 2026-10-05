@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { CippTablePage } from "../../../../../components/CippComponents/CippTablePage.jsx";
 import { Button, Chip } from "@mui/material";
 import { Add } from "@mui/icons-material";
