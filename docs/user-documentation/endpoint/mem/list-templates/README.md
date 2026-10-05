@@ -10,7 +10,7 @@ Lists the Intune policy templates saved in CIPP, which are the templates the **D
 
 Opens a drawer for adding templates to CIPP, with two sources to choose between.
 
-**Community Catalog** is the template catalog described in [community-repos](../../../tools/community-repos/ "mention"), narrowed to Intune templates. Templates can be previewed and imported the same way as on that page.
+**Community Catalog** is the template catalogue described in [community-repos](../../../tools/community-repos/ "mention"), narrowed to Intune templates. Templates can be previewed and imported the same way as on that page.
 
 **From a Tenant** captures an existing policy from one of your tenants as a template. Select a tenant, then search its policies by name or description and import the one you want.
 
@@ -31,6 +31,7 @@ Opens a drawer for adding templates to CIPP, with two sources to choose between.
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Display Name | The name of the template.                                                                                                                                                       |
 | Is Synced    | Whether the template came from a community repository and is still linked to it. A template that has been edited or cloned is no longer linked and shows as not synced.         |
+| Synced From  | The repository the template was imported from, shown as owner and repository name. Empty for templates created or cloned in CIPP.                                                 |
 | Package      | The package the template has been tagged with, where one has been assigned. Packages let a standards template pull in a set of templates by tag rather than by naming each one. |
 | Description  | The description recorded against the template.                                                                                                                                  |
 | Type         | The template type, for example Catalog, Device, Admin, AppProtection or deviceCompliancePolicies. This determines how the policy is written when deployed.                      |

@@ -43,6 +43,10 @@ Site-level fields repeat once for every tenant you selected, labelled with that 
 
 Huntress guidance on choosing organisation keys is in their article on [account keys, organization keys and agent tags](https://support.huntress.io/hc/en-us/articles/4404012734227-Using-Account-Keys-Organization-Keys-and-Agent-Tags).
 
+{% hint style="warning" %}
+As of version 11.0.0, CIPP deploys Huntress with Huntress's current install script. Earlier deployments can fail on newer Huntress agents, which Autopilot's Enrollment Status Page reports as `Apps (0x80070001)`. A tenant that already has the Huntress app keeps the install it was deployed with, so remove that app from the tenant and deploy Huntress again from CIPP to pick up the fix.
+{% endhint %}
+
 **CW Automate**
 
 | Field                             | Description                                                          |
@@ -124,9 +128,9 @@ Deploys Microsoft 365 Apps using Intune's built-in Office suite deployment.
 
 Deploys Microsoft Edge using Intune's built-in Edge deployment. Nothing is packaged or uploaded; Intune installs it from Microsoft's own source. Edge is a singleton per tenant, so a tenant that already has it is skipped rather than given a second copy.
 
-| Field            | Description                                                                                                              |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Edge Channel     | The servicing channel the installation follows: Stable, Beta or Dev. Required.                                            |
+| Field            | Description                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Edge Channel     | The servicing channel the installation follows: Stable, Beta or Dev. Required.                                      |
 | Display Language | The language the browser interface is shown in. Optional, and left to the device's own language when it is not set. |
 
 **Custom Application**
@@ -152,19 +156,19 @@ Packages a pair of PowerShell scripts as a Win32 application, for anything that 
 
 **Assignment Options**
 
-Every application type except the MSP apps offers the same assignment choices at the bottom of the form.
+Every application type offers the same assignment choices at the bottom of the form.
 
-| Option                          | Description                                                                                                                    |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Do Not Assign                   | Creates the application in Intune without targeting anyone.                                                                    |
-| Assign to All Users             | Targets all licensed users in each selected tenant.                                                                            |
-| Assign to All Devices           | Targets all devices in each selected tenant.                                                                                   |
-| Assign to All Users and Devices | Targets both of the above.                                                                                                     |
-| Assign to Custom Group          | Targets named groups. Enter the group display names separated by commas, where `*` may be used as a wildcard.                  |
-| Exclude Group Names             | Shown for every option except Do Not Assign. Excludes the named groups, again comma separated and accepting `*` as a wildcard. |
+| Option                          | Description                                                                                                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Do Not Assign                   | Creates the application in Intune without targeting anyone.                                                                                                                                                                         |
+| Assign to All Users             | Targets all licensed users in each selected tenant.                                                                                                                                                                                 |
+| Assign to All Devices           | Targets all devices in each selected tenant.                                                                                                                                                                                        |
+| Assign to All Users and Devices | Targets both of the above.                                                                                                                                                                                                          |
+| Assign to Custom Group          | Targets groups. With a single tenant selected this is a picker of that tenant's groups. With several tenants or All Tenants it is a text field taking group display names separated by commas, where `*` may be used as a wildcard. |
+| Exclude group(s)                | Shown for every option except Do Not Assign. The same picker or name field as above, for the groups to exclude.                                                                                                                     |
 
 {% hint style="info" %}
-Group names here are matched by display name across every selected tenant, so a wildcard such as `SEC-Workstations*` lets one deployment target similarly named groups in each customer without listing them individually.
+With several tenants selected, group names are matched by display name in each tenant, so a wildcard such as `SEC-Workstations*` lets one deployment target similarly named groups in each customer without listing them individually. A picker is only offered for a single tenant because a group belongs to one tenant; picking also avoids a mistyped or renamed exclude group silently matching nothing. Changing the tenant selection clears any picked groups.
 {% endhint %}
 
 </details>
@@ -179,7 +183,7 @@ Triggers a sync of all Apple Volume Purchase Program (VPP) tokens for the select
 
 ## Table Details
 
-The properties returned are for the Graph resource type `mobileApp`. For more information on the properties please see the [Graph documentation](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-mobileapp?view=graph-rest-1.0#properties).
+The properties returned are for the Graph resource type `mobileApp`. For more information on the properties please see the [Graph documentation](https://learn.microsoft.com/en-us/graph/api/resources/intune-apps-mobileapp?view=graph-rest-beta#properties).
 
 CIPP adds the following columns by resolving each application's assignments against the groups in the tenant:
 

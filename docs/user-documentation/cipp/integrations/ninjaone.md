@@ -7,7 +7,7 @@ The NinjaOne CIPP integration requires NinjaOne version 5.6 or above.
 {% endhint %}
 
 {% hint style="info" %}
-Tenant and device information uses custom fields, which you create yourself in NinjaOne. Detailed user and licence information uses NinjaOne Documentation, and the document templates are created for you. If you do not have NinjaOne Documentation, speak to your account manager — the rest of the integration still works without it.
+Tenant and device information uses custom fields, which you create yourself in NinjaOne. Detailed user and licence information uses NinjaOne Documentation, and the document templates are created for you. If you do not have NinjaOne Documentation, speak to your account manager: the rest of the integration still works without it.
 {% endhint %}
 
 ## Settings
@@ -34,7 +34,7 @@ Sign in to NinjaOne as a System Administrator and go to **Administration** > **A
 
 Choose an **Application Platform** of _API Services (machine-to-machine)_, give it a name such as _CIPP Integration_, and leave **Redirect URIs** blank. Select the **Monitoring** and **Management** scopes, and an allowed grant type of **Client Credentials**. Save.
 
-The client secret is shown once on save — record it before closing the application. The **Client ID** can be copied from the table afterwards.
+The client secret is shown once on save, so record it before closing the application. The **Client ID** can be copied from the table afterwards.
 {% endstep %}
 
 {% step %}
@@ -58,13 +58,14 @@ The fields available for mapping are:
 | Microsoft 365 Device Links      | WYSIWYG | Device           | Links from a device in NinjaOne to the corresponding Microsoft and CIPP pages.                                                       |
 | Microsoft 365 Device Summary    | WYSIWYG | Device           | An overview of the device, including compliance status and group membership.                                                         |
 | Intune Device Compliance Status | TEXT    | Device           | The device's current compliance state, written as `Compliant` or `Non-Compliant` so it can be watched with a custom field condition. |
+| Intune Non-Compliant Settings   | TEXT_MULTILINE or TEXT | Device | One line per compliance policy setting the device currently fails, written as `Policy name: Setting name`. Cleared when the device is compliant, so a condition on the field not being empty flags only devices with a real failure. |
 
 {% hint style="warning" %}
 A custom field only appears in CIPP's mapping dropdowns when its API permission is set to Read/Write and its type and definition scope match the table above. If a field is missing from the list, that is almost always why.
 {% endhint %}
 
 {% hint style="info" %}
-Set the **Automations** permission to Read Only on the Intune Device Compliance Status field if you intend to drive a condition monitor from it. The other fields can be left with Automations set to None.
+Set the **Automations** permission to Read Only on the Intune Device Compliance Status and Intune Non-Compliant Settings fields if you intend to drive a condition monitor from them. The other fields can be left with Automations set to None.
 {% endhint %}
 
 ## Configuring the Integration in CIPP
@@ -140,40 +141,71 @@ If a previously mapped NinjaOne field is deleted or its API permission is change
 
 A full synchronisation runs once every 24 hours for every mapped tenant. CIPP assigns each installation its own slot in the day rather than running everything at midnight, and tenants whose previous run did not complete are automatically picked up on a later pass.
 
-Synchronisation can also be triggered on demand. **Force Sync** on this page queues every mapped tenant, and the **Sync Now** row action on the **Tenant Mapping** table queues a single tenant on its own. NinjaOne synchronises through its own orchestrator rather than the scheduled task queue, so mapped tenants do not appear on the [integration-sync.md](integration-sync.md "mention") page.
+Synchronisation can also be triggered on demand. **Force Sync** on this page queues every mapped tenant, and the **Sync Now** row action on the **Tenant Mapping** table queues a single tenant on its own. NinjaOne runs its own synchronisation rather than using the scheduled integration tasks, so mapped tenants do not appear on the [integration-sync.md](integration-sync.md "mention") page.
 
-Intune device compliance is handled separately. CIPP subscribes to Graph change notifications for device compliance, so the Intune Device Compliance Status field updates within minutes of a change in Microsoft 365 rather than waiting for the daily run. This requires the compliance field to be mapped.
+Intune device compliance is handled separately. CIPP subscribes to Graph change notifications for device compliance, so the Intune Device Compliance Status and Intune Non-Compliant Settings fields update within minutes of a change in Microsoft 365 rather than waiting for the daily run. This requires at least one of those two fields to be mapped.
 
-Where **Sync Users** or **Sync Licenses** is enabled, CIPP creates and maintains the document templates it needs in NinjaOne Documentation — `CIPP - Microsoft 365 Users` and `CIPP - Microsoft 365 Licenses` — and writes a document per user or licence beneath them. You do not need to create these templates yourself.
+Where **Sync Users** or **Sync Licenses** is enabled, CIPP creates and maintains the document templates it needs in NinjaOne Documentation, `CIPP - Microsoft 365 Users` and `CIPP - Microsoft 365 Licenses`, and writes a document per user or licence beneath them. You do not need to create these templates yourself.
 
 ## CVE Synchronisation
 
-With **Enable Automated CVE Sync** on, each tenant synchronisation uploads that tenant's Defender vulnerability data into a NinjaOne vulnerability scan group. This relies on CIPP already holding vulnerability data for the tenant, and on the scan group existing in NinjaOne under the expected name.
+With **Enable Automated CVE Sync** on, every tenant synchronisation (the daily run, **Force Sync** or **Sync Now**) uploads that tenant's Defender vulnerability data into a NinjaOne vulnerability scan group. Two things must be in place for a tenant: CIPP must hold vulnerability data for it, and a scan group for it must already exist in NinjaOne.
+
+{% hint style="warning" %}
+CIPP does not create scan groups. You create one scan group per mapped tenant in NinjaOne, once, as described below. Tenants without a matching scan group are skipped.
+{% endhint %}
 
 {% stepper %}
 {% step %}
-### Schedule vulnerability collection in CIPP
+### Check CIPP holds vulnerability data
 
-On the CVE Management page, select **Schedule CVE Sync**, choose a tenant or all tenants, set a frequency, and create the schedule. This is what populates the vulnerability data CIPP later uploads.
+There is nothing to schedule. CIPP collects Defender vulnerability data in its nightly data cache for every tenant licensed for Microsoft Defender for Endpoint, and the NinjaOne sync uploads that cached data. To confirm a tenant has data, or to refresh it straight away, open **Security** > **Defender** > **CVE Management**, select the tenant, make sure the page is set to **Cached**, then select **Sync**.
 {% endstep %}
 
 {% step %}
-### Configure the prefix
+### Turn on CVE sync and set the prefix
 
-Turn on **Enable Automated CVE Sync**, set the **CVE Sync Scan Group Prefix**, and select **Submit**. CIPP looks for a scan group named with this prefix followed by the tenant's default domain name.
+On the NinjaOne integration page in CIPP, the same page used to enter the connection details, turn on **Enable Automated CVE Sync**, enter a **CVE Sync Scan Group Prefix** such as `CIPP-`, and select **Submit**.
+
+For each tenant, CIPP looks for a scan group named with the prefix followed by the tenant's default domain name. With the prefix `CIPP-`, the tenant `contoso.com` needs a scan group named `CIPP-contoso.com`. The name must match exactly.
 {% endstep %}
 
 {% step %}
-### Create the scan groups in NinjaOne
+### Prepare a sample CSV
 
-On the Vulnerabilities page, select the tenant, then export the list to CSV.
+NinjaOne asks for a CSV when a scan group is created and takes the scan group's column names from it. Create a file with a device name column, a CVE ID column and one example row:
 
-In NinjaOne go to **Administration** > **Apps** > **Microsoft Defender**, open the **Scan Groups** tab and select **+ Create scan group**. Name it exactly as CIPP expects — the prefix followed by the tenant's default domain name — then upload the CSV and confirm the column mappings.
+```
+deviceName,cveId
+DESKTOP-01,CVE-2024-12345
+```
+
+The same file can be reused for every scan group. Do not use the export from the **Vulnerabilities** page in CIPP: it lists each CVE once with all of its affected devices in a single column, so there is no per-device column to map.
+{% endstep %}
+
+{% step %}
+### Create a scan group for each tenant in NinjaOne
+
+In NinjaOne go to **Administration** > **Apps** > **Microsoft Defender**, open the **Scan Groups** tab and select **+ Create scan group**. Enter the name from the earlier step, upload the sample CSV, and map `deviceName` as the device identifier and `cveId` as the CVE ID. Repeat for each tenant you want to sync.
+
+From then on CIPP reads the column names back from each scan group and uploads one row per affected device and CVE.
+{% endstep %}
+
+{% step %}
+### Check the result
+
+Run **Sync Now** for a tenant from the **Tenant Mapping** table, then check the CIPP logbook for `NinjaOneSync` entries for that tenant:
+
+| Logbook message | Meaning |
+| --- | --- |
+| `CVE sync complete` | The upload was processed by NinjaOne. |
+| `CVE sync skipped — scan group '...' not found` | No scan group has that exact name. Check the prefix and the tenant's default domain name. |
+| `CVE sync — no vulnerability data returned` | CIPP holds no vulnerability data for the tenant. Check the tenant's Defender for Endpoint licensing and the first step. |
 {% endstep %}
 {% endstepper %}
 
 {% hint style="info" %}
-CVE exceptions recorded in CIPP are applied before upload, both tenant-specific exceptions and those set for all tenants, so a suppressed CVE does not reappear in NinjaOne. If the expected scan group does not exist, that tenant's CVE upload is skipped and a warning is written to the CIPP logbook.
+CVE exceptions recorded in CIPP are applied before upload, both tenant-specific exceptions and those set for all tenants, so a suppressed CVE does not reappear in NinjaOne.
 {% endhint %}
 
 {% include "../../../../.gitbook/includes/feature-request.md" %}

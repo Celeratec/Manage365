@@ -87,6 +87,10 @@ function Invoke-AddSite {
         $SiteParams.HubSiteId = $SharePointObj.hubSiteId
     }
 
+    if ($null -ne $SharePointObj.isPublic) {
+        $SiteParams.IsPublic = ($SharePointObj.isPublic -eq $true)
+    }
+
     try {
         $Result = New-CIPPSharepointSite @SiteParams
         $StatusCode = [HttpStatusCode]::OK

@@ -44,8 +44,20 @@ Merged onto the v10.9.1 result. Conflicts were files both sides changed after 10
 | Retired `.js` pages (`404`, roles, message trace, bulk add, GDAP roles, icon registry) | **Apply** | Removed where a `.jsx` page or redirect already covers the route |
 | Cutover script | **Apply** | Upstream script is in-tree. Runbook updated: live run deletes file shares; storage account, tables, blobs, queues, and Key Vault stay. Script was not executed |
 
+## v11.0.2 triage
+
+Merged onto the v10.10.3 result. 83 conflicts.
+
+| Area | Outcome | Notes |
+|------|---------|-------|
+| CyberDrain workflows (`CodeQL_Analyser`, `auto_comments`, `pr_check`) | **Skip** | Kept deleted |
+| BPA report pages, remediation card, BEC user page, report-builder PDF | **Adapt** | Kept. Upstream had deleted them. Standards still record while the Baselines flag is off |
+| SAM manifest and permission translator | **Adapt** | Union. Dynamics, BAP, and Power Platform resource apps kept, plus the new upstream app |
+| Standards catalog | **Adapt** | All names kept. Passkey value aligned to `FIDO2` |
+| Security Simulations, Service Health, MCP client, NinjaOne sync | **Apply** | Upstream behavior, with Manage365 labels and the NinjaOne mapping guard |
+| Baselines feature flag | **Skip** | Not enabled. Standards and drift stay available |
+
 ## Still open in this cycle
 
-- v10.10.3 and v11.0.2 are not merged yet.
-- 24 Aug identity/BEC hotfix (`47c750c25`, `40dcaed53`) is ported after the ladder if upstream did not supersede it.
+- 24 Aug identity/BEC hotfix (`47c750c25`, `40dcaed53`) is ported after this merge if upstream did not supersede it.
 - Baselines feature flag stays off so existing standards keep running.

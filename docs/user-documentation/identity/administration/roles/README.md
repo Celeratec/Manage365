@@ -10,7 +10,7 @@ The Roles & PIM page has two tabs: **Roles & Assignments**, covered here, and [P
 
 One row per directory role, like the classic Roles page, with the Privileged Identity Management (PIM) breakdown on top: how many principals hold the role permanently, as an eligibility or with a time-bound active assignment, and a summary of the role's PIM settings. Clicking a role opens [role](role/) for it; the expander beside the row opens its assignments in place, where the actions live. Roles that nobody holds are listed too, so the table is also the complete role catalogue; hide them with **Assigned roles only** when reviewing access.
 
-On Entra ID P2 tenants the data comes from PIM. On tenants without P2 every assignment is, by definition, permanent and only the legacy removal is offered. With **All Tenants** selected the page reads the reporting cache instead of Graph (roles nobody holds are not included there).
+On Entra ID P2 tenants the data comes from PIM. On tenants without P2 every assignment is, by definition, permanent and only the legacy removal is offered. With **All Tenants** selected only assigned roles are listed, so roles nobody holds do not appear.
 
 ### Table Details
 

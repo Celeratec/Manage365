@@ -1,6 +1,6 @@
 # Migrating to Hosted CIPP
 
-When you start a **CIPP sponsorship**, you can either:
+When you start a **CIPP subscription**, you can either:
 
 * Continue self-hosting and receive support for that setup, **or**
 * Use the **version hosted by CyberDrain** (fully managed).

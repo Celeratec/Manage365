@@ -17,7 +17,7 @@ Template names have to be unique within a tenant. Saving a name already used by 
 {% endhint %}
 
 {% hint style="warning" %}
-Only the fields belonging to the selected **Default User Action** are kept. Switching a template from creating a new user to using an existing one discards the stored name, username, domain and usage location, and switching the other way discards the stored user. Change this setting only when you intend to rebuild that part of the template.
+Only the fields belonging to the selected **Default User Action** are kept. Switching a template from creating a new user to using an existing one discards the stored name, username, domain and usage location, and switching the other way discards the stored user and turns off the Vacation Mode defaults. Change this setting only when you intend to rebuild that part of the template.
 {% endhint %}
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

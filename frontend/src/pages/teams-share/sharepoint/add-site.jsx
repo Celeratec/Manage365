@@ -13,6 +13,7 @@ import {
 import { Grid } from "@mui/system";
 import { useForm, useWatch } from "react-hook-form";
 import CippFormComponent from "../../../components/CippComponents/CippFormComponent";
+import { CippFormCondition } from "../../../components/CippComponents/CippFormCondition";
 import CippFormPage from "../../../components/CippFormPages/CippFormPage";
 import { useSettings } from "../../../hooks/use-settings";
 import { Info as InfoIcon, Help as HelpIcon } from "@mui/icons-material";
@@ -216,6 +217,7 @@ const AddSiteForm = () => {
             options={[
               { label: "Communication", value: "Communication" },
               { label: "Team Site (No M365 Group)", value: "Team" },
+              { label: "Team (Microsoft 365 Group)", value: "TeamGroup" },
             ]}
             helperText="Communication = broadcast content to many viewers. Team = collaborate with a specific group."
             validators={{
@@ -299,6 +301,27 @@ const AddSiteForm = () => {
                 Teams integration. Choose this when you need a simple collaboration space without
                 the overhead of a full M365 Group.
               </InfoBox>
+            </Grid>
+          </Grid>
+        </Collapse>
+
+        <Collapse in={templateName?.value === "TeamGroup"} sx={{ width: "100%" }}>
+          <Grid container spacing={2} sx={{ pt: 2 }}>
+            <Grid size={{ xs: 12 }}>
+              <InfoBox>
+                <strong>Team site with a Microsoft 365 group:</strong> Creates a group-connected
+                team site. Anyone in the organisation can join when the group is public. Leave the
+                switch off for a private group.
+              </InfoBox>
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <CippFormComponent
+                type="switch"
+                name="isPublic"
+                label="Public group"
+                formControl={formControl}
+                helperText="Anyone in the organisation can join a public group. Leave off for a private group."
+              />
             </Grid>
           </Grid>
         </Collapse>

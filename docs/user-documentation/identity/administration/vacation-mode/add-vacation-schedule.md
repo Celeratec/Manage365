@@ -89,7 +89,7 @@ Turning automatic replies off at the end date preserves whatever the message say
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
 | Scheduled Start Date   | When the changes are applied.                                                                                           |
 | Scheduled End Date     | When they are reversed.                                                                                                 |
-| Post Execution Actions | Which channels are notified as the tasks run: Webhook, Email, or PSA.                                                   |
+| Post Execution Actions | Which channels are notified as the tasks run: Webhook, Email, PSA, or Push (a notification to your own registered devices). |
 | Reference              | Free text carried onto every task the vacation creates, which is what ties them together on the [.](./ "mention") page. |
 {% endstep %}
 

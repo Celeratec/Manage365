@@ -113,6 +113,11 @@ const getRetryAfterMs = (error) => {
 const retryDelayWithRetryAfter = (failureCount, error) =>
   getRetryAfterMs(error) ?? Math.min(1000 * 2 ** failureCount, 30000);
 
+// A request the user cancelled (navigated away / hit Cancel) aborts the axios signal and surfaces as
+// a CanceledError. That is expected, not a failure: never retry it and never raise an error toast.
+const isCanceledError = (error) =>
+  error?.code === "ERR_CANCELED" || error?.name === "CanceledError";
+
 export function ApiGetCall(props) {
   const {
     url,
@@ -271,7 +276,7 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
 
   const mutation = useMutation({
     mutationFn: async (props) => {
-      const { url, data, bulkRequest } = props;
+      const { url, data, bulkRequest, followUps } = props;
       const safeUrl = assertRelativeApiPath(url);
       // Timeout so long-running backend calls don't hang the app (e.g. large site delete, slow APIs).
       const timeoutMs = props.timeout ?? 90000; // 90 seconds default
@@ -279,6 +284,28 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
         headers: await buildVersionedHeaders(),
         timeout: timeoutMs,
       };
+      if (followUps?.length) {
+        // A failed primary request throws as usual and nothing else is sent. Once it has
+        // succeeded, a failed follow-up is reported next to it rather than raised, so the
+        // primary's results are never hidden behind a follow-up error.
+        const primary = await axios.post(safeUrl, data, requestConfig);
+        if (onResult) {
+          onResult(primary.data);
+        }
+        const results = [primary.data];
+        for (const followUp of followUps) {
+          try {
+            const response = await axios.post(assertRelativeApiPath(followUp.url), followUp.data, requestConfig);
+            results.push(response.data);
+          } catch (error) {
+            results.push({
+              Results:
+                error.response?.data?.Results ?? `Failed ${followUp.url}: ${error.message}`,
+            });
+          }
+        }
+        return results;
+      }
       if (bulkRequest && Array.isArray(data)) {
         const results = [];
         for (let i = 0; i < data.length; i++) {

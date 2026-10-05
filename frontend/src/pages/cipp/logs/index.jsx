@@ -108,6 +108,7 @@ const Page = () => {
       endDate: null,
       username: "",
       severity: [],
+      api: [],
     },
   });
 
@@ -117,6 +118,7 @@ const Page = () => {
   const [endDate, setEndDate] = useState(null);
   const [username, setUsername] = useState(null);
   const [severity, setSeverity] = useState(null);
+  const [api, setApi] = useState(null);
   const [activePreset, setActivePreset] = useState(null);
   const settings = useSettings();
   const currentTenant = settings?.currentTenant;
@@ -298,7 +300,8 @@ const Page = () => {
       data.startDate !== null ||
       data.endDate !== null ||
       data.username !== null ||
-      data.severity?.length > 0;
+      data.severity?.length > 0 ||
+      data.api?.length > 0;
     setFilterEnabled(hasFilter);
 
     setStartDate(
@@ -321,6 +324,13 @@ const Page = () => {
         : null
     );
 
+    // Set API filter if available (join with | so the backend regex match treats it as an OR)
+    setApi(
+      data.api && data.api.length > 0
+        ? data.api.map((item) => item.value).join("|")
+        : null
+    );
+
     setExpanded(false);
   };
 
@@ -330,12 +340,14 @@ const Page = () => {
       endDate: null,
       username: "",
       severity: [],
+      api: [],
     });
     setFilterEnabled(false);
     setStartDate(null);
     setEndDate(null);
     setUsername(null);
     setSeverity(null);
+    setApi(null);
     setActivePreset(null);
     setExpanded(false);
   };
@@ -358,8 +370,11 @@ const Page = () => {
     if (severity) {
       chips.push({ label: `Severity: ${severity.replace(/,/g, ", ")}`, icon: <ExclamationTriangleIcon style={{ width: 14 }} /> });
     }
+    if (api) {
+      chips.push({ label: `API: ${api.replace(/\|/g, ", ")}`, icon: <FunnelIcon style={{ width: 14 }} /> });
+    }
     return chips;
-  }, [startDate, endDate, username, severity]);
+  }, [startDate, endDate, username, severity, api]);
 
   return (
     <CippTablePage
@@ -534,6 +549,20 @@ const Page = () => {
                     />
                   </Grid>
 
+                  <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+                    <CippFormComponent
+                      type="autoComplete"
+                      name="api"
+                      label="Filter by API"
+                      formControl={formControl}
+                      multiple={true}
+                      creatable={true}
+                      freeSolo={true}
+                      options={[]}
+                      placeholder="Type API name(s)"
+                    />
+                  </Grid>
+
                   {/* Action Buttons */}
                   <Grid size={12}>
                     <Divider sx={{ my: 1 }} />
@@ -574,18 +603,20 @@ const Page = () => {
       apiUrl={apiUrl}
       apiDataKey="Results"
       columns={columns}
-      queryKey={`Listlogs-${startDate}-${endDate}-${username}-${severity}-${filterEnabled}-${currentTenant}`}
+      queryKey={`Listlogs-${startDate}-${endDate}-${username}-${severity}-${api}-${filterEnabled}-${currentTenant}`}
       tenantInTitle={true}
+      defaultSorting={[{ id: "DateTime", desc: true }]}
       apiData={{
         StartDate: startDate,
         EndDate: endDate,
         User: username,
         Severity: severity,
+        API: api,
         Filter: filterEnabled,
         Tenant: currentTenant,
+        manualPagination: true,
         // ListLogs pages date ranges via Metadata.nextLink. tenantFilter must not be
-        // "AllTenants" or getNextPageParam stops pagination after the first batch
-        // (that guard is for queued Graph AllTenants requests, which don't apply here).
+        // "AllTenants" or getNextPageParam stops pagination after the first batch.
         tenantFilter: null,
       }}
       actions={actions}

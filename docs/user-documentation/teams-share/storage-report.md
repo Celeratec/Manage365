@@ -28,7 +28,7 @@ The fix is on the tenant, not in CIPP. Enabling the **Enable Usernames instead o
 
 ## Tenant Storage
 
-A storage bar above the summary shows how much of the tenant's overall SharePoint storage pool is used, with chips for storage used, storage free and the total quota. On a tenant with more than one geo location, a chip is added for each geo showing its own usage. The bar needs SharePoint admin access; if it can't retrieve a quota figure for the tenant, it reads "Tenant storage usage is unavailable for this tenant" instead.
+A storage bar above the summary shows how much of the tenant's overall SharePoint storage pool is used, with chips for storage used, storage free and the total quota. On a tenant with more than one geo location, a chip is added for each geo showing its own usage. These figures reflect the quota as of CIPP's last collection of the tenant's data, and **Sync usage** does not refresh them. The bar needs SharePoint admin access; if it can't retrieve a quota figure for the tenant, it reads "Tenant storage usage is unavailable for this tenant" instead.
 
 ## Summary
 

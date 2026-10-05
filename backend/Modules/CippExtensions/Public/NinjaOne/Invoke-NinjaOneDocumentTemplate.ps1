@@ -3,7 +3,8 @@ function Invoke-NinjaOneDocumentTemplate {
     param (
         $Template,
         $Token,
-        $ID
+        $ID,
+        $WebSession
     )
 
     if (!$Token) {
@@ -12,11 +13,13 @@ function Invoke-NinjaOneDocumentTemplate {
         $Token = Get-NinjaOneToken -configuration $Configuration
     }
 
+    $SessionParams = if ($WebSession) { @{ WebSession = $WebSession } } else { @{} }
+
     if (!$ID) {
-        $DocumentTemplates = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/document-templates/" -Method GET -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 20
+        $DocumentTemplates = (Invoke-WebRequest @SessionParams -Uri "https://$($Configuration.Instance)/api/v2/document-templates/" -Method GET -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
         $DocumentTemplate = $DocumentTemplates | Where-Object { $_.name -eq $Template.name }
     } else {
-        $DocumentTemplate = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/document-templates/$($ID)" -Method GET -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 20
+        $DocumentTemplate = (Invoke-WebRequest @SessionParams -Uri "https://$($Configuration.Instance)/api/v2/document-templates/$($ID)" -Method GET -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
     }
 
     $MatchedCount = ($DocumentTemplate | Measure-Object).count
@@ -25,9 +28,8 @@ function Invoke-NinjaOneDocumentTemplate {
         $NinjaDocumentTemplate = $DocumentTemplate
     } elseif ($MatchedCount -eq 0) {
         # Create a new Document Template
-        $Body = $Template | ConvertTo-Json -Depth 20
-        Write-Host "Ninja Body: $body"
-        $NinjaDocumentTemplate = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/document-templates/" -Method POST -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json' -Body $Body).content | ConvertFrom-Json -Depth 20
+        $Body = $Template | ConvertTo-Json -Depth 100
+        $NinjaDocumentTemplate = (Invoke-WebRequest @SessionParams -Uri "https://$($Configuration.Instance)/api/v2/document-templates/" -Method POST -Headers @{Authorization = "Bearer $($token.access_token)" } -ContentType 'application/json' -Body $Body).content | ConvertFrom-Json -Depth 100
     } else {
         # Matched multiple templates. Should be impossible but lets check anyway :D
         Throw 'Multiple Documents Matched the Provided Criteria'

@@ -4,10 +4,20 @@ function Invoke-GetCippAlerts {
         Entrypoint,AnyTenant
     .ROLE
         CIPP.Core.Read
+    .DESCRIPTION
+        Returns the CIPP dashboard banner notifications: any hosted maintenance notice, a legacy infrastructure warning for instances still on Function Apps, today's most recent entries from the alert log, and warnings for an out-of-date or misconfigured deployment.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $Alerts = [System.Collections.Generic.List[object]]::new()
+
+    # Hosted maintenance notice, set as a JSON blob in CIPP_MAINTENANCE_NOTICE. Added first so it
+    # sorts to the top of the banner stack. Self-suppresses once its end time has passed.
+    $MaintenanceNotice = Get-CIPPMaintenanceNotice
+    if ($MaintenanceNotice) { $Alerts.Add($MaintenanceNotice) }
+    $LegacyNotice = Get-CIPPLegacyInfrastructureNotice
+    if ($LegacyNotice) { $Alerts.Add($LegacyNotice) }
+
     $Table = Get-CippTable -tablename CippAlerts
     $PartitionKey = Get-Date -UFormat '%Y%m%d'
     $Filter = "PartitionKey eq '{0}'" -f $PartitionKey
@@ -16,6 +26,18 @@ function Invoke-GetCippAlerts {
 
     $CIPPVersion = $Request.Query.localversion
     $Version = Assert-CippVersion -CIPPVersion $CIPPVersion
+    # a container instance with auto-restart on updates itself at its scheduled restart time
+    $UpdateAction = 'Please update to the latest version.'
+    if (($Version.OutOfDateCIPP -or $Version.OutOfDateCIPPAPI) -and $env:CIPPNG -eq 'true') {
+        try {
+            $UpdateSettings = Sync-CippContainerUpdateState
+            if ($UpdateSettings.AutoUpdate -eq 'true' -and $UpdateSettings.CheckInterval -ne '0' -and -not [string]::IsNullOrWhiteSpace([string]$UpdateSettings.CheckTime)) {
+                $UpdateAction = "It will update automatically at the instance's scheduled restart time, {0:d2}:00 ({1})." -f [int]$UpdateSettings.CheckTime, ($env:CIPP_TIMEZONE ?? 'UTC')
+            }
+        } catch {
+            Write-Information "Could not read the container restart schedule: $($_.Exception.Message)"
+        }
+    }
     if ($Version.OutOfDateCIPP) {
         $Alerts.Add(@{
                 title = 'Manage365 Frontend Behind Upstream'

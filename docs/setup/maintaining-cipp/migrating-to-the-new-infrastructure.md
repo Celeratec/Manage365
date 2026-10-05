@@ -102,7 +102,7 @@ Your logs do not come back with the restore. The `CippLogs` table stays in the o
 {% endhint %}
 
 {% hint style="info" %}
-Support for a self-hosted instance is part of sponsorship. Raise a failed run with the helpdesk before rebuilding, in case the state you are in is recoverable.
+Support for a self-hosted instance is included in your subscription. Raise a failed run with the helpdesk before rebuilding, in case the state you are in is recoverable.
 {% endhint %}
 
 ### Repoint DNS

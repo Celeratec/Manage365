@@ -407,6 +407,24 @@ const Page = () => {
     },
   ];
 
+  const filterList = [
+    {
+      filterName: "Synced from repository",
+      value: [{ id: "isSynced", value: "Yes" }],
+      type: "column",
+    },
+    {
+      filterName: "Local changes not pushed",
+      value: [{ id: "hasLocalChanges", value: "Yes" }],
+      type: "column",
+    },
+    {
+      filterName: "Not synced",
+      value: [{ id: "isSynced", value: "No" }],
+      type: "column",
+    },
+  ];
+
   const tableFilter = oldStandards.isSuccess && oldStandards.data.length !== 0 && (
     <Grid container spacing={2}>
       <Grid size={12}>
@@ -468,6 +486,7 @@ const Page = () => {
       actions={actions}
       queryKey={queryKey}
       tableFilter={tableFilter}
+      filters={filterList}
       tenantInTitle={false}
       spacing={1}
     />

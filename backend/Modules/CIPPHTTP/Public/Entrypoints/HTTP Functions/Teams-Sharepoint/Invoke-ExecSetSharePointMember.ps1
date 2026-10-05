@@ -5,7 +5,7 @@ function Invoke-ExecSetSharePointMember {
     .ROLE
         Sharepoint.Site.ReadWrite
     .DESCRIPTION
-        Adds or removes a user in a SharePoint site role (Owners, Members or Visitors).
+        Adds one or more users to, or removes a user from, a SharePoint site role (Owners, Members or Visitors).
         Group-connected sites manage Owners/Members through the backing M365 group via Graph;
         Visitors (and classic/communication sites entirely) are managed through the site's
         associated SharePoint role groups via the SharePoint REST API using certificate

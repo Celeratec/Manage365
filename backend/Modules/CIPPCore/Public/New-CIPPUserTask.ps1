@@ -20,8 +20,33 @@ function New-CIPPUserTask {
 
     try {
         if ($UserObj.licenses.value) {
-            $LicenseResults = Set-CIPPUserLicense -UserId $CreationResults.Username -TenantFilter $UserObj.tenantFilter -AddLicenses $UserObj.licenses.value -Headers $Headers
-            $Results.Add($LicenseResults)
+            if ($UserObj.sherwebLicense.value) {
+                $null = Set-SherwebSubscription -Headers $Headers -TenantFilter $UserObj.tenantFilter -SKU $UserObj.sherwebLicense.value -Add 1
+                $null = $Results.Add('Added Sherweb License, scheduling assignment')
+                $taskObject = [PSCustomObject]@{
+                    TenantFilter  = $UserObj.tenantFilter
+                    Name          = "Assign License: $UserPrincipalName"
+                    Command       = @{
+                        value = 'Set-CIPPUserLicense'
+                    }
+                    Parameters    = [pscustomobject]@{
+                        UserId      = $CreationResults.Username
+                        APIName     = 'Sherweb License Assignment'
+                        AddLicenses = $UserObj.licenses.value
+                    }
+                    ScheduledTime = 0 #right now, which is in the next 15 minutes and should cover most cases.
+                    PostExecution = @{
+                        Webhook = [bool]$Request.Body.PostExecution.webhook
+                        Email   = [bool]$Request.Body.PostExecution.email
+                        PSA     = [bool]$Request.Body.PostExecution.psa
+                        Push    = [bool]$Request.Body.PostExecution.push
+                    }
+                }
+                Add-CIPPScheduledTask -Task $taskObject -hidden $false -Headers $Headers
+            } else {
+                $LicenseResults = Set-CIPPUserLicense -UserId $CreationResults.Username -TenantFilter $UserObj.tenantFilter -AddLicenses $UserObj.licenses.value -Headers $Headers
+                $Results.Add($LicenseResults)
+            }
         }
     } catch {
         Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message "Failed to assign the license. Error:$($_.Exception.Message)" -Sev 'Error'
@@ -202,6 +227,42 @@ function New-CIPPUserTask {
                 } catch {
                     $Results.Add("Failed to schedule $($Grant.Kind) access to $($Grant.Label): $($_.Exception.Message)")
                 }
+            }
+        }
+    }
+
+    # SharePoint site membership is scheduled instead of run inline: a freshly created account cannot
+    # be resolved on a site (ensureuser) until it has replicated to SharePoint.
+    if ($UserObj.sharePointSites) {
+        $SiteRole = $UserObj.sharePointSiteRole.value ?? $UserObj.sharePointSiteRole ?? 'Members'
+        $SiteAccessTime = [int64](([datetime]::UtcNow).AddMinutes(15) - (Get-Date '1/1/1970')).TotalSeconds
+        foreach ($Site in @($UserObj.sharePointSites)) {
+            $SiteLabel = $Site.label ?? $Site.value
+            try {
+                $TaskBody = [PSCustomObject]@{
+                    TenantFilter  = $UserObj.tenantFilter
+                    Name          = "Add SharePoint Site Member: $($CreationResults.Username) -> $($Site.value) ($SiteRole)"
+                    Command       = @{ value = 'Set-CIPPSharePointSiteMember' }
+                    Parameters    = [PSCustomObject]@{
+                        TenantFilter      = $UserObj.tenantFilter
+                        UserPrincipalName = $CreationResults.Username
+                        Role              = $SiteRole
+                        SharePointType    = $Site.addedFields.rootWebTemplate
+                        GroupId           = $Site.addedFields.ownerPrincipalName
+                        SiteUrl           = $Site.value
+                        APIName           = 'SharePoint Site Onboarding'
+                    }
+                    ScheduledTime = $SiteAccessTime
+                    PostExecution = @{ Webhook = $false; Email = $false; PSA = $false }
+                }
+                $ScheduleResult = Add-CIPPScheduledTask -Task $TaskBody -hidden $false -Headers $Headers -DisallowDuplicateName $true
+                if ($ScheduleResult -like 'Successfully added task:*') {
+                    $Results.Add("Scheduled $SiteRole access to the SharePoint site $SiteLabel in 15 minutes.")
+                } else {
+                    $Results.Add("Failed to schedule SharePoint access to $($SiteLabel): $ScheduleResult")
+                }
+            } catch {
+                $Results.Add("Failed to schedule SharePoint access to $($SiteLabel): $($_.Exception.Message)")
             }
         }
     }

@@ -48,30 +48,76 @@ function Compare-CIPPIntuneAssignments {
                 ForEach-Object { $_.target.groupId }
         )
 
-        # Determine expected include target types
-        $ExpectedIncludeTypes = switch ($ExpectedAssignTo) {
-            'allLicensedUsers'   { @('#microsoft.graph.allLicensedUsersAssignmentTarget') }
-            'AllDevices'         { @('#microsoft.graph.allDevicesAssignmentTarget') }
-            'AllDevicesAndUsers' { @('#microsoft.graph.allDevicesAssignmentTarget', '#microsoft.graph.allLicensedUsersAssignmentTarget') }
-            'customGroup'        { @('#microsoft.graph.groupAssignmentTarget') }
-            'On'                 { @() }
-            default              { @() }
+        # Read the broad targets through the same helper remediation writes them with, so a policy
+        # type that expresses one of them differently is expected the way it is actually applied.
+        $BroadTarget = Get-CIPPIntuneAssignmentTarget -AssignTo $Target.AssignTo -PolicyType $PolicyType
+        $ExpectedIncludeTypes = if ($Target.AssignTo -eq 'customGroup') {
+            @($GroupType)
+        } else {
+            @($BroadTarget.Targets | ForEach-Object { $_.'@odata.type' })
+        }
+        # A broad target expressed as a group assignment (App Protection's "all users") is an
+        # expected group, not an unexpected extra one.
+        $BroadGroupIds = @($BroadTarget.Targets | Where-Object { $_.groupId } | ForEach-Object { $_.groupId })
+
+        # Intune reports some broad group targets back under an equivalent type. Accepting only the
+        # shape remediation writes flags a working assignment as a deviation on every run.
+        $EquivalentTypes = [System.Collections.Generic.List[string]]::new()
+        $SatisfiedBroadIds = [System.Collections.Generic.List[string]]::new()
+        foreach ($BroadId in @($BroadTarget.Equivalents.Keys)) {
+            $Types = @($BroadTarget.Equivalents[$BroadId])
+            $EquivalentTypes.AddRange([string[]]$Types)
+            if (@($Types | Where-Object { $_ -in $ExistingIncludeTypes }).Count -gt 0) {
+                $SatisfiedBroadIds.Add($BroadId)
+            }
+        }
+
+        # Groups are looked up once and reused for name->id resolution and for naming the ids that
+        # turn out to differ.
+        $AllGroupsCache = $null
+        $ResolveGroupNames = {
+            param($NameList)
+            $Ids = [System.Collections.Generic.List[string]]::new()
+            $Unresolved = [System.Collections.Generic.List[string]]::new()
+            foreach ($Name in @($NameList.Split(',').Trim() | Where-Object { $_ })) {
+                # Square brackets are wildcard character classes to -like; group names containing
+                # them are literal. Matches the escaping Set-CIPPAssignedPolicy applies.
+                $Pattern = $Name -replace '\[', '`[' -replace '\]', '`]'
+                $Matched = @($AllGroupsCache | Where-Object { $_.displayName -like $Pattern } | Select-Object -ExpandProperty id)
+                if ($Matched.Count -eq 0) { $Unresolved.Add($Name) } else { $Ids.AddRange([string[]]$Matched) }
+            }
+            [PSCustomObject]@{ Ids = @($Ids); Unresolved = @($Unresolved) }
         }
 
         # Compare include target types (ignore exclusion targets)
         $ExistingIncludeTypes = @($ExistingTargetTypes | Where-Object { $_ -ne '#microsoft.graph.exclusionGroupAssignmentTarget' })
         $TargetTypeMatch = $true
-        foreach ($t in $ExpectedIncludeTypes) {
-            if ($t -notin $ExistingIncludeTypes) { $TargetTypeMatch = $false; break }
-        }
-        if ($TargetTypeMatch) {
-            foreach ($t in $ExistingIncludeTypes) {
-                if ($t -notin $ExpectedIncludeTypes) { $TargetTypeMatch = $false; break }
+        if ($Target.Managed) {
+            $MissingTypes = @($ExpectedIncludeTypes | Where-Object { $_ -ne $GroupType -and $_ -notin $ExistingIncludeTypes })
+            $ExtraTypes = @($ExistingIncludeTypes | Where-Object { $_ -ne $GroupType -and $_ -notin $ExpectedIncludeTypes -and $_ -notin $EquivalentTypes })
+            if ($MissingTypes.Count -gt 0) {
+                $TargetTypeMatch = $false
+                $Reasons.Add("Policy is not assigned to $(($MissingTypes -replace '#microsoft\.graph\.', '') -join ', ')")
+            }
+            if ($ExtraTypes.Count -gt 0) {
+                $TargetTypeMatch = $false
+                $Reasons.Add("Policy is assigned to $(($ExtraTypes -replace '#microsoft\.graph\.', '') -join ', '), which the standard does not expect")
             }
         }
 
-        # Lazy-load groups cache only if needed
-        $AllGroupsCache = $null
+        # -- include groups --------------------------------------------------------------------
+        $ExpectedGroupIds = @()
+        $UnresolvedGroups = [System.Collections.Generic.List[string]]::new()
+        if ($Target.AssignTo -eq 'customGroup' -and $ExpectedCustomGroup) {
+            $Resolved = & $ResolveGroupNames $ExpectedCustomGroup
+            $ExpectedGroupIds = $Resolved.Ids
+            foreach ($Name in $Resolved.Unresolved) { $UnresolvedGroups.Add($Name) }
+        }
+        $ExpectedGroupIds = @($ExpectedGroupIds) + $BroadGroupIds
+        $MissingIncludeIds = @($ExpectedGroupIds | Where-Object { $_ -notin $ExistingIncludeGroupIds -and $_ -notin $SatisfiedBroadIds })
+        $ExtraIncludeIds = if ($Target.Managed) {
+            @($ExistingIncludeGroupIds | Where-Object { $_ -notin $ExpectedGroupIds })
+        } else { @() }
 
         # For custom groups, resolve names to IDs and compare
         $IncludeGroupMatch = $true

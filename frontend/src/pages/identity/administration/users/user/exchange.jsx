@@ -1074,7 +1074,8 @@ const Page = () => {
         };
       },
       condition: (row) => row && !row.Enabled,
-      confirmText: "Are you sure you want to enable this mailbox rule?",
+      hideCondition: (row) => row?.Enabled,
+      confirmText: 'Are you sure you want to enable this mailbox rule?',
       multiPost: false,
       category: "edit",
     },
@@ -1093,7 +1094,8 @@ const Page = () => {
         };
       },
       condition: (row) => row && row.Enabled,
-      confirmText: "Are you sure you want to disable this mailbox rule?",
+      hideCondition: (row) => !row?.Enabled,
+      confirmText: 'Are you sure you want to disable this mailbox rule?',
       multiPost: false,
       category: "edit",
     },
@@ -1174,7 +1176,8 @@ const Page = () => {
                       Enable: true,
                       tenantFilter: userSettingsDefaults.currentTenant,
                     },
-                    confirmText: "Are you sure you want to enable this mailbox rule?",
+                    hideCondition: () => data?.Enabled,
+                    confirmText: 'Are you sure you want to enable this mailbox rule?',
                     multiPost: false,
                     category: "edit",
                   },
@@ -1190,7 +1193,8 @@ const Page = () => {
                       Disable: true,
                       tenantFilter: userSettingsDefaults.currentTenant,
                     },
-                    confirmText: "Are you sure you want to disable this mailbox rule?",
+                    hideCondition: () => !data?.Enabled,
+                    confirmText: 'Are you sure you want to disable this mailbox rule?',
                     multiPost: false,
                     category: "edit",
                   },
@@ -1679,6 +1683,8 @@ const Page = () => {
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => (
+  <DashboardLayout allTenantsSupport={false}>{page}</DashboardLayout>
+)
 
 export default Page;

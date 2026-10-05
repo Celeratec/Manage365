@@ -46,7 +46,6 @@ const TABLE_LABELS = {
   WebhookRules: "Webhook Rules",
   "templates:AppApprovalTemplate": "App Approval Templates",
   "templates:AssignmentFilterTemplate": "Assignment Filter Templates",
-  "templates:BPATemplate": "BPA Templates",
   "templates:CATemplate": "Conditional Access Templates",
   "templates:ConnectionfilterTemplate": "Connection Filter Templates",
   "templates:ContactTemplate": "Contact Templates",

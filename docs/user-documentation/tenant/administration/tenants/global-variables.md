@@ -7,7 +7,7 @@ These variables can be used in any type of template and will be replaced automat
 Tenant custom variables can be set in the [#custom-variables](../../manage/edit.md#custom-variables "mention") box, shown while editing a Tenant.
 
 {% hint style="danger" %}
-Given the differences in how various systems treat the variable name, we recommend using all lowercase when naming variables, e.g. variablename.
+Given the differences in how various systems treat the variable name, we recommend using all lowercase when naming variables, for example variablename.
 {% endhint %}
 
 ## Automatically Replaced Variables

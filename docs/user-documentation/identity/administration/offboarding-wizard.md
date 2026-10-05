@@ -102,6 +102,7 @@ Selecting **Delete user** greys out the mailbox access, forwarding and out of of
 | Schedule this offboarding  | Defers the job to a chosen date instead of running it immediately, and reveals the settings below.                        |
 | Scheduled Offboarding Date | When the job should run.                                                                                                  |
 | Webhook, E-mail, PSA       | Which channels are notified when the job completes. Each has to be configured in CIPP's notification settings to deliver. |
+| Push notification to my devices | Sends a push notification to the browsers and installed apps you registered under [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention"). Only you receive it. |
 | HaloPSA Ticket             | An existing HaloPSA ticket to add the results to as a note, instead of raising a new ticket. Only shown once PSA is selected and the HaloPSA integration is enabled. |
 | Reference                  | Free text added to the notification so the job can be recognised later.                                                   |
 
@@ -115,7 +116,7 @@ Every job reports its progress as it runs. Opening a job from the table, or choo
 
 An action that reports an error line, such as a group the user could not be removed from, is shown as failed even when its other items succeeded, and the user's overall result follows the same rule. Each user's block has a copy button that places the block on the clipboard as text.
 
-Notification channels chosen for the job (webhook, e-mail, PSA) are the last steps of the user's block from the start. They run once every action has finished and show whether each delivery succeeded, and the outcomes are recorded on the task as well.
+Notification channels chosen for the job (webhook, e-mail, PSA, push) are the last steps of the user's block from the start. They run once every action has finished and show whether each delivery succeeded, and the outcomes are recorded on the task as well.
 
 **Re-run** queues that user's full set of actions again, the same as **Run Now** on the task. The arrow next to a single action runs only that action again: it is queued as its own job, named after the action, so it has results and logs of its own, and it reports into the same progress block. Both use the wizard's own permission, and actions that are not repeatable without effect, such as a password reset, happen again.
 

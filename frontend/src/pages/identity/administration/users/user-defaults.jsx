@@ -208,6 +208,38 @@ const Page = () => {
       creatable: false,
     },
     {
+      label: 'SharePoint Sites',
+      name: 'sharePointSites',
+      type: 'autoComplete',
+      api: {
+        url: '/api/ListSites',
+        data: { type: 'SharePointSiteUsage' },
+        labelField: (option) => `${option.displayName} (${option.webUrl})`,
+        valueField: 'webUrl',
+        addedField: {
+          rootWebTemplate: 'rootWebTemplate',
+          ownerPrincipalName: 'ownerPrincipalName',
+        },
+        queryKey: `SharePointSites-${userSettings.currentTenant}`,
+      },
+      helperText: 'New users are added to these sites 15 minutes after creation.',
+      multiple: true,
+      creatable: false,
+    },
+    {
+      label: 'SharePoint Site Role',
+      name: 'sharePointSiteRole',
+      type: 'autoComplete',
+      options: [
+        { label: 'Members', value: 'Members' },
+        { label: 'Owners', value: 'Owners' },
+        { label: 'Visitors', value: 'Visitors' },
+      ],
+      helperText: 'Defaults to Members.',
+      multiple: false,
+      creatable: false,
+    },
+    {
       label: 'Job Title',
       name: 'jobTitle',
       type: 'textField',
@@ -248,6 +280,11 @@ const Page = () => {
       type: 'textField',
     },
     {
+      label: 'Require password change at next logon',
+      name: 'MustChangePass',
+      type: 'switch',
+    },
+    {
       label: 'Enforce Per-User MFA',
       name: 'perUserMfa',
       type: 'switch',
@@ -264,6 +301,10 @@ const Page = () => {
     },
   ]
 
+  // The Add User form caches this list under its own per-tenant key, and AllTenants templates
+  // show up in every tenant's form, so refresh those too or a template saved here stays invisible.
+  const templateQueryKeys = [`ListNewUserDefaults-${userSettings.currentTenant}`, 'UserDefaults-*']
+
   const actions = [
     {
       label: 'Edit Template',
@@ -273,7 +314,7 @@ const Page = () => {
       setDefaultValues: true,
       data: { GUID: 'GUID', tenantFilter: 'tenantFilter' },
       confirmText: 'Edit the template and click Confirm to save.',
-      relatedQueryKeys: [`ListNewUserDefaults-${userSettings.currentTenant}`],
+      relatedQueryKeys: templateQueryKeys,
       fields: templateFields,
       category: "edit",
     },
@@ -286,6 +327,7 @@ const Page = () => {
       confirmText: 'Do you want to delete this User Template?',
       multiPost: false,
       category: "danger",
+      relatedQueryKeys: templateQueryKeys,
     },
   ]
 
@@ -301,6 +343,12 @@ const Page = () => {
       'usageLocation',
       'licenses',
       'groupMemberships',
+      'sharedMailboxes',
+      'sharedMailboxPermission',
+      'sharedCalendars',
+      'sharedCalendarPermission',
+      'sharePointSites',
+      'sharePointSiteRole',
       'jobTitle',
       'streetAddress',
       'city',
@@ -309,6 +357,7 @@ const Page = () => {
       'country',
       'companyName',
       'department',
+      'MustChangePass',
       'perUserMfa',
       'mobilePhone',
       'businessPhones',
@@ -322,7 +371,7 @@ const Page = () => {
     type: 'POST',
     url: '/api/AddUserDefaults',
 
-    relatedQueryKeys: [`ListNewUserDefaults-${userSettings.currentTenant}`],
+    relatedQueryKeys: templateQueryKeys,
   }
 
   return (
@@ -331,7 +380,7 @@ const Page = () => {
       <Box sx={{ py: 2 }}>
         <CippDataTable
           title="User Templates"
-          api={{ url: '/api/ListNewUserDefaults?includeAllTenants=false' }}
+          api={{ url: `/api/ListNewUserDefaults?includeAllTenants=false&tenantFilter=${userSettings.currentTenant}` }}
           queryKey={`ListNewUserDefaults-${userSettings.currentTenant}`}
           actions={actions}
           offCanvas={offCanvas}

@@ -122,6 +122,7 @@ function Get-NormalizedError {
         '*tenant*does not have*Exchange*' { 'This tenant does not have an Exchange Online license. Assign an Exchange license to the tenant before retrying.' }
         '*remote server returned an error: (404) Not Found*' { 'The Exchange Online endpoint returned 404 Not Found. The object may have been deleted, or the tenant may be unlicensed.' }
         '*remote server returned an error: (403) Forbidden*' { 'Exchange Online returned 403 Forbidden. The SAM user does not have permission for this operation in this tenant.' }
+        '*is not present in the role definition of the current user*' { 'We do not have permissions to access this resource, try performing a CPV refresh in Application Settings -> Permissions or Try with AsApp: true' }
         default { $message }
 
     }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Box,
   Card,
@@ -15,7 +15,7 @@ import { ActionsMenu } from "../actions-menu";
 import { Chart } from "../chart";
 import { chartPink } from "../../theme/colors";
 
-const useChartOptions = (labels, chartType, customColors = null) => {
+const useChartOptions = (labels, chartType, customColors = null, onSegmentClick) => {
   const theme = useTheme();
   const longBarLabels =
     chartType === "bar" &&
@@ -31,6 +31,14 @@ const useChartOptions = (labels, chartType, customColors = null) => {
   return {
     chart: {
       background: "transparent",
+      ...(onSegmentClick && {
+        events: {
+          dataPointSelection: (event, context, config) => {
+            event?.stopPropagation?.();
+            onSegmentClick(labels[config.dataPointIndex], config.dataPointIndex);
+          },
+        },
+      }),
       toolbar: {
         show: false,
         tools: {
@@ -123,6 +131,7 @@ export const CippChartCard = ({
   title,
   actions,
   onClick,
+  onSegmentClick,
   totalLabel = "Total",
   customTotal,
   compact = false,
@@ -136,7 +145,18 @@ export const CippChartCard = ({
   const smDown = useMediaQuery(theme.breakpoints.down("sm"));
   const [range, setRange] = useState("Last 7 days");
   const [barSeries, setBarSeries] = useState([]);
-  const chartOptions = useChartOptions(labels, chartType, colors);
+  // A stable handler so a parent re-render does not hand the chart new options to redraw.
+  const segmentRef = useRef(onSegmentClick);
+  useEffect(() => {
+    segmentRef.current = onSegmentClick;
+  });
+  const handleSegment = useCallback((label, index) => segmentRef.current?.(label, index), []);
+  const chartOptions = useChartOptions(
+    labels,
+    chartType,
+    colors,
+    onSegmentClick ? handleSegment : undefined
+  );
   chartSeries = chartSeries.filter((item) => item !== null);
   const calculatedTotal = chartSeries.reduce((acc, value) => acc + value, 0);
   const total = customTotal !== undefined ? customTotal : calculatedTotal;
@@ -237,6 +257,9 @@ export const CippChartCard = ({
       sx={{
         cursor: onClick ? "pointer" : "default",
         transition: "all 150ms ease-out",
+        ...(onSegmentClick && {
+          "& .apexcharts-pie-area, & .apexcharts-bar-area": { cursor: "pointer" },
+        }),
         "&:hover": onClick ? {
           boxShadow: (theme) => theme.shadows[8],
           transform: "translateY(-2px)",

@@ -83,6 +83,10 @@ foreach ($mod in $Modules) {
             # mount root out from under Docker breaks the mount
             $stale = Join-Path $dstTree $mod
             if (Test-Path $stale) { Remove-Item $stale -Recurse -Force }
+            # Mirror the source: a test file deleted or moved in the source must disappear here too,
+            # or cipp-api keeps listing a test whose function no longer exists.
+            $publicDst = Join-Path $dstTree 'Public'
+            if (Test-Path $publicDst) { Remove-Item $publicDst -Recurse -Force }
             Copy-Item (Join-Path $srcTree '*') $dstTree -Recurse -Force
         }
     } catch {

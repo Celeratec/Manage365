@@ -68,7 +68,6 @@ function Invoke-CIPPStandardBookings {
         $state = $StateIsCorrect ? $true : $CurrentState
         Set-CIPPStandardsCompareField -FieldName 'standards.Bookings' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -TenantFilter $Tenant
         if ($null -eq $CurrentState ) { $CurrentState = $true }
-        Add-CIPPBPAField -FieldName 'BookingsState' -FieldValue $CurrentState -StoreAs bool -Tenant $Tenant
     }
 
     # Input validation

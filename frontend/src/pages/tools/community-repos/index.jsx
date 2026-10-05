@@ -435,7 +435,21 @@ const Page = () => {
                         <Tooltip title="Open GitHub">
                           <IconButton
                             size="small"
-                            onClick={() => window.open(r.html_url, "_blank")}
+                            component="a"
+                            href={(() => {
+                              try {
+                                const url = new URL(r.html_url);
+                                const allowedHost =
+                                  url.protocol === "https:" &&
+                                  (url.hostname === "github.com" ||
+                                    url.hostname.endsWith(".github.com"));
+                                return allowedHost ? url.href : undefined;
+                              } catch {
+                                return undefined;
+                              }
+                            })()}
+                            target="_blank"
+                            rel="noopener noreferrer"
                           >
                             <OpenInNew />
                           </IconButton>

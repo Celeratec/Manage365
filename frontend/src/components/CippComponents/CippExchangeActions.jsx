@@ -137,7 +137,7 @@ export const CippExchangeActions = () => {
 {
       label: "Research Compromised Account",
       category: "view",
-      link: "/identity/administration/users/user/bec?userId=[ExternalDirectoryObjectId]",
+      link: "/identity/administration/bec/case?userId=[ExternalDirectoryObjectId]",
       color: "info",
       icon: <CippIcons.MagnifyingGlassIcon />,
     },

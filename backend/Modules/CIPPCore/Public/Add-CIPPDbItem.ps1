@@ -2,286 +2,242 @@ function Add-CIPPDbItem {
     <#
     .SYNOPSIS
         Add items to the CIPP Reporting database
+    .FUNCTIONALITY
+        Internal
 
-    .DESCRIPTION
-        Adds items to the CippReportingDB table with support for bulk inserts, count mode, and pipeline streaming
-
-    .PARAMETER TenantFilter
-        The tenant domain or GUID (used as partition key)
-
-    .PARAMETER Type
-        The type of data being stored (used in row key)
-
-    .PARAMETER InputObject
-        Items to add to the database. Accepts pipeline input for memory-efficient streaming.
-        Alias: Data (for backward compatibility)
-
-    .PARAMETER Count
-        If specified, stores a single row with count of items processed
-
-    .PARAMETER AddCount
-        If specified, automatically records the total count after processing all items
-
-    .PARAMETER Append
-        If specified, adds items without clearing existing entries for this type/tenant and automatically
-        increments the count. Useful for accumulating report data over time. By default, existing entries are replaced.
-
-    .EXAMPLE
-        Add-CIPPDbItem -TenantFilter 'contoso.onmicrosoft.com' -Type 'Groups' -Data $GroupsData
-
-    .EXAMPLE
-        New-GraphGetRequest -uri '...' | Add-CIPPDbItem -TenantFilter 'contoso.onmicrosoft.com' -Type 'Users' -AddCount
-
-    .EXAMPLE
-        Add-CIPPDbItem -TenantFilter 'contoso.onmicrosoft.com' -Type 'Groups' -Data $GroupsData -Count
-
-    .EXAMPLE
-        Add-CIPPDbItem -TenantFilter 'contoso.onmicrosoft.com' -Type 'AlertHistory' -Data $AlertData -Append -AddCount
+    .PARAMETER ClearOnEmpty
+        Authorizes removal of every row this run did not write, including when InputObject
+        is an authoritative empty collection (which clears the type entirely). Callers must
+        only use this after a successful source response.
     #>
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [string]$TenantFilter,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory)]
         [string]$Type,
 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory, ValueFromPipeline)]
         [Alias('Data')]
         [AllowNull()]
         [AllowEmptyCollection()]
         $InputObject,
 
-        [Parameter(Mandatory = $false)]
         [switch]$Count,
-
-        [Parameter(Mandatory = $false)]
         [switch]$AddCount,
+        [switch]$Append,
+        [switch]$ClearOnEmpty,
 
-        [Parameter(Mandatory = $false)]
-        [switch]$Append
+        # Stable run identity override. Callers whose logical "run" spans multiple invocations
+        # (resumable scans that append from many activities) pass the same id each time so a
+        # later cleanup can tell this run's rows from stale ones by identity, exactly like the
+        # single-invocation cleanup below does. Omit for the default: a new id per call.
+        [string]$RunId,
+
+        [ValidateRange(0, 60)]
+        [int]$SkewMarginMinutes = 5
     )
 
     begin {
-        # Initialize pipeline processing with state hashtable for nested function access
         $Table = Get-CippTable -tablename 'CippReportingDB'
-        $BatchAccumulator = [System.Collections.Generic.List[hashtable]]::new(500)
-        $State = @{
-            TotalProcessed = 0
-            BatchNumber    = 0
+        $BatchSize = 100
+        $Batch = [System.Collections.Generic.List[hashtable]]::new($BatchSize)
+        # Track batch duplicates separately from the full authoritative run used for cleanup.
+        $SeenInBatch = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
+        # Every row written this run is stamped with this id, and the cleanup below deletes only
+        # rows that do NOT carry it. Identity, not age: a run of any length can never delete its
+        # own writes, however the worker's and the storage service's clocks disagree. It also
+        # means nothing per-row is retained across the run - a previous design kept a HashSet of
+        # every row key written for -ClearOnEmpty, which on a tenant-wide streaming cache was
+        # tens of thousands of strings held purely to be compared once at the end.
+        if (-not $RunId) { $RunId = [guid]::NewGuid().ToString() }
+        # Allow for storage timestamp lag before considering untouched rows stale.
+        $RunStartUtc = [DateTimeOffset]::UtcNow.AddMinutes(-$SkewMarginMinutes)
+
+        $TotalProcessed = 0
+
+        # The collection's shape - its fields and their types, one nested level deep - sampled from the
+        # first rows written and stored on the '<Type>-Count' row (Shape), so the report builder can
+        # offer a collection's fields without reading the collection. Sampled, not exhaustive: a field
+        # only some rows carry may be missed, which the picker tolerates by accepting a typed name.
+        $ShapeFields = [ordered]@{}
+        $ShapeSampled = 0
+        $ShapeSampleSize = 10
+        $ShapeMaxFields = 300
+        $TypeOf = {
+            param($Value)
+            if ($null -eq $Value) { return 'null' }
+            if ($Value -is [bool]) { return 'boolean' }
+            if ($Value -is [datetime] -or $Value -is [DateTimeOffset]) { return 'date' }
+            if ($Value -is [string]) { return $(if ($Value -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}') { 'date' } else { 'string' }) }
+            if ($Value.GetType().IsPrimitive -or $Value -is [decimal]) { return 'number' }
+            if ($Value -is [System.Collections.IDictionary] -or $Value -is [System.Management.Automation.PSCustomObject]) { return 'object' }
+            if ($Value -is [System.Collections.IEnumerable]) { return 'array' }
+            'string'
+        }
+        $PropertiesOf = {
+            param($Value)
+            if ($Value -is [System.Collections.IDictionary]) { foreach ($Key in $Value.Keys) { @{ Name = "$Key"; Value = $Value[$Key] } } }
+            elseif ($Value -is [System.Management.Automation.PSCustomObject]) { foreach ($Property in $Value.PSObject.Properties) { @{ Name = $Property.Name; Value = $Property.Value } } }
+        }
+        $NoteField = {
+            param([string]$Name, $Value)
+            if ($ShapeFields.Count -ge $ShapeMaxFields -and -not $ShapeFields.Contains($Name)) { return }
+            $Kind = & $TypeOf $Value
+            if (-not $ShapeFields.Contains($Name) -or $ShapeFields[$Name] -eq 'null') { $ShapeFields[$Name] = $Kind }
+            $Kind
+        }
+        $NoteShape = {
+            param($Item)
+            foreach ($Property in @(& $PropertiesOf $Item)) {
+                $Kind = & $NoteField $Property.Name $Property.Value
+                # one level in: an object's own fields, or the fields of an array's first object
+                $Inner = if ($Kind -eq 'object') { $Property.Value } elseif ($Kind -eq 'array') { @($Property.Value | Select-Object -First 1)[0] }
+                if ($null -ne $Inner -and (& $TypeOf $Inner) -eq 'object') {
+                    foreach ($Child in @(& $PropertiesOf $Inner)) { $null = & $NoteField "$($Property.Name).$($Child.Name)" $Child.Value }
+                }
+            }
         }
 
-        if ($TenantFilter -match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+        # Cache regex instances so each row pays only the match cost, not regex compilation.
+        # Two passes preserve the original semantics: path/wildcard chars → '_', control chars → stripped.
+        $RowKeyPathRegex = [regex]::new('[/\\#?]')
+        $RowKeyControlRegex = [regex]::new('[\u0000-\u001F\u007F-\u009F]')
+        $HasToJson = [bool](('CIPP.CippJson' -as [type])?.GetMethod('ToJson'))
+
+        if ($TenantFilter -match '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$') {
             try {
-                $TenantFilter = (Get-Tenants -TenantFilter $TenantFilter -IncludeErrors | Select-Object -First 1).defaultDomainName
+                $TenantLookup = @(Get-Tenants -TenantFilter $TenantFilter -IncludeErrors)
+                if ($TenantLookup.Count -gt 0) { $TenantFilter = $TenantLookup[0].defaultDomainName }
             } catch {
                 Write-LogMessage -API 'CIPPDbItem' -tenant $TenantFilter -message "Failed to resolve tenant GUID to default domain: $($_.Exception.Message)" -sev Warning
             }
         }
-
-        # Helper function to format RowKey values by removing disallowed characters
-        function Format-RowKey {
-            param([string]$RowKey)
-            $sanitized = $RowKey -replace '[/\\#?]', '_' -replace '[\u0000-\u001F\u007F-\u009F]', ''
-            return $sanitized
-        }
-
-        # Function to flush current batch
-        function Invoke-FlushBatch {
-            param($State)
-            if ($BatchAccumulator.Count -eq 0) { return }
-
-            $State.BatchNumber++
-            $batchSize = $BatchAccumulator.Count
-            $MemoryBeforeGC = [System.GC]::GetTotalMemory($false)
-            $flushStart = Get-Date
-
-            try {
-                # Entities are already in the accumulator, just write them
-                $writeStart = Get-Date
-                Add-CIPPAzDataTableEntity @Table -Entity $BatchAccumulator.ToArray() -Force | Out-Null
-                $writeEnd = Get-Date
-                $writeDuration = [math]::Round(($writeEnd - $writeStart).TotalSeconds, 2)
-                $State.TotalProcessed += $batchSize
-
-            } finally {
-                # Clear and GC
-                $gcStart = Get-Date
-                $BatchAccumulator.Clear()
-
-                # Memory threshold check - use aggressive GC when approaching Azure Function limit (1536 MB)
-                $MemoryThresholdMB = 1200
-                $CurrentMemoryMB = [System.GC]::GetTotalMemory($false) / 1MB
-                if ($CurrentMemoryMB -gt $MemoryThresholdMB) {
-                    # Force aggressive garbage collection when memory is high
-                    [System.GC]::Collect(2, [System.GCCollectionMode]::Forced, $true)
-                    [System.GC]::WaitForPendingFinalizers()
-                    [System.GC]::Collect()
-                } else {
-                    # Single GC pass is sufficient for normal operations
-                    [System.GC]::Collect()
-                }
-
-                $flushEnd = Get-Date
-                $gcDuration = [math]::Round(($flushEnd - $gcStart).TotalSeconds, 2)
-                $flushDuration = [math]::Round(($flushEnd - $flushStart).TotalSeconds, 2)
-                $MemoryAfterGC = [System.GC]::GetTotalMemory($false)
-                $FreedMB = [math]::Round(($MemoryBeforeGC - $MemoryAfterGC) / 1MB, 2)
-                $CurrentMemoryMB = [math]::Round($MemoryAfterGC / 1MB, 2)
-                #Write-Debug "Batch $($State.BatchNumber): ${flushDuration}s total (write: ${writeDuration}s, gc: ${gcDuration}s) | Processed: $($State.TotalProcessed) | Memory: ${CurrentMemoryMB}MB | Freed: ${FreedMB}MB"
-            }
-        }
-
-        if (-not $Count.IsPresent -and -not $Append.IsPresent) {
-            # Track existing RowKeys so we can remove stale entries after upsert
-            # This avoids the expensive delete-all-then-rewrite pattern
-            $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}0'" -f $TenantFilter, $Type
-            $ExistingRowKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            # Project split markers so part-rows reassemble; a property subset makes the module drop them.
-            $ExistingEntities = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, ETag, OriginalEntityId, RunId, PartIndex, PartCount
-            if ($ExistingEntities) {
-                foreach ($entity in @($ExistingEntities)) {
-                    [void]$ExistingRowKeys.Add($entity.RowKey)
-                }
-            }
-            $WrittenRowKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-            $AllocatedMemoryMB = [math]::Round([System.GC]::GetTotalMemory($false) / 1MB, 2)
-            #Write-Debug "Starting $Type import for $TenantFilter | Allocated Memory: ${AllocatedMemoryMB}MB | Batch Size: 500 | Existing: $($ExistingRowKeys.Count)"
-        }
     }
 
     process {
-        # Process each item from pipeline
         if ($null -eq $InputObject) { return }
 
-        # If Count mode and InputObject is an integer, use it directly as count
-        if ($Count.IsPresent -and $InputObject -is [int]) {
-            $State.TotalProcessed = $InputObject
-            return
-        }
-
-        # Handle both single items and arrays (for backward compatibility)
-        $ItemsToProcess = if ($InputObject -is [array]) {
-            $InputObject
-        } else {
-            @($InputObject)
-        }
-
-        # If Count mode, just count items without processing
         if ($Count.IsPresent) {
-            $itemCount = if ($ItemsToProcess -is [array]) { $ItemsToProcess.Count } else { 1 }
-            $State.TotalProcessed += $itemCount
+            if ($InputObject -is [int]) { $TotalProcessed = $InputObject } else { $TotalProcessed += @($InputObject).Count }
             return
         }
 
-        foreach ($Item in $ItemsToProcess) {
+        foreach ($Item in @($InputObject)) {
             if ($null -eq $Item) { continue }
-
-            # Convert to entity
-            $ItemId = $Item.ExternalDirectoryObjectId ?? $Item.id ?? $Item.Identity ?? $Item.skuId ?? $Item.userPrincipalName ?? [Guid]::NewGuid().ToString()
-            $RowKey = Format-RowKey "$Type-$ItemId"
-            $Entity = @{
-                PartitionKey = $TenantFilter
-                RowKey       = $RowKey
-                Data         = [string]($Item | ConvertTo-Json -Depth 10 -Compress)
-                Type         = $Type
-            }
-
-            $BatchAccumulator.Add($Entity)
-            [void]$WrittenRowKeys.Add($RowKey)
-
-            # Flush when batch reaches 500 items
-            if ($BatchAccumulator.Count -ge 500) {
-                Invoke-FlushBatch -State $State
+            $ItemId = $Item.ExternalDirectoryObjectId ?? $Item.id ?? $Item.Identity ?? $Item.skuId ?? $Item.userPrincipalName ?? [guid]::NewGuid().ToString()
+            $RowKey = $RowKeyControlRegex.Replace($RowKeyPathRegex.Replace("$Type-$ItemId", '_'), '')
+            if ($SeenInBatch.Add($RowKey)) {
+                # Piping a list into ConvertTo-Json unrolls it, so lists keep the old path
+                $Data = if ($HasToJson -and $Item -isnot [System.Collections.IList]) { [CIPP.CippJson]::ToJson($Item, 100) }
+                if ($null -eq $Data) { $Data = [string]($Item | ConvertTo-Json -Depth 100 -Compress) }
+                # Counted here: an increment inside $NoteShape ('&', child scope) would never land.
+                if ($ShapeSampled -lt $ShapeSampleSize) {
+                    $ShapeSampled++
+                    & $NoteShape $Item
+                }
+                $Batch.Add(@{
+                        PartitionKey = $TenantFilter
+                        RowKey       = $RowKey
+                        # Depth 100, not 10: settings-catalog policies (e.g. macOS
+                        # Platform SSO) nest deeper than 10 levels - a lower depth
+                        # silently strips @odata.type/settingDefinitionId from deep
+                        # children and every consumer sees a mangled object.
+                        Data         = $Data
+                        Type         = $Type
+                        RunId        = $RunId
+                    })
+                if ($Batch.Count -ge $BatchSize) {
+                    $null = Add-CIPPAzDataTableEntity @Table -Entity $Batch.ToArray() -Force
+                    $TotalProcessed += $Batch.Count
+                    $Batch.Clear()
+                    $SeenInBatch.Clear()
+                }
             }
         }
     }
 
     end {
-        try {
-            # Flush any remaining items in final partial batch
-            if ($BatchAccumulator.Count -gt 0) {
-                Invoke-FlushBatch -State $State
-            }
-
-            if ($Count.IsPresent -or $Append.IsPresent) {
-                # Store count record
-                if ($Append.IsPresent) {
-                    # When appending, always increment the existing count
-                    $Filter = "PartitionKey eq '{0}' and RowKey eq '{1}-Count'" -f $TenantFilter, $Type
-                    $ExistingCount = Get-CIPPAzDataTableEntity @Table -Filter $Filter
-                    $PreviousCount = if ($ExistingCount -and $ExistingCount.DataCount) { [int]$ExistingCount.DataCount } else { 0 }
-                    $NewCount = $PreviousCount + $State.TotalProcessed
-                } else {
-                    # Normal mode - replace count
-                    $NewCount = $State.TotalProcessed
-                }
-
-                $Entity = @{
-                    PartitionKey = $TenantFilter
-                    RowKey       = Format-RowKey "$Type-Count"
-                    DataCount    = [int]$NewCount
-                }
-                Add-CIPPAzDataTableEntity @Table -Entity $Entity -Force | Out-Null
-            }
-
-            # Remove stale entries that no longer exist in the source data
-            # Only delete the diff instead of delete-all-then-rewrite to reduce storage write operations
-            if (-not $Count.IsPresent -and $ExistingRowKeys.Count -gt 0 -and $WrittenRowKeys.Count -gt 0) {
-                $StaleRowKeys = $ExistingRowKeys | Where-Object { -not $WrittenRowKeys.Contains($_) }
-                if ($StaleRowKeys) {
-                    $StaleEntities = @($StaleRowKeys | ForEach-Object {
-                        @{
-                            PartitionKey = $TenantFilter
-                            RowKey       = [string]$_
-                        }
-                    })
-                    if ($StaleEntities.Count -gt 0) {
-                        try {
-                            Remove-CIPPAzDataTableEntity @Table -Entity $StaleEntities -Force -ErrorAction Stop | Out-Null
-                        } catch {
-                            if ($_.Exception.Message -notmatch 'does not exist|ResourceNotFound') {
-                                Write-Warning "Failed to remove $($StaleEntities.Count) stale $Type entries for $TenantFilter : $($_.Exception.Message)"
-                            }
-                        }
-                    }
-                }
-            }
-
-            Write-LogMessage -API 'CIPPDbItem' -tenant $TenantFilter `
-                -message "Added $($State.TotalProcessed) items of type $Type$(if ($Count.IsPresent) { ' (count mode)' })$(if ($Append.IsPresent) { ' (append mode)' })" -sev Debug
-
-        } catch {
-            Write-LogMessage -API 'CIPPDbItem' -tenant $TenantFilter `
-                -message "Failed to add items of type $Type : $($_.Exception.Message)" -sev Error `
-                -LogData (Get-CippException -Exception $_)
-            #Write-Debug "[Add-CIPPDbItem] $TenantFilter - $(Get-CippException -Exception $_ | ConvertTo-Json -Depth 5 -Compress)"
-            throw
-        } finally {
-            # Record count if AddCount was specified
-            if ($AddCount.IsPresent -and $State.TotalProcessed -gt 0) {
-                try {
-                    $countParams = @{
-                        TenantFilter = $TenantFilter
-                        Type         = $Type
-                        InputObject  = $State.TotalProcessed
-                        Count        = $true
-                    }
-                    if ($Append.IsPresent) {
-                        $countParams.Append = $true
-                    }
-                    Add-CIPPDbItem @countParams
-                } catch {
-                    Write-LogMessage -API 'CIPPDbItem' -tenant $TenantFilter `
-                        -message "Failed to record count for $Type : $($_.Exception.Message)" -sev Warning
-                }
-            }
-
-            # Final cleanup
-            $BatchAccumulator = $null
-            $ExistingRowKeys = $null
-            $WrittenRowKeys = $null
-            [System.GC]::Collect()
+        if ($Batch.Count -gt 0) {
+            $null = Add-CIPPAzDataTableEntity @Table -Entity $Batch.ToArray() -Force
+            $TotalProcessed += $Batch.Count
         }
+
+        # Clean up orphaned rows (entities that no longer exist in the new dataset).
+        # Empty collections only clear existing data when the caller explicitly confirms
+        # the response was authoritative by passing -ClearOnEmpty.
+        if (-not $Count.IsPresent -and -not $Append.IsPresent -and ($TotalProcessed -gt 0 -or $ClearOnEmpty.IsPresent)) {
+            $Filter = "PartitionKey eq '{0}' and RowKey ge '{1}-' and RowKey lt '{1}0'" -f $TenantFilter, $Type
+
+            # The Timestamp predicate is NARROWING ONLY: it lets the service return candidate
+            # orphans instead of every row of this type for the tenant, which at the end of a
+            # tenant-wide cache write was a second full copy of the dataset materialised exactly
+            # when the caller still held its first. The RunId check below is the delete
+            # authority, so if this predicate were ever dropped, unsupported, or subtly wrong,
+            # the candidate set merely changes size - rows this run wrote still cannot be
+            # deleted, because they carry this run's id.
+            #
+            # -ClearOnEmpty must consider every row (the source authoritatively returned the
+            # full - possibly empty - set), so it skips the narrowing.
+            if (-not $ClearOnEmpty.IsPresent) {
+                $Filter += " and Timestamp lt datetime'{0}'" -f $RunStartUtc.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ')
+            }
+
+            # Project all row-level split markers (OriginalEntityId, PartIndex, PartCount) so split
+            # entities reassemble; a subset makes the module drop them. Reassembly is what keeps this
+            # sound - each logical row carries its RunId. Raw rows (no markers) would be wrong: part
+            # rows lack RunId and would look like foreign-run orphans.
+            $Existing = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, ETag, OriginalEntityId, RunId, PartIndex, PartCount
+            if ($Existing) {
+                $Orphans = foreach ($Row in @($Existing)) {
+                    if ($Row.RowKey -eq "$Type-Count") { continue }
+
+                    # Identity is the authority: a row written by this run always carries this
+                    # run's id, no matter how long the run took, how the clocks drift, or what
+                    # the query returned. Anything else - an earlier run's row, or a legacy row
+                    # with no RunId at all - is an orphan by definition of an authoritative
+                    # full-set write.
+                    if ([string]$Row.RunId -ne $RunId) { $Row }
+                }
+                if ($Orphans) {
+                    $null = Remove-CIPPAzDataTableEntity @Table -Entity @($Orphans) -Force
+                }
+            }
+        }
+
+        if ($Count.IsPresent -or $AddCount.IsPresent) {
+            $NewCount = $TotalProcessed
+            # The existing count row is read when appending (to add to its count) and when this call
+            # sampled no rows (a count-only call after the rows went in separately), so a shape
+            # already recorded is kept rather than wiped.
+            $ExistingCount = $null
+            if ($Append.IsPresent -or $ShapeFields.Count -eq 0) {
+                $Filter = "PartitionKey eq '{0}' and RowKey eq '{1}-Count'" -f $TenantFilter, $Type
+                $ExistingCount = Get-CIPPAzDataTableEntity @Table -Filter $Filter
+            }
+            if ($Append.IsPresent -and $ExistingCount.DataCount) { $NewCount += [int]$ExistingCount.DataCount }
+            if (($Append.IsPresent -or $ShapeFields.Count -eq 0) -and $ExistingCount.Shape) {
+                try {
+                    foreach ($Known in @((ConvertFrom-Json -InputObject "$($ExistingCount.Shape)").fields)) {
+                        if ($Known.name -and -not $ShapeFields.Contains([string]$Known.name)) { $ShapeFields[[string]$Known.name] = [string]$Known.type }
+                    }
+                } catch { Write-Verbose "Unreadable shape on $Type-Count; recording afresh." }
+            }
+            $ShapeJson = ConvertTo-Json -InputObject @{
+                fields    = @(foreach ($Name in $ShapeFields.Keys) { @{ name = $Name; type = $ShapeFields[$Name] } })
+                sampledAt = (Get-Date).ToUniversalTime().ToString('o')
+            } -Depth 5 -Compress
+            $null = Add-CIPPAzDataTableEntity @Table -Entity @{
+                PartitionKey = $TenantFilter
+                RowKey       = "$Type-Count"
+                DataCount    = [int]$NewCount
+                Type         = $Type
+                Shape        = [string]$ShapeJson
+            } -Force
+        }
+
+        Write-LogMessage -API 'CIPPDbItem' -tenant $TenantFilter -message "Added $TotalProcessed items of type $Type" -sev Debug
     }
 }

@@ -486,8 +486,9 @@ export const CippApiResults = (props) => {
   const tableDialog = useDialog();
 
   // Optional live job progress: when the mutation result carries jobProgress.idField, poll
-  // jobProgress.url(id) until every row reaches a terminal state.
-  const jobIdField = jobProgress?.idField ?? "JobId";
+  // jobProgress.url(id) until every row reaches a terminal state, then call jobProgress.onComplete(rows).
+  // Pass a memoized jobProgress: a new object each render re-arms the poll.
+  const jobIdField = jobProgress?.idField ?? 'JobId'
   useEffect(() => {
     if (!jobProgress) return;
     if (apiObject.isPending) {
@@ -512,7 +513,10 @@ export const CippApiResults = (props) => {
     refetchInterval: jobPollActive ? (jobProgress?.interval ?? 5000) : false,
     staleTime: 0,
   })
-  const jobRows = Array.isArray(jobStatus.data) ? jobStatus.data : []
+  const jobRows = useMemo(
+    () => (Array.isArray(jobStatus.data) ? jobStatus.data : []),
+    [jobStatus.data]
+  )
   // After a re-run the finished rows stay as they are until the job rewrites them, so keep polling
   // until a row goes active again, or give up after 90 s if the re-run never started.
   const restartedAt = useRef(null)
@@ -528,7 +532,8 @@ export const CippApiResults = (props) => {
     }
     if (restartedAt.current && Date.now() - restartedAt.current < 90000) return
     setJobPollActive(false)
-  }, [jobPollActive, jobRows, jobStatus.dataUpdatedAt])
+    jobProgress?.onComplete?.(jobRows)
+  }, [jobPollActive, jobRows, jobStatus.dataUpdatedAt, jobProgress])
   const pageTitle = `${document.title} - Results`
   const correctResultObj = useMemo(() => {
     if (!apiObject.isSuccess) return;

@@ -16,13 +16,15 @@ User and device information is written to a rich text field named **Microsoft 36
 | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Enable Integration                                                              | Turns the integration on. Every other setting, the **Test** and **Force Sync** buttons, and the **Tenant Mapping** and **Field Mapping** tabs remain unavailable until this is enabled and saved. |
 | Please enter your Hudu URL                                                      | The full URL of your Hudu instance, such as `https://yourcompany.huducloud.com`, or your self-hosted address.                                                                                     |
-| Hudu API Key                                                                    | The API key generated in Hudu. Stored securely and masked once saved.                                                                                                                             |
+| Hudu API Key                                                                    | The API key generated in Hudu. Stored securely and masked once saved. Enable **Password Access** on the key when synchronising LAPS passwords or BitLocker recovery keys.                         |
 | Create missing users in Hudu                                                    | Creates an asset for any Microsoft 365 user without a matching record in the mapped user layout. Without this, CIPP only updates users that already exist in Hudu.                                |
 | Create missing devices in Hudu                                                  | Creates an asset for any Intune device without a matching record in the mapped device layout.                                                                                                     |
+| Sync Windows LAPS passwords to Hudu                                             | Adds the LAPS account, password and backup date to matching Windows device assets in the mapped device layout.                                                                                    |
+| Sync BitLocker recovery keys to Hudu                                             | Adds paired key ID and recovery-key fields for each BitLocker OS, fixed data, removable data or unknown drive to matching Windows device assets.                                                  |
 | Exclude device serials (comma separated)                                        | Additional serial numbers to skip when matching and creating devices. A set of common placeholder serials is always excluded regardless of this setting.                                          |
 | Import domains from M365                                                        | Creates a Hudu website record for each domain in the tenant that does not already exist.                                                                                                          |
 | Monitor domains in Hudu                                                         | Enables DNS, SSL and WHOIS monitoring on the website records created by the previous setting. Without it, records are created paused with monitoring disabled.                                    |
-| Hide Empty Roles in Magic Dash                                                  | Omits directory roles with no members from the assigned roles table, which keeps the Magic Dash considerably shorter.                                                                             |
+| Hide Empty Roles in Magic Dash                                                  | Omits directory roles with no active or eligible members from the assigned roles table, which keeps the Magic Dash considerably shorter.                                                                             |
 | Include link to Partner Center Service management page (partner.microsoft.com)  | Adds a Partner Center link to the tenant's portal links.                                                                                                                                          |
 | Include link to Defender Portal (security.microsoft.com)                        | Adds a Defender portal link to the tenant's portal links.                                                                                                                                         |
 | Include link to Compliance Portal (compliance.microsoft.com)                    | Adds a Purview compliance portal link to the tenant's portal links.                                                                                                                               |
@@ -45,9 +47,13 @@ Sign in to Hudu as an Administrator, go to **Admin** > **Account Administration*
 {% step %}
 ### Configure the key
 
-Give it a name such as _CIPP Integration_, set **Limit scope to** to _Full Access_, and leave **Company** blank. None of the options under **Key can perform the following actions** are required.
+Give it a name such as _CIPP Integration_, set **Limit scope to** to _Full Access_, and leave **Company** blank. Enable **Password Access** under **Key can perform the following actions** when synchronising LAPS passwords or BitLocker recovery keys. The other actions are not required.
 
 Optionally restrict **Allowed IP Addresses** to your function app's outbound addresses. CyberDrain-hosted clients can find these at [management.cipp.app](https://management.cipp.app/).
+
+{% hint style="warning" %}
+Hudu's global **IP Access Control** list (**Admin** > **Security**) applies to API keys as well. If it is enabled, add CIPP's outbound addresses there too, even when the key itself allows all IPs, or requests fail with `Unauthorized IP Address`. These addresses can change, so update the list if the integration stops working.
+{% endhint %}
 {% endstep %}
 
 {% step %}
@@ -135,7 +141,7 @@ CIPP adds the fields it needs to whichever layouts you map, so no preparation is
 
 ## What Gets Synchronised
 
-Once a tenant is mapped, CIPP schedules a daily synchronisation for it. Each run publishes a Magic Dash card on the Hudu company titled **Microsoft 365 -&#x20;**_**tenant name**_, showing the licensed user count and containing tenant detail, portal links and the assigned roles table. User and device assets are then created or updated in the mapped layouts, and domains are imported as website records where enabled.
+Once a tenant is mapped, CIPP schedules a daily synchronisation for it. Each run publishes a Magic Dash card on the Hudu company titled **Microsoft 365 -&#x20;**_**tenant name**_, showing the licensed user count and containing tenant detail, portal links and the assigned roles table. The roles table lists each role's active members and, for tenants using Privileged Identity Management, its eligible members in a separate column with their eligibility end date; expired eligibilities are left out. User and device assets are then created or updated in the mapped layouts, and domains are imported as website records where enabled.
 
 Use **Reschedule next sync date** to push the next run to a specific date, which is the cleanest way to keep the initial full synchronisation out of business hours.
 

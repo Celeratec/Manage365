@@ -54,6 +54,19 @@ Use **Add a condition** to build the rule. Each condition is a property, an oper
 | is              | The comparison to apply: `Equals to`, `Not Equals to`, `Like`, `Not like`, `Does not match`, `Greater than`, `Less than`, `In`, or `Not In`.                                                 |
 | Input           | The value to compare against. This is a free-text box for most properties, a picker when the property has a known set of values, and a multi-value picker when the operator is In or Not In. |
 
+#### Alerting on failed sign-ins
+
+With the Azure AD log source, a failed sign-in (operation `UserLoginFailed`) carries two properties that say why it failed:
+
+| Property      | Contains                                                        | Example                      |
+| ------------- | --------------------------------------------------------------- | ---------------------------- |
+| `ErrorNumber` | The AADSTS error code as a number, without the `AADSTS` prefix. | `53003`                      |
+| `LogonError`  | The name of the same error.                                     | `BlockedByConditionalAccess` |
+
+Both properties offer a picker of the error codes and names Microsoft publishes, so you can search for the error you want rather than typing it. For example, to alert when Conditional Access blocks a sign-in, use either `ErrorNumber` `Equals to` `53003` or `LogonError` `Equals to` `BlockedByConditionalAccess`.
+
+For what each code means, see Microsoft's [AADSTS error code reference](https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes). The full list of sign-in record properties is in Microsoft's [Azure Active Directory STS logon schema](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#azure-active-directory-secure-token-service-sts-logon-schema).
+
 ### Scripted CIPP Alert
 
 | Field                            | Description                                                                                                            |
@@ -75,6 +88,7 @@ For a **Scripted CIPP Alert**, this is how the alert is delivered:
 * Webhook - Delivers a JSON payload to the webhook configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * PSA - Delivers a formatted payload to the PSA configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * Email - Delivers an HTML-formatted table to the email address provided in [notifications.md](../../../cipp/settings/notifications.md "mention").
+* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert.
 
 For an **Audit Log Alert**, this is what CIPP does when a matching log entry arrives, and it can include remediation as well as notification:
 
@@ -106,6 +120,10 @@ Shown for both alert types when Generate a PSA ticket (or PSA) is one of the sel
 {% hint style="info" %}
 The dropdown is shown disabled with an explanation instead of a priority list when there is nothing valid to offer: no Ticket Type is set on the integration yet, the configured Ticket Type has no SLA attached (so HaloPSA is left to apply its own priority regardless of any selection here), or the priority list could not be loaded.
 {% endhint %}
+
+### BEC containment actions to run
+
+Shown for audit log alerts when Execute a BEC Remediate is one of the selected actions. Choose which containment actions run against the user in the log entry. Each option is listed with its impact level. Leave it empty to run the default set: reset the password, block sign-in, revoke sessions, and disable inbox rules. The instance-wide [bec-remediation.md](../../../cipp/settings/bec-remediation.md "mention") do not change this set. Actions rated Critical run without a typed confirmation when an alert triggers them.
 
 ### Custom Subject
 

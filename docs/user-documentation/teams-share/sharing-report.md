@@ -47,7 +47,7 @@ A row of headline counts sits above two cards that break the environment down fu
 | Indicator             | Description                                    |
 | --------------------- | ---------------------------------------------- |
 | SharePoint Sites      | The number of SharePoint sites in the tenant.  |
-| Teams-Connected Sites | SharePoint sites that are connected to a Team. |
+| Teams-Connected Sites | SharePoint sites that are connected to a Team, including the separate sites of its private and shared channels. |
 | OneDrive Accounts     | The number of OneDrive accounts.               |
 | Shared Items          | The number of items that have been shared.     |
 

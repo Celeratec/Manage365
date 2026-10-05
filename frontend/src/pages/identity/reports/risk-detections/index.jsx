@@ -35,7 +35,7 @@ const Page = () => {
       label: "Research Compromised Account",
       type: "GET",
       icon: <MagnifyingGlassIcon />,
-      link: "/identity/administration/users/user/bec?userId=[userId]",
+      link: "/identity/administration/bec/case?userId=[userId]",
       confirmText: "Are you sure you want to research this compromised account?",
       multiPost: false,
       category: "view",

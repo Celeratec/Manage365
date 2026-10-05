@@ -8,24 +8,24 @@ Lists the SharePoint library shortcuts in this user's OneDrive, whether they sit
 
 <summary>Add Shortcut</summary>
 
-Opens a dialog that adds a shortcut to a chosen SharePoint site into the user's OneDrive.
+Opens a dialog that adds a shortcut to a chosen SharePoint site into the user's OneDrive. The button only appears if your CIPP role can edit users.
 
-| Field | Description |
-| ----- | ----------- |
-| Select a Site | The SharePoint site to link to. Existing sites can be picked, or a URL typed directly. |
-| Shortcut location | Where the shortcut is created: the OneDrive root, or the Shortcuts folder. Defaults to the OneDrive root. |
+| Field             | Description                                                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Select a Site     | The SharePoint site to link to. Existing sites can be picked, or a URL typed directly.                                                   |
+| Shortcut location | Where the shortcut is created: **OneDrive root** or **Shortcuts folder (Microsoft UI)**. Defaults to **Shortcuts folder (Microsoft UI)**. |
 
 </details>
 
 ## Table Details
 
-| Column | Description |
-| ------ | ----------- |
-| Name | The shortcut's file name. |
-| Location | Whether the shortcut sits in the OneDrive root or the Shortcuts folder. |
-| Site Url | The SharePoint site the shortcut points to. |
-| Created Date Time | When the shortcut was created. |
-| Last Modified Date Time | When the shortcut was last changed. |
+| Column                  | Description                                                             |
+| ----------------------- | ----------------------------------------------------------------------- |
+| Name                    | The shortcut's file name.                                               |
+| Location                | Whether the shortcut sits in the OneDrive root or the Shortcuts folder. |
+| Site URL                | The SharePoint site the shortcut points to.                             |
+| Created Date Time       | When the shortcut was created.                                          |
+| Last Modified Date Time | When the shortcut was last changed.                                     |
 
 ## Table Actions
 

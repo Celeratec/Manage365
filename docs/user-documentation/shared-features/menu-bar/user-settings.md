@@ -59,10 +59,24 @@ A label on the card indicates which defaults are currently in effect: **Using Te
 
 An Out of Office message alone is enough for these defaults to count as configured for the user vs all-users precedence.
 
-A **Send results to** section chooses where the outcome of an offboarding is reported, with options for Webhook, E-mail, and PSA.
+A **Send results to** section chooses where the outcome of an offboarding is reported, with options for Webhook, E-mail, PSA, and Push notification.
 
 {% hint style="info" %}
-If a tenant has its own offboarding defaults saved, those replace your personal defaults entirely for that tenant — including when the tenant message field is empty.
+If a tenant has its own offboarding defaults saved, those replace your personal defaults entirely for that tenant, including when the tenant message field is empty.
+{% endhint %}
+
+## Push Notifications
+
+Registers the browser or installed app you are using to receive push notifications from CIPP. Notifications are per person: a scheduled task, alert, offboarding or JIT admin grant with **Push (notify me)** selected notifies the devices registered by whoever created it, and nobody else. Each browser and each installed copy of the app counts as its own device.
+
+| Control                | Description                                                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enable on this device  | Asks the browser for notification permission and registers this device. On iOS this is only available once CIPP has been added to the Home Screen and opened from there. Unavailable while impersonating a role. |
+| Remove                 | Stops notifications to that device. Removing a device from another browser is fine; the registration is deleted, not the browser's permission.                                                 |
+| Send test notification | Sends a test notification to every device you have registered.                                                                                                                                 |
+
+{% hint style="info" %}
+A device the browser has silently dropped, for example after the site data was cleared, is removed from the list automatically the next time a notification to it fails.
 {% endhint %}
 
 ## Portal Links Configuration

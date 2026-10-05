@@ -2038,6 +2038,10 @@ export const CippDataTable = (props) => {
     },
     exportEnabled = true,
     simpleColumns = [],
+    dataFilter,
+    dataMap,
+    // Whole-array transform applied after dataFilter/dataMap (e.g. grouping All Tenants rows).
+    dataTransform,
     actions,
     title = "Report",
     simple = false,
@@ -2130,9 +2134,17 @@ export const CippDataTable = (props) => {
   const [activeFilters, setActiveFilters] = useState({ graph: null, table: null });
   const [searchValue, setSearchValue] = useState("");
   const restoredFiltersRef = useRef(new Set());
+  const searchFocusRef = useRef(null);
 
   const routerPageName = router.pathname.split("/").slice(1).join("/");
   const pageName = persistenceKey ?? (isInDialog ? "" : routerPageName);
+  // The user's saved column selection for this page. Always layered over a full default
+  // map, never used as the whole visibility state: TanStack treats a column with no entry
+  // as visible, so a preference saved on a tenant whose data lacked a field would reveal
+  // that field the moment another tenant's data contains it.
+  const preferredColumnVisibility = pageName
+    ? settings?.columnDefaults?.[pageName]
+    : undefined;
 
   // 'cards' below the md breakpoint (or when forced via settings/prop), 'table' otherwise.
   // simple tables always resolve to 'table'.
@@ -2240,7 +2252,7 @@ export const CippDataTable = (props) => {
       return;
     }
 
-    if (getRequestData.isSuccess && !getRequestData.isFetching) {
+    if (api?.url && getRequestData.isSuccess && !getRequestData.isFetching) {
       const pages = getRequestData.data?.pages;
       if (pages && pages.length > 0) {
         const lastPage = pages[pages.length - 1];
@@ -2255,6 +2267,7 @@ export const CippDataTable = (props) => {
     // directly would re-run (and re-fetch) on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    api?.url,
     getRequestData.data?.pages?.length,
     getRequestData.isFetching,
     getRequestData.isError,
@@ -2264,12 +2277,16 @@ export const CippDataTable = (props) => {
   ]);
 
   useEffect(() => {
-    if (getRequestData.isSuccess && getRequestData.data?.pages) {
+    if (api?.url && getRequestData.isSuccess && getRequestData.data?.pages) {
       const allPages = getRequestData.data.pages;
 
       let combinedResults = allPages.flatMap((page) => {
         const nestedData = getNestedValue(page, api.dataKey);
-        return nestedData !== undefined ? nestedData : [];
+        if (nestedData !== undefined) {
+          return nestedData;
+        }
+        // dataKey miss on a bare-array page: the endpoint served the legacy shape.
+        return Array.isArray(page) ? page : [];
       });
 
       // Deduplicate across paginated pages. Microsoft Graph (and other
@@ -2309,14 +2326,22 @@ export const CippDataTable = (props) => {
         combinedResults = api.dataFilter(combinedResults);
       }
 
+      const filtered = dataFilter ? combinedResults.filter(dataFilter) : combinedResults;
+      const mapped =
+        typeof dataMap === "function"
+          ? filtered.map((row) => dataMap(row, { parentRow }))
+          : filtered;
+      const transformed =
+        typeof dataTransform === "function" ? dataTransform(mapped) : mapped;
+
       // Only update state if data has actually changed to prevent infinite re-renders.
       // React Query returns a new object reference on every fetch even if data is identical,
       // so we must deep-compare before updating state.
       setUsedData((prevData) => {
-        if (isEqual(prevData, combinedResults)) {
+        if (isEqual(prevData, transformed)) {
           return prevData;
         }
-        return combinedResults;
+        return transformed;
       });
     }
     // Keyed to the specific api fields actually used (dataKey/dataFilter) plus the
@@ -2324,13 +2349,20 @@ export const CippDataTable = (props) => {
     // so depending on it would re-run this dedupe pass needlessly each render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    api?.url,
     getRequestData.isSuccess,
     getRequestData.data,
     api.dataKey,
     api.dataFilter,
     getRequestData.isFetching,
     queryKey,
+    dataFilter,
+    dataMap,
+    dataTransform,
+    parentRow,
   ]);
+
+  // Derive columns from data — only when the data schema actually changes.
   useEffect(() => {
     if (
       !Array.isArray(usedData) ||
@@ -2437,6 +2469,14 @@ export const CippDataTable = (props) => {
         }
       }
     }
+    // Saved preferred columns win over the defaults above. Fields the preference never
+    // saw (a different tenant's schema) keep the default computed for this table.
+    if (
+      preferredColumnVisibility &&
+      Object.keys(preferredColumnVisibility).length > 0
+    ) {
+      Object.assign(newVisibility, preferredColumnVisibility)
+    }
     if (defaultSorting?.length > 0) {
       setSorting(defaultSorting);
     }
@@ -2447,7 +2487,15 @@ export const CippDataTable = (props) => {
     // defaultSorting are read as the latest values but are deliberately not triggers:
     // this effect sets columnVisibility, so depending on it would risk a rebuild loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [columns.length, usedData, queryKey, settings?.currentTenant, filterTypeMap, subTables]);
+  }, [
+    columns.length,
+    usedData,
+    queryKey,
+    settings?.currentTenant,
+    filterTypeMap,
+    subTables,
+    preferredColumnVisibility,
+  ]);
 
   // Previous-value refs for the guards below: CippDataTable is the single owner of this
   // state across both toolbar instances, so an effect can compare against the last value
@@ -2493,20 +2541,23 @@ export const CippDataTable = (props) => {
 
   // apply preferred columns once per page, and again whenever the saved preference's
   // identity changes. Nested dialog tables must not read or write the parent page key.
+  // Layered over the current state rather than replacing it: on a static-data table
+  // this runs in the same commit as the column build above, and replacing would drop
+  // the defaults just computed for every field the preference does not mention.
   useEffect(() => {
     if (!pageName) {
       return;
     }
-    const preferred = settings?.columnDefaults?.[pageName];
+    const preferred = preferredColumnVisibility;
     if (
       preferred &&
       Object.keys(preferred).length > 0 &&
       appliedColumnDefaultsRef.current[pageName] !== preferred
     ) {
       appliedColumnDefaultsRef.current[pageName] = preferred;
-      setColumnVisibility(preferred);
+      setColumnVisibility((previous) => ({ ...previous, ...preferred }));
     }
-  }, [settings?.columnDefaults?.[pageName], pageName]);
+  }, [preferredColumnVisibility, pageName]);
 
   const createDialog = useDialog();
   const hasActions = !!actions;
@@ -3067,6 +3118,7 @@ export const CippDataTable = (props) => {
               activeFilters={activeFilters}
               setActiveFilters={setActiveFilters}
               restoredFiltersRef={restoredFiltersRef}
+              searchFocusRef={searchFocusRef}
             />
           )}
         </>
