@@ -1,0 +1,266 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-09T17:54:00Z",
+  "title": "Design System: Manage365",
+  "extensions": {
+    "colorMeta": {
+      "dashboard-blue": {
+        "role": "primary",
+        "displayName": "Dashboard Blue",
+        "canonical": "oklch(70% 0.11 230)",
+        "tonalRamp": [
+          "oklch(20% 0.08 230)",
+          "oklch(30% 0.09 230)",
+          "oklch(40% 0.10 230)",
+          "oklch(50% 0.11 230)",
+          "oklch(60% 0.11 230)",
+          "oklch(70% 0.11 230)",
+          "oklch(80% 0.09 230)",
+          "oklch(90% 0.05 230)"
+        ]
+      },
+      "success": {
+        "role": "semantic",
+        "displayName": "Teal Success",
+        "canonical": "oklch(72% 0.08 185)",
+        "tonalRamp": [
+          "oklch(25% 0.06 185)",
+          "oklch(35% 0.07 185)",
+          "oklch(45% 0.08 185)",
+          "oklch(55% 0.08 185)",
+          "oklch(65% 0.08 185)",
+          "oklch(72% 0.08 185)",
+          "oklch(82% 0.06 185)",
+          "oklch(92% 0.03 185)"
+        ]
+      },
+      "error": {
+        "role": "semantic",
+        "displayName": "Muted Rose Error",
+        "canonical": "oklch(72% 0.10 15)",
+        "tonalRamp": [
+          "oklch(25% 0.08 15)",
+          "oklch(35% 0.09 15)",
+          "oklch(45% 0.10 15)",
+          "oklch(55% 0.10 15)",
+          "oklch(65% 0.10 15)",
+          "oklch(72% 0.10 15)",
+          "oklch(82% 0.07 15)",
+          "oklch(92% 0.04 15)"
+        ]
+      },
+      "warning": {
+        "role": "semantic",
+        "displayName": "Mint Warning",
+        "canonical": "oklch(78% 0.12 145)",
+        "tonalRamp": [
+          "oklch(25% 0.08 145)",
+          "oklch(35% 0.10 145)",
+          "oklch(45% 0.11 145)",
+          "oklch(55% 0.12 145)",
+          "oklch(65% 0.12 145)",
+          "oklch(78% 0.12 145)",
+          "oklch(85% 0.08 145)",
+          "oklch(92% 0.04 145)"
+        ]
+      },
+      "neutral-900": {
+        "role": "neutral",
+        "displayName": "Near Black",
+        "canonical": "oklch(20% 0 0)",
+        "tonalRamp": [
+          "oklch(20% 0 0)",
+          "oklch(30% 0 0)",
+          "oklch(40% 0 0)",
+          "oklch(50% 0 0)",
+          "oklch(60% 0 0)",
+          "oklch(70% 0 0)",
+          "oklch(85% 0 0)",
+          "oklch(97% 0 0)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page titles, dashboard heroes. Rare."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headers, modal titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card headers, panel titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Primary content, table cells, descriptions. Max line length 75ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form labels, chip text, metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "level-1",
+        "value": "0px 1px 2px rgba(0, 0, 0, 0.24)",
+        "purpose": "Subtle lift. Buttons at rest, chips."
+      },
+      {
+        "name": "level-4",
+        "value": "0px 1px 5px rgba(0, 0, 0, 0.24)",
+        "purpose": "Cards on surfaces. Gentle separation."
+      },
+      {
+        "name": "level-8",
+        "value": "0px 4px 6px rgba(0, 0, 0, 0.24)",
+        "purpose": "Dropdown menus, tooltips. Clear float."
+      },
+      {
+        "name": "level-16",
+        "value": "0px 10px 15px rgba(0, 0, 0, 0.24)",
+        "purpose": "Modals, dialogs. Prominent overlay."
+      },
+      {
+        "name": "level-24",
+        "value": "0px 25px 50px rgba(0, 0, 0, 0.24)",
+        "purpose": "Large modals, full-screen overlays."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-standard",
+        "value": "cubic-bezier(0.4, 0, 0.2, 1)",
+        "purpose": "Default easing for state transitions."
+      },
+      {
+        "name": "ease-out-quart",
+        "value": "cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Exits and settling animations."
+      },
+      {
+        "name": "duration-fast",
+        "value": "150ms",
+        "purpose": "Hover states, micro-interactions."
+      },
+      {
+        "name": "duration-normal",
+        "value": "250ms",
+        "purpose": "Page transitions, modal opens."
+      }
+    ],
+    "breakpoints": [
+      { "name": "xs", "value": "0px" },
+      { "name": "sm", "value": "600px" },
+      { "name": "md", "value": "900px" },
+      { "name": "lg", "value": "1200px" },
+      { "name": "xl", "value": "1536px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main action button. Dashboard Blue background, white text.",
+      "html": "<button class=\"ds-btn-primary\">Submit</button>",
+      "css": ".ds-btn-primary { background-color: #53A5DB; color: #FFFFFF; font-family: Inter, sans-serif; font-size: 14px; font-weight: 600; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-primary:hover { background-color: #2D4A5E; } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0px 0px 0px 2px rgba(83, 165, 219, 0.4); }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Lower-emphasis action. Transparent background with blue text.",
+      "html": "<button class=\"ds-btn-secondary\">Cancel</button>",
+      "css": ".ds-btn-secondary { background-color: transparent; color: #53A5DB; font-family: Inter, sans-serif; font-size: 14px; font-weight: 600; padding: 8px 16px; border: 1px solid transparent; border-radius: 6px; cursor: pointer; transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-btn-secondary:hover { border-color: #53A5DB; background-color: rgba(83, 165, 219, 0.08); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0px 0px 0px 2px rgba(83, 165, 219, 0.4); }"
+    },
+    {
+      "name": "Filled Input",
+      "kind": "input",
+      "refersTo": "input-filled",
+      "description": "Default text input. Filled variant with border.",
+      "html": "<input type=\"text\" class=\"ds-input-filled\" placeholder=\"Enter value...\" />",
+      "css": ".ds-input-filled { font-family: Inter, sans-serif; font-size: 14px; font-weight: 500; line-height: 1.6; height: 40px; padding: 0 12px; background-color: transparent; border: 1px solid rgba(0, 0, 0, 0.23); border-radius: 6px; outline: none; transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1), box-shadow 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-input-filled:focus { border-color: #1976d2; box-shadow: 0px 0px 0px 2px rgba(25, 118, 210, 0.25); } .ds-input-filled::placeholder { color: rgba(0, 0, 0, 0.38); }"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip-default",
+      "description": "Status tag or filter chip. Neutral background, rounded corners.",
+      "html": "<span class=\"ds-chip\">Active</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; font-family: Inter, sans-serif; font-size: 12px; font-weight: 400; padding: 4px 8px; background-color: #EEEEEE; color: #424242; border-radius: 6px; }"
+    },
+    {
+      "name": "Card",
+      "kind": "card",
+      "refersTo": "card-default",
+      "description": "Content container with subtle elevation.",
+      "html": "<div class=\"ds-card\"><div class=\"ds-card-header\">Card Title</div><div class=\"ds-card-content\">Card content goes here.</div></div>",
+      "css": ".ds-card { background-color: #FFFFFF; border-radius: 6px; box-shadow: 0px 1px 5px rgba(0, 0, 0, 0.24); } .ds-card-header { padding: 16px 24px; font-family: Inter, sans-serif; font-size: 16px; font-weight: 600; } .ds-card-content { padding: 20px 24px; font-family: Inter, sans-serif; font-size: 14px; line-height: 1.6; }"
+    },
+    {
+      "name": "Nav Item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Side navigation item. Active state uses Dashboard Blue.",
+      "html": "<a class=\"ds-nav-item ds-nav-item--active\" href=\"#\"><svg class=\"ds-nav-icon\" viewBox=\"0 0 24 24\" fill=\"currentColor\" width=\"20\" height=\"20\"><path d=\"M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z\"/></svg><span>Dashboard</span></a>",
+      "css": ".ds-nav-item { display: flex; align-items: center; gap: 16px; padding: 8px 16px; font-family: Inter, sans-serif; font-size: 14px; color: #616161; text-decoration: none; border-radius: 6px; transition: background-color 150ms cubic-bezier(0.4, 0, 0.2, 1); } .ds-nav-item:hover { background-color: rgba(0, 0, 0, 0.04); } .ds-nav-item--active { color: #53A5DB; background-color: rgba(83, 165, 219, 0.08); } .ds-nav-icon { flex-shrink: 0; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Control Room",
+    "overview": "Manage365 is a control room for MSP technicians managing dozens of Microsoft 365 tenants. Every element exists to surface information and enable action. There is no marketing, no onboarding friction, no decorative flourish. The interface assumes expertise and rewards it with density and speed.\n\nThe design philosophy is utilitarian without being ugly. Information is compressed but readable. Actions are discoverable but not intrusive. The system trusts users to know what they're doing and gets out of their way.\n\nThis is not a consumer app. It's not trying to delight first-time visitors or explain itself. It's a daily driver for professionals who will spend hundreds of hours in it. Efficiency compounds. Every pixel counts.",
+    "keyCharacteristics": [
+      "Information-dense — Tables, cards, and dashboards pack data tight. White space is for structure, not aesthetics.",
+      "Action-oriented — Primary actions are visible and reachable. Bulk operations are first-class citizens.",
+      "Context-preserving — Tenant switching, navigation, and workflows never lose your place.",
+      "Quiet confidence — The interface doesn't shout. Status colors are muted. Shadows are structural, not decorative."
+    ],
+    "rules": [
+      {
+        "name": "The Dashboard Blue Rule",
+        "body": "The primary accent is used on interactive elements: buttons, links, active states, focus rings. It does not appear on static informational content. If something is blue, it should be clickable or indicate selection.",
+        "section": "colors"
+      },
+      {
+        "name": "The Soft Semantic Rule",
+        "body": "Status colors are intentionally muted. Errors and warnings appear frequently in admin tools; screaming red and orange cause alarm fatigue. Our semantic colors are visible but calm.",
+        "section": "colors"
+      },
+      {
+        "name": "The 14px Body Rule",
+        "body": "Body text is 14px, not 16px. Admin interfaces benefit from density. Users are close to their screens and focused.",
+        "section": "typography"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "Shadows communicate z-index, not decoration. If it floats, it has a shadow. If it's inline, it doesn't. Background tint handles surface layering.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use Dashboard Blue only for interactive elements. If it's blue, it should do something.",
+      "Do keep body text at 14px. Density is a feature, not a bug.",
+      "Do use structural shadows to communicate elevation. Modals float; inline content doesn't.",
+      "Do respect the neutral scale for non-interactive surfaces. Reserve color for status and actions.",
+      "Do support both light and dark modes. Dark mode uses elevated surface tints, not just shadows.",
+      "Do include visible focus indicators. Keyboard navigation is critical for power users.",
+      "Do truncate long content with ellipsis rather than breaking layouts."
+    ],
+    "donts": [
+      "Don't mimic Azure Portal. No overwhelming nested menus, no slow page loads, no lost context.",
+      "Don't add marketing fluff. No gradient hero sections, no stock photography, no \"Get Started\" hand-holding.",
+      "Don't use 2010s enterprise patterns. No cramped 11px grids, no Windows XP iconography, no gray-on-gray.",
+      "Don't over-design for aesthetics. No excessive white space that wastes screen real estate.",
+      "Don't use border-left greater than 1px as a colored accent stripe. Use background tints or icons instead.",
+      "Don't use gradient text (background-clip: text). Solid colors only.",
+      "Don't default to glassmorphism or blur effects. They're slow and distracting.",
+      "Don't animate CSS layout properties. Transitions on color/opacity/transform only.",
+      "Don't use bounce or elastic easing. Ease-out-quart or similar exponential curves.",
+      "Don't add loading spinners when data can be prefetched or shown progressively.",
+      "Don't require confirmation dialogs for reversible actions."
+    ]
+  }
+}

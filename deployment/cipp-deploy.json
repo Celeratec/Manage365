@@ -18,7 +18,7 @@
     },
     "containerImage": {
       "type": "string",
-      "defaultValue": "DOCKER|ghcr.io/cyberdrain/cipp:latest",
+      "defaultValue": "DOCKER|ghcr.io/celeratec/manage365:v6.1.0",
       "metadata": {
         "description": "Container image for the cipp web app."
       }

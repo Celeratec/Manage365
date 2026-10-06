@@ -26,7 +26,8 @@
     If supplied, the post-migration summary includes the DNS records to create.
 
 .PARAMETER ContainerImage
-    Container image for cipp. Defaults to the stable public image (ghcr.io/cyberdrain/cipp:latest).
+    Container image for Manage365. Defaults to the Celeratec image
+    (ghcr.io/celeratec/manage365:v6.1.0), not the upstream CyberDrain image.
 
 .PARAMETER TestOnly
     Validate the ARM template and detect resources without making any changes.
@@ -58,7 +59,7 @@ param (
 
     [string]$CippUrl = '',
 
-    [string]$ContainerImage = 'DOCKER|ghcr.io/cyberdrain/cipp:latest',
+    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.0',
 
     [switch]$TestOnly,
 

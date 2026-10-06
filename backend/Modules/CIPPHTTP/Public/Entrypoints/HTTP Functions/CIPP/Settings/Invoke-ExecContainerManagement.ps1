@@ -24,7 +24,7 @@ function Invoke-ExecContainerManagement {
     # development has no WEBSITE_SITE_NAME or managed identity, so the ARM lookup returns nothing
     # and the picker would otherwise show no branch builds at all. Switching channels still
     # derives its image base from the site's own linuxFxVersion, never from this.
-    $DefaultImageBase = 'ghcr.io/cyberdrain/cipp'
+    $DefaultImageBase = 'ghcr.io/celeratec/manage365'
 
     $SettingsTable = Get-CippTable -tablename 'ContainerUpdateSettings'
 
