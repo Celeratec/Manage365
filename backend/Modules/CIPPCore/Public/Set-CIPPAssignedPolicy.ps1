@@ -264,6 +264,10 @@ function Set-CIPPAssignedPolicy {
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         Write-LogMessage -headers $Headers -API $APIName -message "Failed to assign $GroupName to Policy $PolicyId, using Platform $PlatformType and $Type. The error is:$($ErrorMessage.NormalizedError)" -Sev 'Error' -tenant $TenantFilter -LogData $ErrorMessage
-        return "Failed to assign $GroupName to Policy $PolicyId. Error: $ErrorMessage"
+        # Throw rather than return the message. A returned string is indistinguishable from success
+        # to any caller that only watches for an exception, which is how a policy whose assignment
+        # failed still got recorded as correctly assigned. Both callers already handle a throw:
+        # Invoke-ExecAssignPolicy turns it into a 500, Set-CIPPIntunePolicy rethrows it.
+        throw "Failed to assign $GroupName to Policy $PolicyId. Error: $($ErrorMessage.NormalizedError)"
     }
 }

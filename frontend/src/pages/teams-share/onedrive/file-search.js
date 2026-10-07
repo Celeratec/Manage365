@@ -472,7 +472,7 @@ const DestinationPickerDialog = ({ open, onClose, items = [], actionType, tenant
               {destLocation && (
                 <Paper variant="outlined" sx={{ p: 1.5 }}>
                   <Stack spacing={1}>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center">
+                    <Stack useFlexGap direction="row" spacing={0.5} flexWrap="wrap" alignItems="center">
                       {breadcrumbs.map((crumb, i) => (
                         <Stack key={i} direction="row" alignItems="center" spacing={0.5}>
                           {i > 0 && <Typography variant="caption" color="text.secondary">/</Typography>}

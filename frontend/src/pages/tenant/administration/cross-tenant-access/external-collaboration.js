@@ -71,7 +71,7 @@ const DomainListEditor = ({ title, domains, onChange }) => {
           Add
         </Button>
       </Stack>
-      <Stack direction="row" flexWrap="wrap" gap={1}>
+      <Stack useFlexGap direction="row" flexWrap="wrap" gap={1}>
         {domains.map((domain) => (
           <Chip
             key={domain}

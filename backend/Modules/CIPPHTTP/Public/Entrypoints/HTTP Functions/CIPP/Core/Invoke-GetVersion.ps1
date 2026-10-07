@@ -10,7 +10,7 @@ function Invoke-GetVersion {
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $CIPPVersion = $request.query.LocalVersion
-    $CleanupStale = $request.query.CleanupStale -eq 'true'
+    $CleanupStale = $request.query.CleanupStale -eq $true
 
     # If cleanup requested, remove stale version entries first
     if ($CleanupStale) {

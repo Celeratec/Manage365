@@ -271,7 +271,7 @@ const Page = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
                   {row.displayName || row.UPN || "Unknown User"}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip
                     label={inactive ? "Inactive" : "Active"}
                     size="small"

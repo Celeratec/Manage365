@@ -1036,7 +1036,7 @@ const FolderCompareDialog = ({ open, onClose, currentLocation, tenantFilter }) =
   return (
     <Dialog open={open} onClose={isCopying ? undefined : handleClose} fullWidth maxWidth="lg">
       <DialogTitle>
-        <Stack direction="row" alignItems="center" spacing={1} flexWrap="wrap">
+        <Stack useFlexGap direction="row" alignItems="center" spacing={1} flexWrap="wrap">
           <CompareArrows color="primary" />
           <span>Compare Folders</span>
           {hasCompared && (

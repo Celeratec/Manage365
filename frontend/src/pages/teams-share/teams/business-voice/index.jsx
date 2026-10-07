@@ -343,7 +343,7 @@ const Page = () => {
                     </Typography>
                   </Stack>
                 )}
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip
                     label={isAssigned ? "Assigned" : "Unassigned"}
                     size="small"

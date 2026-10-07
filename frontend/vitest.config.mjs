@@ -49,6 +49,8 @@ export default defineConfig({
         plugins: [requireContextPlugin],
         resolve: { alias: nextAliases },
         define: { 'process.env': '{}' },
+        esbuild: { jsx: 'automatic' },
+        oxc: { jsx: { runtime: 'automatic' } },
         test: {
           name: 'unit',
           environment: 'jsdom',

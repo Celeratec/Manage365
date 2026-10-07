@@ -42,7 +42,7 @@ function Compare-CrossDriveFolders {
     return $false
 }
 
-function Invoke-CrossDriveMerge {
+function Merge-CrossDriveFolders {
     param(
         [string]$SrcDriveId,
         [string]$SrcFolderId,
@@ -99,7 +99,7 @@ function Invoke-CrossDriveMerge {
                 $Result.errors.Add("Failed to copy '$($sc.name)': $($_.Exception.Message)")
             }
         } elseif ($IsFolder -and $null -ne $DestMatch.folder) {
-            $SubResult = Invoke-CrossDriveMerge `
+            $SubResult = Merge-CrossDriveFolders `
                 -SrcDriveId $SrcDriveId -SrcFolderId $sc.id `
                 -DestDriveId $DestDriveId -DestFolderId $DestMatch.id `
                 -TenantFilter $TenantFilter -Depth ($Depth + 1)
@@ -393,7 +393,7 @@ function Invoke-ExecOneDriveFileAction {
                                         -DestDriveId $DestDriveId -DestFolderId $Match.id `
                                         -TenantFilter $TenantFilter
                                     if ($NeedsMerge) {
-                                        $MergeResult = Invoke-CrossDriveMerge `
+                                        $MergeResult = Merge-CrossDriveFolders `
                                             -SrcDriveId $DriveId -SrcFolderId $ItemId `
                                             -DestDriveId $DestDriveId -DestFolderId $Match.id `
                                             -TenantFilter $TenantFilter
@@ -606,7 +606,7 @@ function Invoke-ExecOneDriveFileAction {
                                         -DestDriveId $DestDriveId -DestFolderId $Match.id `
                                         -TenantFilter $TenantFilter
                                     if ($NeedsMerge) {
-                                        $MergeResult = Invoke-CrossDriveMerge `
+                                        $MergeResult = Merge-CrossDriveFolders `
                                             -SrcDriveId $DriveId -SrcFolderId $ItemId `
                                             -DestDriveId $DestDriveId -DestFolderId $Match.id `
                                             -TenantFilter $TenantFilter

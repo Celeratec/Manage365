@@ -575,7 +575,7 @@ const Page = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
                   {row.displayName || "Unknown OneDrive"}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip label="OneDrive" size="small" color="info" variant="outlined" />
                   {inactive && (
                     <Chip

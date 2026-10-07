@@ -150,7 +150,7 @@ export const CippWizard = (props) => {
               />
               {/* Selection summary chips - hidden on mobile as info is shown differently */}
               {selectedSummary.length > 0 && activeStep > 0 && !smDown && (
-                <Stack
+                <Stack useFlexGap
                   direction="row"
                   spacing={1}
                   sx={{ mt: 2, justifyContent: "center", flexWrap: "wrap", gap: 1 }}

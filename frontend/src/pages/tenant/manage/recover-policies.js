@@ -120,7 +120,7 @@ const RecoverPoliciesPage = () => {
             </AccordionSummary>
             <AccordionDetails>
               <Grid container spacing={2}>
-                <Grid size={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <CippFormComponent
                     type="autoComplete"
                     label="Backup Date & Time"

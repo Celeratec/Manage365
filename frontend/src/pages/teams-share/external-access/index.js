@@ -562,7 +562,7 @@ const Page = () => {
                                 <Card key={i} variant="outlined" sx={isBlocked || consumerSharedConflict ? { borderColor: "error.main" } : undefined}>
                                   <CardContent sx={{ py: 1.5, "&:last-child": { pb: 1.5 } }}>
                                     <Stack spacing={1}>
-                                      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                                      <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                                         <PersonAdd fontSize="small" color="action" />
                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>{guest.email}</Typography>
                                         {guest.displayName && (

@@ -40,44 +40,57 @@ function Invoke-GetCippAlerts {
     }
     if ($Version.OutOfDateCIPP) {
         $Alerts.Add(@{
-                title = 'Manage365 Frontend Behind Upstream'
-                Alert = "Manage365 frontend reports v$($Version.LocalCIPPVersion) but upstream CIPP is v$($Version.RemoteCIPPVersion). After absorbing upstream changes, bump public/version.json and redeploy the Static Web App. See the README Upstream Integration section."
-                link  = 'https://github.com/Celeratec/CIPP#upstream-integration'
+                title = 'CIPP Frontend Out of Date'
+                Alert = "Your CIPP Frontend is out of date. $UpdateAction Find more on the following "
+                link  = 'https://docs.cipp.app/setup/self-hosting-guide/updating'
                 type  = 'warning'
             })
-        Write-LogMessage -message "Manage365 frontend v$($Version.LocalCIPPVersion) is behind upstream CIPP v$($Version.RemoteCIPPVersion)" -API 'Updates' -tenant 'All Tenants' -sev Alert
+        Write-LogMessage -message "Your CIPP Frontend is out of date. $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
 
     }
     if ($Version.OutOfDateCIPPAPI) {
         $Alerts.Add(@{
-                title = 'Manage365 API Behind Upstream'
-                Alert = "Manage365 API reports v$($Version.LocalCIPPAPIVersion) but upstream CIPP-API is v$($Version.RemoteCIPPAPIVersion). After absorbing upstream changes, bump version_latest.txt and redeploy all Function App slots."
-                link  = 'https://github.com/Celeratec/CIPP#upstream-integration'
+                title = 'CIPP API Out of Date'
+                Alert = "Your CIPP API is out of date. $UpdateAction Find more on the following"
+                link  = 'https://docs.cipp.app/setup/self-hosting-guide/updating'
                 type  = 'warning'
             })
-        Write-LogMessage -message "Manage365 API v$($Version.LocalCIPPAPIVersion) is behind upstream CIPP-API v$($Version.RemoteCIPPAPIVersion)" -API 'Updates' -tenant 'All Tenants' -sev Alert
+        Write-LogMessage -message "Your CIPP API is out of date. $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
     }
 
-    if ($env:ApplicationID -eq 'LongApplicationID' -or $null -eq $env:ApplicationID) {
+    if ($role -like '*superadmin*') {
         $Alerts.Add(@{
-                title          = 'SAM Setup Incomplete'
-                Alert          = 'You have not yet completed your setup. Please go to the Setup Wizard in Application Settings to connect CIPP to your tenants.'
-                link           = '/cipp/setup'
-                type           = 'warning'
-                setupCompleted = $false
+                title = 'Superadmin Account Warning'
+                Alert = 'You are logged in under a superadmin account. This account should not be used for normal usage.'
+                link  = 'https://docs.cipp.app/setup/installation/owntenant'
+                type  = 'error'
             })
     }
-    if ($role -like '*superadmin*') {
-        $SwaCreds = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Request.Headers.'x-ms-client-principal')) | ConvertFrom-Json)
-        $Username = $SwaCreds.userDetails
-        $SuperAdminIgnoreList = @('Clint@celeratec.cloud')
-        if ($Username -notin $SuperAdminIgnoreList) {
-            $Alerts.Add(@{
-                    title = 'Superadmin Account Warning'
-                    Alert = 'You are logged in under a superadmin account. This account should not be used for normal usage.'
-                    link  = 'https://docs.cipp.app/setup/installation/owntenant'
-                    type  = 'error'
-                })
+
+    # Outstanding SAM permissions are only visible by opening the permissions page, so an
+    # instance can sit needing consent without anyone noticing. Surface it here like the other
+    # instance health warnings. Only shown to roles that can actually grant the consent.
+    if ($Role | Where-Object { $_ -in @('admin', 'superadmin') }) {
+        try {
+            # Cached result only - this endpoint runs on every page load, and running the
+            # permissions check itself makes a Graph call per service principal.
+            $AccessTable = Get-CIPPTable -TableName 'AccessChecks'
+            $PermissionCache = Get-CIPPAzDataTableEntity @AccessTable -Filter "PartitionKey eq 'AccessCheck' and RowKey eq 'AccessPermissions'"
+            if ($PermissionCache.Data) {
+                $MissingPermissions = ($PermissionCache.Data | ConvertFrom-Json -ErrorAction Stop).MissingPermissions
+                $MissingCount = ($MissingPermissions | Measure-Object).Count
+                if ($MissingCount -gt 0) {
+                    $Alerts.Add(@{
+                            title = 'Permissions to Apply'
+                            Alert = ('CIPP has {0} new permission(s) to apply. Review and apply them on the permissions page: ' -f $MissingCount)
+                            link  = '/cipp/settings/permissions'
+                            type  = 'warning'
+                        })
+                }
+            }
+        } catch {
+            # A missing or unreadable cache just means no banner - never break the alert list.
+            Write-Information "Could not read the cached permissions check: $($_.Exception.Message)"
         }
     }
     $PSMinVersion = [Version]'7.4.0'

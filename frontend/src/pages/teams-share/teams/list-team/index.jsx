@@ -368,7 +368,7 @@ const Page = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
                   {row.displayName || "Unknown Team"}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip
                     icon={isPublic ? <Public fontSize="small" /> : <PublicOff fontSize="small" />}
                     label={isPublic ? "Public" : "Private"}

@@ -59,6 +59,7 @@ export const CippCopyToClipBoard = (props) => {
       <Tooltip title={copied ? "Copied!" : text}>
         <Chip
           label={text}
+          aria-label={copied ? "Copied!" : "Copy to clipboard"}
           variant="outlined"
           size="small"
           color="info"

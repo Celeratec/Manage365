@@ -960,11 +960,13 @@ const CardView = ({
 
       return (
         <Grid
-          item
-          xs={gridProps.xs}
-          sm={gridProps.sm}
-          md={gridProps.md}
-          lg={gridProps.lg}
+         
+          size={{
+            xs: 12,
+            sm: gridProps.sm ?? gridProps.xs,
+            md: gridProps.md,
+            lg: gridProps.lg,
+          }}
           key={item.id || item.RowKey || index}
           sx={{ 
             minWidth: 0, // Allow grid item to shrink below content size

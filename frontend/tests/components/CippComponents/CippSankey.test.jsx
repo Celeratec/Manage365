@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
+import { waitFor } from "@testing-library/react";
 import { renderWithProviders, settingsWith } from "../../test-utils";
 import { createTheme } from "../../../src/theme";
 
@@ -40,22 +41,22 @@ describe("CippSankey theming", () => {
   // theme, so the *setting* can say "browser" while the page paints dark. Deciding
   // darkness from the setting made the chart multiply its ribbons over a dark card —
   // composited to black, i.e. an invisible chart until the user toggled the theme.
-  it("follows the painted palette, not the theme setting", () => {
+  it("follows the painted palette, not the theme setting", async () => {
     renderWithProviders(<CippSankey data={data} />, {
       theme: darkTheme,
       settings: settingsWith({ currentTheme: { value: "browser", label: "Browser default" } }),
     });
 
-    expect(captured.props.linkBlendMode).toBe("lighten");
+    await waitFor(() => expect(captured.props?.linkBlendMode).toBe("lighten"));
     expect(captured.props.labelTextColor).toBe("#ffffff");
   });
 
-  it("keeps multiply-over-white on an actually light page", () => {
+  it("keeps multiply-over-white on an actually light page", async () => {
     renderWithProviders(<CippSankey data={data} />, {
       settings: settingsWith({ currentTheme: { value: "browser", label: "Browser default" } }),
     });
 
-    expect(captured.props.linkBlendMode).toBe("multiply");
+    await waitFor(() => expect(captured.props?.linkBlendMode).toBe("multiply"));
     expect(captured.props.labelTextColor).toBe("#000000");
   });
 });

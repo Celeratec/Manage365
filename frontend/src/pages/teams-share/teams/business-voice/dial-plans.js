@@ -119,7 +119,7 @@ const Page = () => {
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.25 }}>
                   {row.Identity || row.Name || "Unknown Dial Plan"}
                 </Typography>
-                <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                <Stack useFlexGap direction="row" spacing={1} alignItems="center" flexWrap="wrap">
                   <Chip
                     icon={<Rule fontSize="small" />}
                     label={`${rules.length} rule${rules.length !== 1 ? "s" : ""}`}

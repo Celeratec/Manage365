@@ -150,6 +150,10 @@ function Invoke-ExecDurableFunctions {
             } else {
                 Remove-AzDataTable @InstancesTable
                 Remove-AzDataTable @HistoryTable
+                Unregister-CIPPTable -TableName @(
+                    ('{0}Instances' -f $FunctionName)
+                    ('{0}History' -f $FunctionName)
+                )
                 $BlobContainer = '{0}-largemessages' -f $Function.Name
                 if (Get-AzStorageContainer -Name $BlobContainer -Context $StorageContext -ErrorAction SilentlyContinue) {
                     Write-Information "- Removing blob container: $BlobContainer"

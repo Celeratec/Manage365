@@ -852,6 +852,7 @@ export const nativeMenuItems = [
           {
             title: "Message Trace",
             path: "/email/tools/message-trace",
+            docsPath: "tools/email-tools/message-trace",
             permissions: [
               "Exchange.Mailbox.*",
             ],
@@ -859,6 +860,7 @@ export const nativeMenuItems = [
           {
             title: "Message Viewer",
             path: "/email/troubleshooting/message-viewer",
+            docsPath: "tools/email-tools/message-viewer",
             permissions: [
               "Exchange.Mailbox.*",
             ],
@@ -866,6 +868,7 @@ export const nativeMenuItems = [
           {
             title: "Mailbox Restores",
             path: "/email/troubleshooting/mailbox-restores",
+            docsPath: "tools/email-tools/mailbox-restores",
             permissions: [
               "Exchange.Mailbox.*",
             ],
@@ -903,28 +906,6 @@ export const nativeMenuItems = [
                 path: "/email/administration/mailbox-rules",
                 permissions: [
                   "Exchange.Mailbox.*",
-                ],
-              },
-            ],
-          },
-          {
-            title: "Contacts",
-            permissions: [
-              "Exchange.Contact.*",
-            ],
-            items: [
-              {
-                title: "Contacts",
-                path: "/email/administration/contacts",
-                permissions: [
-                  "Exchange.Contact.*",
-                ],
-              },
-              {
-                title: "Contact Templates",
-                path: "/email/administration/contacts-template",
-                permissions: [
-                  "Exchange.Contact.*",
                 ],
               },
             ],
@@ -1772,6 +1753,7 @@ export const nativeMenuItems = [
           {
             title: "Application Templates",
             path: "/endpoint/applications/templates",
+            docsPath: "endpoint/applications/application-templates",
             permissions: [
               "Endpoint.Application.*",
             ],
@@ -1880,6 +1862,7 @@ export const nativeMenuItems = [
               {
                 title: "Compare Policies",
                 path: "/endpoint/MEM/compare-policies",
+                docsPath: "tools/intune-tools/compare-policies",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -2205,6 +2188,8 @@ export const nativeMenuItems = [
           {
             title: "Cross-Tenant Access",
             path: "/tenant/administration/cross-tenant-access",
+            // No docs page yet; the help link lands on the section until one is written.
+            docsPath: "tenant/administration",
             permissions: [
               "Tenant.CrossTenant.*",
             ],
@@ -2628,7 +2613,7 @@ export const nativeMenuItems = [
           "superadmin",
         ],
         permissions: [
-          "CIPP.Core.*",
+          "CIPP.Logs.*",
         ],
       },
       {

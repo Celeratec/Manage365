@@ -398,7 +398,7 @@ const Page = () => {
                 },
               }}
             >
-              <Stack
+              <Stack useFlexGap
                 direction="row"
                 spacing={2}
                 alignItems="center"

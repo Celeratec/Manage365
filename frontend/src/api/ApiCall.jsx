@@ -38,7 +38,8 @@ const assertRelativeApiPath = (value) => {
   }
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 };
-const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 503, 504];
+// 503 is omitted: Craft sheds a saturated worker with 503 and asks the client to retry.
+const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 504];
 
 const getRedirectLocation = (headers) => {
   if (!headers) {
