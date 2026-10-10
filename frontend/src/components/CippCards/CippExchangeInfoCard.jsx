@@ -1,5 +1,6 @@
 import PropTypes from "prop-types";
 import { useState, useEffect } from "react";
+import { CippIcons } from "../../utils/icon-registry";
 import {
   Card,
   CardContent,
@@ -540,7 +541,7 @@ export const CippExchangeInfoCard = (props) => {
 
           {/* Quick Stats */}
           <Grid container spacing={1.5}>
-            <Grid size={{ xs: 6, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <StatCard
                 icon={Mail}
                 label="Type"
@@ -548,7 +549,7 @@ export const CippExchangeInfoCard = (props) => {
                 color="primary"
               />
             </Grid>
-            <Grid size={{ xs: 6, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <StatCard
                 icon={anyLegacyEnabled ? Warning : SettingsEthernet}
                 label="Protocols"
@@ -556,7 +557,7 @@ export const CippExchangeInfoCard = (props) => {
                 color={anyLegacyEnabled ? "warning" : "info"}
               />
             </Grid>
-            <Grid size={{ xs: 6, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <StatCard
                 icon={Security}
                 label="Holds"
@@ -564,7 +565,7 @@ export const CippExchangeInfoCard = (props) => {
                 color={activeHolds.length > 0 ? "warning" : "success"}
               />
             </Grid>
-            <Grid size={{ xs: 6, sm: 3 }}>
+            <Grid size={{ xs: 12, sm: 3 }}>
               <StatCard
                 icon={Archive}
                 label="Archive"
@@ -623,7 +624,7 @@ export const CippExchangeInfoCard = (props) => {
           {/* Mailbox Settings */}
           <InfoSection icon={Mail} title="Mailbox Settings">
             <Grid container spacing={1.5}>
-              <Grid size={{ xs: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Tooltip title={userPrincipalName ? `Click to ${exchangeData?.HiddenFromAddressLists ? 'show in' : 'hide from'} Global Address List` : 'User info not available'}>
                   <Paper 
                     variant="outlined" 
@@ -658,7 +659,7 @@ export const CippExchangeInfoCard = (props) => {
                   </Paper>
                 </Tooltip>
               </Grid>
-              <Grid size={{ xs: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Tooltip title={exchangeData?.BlockedForSpam && userPrincipalName ? "Click to clear spam block" : ""}>
                   <Paper 
                     variant="outlined" 
@@ -693,7 +694,7 @@ export const CippExchangeInfoCard = (props) => {
                   </Paper>
                 </Tooltip>
               </Grid>
-              <Grid size={{ xs: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Tooltip title={userPrincipalName ? `Click to ${exchangeData?.BlockExternalInbound === true ? 'allow' : 'block'} external inbound mail` : 'User info not available'}>
                   <Paper
                     variant="outlined"
@@ -728,7 +729,7 @@ export const CippExchangeInfoCard = (props) => {
                   </Paper>
                 </Tooltip>
               </Grid>
-              <Grid size={{ xs: 6 }}>
+              <Grid size={{ xs: 12, md: 6 }}>
                 <Tooltip title={userPrincipalName ? `Click to ${exchangeData?.BlockExternalOutbound === true ? 'allow' : 'block'} external outbound mail` : 'User info not available'}>
                   <Paper
                     variant="outlined"
@@ -832,7 +833,7 @@ export const CippExchangeInfoCard = (props) => {
             <>
               <InfoSection icon={Archive} title="Archive Mailbox">
                 <Grid container spacing={1.5}>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Paper variant="outlined" sx={{ p: 1.5 }}>
                       <Typography variant="caption" color="text.secondary" display="block">
                         Archive Size
@@ -844,7 +845,7 @@ export const CippExchangeInfoCard = (props) => {
                       </Typography>
                     </Paper>
                   </Grid>
-                  <Grid size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Paper variant="outlined" sx={{ p: 1.5 }}>
                       <Typography variant="caption" color="text.secondary" display="block">
                         Archive Items

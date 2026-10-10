@@ -1,4 +1,5 @@
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index";
+import { CippIcons } from "../../../utils/icon-registry"
 import { CippTablePage } from "../../../components/CippComponents/CippTablePage.jsx";
 import {
   Button,

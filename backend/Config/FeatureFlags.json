@@ -1,26 +1,5 @@
 [
   {
-    "Id": "BestPracticeAnalyser",
-    "Name": "Best Practice Analyser",
-    "Description": "The Best Practice Analyser has been deprecated and will be removed in a future release.",
-    "Enabled": false,
-    "AllowUserToggle": true,
-    "Timers": ["80070b4f-95ed-4e5f-be4c-9e339306d4aa"],
-    "Endpoints": [
-      "BestPracticeAnalyser_List",
-      "ExecBPA",
-      "ListBPA",
-      "ListBPATemplates",
-      "RemoveBPATemplate"
-    ],
-    "Pages": [
-      "/tenant/standards/bpa-report",
-      "/tenant/standards/bpa-report/builder",
-      "/tenant/standards/bpa-report/view"
-    ],
-    "Hidden": false
-  },
-  {
     "Id": "SuperAdminNG",
     "Name": "Super Admin",
     "Description": "Additional super admin pages for CIPP instances (CIPP Users, Container Management, Custom Domains, Container Logs, Worker Health).",
@@ -91,10 +70,41 @@
   {
     "Id": "Baselines",
     "Name": "Baselines",
-    "Description": "The drift-first baseline engine (preview). Enables the scheduled baseline run; the baseline pages and on-demand runs work regardless.",
+    "Description": "This is currently in public beta. The drift-first baseline engine that replaces classic Standards and Drift. Enables the scheduled baseline run and the Baselines menu, hides the classic Standards and Drift pages, and skips the scheduled classic Standards and Drift runs - the two systems never run side by side. On by default for installs that have no classic Standards templates.",
     "Enabled": false,
+    "EnabledWhen": "NoClassicStandards",
     "AllowUserToggle": true,
     "Timers": ["9f2c7b1e-4a6d-4c3f-8b9a-5e1d2f7c0a44"],
+    "Endpoints": [],
+    "Pages": ["/tenant/baselines"],
+    "HidesPages": [
+      "/tenant/standards/alignment",
+      "/tenant/manage/drift",
+      "/tenant/manage/applied-standards",
+      "/tenant/manage/policies-deployed"
+    ],
+    "Hidden": false
+  },
+  {
+    "Id": "SecuritySimulations",
+    "Name": "Security Simulations",
+    "Description": "This is currently in public beta. Play security events (a stolen token, an admin on an unmanaged device, a mass deletion, an anonymous sharing link) against a tenant to see what an attacker would experience today and which standards close each gap, plus a live Conditional Access gap analysis. Read-only: nothing is changed in the tenant. On by default for installs that have no classic Standards templates.",
+    "Enabled": false,
+    "EnabledWhen": "NoClassicStandards",
+    "AllowUserToggle": true,
+    "Timers": [],
+    "Endpoints": [],
+    "Pages": ["/tenant/security-simulator"],
+    "HidesPages": [],
+    "Hidden": false
+  },
+  {
+    "Id": "CertificateAuthentication",
+    "Name": "Certificate Authentication",
+    "Description": "Authenticate CIPP's SAM application with the SAM certificate instead of the client secret for every Graph and Exchange Online call (app-only and delegated). Managed from the Setup Wizard - enable it for an existing install (the client secret is kept as a rollback) or provision a secret-less install from scratch.",
+    "Enabled": false,
+    "AllowUserToggle": false,
+    "Timers": [],
     "Endpoints": [],
     "Pages": [],
     "Hidden": true

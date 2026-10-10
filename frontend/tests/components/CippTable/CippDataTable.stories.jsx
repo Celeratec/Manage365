@@ -1,5 +1,5 @@
 import React from 'react'
-import { http, HttpResponse } from 'msw'
+import { http, HttpResponse, delay } from 'msw'
 import { fn, within, expect, userEvent, waitFor } from 'storybook/test'
 import { CippDataTable } from '../../../src/components/CippTable/CippDataTable'
 import { SettingsProvider } from '../../../src/contexts/settings-context'
@@ -279,7 +279,6 @@ export const WithOffCanvas = {
         'createdDateTime',
       ],
     },
-    offCanvasOnRowClick: true,
   },
 }
 
@@ -480,3 +479,89 @@ export const GraphBackedEditFilters = {
     })
   },
 }
+
+// page 2 brings a new column, which re-keys MRT and remounts the toolbar - search must keep focus
+export const SearchKeepsFocusWhileLoading = {
+  beforeEach({ msw }) {
+    msw.use(
+      http.get('/api/TestPagedColumns', async ({ request }) => {
+        if (new URL(request.url).searchParams.get('nextLink')) {
+          await delay(1500)
+          return HttpResponse.json({
+            Results: [{ displayName: 'Bob Johnson', mail: 'bob@contoso.com', department: 'Sales' }],
+            Metadata: {},
+          })
+        }
+        return HttpResponse.json({
+          Results: [{ displayName: 'Alice Smith', mail: 'alice@contoso.com' }],
+          Metadata: { nextLink: 'page2' },
+        })
+      })
+    )
+  },
+  args: {
+    title: 'Paged Columns',
+    api: { url: '/api/TestPagedColumns', dataKey: 'Results' },
+    queryKey: 'storybook-TestPagedColumns',
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+    const search = await canvas.findByPlaceholderText('Search...')
+
+    await step('type while page 2 is still loading', async () => {
+      await userEvent.click(search)
+      await userEvent.keyboard('o')
+    })
+
+    await step('search keeps focus and text once the new column arrives', async () => {
+      await waitFor(
+        () => {
+          expect(canvasElement.textContent).toContain('Sales')
+        },
+        { timeout: 5000 }
+      )
+      const current = canvas.getByPlaceholderText('Search...')
+      expect(current).toHaveFocus()
+      await userEvent.keyboard('n')
+      expect(canvas.getByPlaceholderText('Search...')).toHaveValue('on')
+    })
+  },
+}
+
+// cached report column (membersCsv) wears the subTable header, no nested-table button. MRT renders no header cells in jsdom
+export const CachedReportColumns = {
+  args: {
+    title: 'Groups',
+    data: [{ id: 'parent-1', displayName: 'Finance', membersCsv: 'Jane, Bob' }],
+    simpleColumns: ['displayName', 'members'],
+    subTables: [
+      {
+        id: 'members',
+        header: 'Members',
+        label: 'View members',
+        cachedColumn: 'membersCsv',
+        table: {
+          title: 'Members of [displayName]',
+          api: { url: '/api/TestRelated', dataKey: 'Results' },
+          simpleColumns: ['displayName'],
+        },
+      },
+    ],
+  },
+  play: async ({ canvasElement, step }) => {
+    const canvas = within(canvasElement)
+
+    await step('cached csv column takes the subTable header', async () => {
+      await waitFor(() => {
+        expect(canvas.getByRole('columnheader', { name: /Members/ })).toBeVisible()
+      })
+      expect(canvas.queryByRole('columnheader', { name: /csv/i })).toBeNull()
+    })
+
+    await step('cell shows the cached value, no nested table button', async () => {
+      await expect(canvas.getByText('Jane, Bob')).toBeVisible()
+      expect(canvas.queryByRole('button', { name: 'View members' })).toBeNull()
+    })
+  },
+}
+

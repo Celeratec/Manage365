@@ -1,10 +1,17 @@
 import { getCippFilterVariant } from '../../utils/get-cipp-filter-variant'
 import { getCippFormatting } from '../../utils/get-cipp-formatting'
+import { formatCellText } from './CippCellText'
 import { getCippTranslation } from '../../utils/get-cipp-translation'
 import { getCippColumnSize } from '../../utils/get-cipp-column-size'
+import { SKIP_RECURSION_KEYS } from '../../utils/skip-recursion-keys'
 
-// Manage365: also skip standards/Standard/LogData to avoid huge recursive column expansion
-const skipRecursion = ['location', 'ScheduledBackupValues', 'Tenant', 'standards', 'Standard', 'LogData']
+// Manage365 also skips standards payloads so column discovery does not recurse into them.
+const skipRecursion = [
+  ...SKIP_RECURSION_KEYS,
+  'standards',
+  'Standard',
+  'LogData',
+]
 
 // Number of rows to sample when measuring column content width.
 const MAX_SIZE_SAMPLE = 30
@@ -34,12 +41,13 @@ const TIME_AGO_NAMES = new Set([
   'Date', 'WhenCreated', 'WhenChanged', 'CreationTime', 'renewalDate',
   'commitmentTerm.renewalConfiguration.renewalDate', 'purchaseDate', 'NextOccurrence',
   'LastOccurrence', 'NotBefore', 'NotAfter', 'latestDataCollection',
-  'requestDate', 'reviewedDate', 'GeneratedAt',
+  'requestDate', 'reviewedDate', 'GeneratedAt', 'RecordedAt',
 ])
 const MATCH_DATE_TIME = /([dD]ate[tT]ime|[Ee]xpiration|[Tt]imestamp|[sS]tart[Dd]ate)/
 const ABSOLUTE_DATE_NAMES = new Set([
   'WindowStart', 'WindowEnd', 'CreatedUtc', 'DownloadedUtc', 'ProcessedUtc',
   'NextAttemptUtc', 'LastErrorUtc', 'LastPolledUtc',
+  'QueuedUtc', 'StartedUtc', 'CompletedUtc',
 ])
 const isDateTimeColumn = (key) =>
   TIME_AGO_NAMES.has(key) || ABSOLUTE_DATE_NAMES.has(key) || MATCH_DATE_TIME.test(key)
@@ -169,7 +177,7 @@ const resolveVariables = (columnName, dataSample) => {
       return resolved
     }
     return match // return original if no resolver found
-  })
+  });
 }
 
 const getAtPath = (obj, path) => {
@@ -187,9 +195,6 @@ const getAtPath = (obj, path) => {
 // O(n * keys) traversal on large datasets.
 const MAX_MERGE_SAMPLE = 50
 
-// Keys that should never be merged to prevent prototype pollution
-const dangerousKeys = ['__proto__', 'constructor', 'prototype']
-
 const mergeKeys = (dataArray) => {
   const sample =
     dataArray.length > MAX_MERGE_SAMPLE ? dataArray.slice(0, MAX_MERGE_SAMPLE) : dataArray
@@ -200,8 +205,9 @@ const mergeKeys = (dataArray) => {
         return base
       }
       Object.keys(obj).forEach((key) => {
-        // Prevent prototype pollution
-        if (dangerousKeys.includes(key)) return
+        // API rows are untrusted input; never let a key walk up the prototype chain.
+        // Written as literal comparisons (not a Set lookup) so static analysis can see the guard.
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') return
         if (
           typeof obj[key] === 'object' &&
           obj[key] !== null &&
@@ -301,11 +307,12 @@ export const utilColumnsFromAPI = (dataArray) => {
             sampleValue,
             values: valuesForColumn,
             getValue: (row) => resolveValue(row),
-            dataArray: filterSample,
+            dataArray,
           }),
           Cell: ({ row }) => {
             const value = resolveValue(row.original)
-            return getCippFormatting(value, accessorKey)
+            const rendered = getCippFormatting(value, accessorKey)
+            return formatCellText(rendered, false)
           },
         }
 

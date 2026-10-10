@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { TabbedLayout } from "../../../../../layouts/TabbedLayout";
 import tabOptions from "../tabOptions";
 import { ApiGetCall } from "../../../../../api/ApiCall";
@@ -21,7 +21,7 @@ import { Add, RocketLaunch, Edit, ContentCopy, Delete, Lock, OpenInNew } from "@
 import Link from "next/link";
 import CippPageCard from "../../../../../components/CippCards/CippPageCard";
 import { useSettings } from "../../../../../hooks/use-settings.js";
-import { getCippFormatting } from "../../../../../utils/get-cipp-formatting.js";
+import { getCippFormatting } from "../../../../../utils/get-cipp-formatting.jsx";
 import { CippApiDialog } from "../../../../../components/CippComponents/CippApiDialog.jsx";
 import { useState } from "react";
 

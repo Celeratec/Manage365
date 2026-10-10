@@ -45,6 +45,59 @@ Sign in with a user that has Application Administrator permissions or higher, ad
 
 Once you have your initial user added, this user can add more users through the CIPP interface under CIPP -> Advanced -> Authentication -> [cipp-users.md](../../user-documentation/cipp/advanced/authentication/cipp-users.md "mention").
 
+## Recovering Superadmin Access
+
+CIPP never lets you remove the last user with a manually assigned superadmin role, but that user can still become unavailable, for example when they leave the organisation or their account is deleted. A self-hosted instance on the new infrastructure keeps its user list in its own storage account, so you can restore a superadmin there from the Azure portal without signing in to CIPP.
+
+{% stepper %}
+{% step %}
+### Open the allowedUsers table
+
+In the Azure portal, open the storage account in your CIPP resource group, then go to **Storage browser** -> **Tables** -> `allowedUsers`.
+{% endstep %}
+
+{% step %}
+### Find or add the user
+
+Look for the row with a **PartitionKey** of `User` and a **RowKey** of the user's UPN in lowercase. Edit it if it exists, or select **Add entity** if it does not. For a guest user, use their email address as the RowKey.
+{% endstep %}
+
+{% step %}
+### Set the properties
+
+Set each property below with a type of **String**, entering the brackets and quotes exactly as shown.
+
+| Property     | Value                                                       |
+| ------------ | ----------------------------------------------------------- |
+| PartitionKey | `User`                                                      |
+| RowKey       | The user's UPN in lowercase, for example `user@contoso.com` |
+| Roles        | `["superadmin"]`                                            |
+| ManualRoles  | `["superadmin"]`                                            |
+| AutoRoles    | `[]`                                                        |
+| Source       | `Manual`                                                    |
+
+The role name is exactly `superadmin`, in lowercase, and it must appear in both **Roles** and **ManualRoles**. **Roles** decides what the user can do, and **ManualRoles** is what CIPP counts when protecting the last superadmin.
+
+If the user is also a member of an Entra group mapped on the [cipp-roles](../../user-documentation/cipp/advanced/authentication/cipp-roles/ "mention") page, the next user sync adds their group roles back and changes **Source** to `Both`.
+{% endstep %}
+
+{% step %}
+### Save and wait for the change to apply
+
+Save the entity. CIPP picks up the change at the next user sync, which runs every 15 minutes. Restarting the CIPP Web App applies it straight away.
+{% endstep %}
+
+{% step %}
+### Confirm access
+
+Sign in as the user and open [cipp-users.md](../../user-documentation/cipp/advanced/authentication/cipp-users.md "mention"). The user should be listed with a **Source** of Manual and the superadmin role. While you are there, assign superadmin manually to a second user so a single departure cannot lock you out again.
+{% endstep %}
+{% endstepper %}
+
+{% hint style="warning" %}
+Superadmin granted through an Entra group does not count as a manual superadmin, because group membership can change. Keep at least two users with superadmin assigned by hand on the CIPP Users page.
+{% endhint %}
+
 ## Built-In Roles
 
 CIPP features a role management system which utilises the [Roles feature of Azure Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/authentication-authorization?tabs=invitations#roles). The roles available in CIPP are as follows:
@@ -57,6 +110,44 @@ CIPP features a role management system which utilises the [Roles feature of Azur
 | superadmin | A role that is only allowed to access the settings menu for specific high-privilege settings, such as setting up the [owntenant.md](../installation/owntenant.md "mention") settings. |
 
 You can assign these roles to Entra groups or users using the [cipp-roles](../../user-documentation/cipp/advanced/authentication/cipp-roles/ "mention") page, so you no longer have to add users manually.
+
+## Legacy Self-Hosted (Static Web App) Role Management
+
+Instances still running the earlier Function App and Static Web App architecture, from before the [migrating-to-the-new-infrastructure.md](../maintaining-cipp/migrating-to-the-new-infrastructure.md "mention") migration, invite users and assign built-in roles from the Static Web App resource rather than from an Entra group mapping.
+
+{% stepper %}
+{% step %}
+### Go to the Azure Portal
+{% endstep %}
+
+{% step %}
+### Go to your CIPP resource group
+{% endstep %}
+
+{% step %}
+### Select your CIPP Static Web App, `CIPP-SWA-XXXX`
+{% endstep %}
+
+{% step %}
+### Under Settings, select Role Management
+
+Not IAM Role Management.
+{% endstep %}
+
+{% step %}
+### Select Invite User and add the roles for the user
+
+Multiple roles can be applied to the same user.
+{% endstep %}
+{% endstepper %}
+
+{% hint style="info" %}
+After the invite link is sent to the user, they must click on it to accept the invite and gain access to the app. The invite expires after a set amount of time, and the link is not emailed to them automatically, so send it manually.
+{% endhint %}
+
+{% hint style="danger" %}
+Roles added or changed this way can take a long time to propagate, up to 24 hours in some cases. Map CIPP roles to Entra ID groups instead wherever you can: permission changes made through a group membership apply in minutes rather than hours.
+{% endhint %}
 
 ## Custom Roles
 
@@ -103,6 +194,10 @@ For Allowed Tenants select a subset of tenants to manage, tenant groups, or AllT
 {% hint style="info" %}
 If AllTenants is selected, you can block a subset of tenants or tenant groups using Blocked Tenants.
 {% endhint %}
+
+{% hint style="warning" %}
+A handful of estate-wide operations are refused outright to a role that does not have unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. These are adding a tenant through the Setup Wizard, creating, editing and deleting custom data mappings, saving an integration's tenant or field mapping, and creating, editing, deleting or re-running the rules of a tenant group. A restricted role can still open these pages, but is refused at the point it tries to save.
+{% endhint %}
 {% endstep %}
 
 {% step %}
@@ -114,10 +209,25 @@ Optionally select the CIPP endpoints that you want to block for the role. For ex
 {% step %}
 ### API Permissions
 
-Select the API permission from the listed categories and choose from None, Read or Read/Write.
+Custom roles define their permissions in one of two ways, chosen with the **Simple (patterns)** and **Advanced (per-category)** toggle. A new role opens in Simple mode, and a role you open for editing opens in Advanced mode.
+
+**Simple (patterns)** works the way CIPP's built-in roles do. An **Include** list grants everything matching its patterns, an **Exclude** list then denies anything matching its own, and exclusions always win.
+
+* Patterns match permission names in the form `Category.Object.Level`, where the level is `Read` or `ReadWrite`, and `*` matches anything. `Identity.*.Read` grants read access to everything under Identity, and `*` grants everything.
+* A pattern holds up to three dot-separated segments of letters, numbers and `*`. Anything else is reported and dropped rather than saved.
+* **Start from a built-in role** replaces both lists with that role's own patterns, which you are then free to edit.
+* The **Live result** panel counts what each pattern matches and flags any pattern matching nothing, so a typo does not pass unnoticed.
+* Patterns are expanded every time permissions are evaluated, so a role built on wildcards picks up endpoints added in later CIPP releases on its own.
+
+**Advanced (per-category)** is the category list, where each category is set to None, Read or Read/Write.
 
 * To find out which API endpoints are affected by these selections, click on the Info button.
 * Not defining a category is the same as setting None. Be sure that you define all base role permissions you want to apply to the user.
+* A role defined this way grants only the categories that existed when you saved it, so review it after a CIPP update. See [how-cipp-evaluates-roles.md](../resources/how-cipp-evaluates-roles.md "mention").
+
+{% hint style="warning" %}
+The two modes are not merged. Saving in Simple mode replaces the role's permissions with the patterns on screen, and CIPP warns you when the categories and the patterns have diverged.
+{% endhint %}
 {% endstep %}
 
 {% step %}

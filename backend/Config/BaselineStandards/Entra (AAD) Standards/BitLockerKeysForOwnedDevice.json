@@ -35,11 +35,16 @@
     "cacheType": "AuthorizationPolicy",
     "object": "defaultUserRolePermissions"
   },
+  "writeTarget": "authorizationPolicy",
+  "writeTargetProperties": {
+    "defaultUserRolePermissions.allowedToReadBitLockerKeysForOwnedDevice": "%allowed%"
+  },
   "remediate": {
     "executor": "GraphRequest",
     "requests": [
       {
         "method": "PATCH",
+        "asApp": false,
         "uri": "policies/authorizationPolicy/authorizationPolicy",
         "body": {
           "defaultUserRolePermissions": {

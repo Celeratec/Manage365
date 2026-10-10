@@ -10,4 +10,8 @@ As of version 8.0, users only need the \`superadmin\` role in order to access th
 Note that it may take some time for the role change to take effect.
 {% endhint %}
 
+{% hint style="info" %}
+Not every superadmin capability lives in this menu. Role impersonation, which reloads CIPP as though you hold only a chosen role so you can see what that role can reach, is offered against each role on the [cipp-roles](../authentication/cipp-roles/ "mention") page.
+{% endhint %}
+
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

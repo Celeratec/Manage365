@@ -48,21 +48,34 @@ Function Invoke-ExecExtensionTest {
                 }
             }
             'PWPush' {
+                if ($Configuration.PWPush.Enabled -ne $true) {
+                    $Results = [pscustomobject]@{'Results' = 'PWPush is not enabled. Enable the integration and save the configuration, then test again.' }
+                    break
+                }
                 $Payload = 'This is a test from CIPP'
-                $PasswordLink = New-PwPushLink -Payload $Payload
+                # ThrowOnError: the silent $false fallback exists for the password flows; the
+                # test's whole job is to show why a push fails, so let the real exception through.
+                try {
+                    $PasswordLink = New-PwPushLink -Payload $Payload -ThrowOnError
+                } catch {
+                    $Results = [pscustomobject]@{'Results' = "PWPush is enabled but creating a test push failed: $($_.Exception.Message)" }
+                    break
+                }
                 if ($PasswordLink) {
                     $Results = [pscustomobject]@{Results = @(@{'resultText' = 'Successfully generated PWPush, hit the Copy to Clipboard button to retrieve the test.'; 'copyField' = $PasswordLink; 'state' = 'success' }) }
                 } else {
-                    $Results = [pscustomobject]@{'Results' = 'PWPush is not enabled' }
+                    $Results = [pscustomobject]@{'Results' = 'PWPush did not return a link. Check the CIPP logbook (API: PwPush) for details.' }
                 }
             }
             'Hudu' {
                 Connect-HuduAPI -configuration $Configuration
-                $Version = Get-HuduAppInfo
-                if ($Version.version) {
+                $HuduInfoErrors = $null
+                $Version = Get-HuduAppInfo -ErrorAction SilentlyContinue -ErrorVariable HuduInfoErrors 3>$null
+                if ($Version.version -and $Version.version -ne '0.0.0.0') {
                     $Results = [pscustomobject]@{'Results' = ('Successfully Connected to Hudu, version: {0}' -f $Version.version) }
                 } else {
-                    $Results = [pscustomobject]@{'Results' = 'Failed to connect to Hudu, check your API credentials and try again.' }
+                    $Reason = (@($HuduInfoErrors) | ForEach-Object { "$_" } | Where-Object { $_ } | Select-Object -Last 1) -replace '\s+', ' '
+                    $Results = [pscustomobject]@{'Results' = "Failed to connect to Hudu, check your API credentials and try again.$(if ($Reason) { " Error: $Reason" })" }
                 }
             }
             'HIBP' {

@@ -36,7 +36,14 @@ export const CippInfoBar = ({ data, isFetching }) => {
                 },
               }}
             >
-              <Stack alignItems="center" direction="row" spacing={2} sx={{ p: 2, minWidth: 0 }}>
+              <Stack
+                direction="row"
+                spacing={2}
+                sx={{
+                  alignItems: "center",
+                  p: 2,
+                  minWidth: 0
+                }}>
                 {item?.icon && (
                   <SvgIcon
                     color={item.color ? item.color : 'primary'}
@@ -57,20 +64,26 @@ export const CippInfoBar = ({ data, isFetching }) => {
                       }}
                     >
                       <Typography
-                        color="text.secondary"
                         variant="overline"
                         sx={{
+                          color: "text.secondary",
                           display: 'block',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
+                          whiteSpace: 'nowrap'
+                        }}>
                         {item.name}
                       </Typography>
+                      {/* One tile spans the full width on a phone, so the value wraps there
+                          instead of ellipsizing an address that would otherwise fit. */}
                       <Typography
                         variant="h6"
-                        sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: { xs: 'normal', md: 'nowrap' },
+                          overflowWrap: 'anywhere',
+                        }}
                       >
                         {isFetching ? <Skeleton width={'100%'} /> : item.data}
                       </Typography>
@@ -86,20 +99,24 @@ export const CippInfoBar = ({ data, isFetching }) => {
                     }}
                   >
                     <Typography
-                      color="text.secondary"
                       variant="overline"
                       sx={{
+                        color: "text.secondary",
                         display: 'block',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                        whiteSpace: 'nowrap'
+                      }}>
                       {item.name}
                     </Typography>
                     <Typography
                       variant="h6"
-                      sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: { xs: 'normal', md: 'nowrap' },
+                        overflowWrap: 'anywhere',
+                      }}
                     >
                       {isFetching ? <Skeleton width={'100%'} /> : item.data}
                     </Typography>
@@ -143,5 +160,5 @@ export const CippInfoBar = ({ data, isFetching }) => {
         ))}
       </Grid>
     </Card>
-  )
+  );
 }

@@ -1,49 +1,33 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
-import { useSettings } from "../../../../../hooks/use-settings";
-import { useRouter } from "next/router";
-import { ApiGetCall } from "../../../../../api/ApiCall";
-import CippFormSkeleton from "../../../../../components/CippFormPages/CippFormSkeleton";
-import CalendarIcon from "@heroicons/react/24/outline/CalendarIcon";
-import {
-  Check,
-  Error,
-  Mail,
-  Fingerprint,
-  Launch,
-  Delete,
-  Star,
-  CalendarToday,
-  AlternateEmail,
-  PersonAdd,
-  Block,
-  PlayArrow,
-  Security,
-  Rule,
-  Settings,
-} from "@mui/icons-material";
-import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
-import tabOptions from "./tabOptions";
-import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
-import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
-import { Box, Stack } from "@mui/system";
-import { Grid } from "@mui/system";
-import { CippBannerListCard } from "../../../../../components/CippCards/CippBannerListCard";
-import { CippExchangeInfoCard } from "../../../../../components/CippCards/CippExchangeInfoCard";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import CippExchangeSettingsForm from "../../../../../components/CippFormPages/CippExchangeSettingsForm";
-import { useForm } from "react-hook-form";
-import { Alert, Button, Collapse, CircularProgress, Typography, Divider } from "@mui/material";
-import { CippApiResults } from "../../../../../components/CippComponents/CippApiResults";
-import { CippPropertyListCard } from "../../../../../components/CippCards/CippPropertyListCard";
-import { getCippTranslation } from "../../../../../utils/get-cipp-translation";
-import { getCippFormatting } from "../../../../../utils/get-cipp-formatting";
-import CippExchangeActions from "../../../../../components/CippComponents/CippExchangeActions";
-import { CippApiDialog } from "../../../../../components/CippComponents/CippApiDialog";
-import { useDialog } from "../../../../../hooks/use-dialog";
-import CippAliasDialog from "../../../../../components/CippComponents/CippAliasDialog";
-import CippMailboxPermissionsDialog from "../../../../../components/CippComponents/CippMailboxPermissionsDialog";
-import CippCalendarPermissionsDialog from "../../../../../components/CippComponents/CippCalendarPermissionsDialog";
-import CippContactPermissionsDialog from "../../../../../components/CippComponents/CippContactPermissionsDialog";
+import { Layout as DashboardLayout } from '../../../../../layouts/index'
+import { CippIcons } from '../../../../../utils/icon-registry'
+import { useSettings } from '../../../../../hooks/use-settings'
+import { useRouter } from 'next/router'
+import { ApiGetCall } from '../../../../../api/ApiCall'
+import CippFormSkeleton from '../../../../../components/CippFormPages/CippFormSkeleton'
+import { HeaderedTabbedLayout } from '../../../../../layouts/HeaderedTabbedLayout'
+import tabOptions from './tabOptions'
+import { CippUserSwitcher } from '../../../../../components/CippComponents/CippUserSwitcher'
+import { CippTimeAgo } from '../../../../../components/CippComponents/CippTimeAgo'
+import { CippCopyToClipBoard } from '../../../../../components/CippComponents/CippCopyToClipboard'
+import { Box, Stack } from '@mui/system'
+import { Grid } from '@mui/system'
+import { CippBannerListCard } from '../../../../../components/CippCards/CippBannerListCard'
+import { CippExchangeInfoCard } from '../../../../../components/CippCards/CippExchangeInfoCard'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import CippExchangeSettingsForm from '../../../../../components/CippFormPages/CippExchangeSettingsForm'
+import { useForm } from 'react-hook-form'
+import { Alert, Button, Collapse, CircularProgress, Typography, Divider } from '@mui/material'
+import { CippApiResults } from '../../../../../components/CippComponents/CippApiResults'
+import { CippPropertyListCard } from '../../../../../components/CippCards/CippPropertyListCard'
+import { getCippTranslation } from '../../../../../utils/get-cipp-translation'
+import { getCippFormatting } from '../../../../../utils/get-cipp-formatting'
+import CippExchangeActions from '../../../../../components/CippComponents/CippExchangeActions'
+import { CippApiDialog } from '../../../../../components/CippComponents/CippApiDialog'
+import { useDialog } from '../../../../../hooks/use-dialog'
+import CippAliasDialog from '../../../../../components/CippComponents/CippAliasDialog'
+import CippMailboxPermissionsDialog from '../../../../../components/CippComponents/CippMailboxPermissionsDialog'
+import CippCalendarPermissionsDialog from '../../../../../components/CippComponents/CippCalendarPermissionsDialog'
+import CippContactPermissionsDialog from '../../../../../components/CippComponents/CippContactPermissionsDialog'
 
 const permissionOptionGroupOrder = {
   "System Users": 0,
@@ -539,57 +523,54 @@ const Page = () => {
   }, [usersList?.data?.Results, groupsList?.data?.Results, includeSecurityGroups]);
 
   const isUserGroupLoading =
-    usersList.isFetching || (includeSecurityGroups && groupsList.isFetching);
+    usersList.isFetching || (includeSecurityGroups && groupsList.isFetching)
 
-  // Memoize subtitle to prevent recreation on every render
-  const subtitle = useMemo(() => {
-    if (!graphUserRequest.isSuccess) return [];
-    const userData = graphUserRequest.data?.[0];
-    return [
-      {
-        icon: <Mail />,
-        text: (
-          <CippCopyToClipBoard type="chip" text={userData?.userPrincipalName} />
-        ),
-      },
-      {
-        icon: <Fingerprint />,
-        text: <CippCopyToClipBoard type="chip" text={userData?.id} />,
-      },
-      {
-        icon: <CalendarIcon />,
-        text: (
-          <>
-            Created: <CippTimeAgo data={userData?.createdDateTime} />
-          </>
-        ),
-      },
-      {
-        icon: <Launch style={{ color: "#757575" }} />,
-        text: (
-          <Button
-            color="muted"
-            style={{ paddingLeft: 0 }}
-            size="small"
-            href={`https://entra.microsoft.com/${userSettingsDefaults.currentTenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View in Entra
-          </Button>
-        ),
-      },
-    ];
-  }, [graphUserRequest.isSuccess, graphUserRequest.data, userSettingsDefaults.currentTenant, userId]);
+  const subtitle = graphUserRequest.isSuccess
+    ? [
+        {
+          icon: <CippIcons.Mail />,
+          text: (
+            <CippCopyToClipBoard type="chip" text={graphUserRequest.data?.[0]?.userPrincipalName} />
+          ),
+        },
+        {
+          icon: <CippIcons.Fingerprint />,
+          text: <CippCopyToClipBoard type="chip" text={graphUserRequest.data?.[0]?.id} />,
+        },
+        {
+          icon: <CippIcons.CalendarIcon />,
+          text: (
+            <>
+              Created: <CippTimeAgo data={graphUserRequest.data?.[0]?.createdDateTime} />
+            </>
+          ),
+        },
+        {
+          icon: <CippIcons.Launch />,
+          text: (
+            <Button
+              color="muted"
+              style={{ paddingLeft: 0 }}
+              size="small"
+              href={`https://entra.microsoft.com/${userSettingsDefaults.currentTenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View in Entra
+            </Button>
+          ),
+        },
+      ]
+    : []
 
   const data = userRequest.data?.[0];
 
   const mailboxPermissionActions = [
     {
-      label: "Remove Permission",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecModifyMBPerms",
+      label: 'Remove Permission',
+      type: 'POST',
+      icon: <CippIcons.Delete />,
+      url: '/api/ExecModifyMBPerms',
       customDataformatter: (row, action, formData) => {
         var permissions = [];
         if (Array.isArray(row)) {
@@ -638,9 +619,9 @@ const Page = () => {
         cardLabelBoxHeader: userRequest.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : userRequest.data?.[0]?.Permissions?.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Mailbox Permissions",
@@ -651,7 +632,7 @@ const Page = () => {
       statusColor: "green.main",
       cardLabelBoxActions: (
         <Button
-          startIcon={<PersonAdd />}
+          startIcon={<CippIcons.PersonAdd />}
           onClick={() => permissionsDialog.handleOpen()}
           variant="outlined"
           color="primary"
@@ -711,11 +692,10 @@ const Page = () => {
 
   const mailboxAccessActions = [
     {
-      label: "Remove Permission",
-      category: "danger",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecModifyMBPerms",
+      label: 'Remove Permission',
+      type: 'POST',
+      icon: <CippIcons.Delete />,
+      url: '/api/ExecModifyMBPerms',
       customDataformatter: (row, action, formData) => {
         const rowArray = Array.isArray(row) ? row : [row];
         return {
@@ -747,9 +727,9 @@ const Page = () => {
         cardLabelBoxHeader: mailboxAccessRequest.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : mailboxAccessData.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Mailbox Access",
@@ -779,9 +759,9 @@ const Page = () => {
         cardLabelBoxHeader: calPermissions.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : calPermissions.data?.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Calendar permissions",
@@ -792,7 +772,7 @@ const Page = () => {
       statusColor: "green.main",
       cardLabelBoxActions: (
         <Button
-          startIcon={<CalendarToday />}
+          startIcon={<CippIcons.CalendarToday />}
           onClick={() => calendarPermissionsDialog.handleOpen()}
           variant="outlined"
           color="primary"
@@ -821,10 +801,10 @@ const Page = () => {
         simpleColumns: ["User", "Email", "AccessRights", "FolderName", "Type"],
         actions: [
           {
-            label: "Remove Permission",
-            type: "POST",
-            icon: <Delete />,
-            url: "/api/ExecModifyCalPerms",
+            label: 'Remove Permission',
+            type: 'POST',
+            icon: <CippIcons.Delete />,
+            url: '/api/ExecModifyCalPerms',
             customDataformatter: (row, action, formData) => {
               var permissions = [];
               if (Array.isArray(row)) {
@@ -894,10 +874,10 @@ const Page = () => {
                 ]}
                 actionItems={[
                   {
-                    label: "Remove Permission",
-                    type: "POST",
-                    icon: <Delete />,
-                    url: "/api/ExecModifyCalPerms",
+                    label: 'Remove Permission',
+                    type: 'POST',
+                    icon: <CippIcons.Delete />,
+                    url: '/api/ExecModifyCalPerms',
                     data: {
                       userID: graphUserRequest.data?.[0]?.userPrincipalName,
                       tenantFilter: userSettingsDefaults.currentTenant,
@@ -932,9 +912,9 @@ const Page = () => {
         cardLabelBoxHeader: contactPermissions.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : contactPermissions.data?.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Contact permissions",
@@ -945,7 +925,7 @@ const Page = () => {
       statusColor: "green.main",
       cardLabelBoxActions: (
         <Button
-          startIcon={<CalendarToday />}
+          startIcon={<CippIcons.CalendarToday />}
           onClick={() => contactPermissionsDialog.handleOpen()}
           variant="outlined"
           color="primary"
@@ -974,10 +954,10 @@ const Page = () => {
         simpleColumns: ["User", "Email", "AccessRights", "FolderName", "Type"],
         actions: [
           {
-            label: "Remove Permission",
-            type: "POST",
-            icon: <Delete />,
-            url: "/api/ExecModifyContactPerms",
+            label: 'Remove Permission',
+            type: 'POST',
+            icon: <CippIcons.Delete />,
+            url: '/api/ExecModifyContactPerms',
             customDataformatter: (row, action, formData) => {
               var permissions = [];
               if (Array.isArray(row)) {
@@ -1047,10 +1027,10 @@ const Page = () => {
                 ]}
                 actionItems={[
                   {
-                    label: "Remove Permission",
-                    type: "POST",
-                    icon: <Delete />,
-                    url: "/api/ExecModifyContactPerms",
+                    label: 'Remove Permission',
+                    type: 'POST',
+                    icon: <CippIcons.Delete />,
+                    url: '/api/ExecModifyContactPerms',
                     data: {
                       userID: graphUserRequest.data?.[0]?.userPrincipalName,
                       tenantFilter: userSettingsDefaults.currentTenant,
@@ -1080,10 +1060,10 @@ const Page = () => {
 
   const mailboxRuleActions = [
     {
-      label: "Enable Mailbox Rule",
-      type: "POST",
-      icon: <PlayArrow />,
-      url: "/api/ExecSetMailboxRule",
+      label: 'Enable Mailbox Rule',
+      type: 'POST',
+      icon: <CippIcons.PlayArrow />,
+      url: '/api/ExecSetMailboxRule',
       customDataformatter: (row, action, formData) => {
         return {
           ruleId: row?.Identity,
@@ -1094,15 +1074,16 @@ const Page = () => {
         };
       },
       condition: (row) => row && !row.Enabled,
-      confirmText: "Are you sure you want to enable this mailbox rule?",
+      hideCondition: (row) => row?.Enabled,
+      confirmText: 'Are you sure you want to enable this mailbox rule?',
       multiPost: false,
       category: "edit",
     },
     {
-      label: "Disable Mailbox Rule",
-      type: "POST",
-      icon: <Block />,
-      url: "/api/ExecSetMailboxRule",
+      label: 'Disable Mailbox Rule',
+      type: 'POST',
+      icon: <CippIcons.Block />,
+      url: '/api/ExecSetMailboxRule',
       customDataformatter: (row, action, formData) => {
         return {
           ruleId: row?.Identity,
@@ -1113,15 +1094,16 @@ const Page = () => {
         };
       },
       condition: (row) => row && row.Enabled,
-      confirmText: "Are you sure you want to disable this mailbox rule?",
+      hideCondition: (row) => !row?.Enabled,
+      confirmText: 'Are you sure you want to disable this mailbox rule?',
       multiPost: false,
       category: "edit",
     },
     {
-      label: "Remove Mailbox Rule",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecRemoveMailboxRule",
+      label: 'Remove Mailbox Rule',
+      type: 'POST',
+      icon: <CippIcons.Delete />,
+      url: '/api/ExecRemoveMailboxRule',
       customDataformatter: (row, action, formData) => {
         return {
           ruleId: row?.Identity,
@@ -1144,9 +1126,9 @@ const Page = () => {
         cardLabelBoxHeader: mailboxRulesRequest.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : mailboxRulesRequest.data?.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Current Mailbox Rules",
@@ -1183,10 +1165,10 @@ const Page = () => {
                 propertyItems={properties}
                 actionItems={[
                   {
-                    label: "Enable Mailbox Rule",
-                    type: "POST",
-                    icon: <PlayArrow />,
-                    url: "/api/ExecSetMailboxRule",
+                    label: 'Enable Mailbox Rule',
+                    type: 'POST',
+                    icon: <CippIcons.PlayArrow />,
+                    url: '/api/ExecSetMailboxRule',
                     data: {
                       ruleId: data?.Identity,
                       userPrincipalName: graphUserRequest.data?.[0]?.userPrincipalName,
@@ -1194,15 +1176,16 @@ const Page = () => {
                       Enable: true,
                       tenantFilter: userSettingsDefaults.currentTenant,
                     },
-                    confirmText: "Are you sure you want to enable this mailbox rule?",
+                    hideCondition: () => data?.Enabled,
+                    confirmText: 'Are you sure you want to enable this mailbox rule?',
                     multiPost: false,
                     category: "edit",
                   },
                   {
-                    label: "Disable Mailbox Rule",
-                    type: "POST",
-                    icon: <Block />,
-                    url: "/api/ExecSetMailboxRule",
+                    label: 'Disable Mailbox Rule',
+                    type: 'POST',
+                    icon: <CippIcons.Block />,
+                    url: '/api/ExecSetMailboxRule',
                     data: {
                       ruleId: data?.Identity,
                       userPrincipalName: graphUserRequest.data?.[0]?.userPrincipalName,
@@ -1210,15 +1193,16 @@ const Page = () => {
                       Disable: true,
                       tenantFilter: userSettingsDefaults.currentTenant,
                     },
-                    confirmText: "Are you sure you want to disable this mailbox rule?",
+                    hideCondition: () => !data?.Enabled,
+                    confirmText: 'Are you sure you want to disable this mailbox rule?',
                     multiPost: false,
                     category: "edit",
                   },
                   {
-                    label: "Remove Mailbox Rule",
-                    type: "POST",
-                    icon: <Delete />,
-                    url: "/api/ExecRemoveMailboxRule",
+                    label: 'Remove Mailbox Rule',
+                    type: 'POST',
+                    icon: <CippIcons.Delete />,
+                    url: '/api/ExecRemoveMailboxRule',
                     data: {
                       ruleId: data?.Identity,
                       ruleName: data?.Name,
@@ -1241,10 +1225,10 @@ const Page = () => {
 
   const junkEmailConfigActions = [
     {
-      label: "Remove Entry",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/RemoveTrustedBlockedSender",
+      label: 'Remove Entry',
+      type: 'POST',
+      icon: <CippIcons.Delete />,
+      url: '/api/RemoveTrustedBlockedSender',
       customDataformatter: (row, action, formData) => {
         return {
           userPrincipalName: row?.UserPrincipalName,
@@ -1268,9 +1252,9 @@ const Page = () => {
         cardLabelBoxHeader: junkEmailConfigRequest.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
         ) : junkEmailConfigRequest.data?.length !== 0 ? (
-          <Check />
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Trusted and Blocked Senders/Domains",
@@ -1317,10 +1301,10 @@ const Page = () => {
 
   const proxyAddressActions = [
     {
-      label: "Make Primary",
-      type: "POST",
-      icon: <Star />,
-      url: "/api/EditUserAliases",
+      label: 'Make Primary',
+      type: 'POST',
+      icon: <CippIcons.Star />,
+      url: '/api/EditUserAliases',
       data: {
         id: userId,
         tenantFilter: userSettingsDefaults.currentTenant,
@@ -1333,10 +1317,10 @@ const Page = () => {
       category: "edit",
     },
     {
-      label: "Remove Proxy Address",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/EditUserAliases",
+      label: 'Remove Proxy Address',
+      type: 'POST',
+      icon: <CippIcons.Delete />,
+      url: '/api/EditUserAliases',
       data: {
         id: userId,
         tenantFilter: userSettingsDefaults.currentTenant,
@@ -1399,10 +1383,11 @@ const Page = () => {
       cardLabelBox: {
         cardLabelBoxHeader: graphUserRequest.isFetching ? (
           <CircularProgress size="25px" color="inherit" />
-        ) : mismatchedAddresses.length === 0 && graphUserRequest.data?.[0]?.proxyAddresses?.length > 1 ? (
-          <Check />
+        ) : mismatchedAddresses.length === 0 &&
+          graphUserRequest.data?.[0]?.proxyAddresses?.length > 1 ? (
+          <CippIcons.Check />
         ) : (
-          <Error />
+          <CippIcons.Error />
         ),
       },
       text: "Proxy Addresses",
@@ -1415,7 +1400,7 @@ const Page = () => {
       statusColor: "green.main",
       cardLabelBoxActions: (
         <Button
-          startIcon={<AlternateEmail />}
+          startIcon={<CippIcons.AlternateEmail />}
           onClick={() => aliasDialog.handleOpen()}
           variant="outlined"
           color="primary"
@@ -1468,13 +1453,21 @@ const Page = () => {
     <HeaderedTabbedLayout
       tabOptions={tabOptions}
       title={title}
+      titleControl={
+        <CippUserSwitcher
+          title={title}
+          currentUserId={userId}
+          tenantFilter={userSettingsDefaults.currentTenant}
+        />
+      }
       subtitle={subtitle}
       actions={CippExchangeActions()}
       actionsData={userRequest.data?.[0]?.MailboxActionsData}
       isFetching={graphUserRequest.isLoading}
     >
-      <CippApiResults apiObject={userRequest} errorsOnly={true} />
-      {/* Show loading state when router is not ready, userId is missing, or API is loading */}
+      {userRequest.isError && (
+        <CippApiResults apiObject={userRequest} errorsOnly={true} />
+      )}
       {(!router.isReady || !userId || graphUserRequest.isLoading) && <CippFormSkeleton layout={[2, 1, 2, 2]} />}
       {router.isReady && userId && graphUserRequest.isSuccess && (
         <Box
@@ -1487,7 +1480,12 @@ const Page = () => {
             {userRequest?.data?.[0]?.Mailbox?.[0]?.error && (
               <Grid size={12}>
                 <Alert severity="error">
-                  <Box display="flex" justifyContent="space-between">
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
                     <Typography variant="body2">
                       {userRequest?.data?.[0]?.Mailbox?.[0]?.error.includes(
                         "Microsoft.Exchange.Configuration.Tasks.ManagementObjectNotFoundException",
@@ -1504,7 +1502,13 @@ const Page = () => {
                     </Button>
                   </Box>
                   <Collapse in={showDetails}>
-                    <Box mt={2}>{userRequest?.data?.[0]?.Mailbox?.[0]?.error}</Box>
+                    <Box
+                      sx={{
+                        mt: 2,
+                      }}
+                    >
+                      {userRequest?.data?.[0]?.Mailbox?.[0]?.error}
+                    </Box>
                   </Collapse>
                 </Alert>
               </Grid>
@@ -1513,7 +1517,7 @@ const Page = () => {
               "Microsoft.Exchange.Configuration.Tasks.ManagementObjectNotFoundException",
             ) && (
               <>
-                <Grid size={{ xs: 12, md: 4 }}>
+                <Grid size={{ xs: 12, lg: 4 }}>
                   <CippExchangeInfoCard
                     exchangeData={data}
                     isLoading={userRequest.isLoading}
@@ -1523,7 +1527,7 @@ const Page = () => {
                     userId={userId}
                   />
                 </Grid>
-                <Grid size={{ xs: 12, md: 8 }}>
+                <Grid size={{ xs: 12, lg: 8 }}>
                   <Stack spacing={3}>
                     {/* Email Configuration Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>
@@ -1679,6 +1683,8 @@ const Page = () => {
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => (
+  <DashboardLayout allTenantsSupport={false}>{page}</DashboardLayout>
+)
 
 export default Page;

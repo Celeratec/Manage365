@@ -55,6 +55,9 @@ Function Invoke-ExecExtensionSync {
                         #Write-Host ($InputObject | ConvertTo-Json)
                         $InstanceId = Start-CIPPOrchestrator -InputObject $InputObject
 
+                        $SyncTenantFilter = if ($Request.Query.TenantFilter) { $Request.Query.TenantFilter } else { $Tenant.RowKey }
+                        Write-LogMessage -API 'NinjaOneSync' -tenant $SyncTenantFilter -message "On-demand NinjaOne Synchronization queued for $($Tenant.IntegrationName)" -Sev 'Info' -Headers $Request.Headers
+
                         $Results = [pscustomobject]@{'Results' = "NinjaOne Synchronization Queued for $($Tenant.IntegrationName)" }
                     } else {
                         $Results = [pscustomobject]@{'Results' = 'Tenant was not found.' }
@@ -81,8 +84,32 @@ Function Invoke-ExecExtensionSync {
             }
         }
         'Hudu' {
-            Register-CIPPExtensionScheduledTasks -Reschedule -Extensions 'Hudu'
-            $Results = [pscustomobject]@{'Results' = 'Extension sync tasks have been rescheduled and will start within 15 minutes' }
+            try {
+                if ($Request.Query.TenantID) {
+                    $CIPPMapping = Get-CIPPTable -TableName CippMapping
+                    $Filter = "PartitionKey eq 'HuduMapping'"
+                    $Mapping = Get-CIPPAzDataTableEntity @CIPPMapping -Filter $Filter | Where-Object { $_.RowKey -eq $Request.Query.TenantID -and $Null -ne $_.IntegrationId -and $_.IntegrationId -ne '' }
+                    $Tenant = Get-Tenants -IncludeErrors | Where-Object { $_.customerId -eq $Request.Query.TenantID }
+
+                    if (($Mapping | Measure-Object).count -eq 1 -and $Tenant) {
+                        # Queue the sync function for immediate execution
+                        $null = Add-CippQueueMessage -Cmdlet 'Push-CippExtensionData' -Parameters @{
+                            TenantFilter = $Tenant.defaultDomainName
+                            Extension    = 'Hudu'
+                        }
+                        Write-LogMessage -API 'HuduSync' -tenant $Tenant.defaultDomainName -message "On-demand Hudu Synchronization queued for $($Mapping.IntegrationName)" -Sev 'Info' -Headers $Request.Headers
+                        $Results = [pscustomobject]@{'Results' = "Hudu Synchronization Queued for $($Mapping.IntegrationName)" }
+                    } else {
+                        $Results = [pscustomobject]@{'Results' = 'Tenant was not found.' }
+                    }
+                } else {
+                    Register-CIPPExtensionScheduledTasks -Reschedule -Extensions 'Hudu'
+                    $Results = [pscustomobject]@{'Results' = 'Extension sync tasks have been rescheduled and will start within 15 minutes' }
+                }
+            } catch {
+                $Results = [pscustomobject]@{'Results' = "Could not start Hudu Sync: $($_.Exception.Message)" }
+                Write-LogMessage -API 'HuduSync' -tenant 'none' -message "Could not start Hudu Sync $($_.Exception.Message)" -sev Error
+            }
         }
 
     }

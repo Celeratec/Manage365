@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { CippIcons } from '../../utils/icon-registry'
 import {
   Button,
   Card,
@@ -14,7 +15,6 @@ import {
 } from '@mui/material'
 import { Grid } from '@mui/system'
 import { useForm, useFormState, useWatch } from 'react-hook-form'
-import { Add, Edit } from '@mui/icons-material'
 import { CippOffCanvas } from './CippOffCanvas'
 import CippFormComponent from './CippFormComponent'
 import { CippApiResults } from './CippApiResults'
@@ -27,11 +27,18 @@ export const CippAddTestReportDrawer = ({
   mode = 'create',
   reportToEdit = null,
   disabled = false,
+  open,
+  onClose,
+  hideTrigger = false,
 }) => {
-  const [drawerVisible, setDrawerVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState(0);
-  const [searchTerm, setSearchTerm] = useState("");
-  const isEditMode = mode === 'edit';
+  const [drawerVisible, setDrawerVisible] = useState(false)
+  const [activeTab, setActiveTab] = useState(0)
+  const [searchTerm, setSearchTerm] = useState('')
+  const isEditMode = mode === 'edit'
+  // Controlled mode: the parent owns open/close (mobile sheet rows trigger the drawer
+  // without rendering its button). Uncontrolled keeps the original self-contained shape.
+  const isControlled = open !== undefined
+  const visible = isControlled ? open : drawerVisible
 
   const formControl = useForm({
     mode: 'onChange',
@@ -83,7 +90,7 @@ export const CippAddTestReportDrawer = ({
   }, [createReport.isSuccess, formControl, isEditMode])
 
   useEffect(() => {
-    if (drawerVisible && isEditMode && reportToEdit) {
+    if (visible && isEditMode && reportToEdit) {
       formControl.reset({
         name: reportToEdit.name || '',
         description: reportToEdit.description || '',
@@ -92,7 +99,7 @@ export const CippAddTestReportDrawer = ({
         CustomTests: reportToEdit.CustomTests || [],
       })
     }
-  }, [drawerVisible, isEditMode, reportToEdit, formControl])
+  }, [visible, isEditMode, reportToEdit, formControl])
 
   const handleSubmit = () => {
     formControl.trigger()
@@ -119,7 +126,10 @@ export const CippAddTestReportDrawer = ({
 
   const handleCloseDrawer = () => {
     createReport.reset()
-    setDrawerVisible(false)
+    if (!isControlled) {
+      setDrawerVisible(false)
+    }
+    onClose?.()
     setSearchTerm('')
     setActiveTab(0)
     formControl.reset({
@@ -181,32 +191,33 @@ export const CippAddTestReportDrawer = ({
 
   return (
     <>
-      <Button
-        variant="contained"
-        sx={{
-          minWidth: 0,
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          textOverflow: 'ellipsis',
-          fontWeight: 'bold',
-          textTransform: 'none',
-          borderRadius: 2,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          transition: "all 0.2s ease-in-out",
-          px: iconOnly ? 1 : (buttonText === "Create" ? 1.5 : 2),
-          minWidth: iconOnly ? 32 : "auto",
-          ...buttonProps.sx,
-        }}
-        onClick={() => setDrawerVisible(true)}
-        startIcon={!iconOnly ? (isEditMode ? <Edit /> : <Add />) : undefined}
-        disabled={disabled}
-        {...buttonProps}
-      >
-        {iconOnly ? <Add fontSize="small" /> : buttonText}
-      </Button>
+      {!hideTrigger && (
+        <Button
+          variant="contained"
+          sx={{
+            minWidth: iconOnly ? 32 : 0,
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            textOverflow: 'ellipsis',
+            fontWeight: 'bold',
+            textTransform: 'none',
+            borderRadius: 2,
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            transition: 'all 0.2s ease-in-out',
+            px: iconOnly ? 1 : buttonText === 'Create' ? 1.5 : 2,
+            ...buttonProps.sx,
+          }}
+          onClick={() => setDrawerVisible(true)}
+          startIcon={!iconOnly ? (isEditMode ? <CippIcons.Edit /> : <CippIcons.Add />) : undefined}
+          disabled={disabled}
+          {...buttonProps}
+        >
+          {iconOnly ? <CippIcons.Add fontSize="small" /> : buttonText}
+        </Button>
+      )}
       <CippOffCanvas
         title={isEditMode ? 'Edit Test Suite' : 'Create Test Suite'}
-        visible={drawerVisible}
+        visible={visible}
         onClose={handleCloseDrawer}
         size="lg"
         footer={
@@ -245,7 +256,7 @@ export const CippAddTestReportDrawer = ({
         >
           {/* Test Suite Details Section */}
           <Grid size={12}>
-            <Paper sx={{ p: 3, backgroundColor: 'background.default' }}>
+            <Paper sx={{ p: { xs: 2, md: 3 }, backgroundColor: 'background.default' }}>
               <Typography variant="h6" gutterBottom sx={{ mb: 2 }}>
                 Test Suite Details
               </Typography>
@@ -279,7 +290,9 @@ export const CippAddTestReportDrawer = ({
           {/* Selection Summary */}
           <Grid size={12}>
             <Paper sx={{ p: 2, backgroundColor: 'primary.50' }}>
-              <Stack direction="row" spacing={2} alignItems="center">
+              <Stack direction="row" spacing={2} sx={{
+                alignItems: "center"
+              }}>
                 <Typography variant="subtitle2" color="primary">
                   Selected Tests:
                 </Typography>
@@ -302,7 +315,9 @@ export const CippAddTestReportDrawer = ({
                   variant="outlined"
                 />
                 <Box sx={{ flex: 1 }} />
-                <Typography variant="caption" color="text.secondary">
+                <Typography variant="caption" sx={{
+                  color: "text.secondary"
+                }}>
                   Total:{' '}
                   {selectedIdentityTests.length +
                     selectedDeviceTests.length +
@@ -389,11 +404,15 @@ export const CippAddTestReportDrawer = ({
               >
                 {availableTestsApi.isFetching ? (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography color="text.secondary">Loading tests...</Typography>
+                    <Typography sx={{
+                      color: "text.secondary"
+                    }}>Loading tests...</Typography>
                   </Box>
                 ) : currentTests.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 4 }}>
-                    <Typography color="text.secondary">
+                    <Typography sx={{
+                      color: "text.secondary"
+                    }}>
                       {searchTerm ? 'No tests found matching your search' : 'No tests available'}
                     </Typography>
                   </Box>
@@ -450,14 +469,13 @@ export const CippAddTestReportDrawer = ({
                                   {test.description && (
                                     <Typography
                                       variant="caption"
-                                      color="text.secondary"
                                       sx={{
+                                        color: "text.secondary",
                                         display: '-webkit-box',
                                         WebkitLineClamp: 2,
                                         WebkitBoxOrient: 'vertical',
-                                        overflow: 'hidden',
-                                      }}
-                                    >
+                                        overflow: 'hidden'
+                                      }}>
                                       {test.description}
                                     </Typography>
                                   )}
@@ -466,7 +484,7 @@ export const CippAddTestReportDrawer = ({
                             </CardContent>
                           </Card>
                         </Grid>
-                      )
+                      );
                     })}
                   </Grid>
                 )}
@@ -476,5 +494,5 @@ export const CippAddTestReportDrawer = ({
         </Grid>
       </CippOffCanvas>
     </>
-  )
+  );
 }

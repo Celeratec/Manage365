@@ -1,5 +1,5 @@
 import CippMessageViewerPage from "../../../../components/CippComponents/CippMessageViewer";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 
 const Page = () => {
   return <CippMessageViewerPage />;

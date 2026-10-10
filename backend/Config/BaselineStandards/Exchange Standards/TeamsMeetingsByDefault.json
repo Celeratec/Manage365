@@ -30,8 +30,12 @@
     "OnlineMeetingsByDefaultEnabled": "%state%"
   },
   "read": {
-    "cacheType": "ExoOrganizationConfig"
+    "cacheType": "ExoOrganizationConfig",
+    "defaults": {
+      "OnlineMeetingsByDefaultEnabled": true
+    }
   },
+  "writeTarget": "exoOrganizationConfig",
   "remediate": {
     "executor": "ExoRequest",
     "cmdlets": [

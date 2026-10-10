@@ -10,7 +10,7 @@ Welcome to the CIPP Dashboard. This page gives you both an overview of your clie
 What the dashboard shows depends on the tenant selector. Choose a single tenant and you get that tenant's detail. Choose **All Tenants**, which is also where you land before picking a tenant, and the page swaps to an estate-wide view.
 
 {% hint style="warning" %}
-Much of the dashboard is built from data cached in CIPP's reporting database, refreshed by a scheduled job. The first time you load the dashboard for a tenant you may see little or nothing until that job has run. Use **Refresh** to collect the data immediately rather than waiting.
+Much of the dashboard is built from data CIPP collects on a schedule. The first time you load the dashboard for a tenant you may see little or nothing until that collection has run. Use **Refresh** to collect the data immediately rather than waiting.
 {% endhint %}
 
 ## Walkthrough
@@ -19,7 +19,7 @@ Much of the dashboard is built from data cached in CIPP's reporting database, re
 
 ## All Tenants View
 
-Under All Tenants the dashboard is built entirely from cached data, with no live Graph calls, and is organised into three bands. Almost every figure links through to the page where you can investigate it.
+Under All Tenants the dashboard is built entirely from data CIPP has already collected, and is organised into three bands. Almost every figure links through to the page where you can investigate it.
 
 ### Portfolio
 
@@ -210,7 +210,7 @@ Deletes the selected custom test suite. Built-in suites cannot be deleted, and t
 
 <summary>Tenant</summary>
 
-The tenant's name, tenant ID, and primary domain. The tenant ID can be copied to the clipboard.
+The tenant's name, tenant ID, and primary domain. The tenant ID can be copied to the clipboard. The card's **Tenant** heading opens the [edit.md](../tenant/manage/edit.md "mention") page for the tenant.
 
 </details>
 
@@ -232,13 +232,22 @@ Each metric is clickable and takes you to the corresponding area of CIPP for a d
 
 How the tenant scored against the selected test suite, broken down by Identity, Devices, and Custom, with an overall figure and a pass, fail, and skip split. The suite's name and description are shown on the card.
 
+{% hint style="info" %}
+Selecting Identity, Devices, or Custom jumps to that tab, keeping the same test suite selected so the detail lines up with what you clicked from.
+{% endhint %}
+
 </details>
 
 <details>
 
 <summary>Alerts</summary>
 
-Alerts generated for the tenant, with counts for Active and Snoozed. Switch between the two to filter the list, and use the clock icon on a row to snooze an alert or remove an existing snooze. **Manage** opens the [alert-configuration](../tenant/administration/alert-configuration/ "mention") page.
+Every item the tenant's scripted alerts are currently reporting, with counts for Open, Snoozed and Resolved in the last 48 hours. Each row shows when the item was first seen and when the alert last confirmed it, so an entry that says "checked 3d ago" tells you the alert has not completed a run for this tenant in three days. Items that resolved and came back three times or more are marked as flapping.
+
+* The clock icon snoozes an item so it stops notifying, for 7 to 90 days or until it resolves. Tick "keep it visible" to leave it in the open list marked as snoozed, so it is not forgotten; otherwise it moves to the snoozed section. Either way the bin icon lifts the snooze early.
+* Recently resolved items appear in a muted section for two days, so you can confirm a fix landed.
+
+**History** opens the [alert-history](../tenant/administration/alert-configuration/alert-history.md "mention") page for every tenant; **Manage** opens the [alert-configuration](../tenant/administration/alert-configuration/ "mention") page, as does the card's **Alerts** heading.
 
 </details>
 
@@ -273,7 +282,7 @@ The authentication methods in use across the tenant's users. Clicking a category
 The licences present on the tenant, with assigned and available counts.
 
 {% hint style="info" %}
-To exclude a licence from this and all other reports in CIPP, add the licence in licenses.md.
+To exclude a licence from this and all other reports in CIPP, add the licence on the [licenses.md](../cipp/settings/licenses.md "mention") page.
 {% endhint %}
 
 </details>
@@ -281,7 +290,5 @@ To exclude a licence from this and all other reports in CIPP, add the licence in
 ## Other Tabs
 
 The [identity.md](identity.md "mention"), [devices.md](devices.md "mention"), and [custom.md](custom.md "mention") tabs show the results of the test suite selected on this tab, including remediation guidance for failed tests. Each has its own page in this documentation.
-
-**Previous Dashboard Experience** returns you to the [dashboard.md](dashboard.md "mention").
 
 {% include "../../../.gitbook/includes/feature-request.md" %}

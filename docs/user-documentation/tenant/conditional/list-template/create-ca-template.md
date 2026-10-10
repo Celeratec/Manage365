@@ -165,8 +165,32 @@ Use **Add Named Location** to add an entry, and the delete icon on any entry to 
 | Country Lookup Method               | Whether the country is determined from the client IP address or from the Authenticator app's GPS signal. |
 | Include Unknown Countries / Regions | Includes addresses that cannot be mapped to a country.                                                   |
 
+### Keeping a template's locations current
+
+A template built from an existing policy, whether imported through **Browse Catalog** or created from a tenant's own Conditional Access policy, stores a copy of each named location that policy references as it stood at that moment. The copy is a point in time record rather than a live link back to the tenant the template came from, so changing the ranges on the original named location afterwards leaves the template holding the old ones, and every tenant deployed from it carries on receiving them.
+
+There is no resync action. Bring the ranges up to date on [edit.md](edit.md "mention"), which changes the template in place. Building a new template from the corrected policy produces a separate template with its own GUID instead, and a standard already pointing at the original carries on using the original.
+
+On deployment, each of the template's named locations is matched to one of the same display name in the target tenant. Where the deployment overwrites, that location is rewritten to the template's stored values; otherwise the tenant's existing location is left as it is and referenced by the policy. **Overwrite Existing Policy** in the deploy drawer controls this for a manual deployment.
+
+{% hint style="warning" %}
+A template applied through a standard always overwrites. Correcting a customer tenant's named location directly on [README.md](../list-named-locations/README.md "mention") is undone the next time that standard runs, so correct the ranges on the template instead.
+{% endhint %}
+
 {% hint style="info" %}
 A template deployed to a tenant is not linked to it afterwards. Editing the template later does not change policies already deployed from it, unless the template is applied through a standard, which redeploys on drift.
+{% endhint %}
+
+## Custom Variables
+
+Any field in this editor accepts a variable, written as `%variablename%`, which is replaced with the target tenant's value each time the template is deployed. That is what lets one template cover an estate where the details differ per client, such as a site name or an office IP range.
+
+Substitution happens before CIPP matches names in the target tenant, so a named location, authentication strength, or authentication context whose name is built from a variable is matched to the existing object of that name rather than created again on every deployment. Because the whole template is substituted at once, a variable used in a **Named Locations** display name resolves to the same value where it is referenced under **Include Locations** or **Exclude Locations**, so write the reference with the same variable text rather than a resolved value.
+
+Values are set for every tenant in [global-variables.md](../../administration/tenants/global-variables.md "mention"), or for one tenant in the Custom Variables box on [edit.md](../../manage/edit.md "mention"), where the tenant's own value wins.
+
+{% hint style="warning" %}
+The fields in this editor do not offer the [variable-auto-complete.md](../../../shared-features/variable-auto-complete.md "mention") list, so the variable name has to be typed in full. A name that matches nothing for the tenant being deployed to is left in place as literal text, which is covered under Unresolved Variables on [global-variables.md](../../administration/tenants/global-variables.md "mention").
 {% endhint %}
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

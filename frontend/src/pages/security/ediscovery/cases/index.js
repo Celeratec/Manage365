@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
 import { Alert, AlertTitle, Collapse, IconButton, Link } from "@mui/material";
 import {

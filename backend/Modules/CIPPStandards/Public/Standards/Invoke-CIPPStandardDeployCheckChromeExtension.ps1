@@ -468,7 +468,6 @@ exit 0
         }
 
         if ($Settings.report -eq $true) {
-            $StateIsCorrect = $AppExists
             $ExpectedValue = [PSCustomObject]@{
                 AppDeployed = $true
             }
@@ -476,7 +475,6 @@ exit 0
                 AppDeployed = [bool]$AppExists
             }
             Set-CIPPStandardsCompareField -FieldName 'standards.DeployCheckChromeExtension' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -TenantFilter $Tenant
-            Add-CIPPBPAField -FieldName 'DeployCheckChromeExtension' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $Tenant
         }
 
     } catch {
@@ -489,7 +487,6 @@ exit 0
 
         if ($Settings.report -eq $true) {
             Set-CIPPStandardsCompareField -FieldName 'standards.DeployCheckChromeExtension' -FieldValue @{ 'Error' = $ErrorMessage } -TenantFilter $Tenant
-            Add-CIPPBPAField -FieldName 'DeployCheckChromeExtension' -FieldValue $false -StoreAs bool -Tenant $Tenant
         }
     }
 }

@@ -19,7 +19,7 @@ function Set-CIPPDBCacheCopilotUsageUserDetail {
     try {
         Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Caching Copilot usage user detail' -sev Debug
 
-        $Data = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D30')" -tenantid $TenantFilter -AsApp $true
+        $Data = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/reports/getMicrosoft365CopilotUsageUserDetail(period='D30')" -tenantid $TenantFilter -AsApp $true -Stream
 
         if ($Data) {
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CopilotUsageUserDetail' -Data $Data -AddCount

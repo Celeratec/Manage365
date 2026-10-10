@@ -4,6 +4,8 @@ A template library keeps CIPP's stored templates in step with an external source
 
 Tenant-based libraries sync every 4 hours. Community repository libraries sync every 7 days.
 
+This page needs the `CIPP.TemplateLibrary` permission together with the Scheduler permission that runs the sync.
+
 {% hint style="warning" %}
 Enabling this feature will overwrite templates with the same name.
 {% endhint %}
@@ -22,11 +24,9 @@ CIPP recommends using a Customer Development Experience tenant for developing yo
 
 ### Community Repository
 
-Choose a repository registered with your instance. Once selected, a **Repository Branch** field appears, prefilled with the repository's default branch and changeable if the templates you want live elsewhere.
+Choose a repository registered with your instance. Once selected, a **Repository Branch** section appears with a **Select Branch** field, prefilled with the repository's default branch and changeable if the templates you want live elsewhere.
 
-Repositories are managed separately, and you can register your own alongside the built-in ones:
-
-CIPP ships with five repositories registered:
+Repositories are managed on the [README.md](community-repos/README.md "mention") page, where you can register your own alongside the built-in ones. CIPP ships with five repositories registered:
 
 | Repository                                                                         | Contents                                                                                        |
 | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
@@ -68,7 +68,7 @@ For the CyberDrain CIPP Templates repository, a different set is offered coverin
 {% step %}
 ### Select a tenant or a community repository
 
-Choose the source the templates will come from. Selecting a repository also lets you pick a branch.
+Choose the source the templates will come from. Selecting a repository also lets you pick a branch. Until one or the other is chosen, the page says so and **Submit** stays greyed out. Choosing a source that already has a library raises a warning naming it, so you can go and edit that one instead of having the save rejected.
 {% endstep %}
 
 {% step %}
@@ -80,12 +80,27 @@ Toggle on the template types you would like copied.
 {% step %}
 ### Submit
 
-Saving creates a scheduled task named after the tenant or repository, which performs the sync from then on. A tenant already has a library where the name is rejected as a duplicate, so each source can only have one.
+Saving creates a scheduled task named after the tenant or repository, which performs the sync from then on. A source that already has a library is rejected as a duplicate, so each tenant and each repository can only have one. A tenant library syncs every four hours, a repository library every seven days.
 {% endstep %}
 {% endstepper %}
 
 {% hint style="info" %}
 Templates are compared before being written. Where a template already exists, carries the same source, and its content is unchanged, CIPP skips it rather than rewriting it, so a sync that reports no changes is working correctly.
 {% endhint %}
+
+## Configured Template Libraries
+
+A table at the foot of the page lists every template library already set up, across all tenants and repositories rather than only the tenant currently selected. It refreshes itself when you create a new one.
+
+| Column        | Description                                                                          |
+| ------------- | ------------------------------------------------------------------------------------ |
+| Name          | The name of the library, taken from the tenant or the repository it was created for. |
+| Tenant        | The tenant the library writes into, or **No tenant** for a repository library.       |
+| Recurrence    | How often the library syncs.                                                         |
+| Task State    | Where the sync has got to, for example planned, running or completed.                |
+| Executed Time | When the library last ran.                                                           |
+| Results       | What the last run reported.                                                          |
+
+Libraries are edited and removed from [README.md](scheduler/README.md "mention"), not from this page.
 
 {% include "../../../.gitbook/includes/feature-request.md" %}

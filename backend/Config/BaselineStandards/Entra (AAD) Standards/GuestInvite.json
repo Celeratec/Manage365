@@ -57,11 +57,16 @@
   "read": {
     "cacheType": "AuthorizationPolicy"
   },
+  "writeTarget": "authorizationPolicy",
+  "writeTargetProperties": {
+    "allowInvitesFrom": "%allowInvitesFrom%"
+  },
   "remediate": {
     "executor": "GraphRequest",
     "requests": [
       {
         "method": "PATCH",
+        "asApp": false,
         "uri": "policies/authorizationPolicy/authorizationPolicy",
         "body": {
           "allowInvitesFrom": "%allowInvitesFrom%"

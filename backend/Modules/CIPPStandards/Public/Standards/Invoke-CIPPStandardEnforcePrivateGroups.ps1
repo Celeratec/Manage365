@@ -121,6 +121,5 @@ function Invoke-CIPPStandardEnforcePrivateGroups {
             PublicGroups     = ''
         }
         Set-CIPPStandardsCompareField -FieldName 'standards.EnforcePrivateGroups' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -TenantFilter $Tenant
-        Add-CIPPBPAField -FieldName 'EnforcePrivateGroups' -FieldValue $StateIsCorrect -StoreAs bool -Tenant $Tenant
     }
 }

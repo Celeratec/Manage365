@@ -11,6 +11,13 @@ function Invoke-ListCustomRole {
     $Table = Get-CippTable -tablename 'CustomRoles'
     $CustomRoles = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'CustomRoles'"
 
+    $CippRolesJson = Join-Path -Path $env:CIPPRootPath -ChildPath 'Config\cipp-roles.json'
+    $BaseRoleConfig = if (Test-Path $CippRolesJson) {
+        [System.IO.File]::ReadAllText($CippRolesJson) | ConvertFrom-Json
+    } else {
+        $null
+    }
+
     $AccessRoleGroupTable = Get-CippTable -tablename 'AccessRoleGroups'
     $RoleGroups = Get-CIPPAzDataTableEntity @AccessRoleGroupTable -Filter "PartitionKey eq 'AccessRoleGroups'"
 
@@ -34,15 +41,25 @@ function Invoke-ListCustomRole {
             $IPRanges = @()
         }
 
+        $BaseRules = if ($BaseRoleConfig -and $BaseRoleConfig.$Role) {
+            [pscustomobject]@{
+                Include = @($BaseRoleConfig.$Role.include)
+                Exclude = @($BaseRoleConfig.$Role.exclude)
+            }
+        } else {
+            $null
+        }
+
         $RoleList.Add([pscustomobject]@{
-                RoleName       = $Role
-                Type           = 'Built-In'
-                Permissions    = ''
-                AllowedTenants = @('AllTenants')
-                BlockedTenants = @()
-                EntraGroup     = $RoleGroup.GroupName ?? $null
-                EntraGroupId   = $RoleGroup.GroupId ?? $null
-                IPRange        = $IPRanges
+                RoleName        = $Role
+                Type            = 'Built-In'
+                Permissions     = ''
+                PermissionRules = $BaseRules
+                AllowedTenants  = @('AllTenants')
+                BlockedTenants  = @()
+                EntraGroup      = $RoleGroup.GroupName ?? $null
+                EntraGroupId    = $RoleGroup.GroupId ?? $null
+                IPRange         = $IPRanges
             })
     }
     foreach ($Role in $CustomRoles) {
@@ -55,6 +72,15 @@ function Invoke-ListCustomRole {
             } catch {
                 $Role.Permissions = ''
             }
+        }
+        if ($Role.PSObject.Properties.Name -contains 'PermissionRules' -and $Role.PermissionRules) {
+            try {
+                $Role.PermissionRules = $Role.PermissionRules | ConvertFrom-Json
+            } catch {
+                $Role.PermissionRules = $null
+            }
+        } else {
+            $Role | Add-Member -NotePropertyName PermissionRules -NotePropertyValue $null -Force
         }
         if ($Role.AllowedTenants) {
             try {
@@ -135,6 +161,21 @@ function Invoke-ListCustomRole {
             $Role | Add-Member -NotePropertyName EntraGroup -NotePropertyValue $EntraGroup.GroupName -Force
             $Role | Add-Member -NotePropertyName EntraGroupId -NotePropertyValue $EntraGroup.GroupId -Force
         }
+
+        # Custom roles keep their IP allow-list in AccessIPRanges (same as the built-in roles
+        # above); surface it here so this read-only list carries it too.
+        $IPRangeEntity = $AccessIPRanges | Where-Object -Property RowKey -EQ $Role.RowKey
+        if ($IPRangeEntity) {
+            try {
+                $IPRanges = @($IPRangeEntity.IPRanges | ConvertFrom-Json)
+            } catch {
+                $IPRanges = @()
+            }
+        } else {
+            $IPRanges = @()
+        }
+        $Role | Add-Member -NotePropertyName IPRange -NotePropertyValue $IPRanges -Force
+
         $RoleList.Add($Role)
     }
     $Body = @($RoleList)

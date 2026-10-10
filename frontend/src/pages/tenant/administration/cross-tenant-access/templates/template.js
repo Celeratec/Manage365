@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/router";
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { CippHead } from "../../../../../components/CippComponents/CippHead.jsx";
 import {
   Alert,
@@ -120,7 +120,7 @@ const DomainListEditor = ({ title, domains, onChange }) => {
           Add
         </Button>
       </Stack>
-      <Stack direction="row" flexWrap="wrap" gap={1}>
+      <Stack useFlexGap direction="row" flexWrap="wrap" gap={1}>
         {domains.map((domain) => (
           <Chip
             key={domain}

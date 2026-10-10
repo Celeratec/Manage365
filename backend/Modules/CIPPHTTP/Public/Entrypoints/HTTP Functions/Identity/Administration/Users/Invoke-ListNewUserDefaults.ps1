@@ -14,7 +14,7 @@ function Invoke-ListNewUserDefaults {
     $TenantFilter = $Request.Query.TenantFilter
 
     # Get the includeAllTenants flag from query or body parameters (defaults to true)
-    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq 'false' -or $Request.Body.includeAllTenants -eq 'false') {
+    $IncludeAllTenants = if ($Request.Query.includeAllTenants -eq $false -or $Request.Body.includeAllTenants -eq $false) {
         $false
     } else {
         $true
@@ -28,9 +28,11 @@ function Invoke-ListNewUserDefaults {
     $Templates = (Get-CIPPAzDataTableEntity @Table -Filter $Filter) | ForEach-Object {
         try {
             $row = $_
-            $data = $row.JSON | ConvertFrom-Json -Depth 20 -ErrorAction Stop
-            $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $row.GUID -Force
-            $data | Add-Member -NotePropertyName 'RowKey' -NotePropertyValue $row.RowKey -Force
+            $data = $row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction Stop
+            $data | Add-Member -NotePropertyMembers ([ordered]@{
+                    GUID   = $row.GUID
+                    RowKey = $row.RowKey
+                }) -Force
             $data
         } catch {
             Write-Warning "Failed to process User Default template: $($row.RowKey) - $($_.Exception.Message)"

@@ -65,6 +65,7 @@ function New-CIPPBackupTask {
                     'https://graph.microsoft.com/beta/deviceManagement/windowsFeatureUpdateProfiles'
                     'https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdatePolicies'
                     'https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdateProfiles'
+                    'https://graph.microsoft.com/beta/deviceManagement/hardwareConfigurations'
                 )
 
                 foreach ($url in $GraphURLS) {
@@ -138,6 +139,16 @@ function New-CIPPBackupTask {
                 }
 
                 @{ policies = $Policies; rules = $Rules } | ConvertTo-Json -Depth 10
+            }
+        }
+
+        'teamsvoice' {
+            Measure-CippTask -TaskName 'TeamsVoice' -EventName 'CIPP.BackupCompleted' -Script {
+                # Keep only what assignNumber can recreate: numbers held by a user or resource account.
+                # Unassigned numbers carry nothing to restore; policyAssigned targets a shared-calling policy.
+                New-GraphGetRequest -uri 'https://graph.microsoft.com/v1.0/admin/teams/telephoneNumberManagement/numberAssignments' -tenantid $TenantFilter |
+                    Where-Object { $_.assignmentStatus -in @('userAssigned', 'voiceApplicationAssigned') -and $_.assignmentTargetId } |
+                    Select-Object telephoneNumber, assignmentTargetId, assignmentStatus, assignmentCategory, numberType, locationId
             }
         }
 

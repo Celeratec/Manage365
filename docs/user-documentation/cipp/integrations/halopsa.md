@@ -103,6 +103,7 @@ Move to the **Tenant Mapping** tab and map each CIPP tenant to its Halo client, 
 | HaloPSA Client ID                  | The Client ID of the API application created in Halo.                                                                                                                                                                                                                                                        |
 | HaloPSA Client Secret              | The Client Secret of the API application. Stored securely and masked once saved; leave blank on subsequent saves to keep the existing value.                                                                                                                                                                 |
 | HaloPSA Ticket Type                | The ticket type used for CIPP alert tickets. Sets the workflow, and determines which priorities and outcomes are offered below. Leave blank to use Halo's default.                                                                                                                                           |
+| HaloPSA Request Source             | Optional. Sets the request source recorded on every CIPP-generated ticket, so they can be told apart from manually logged tickets when reporting on ticket origin. Halo records tickets raised over the API as Manual unless one is set. Create the source in Halo first. Leave blank to use Halo's default.   |
 | HaloPSA Default Priority           | Optional. Sets the priority on every CIPP-generated ticket. Only priorities on the ticket type's SLA are listed. Leave blank to use the SLA default. Appears once a ticket type is selected.                                                                                                                 |
 | Consolidate Tickets                | Adds repeat alerts with the same title to the existing open ticket as a private note rather than raising a new ticket. Appears once a ticket type is selected.                                                                                                                                               |
 | HaloPSA Outcome                    | The action applied when a duplicate alert is added to an existing ticket. Only outcomes from the selected ticket type's workflow are listed, and the action must be one the Halo API user can run. Leave blank to use Halo's built-in Internal Note action. Appears once **Consolidate Tickets** is enabled. |
@@ -115,6 +116,10 @@ Some entries in the priority and outcome lists are guidance rows rather than rea
 ### Tenant Mapping
 
 The **Tenant Mapping** tab pairs each CIPP tenant with a Halo client. Alerts for an unmapped tenant have no client to be raised against, so mapping is required before the integration is useful.
+
+{% hint style="warning" %}
+Saving on the **Tenant Mapping** tab requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
 
 To add a mapping manually, choose a tenant and a Halo client, then select the add button, and select **Submit** to save. Selecting **Automap Companies** matches automatically, and the refresh button reloads the client list from Halo.
 
@@ -148,7 +153,7 @@ Two buttons at the top of the page verify different things.
 | Button             | Description                                                                                                                                                   |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Test               | Authenticates against Halo using the saved credentials and reports whether the connection succeeded. It does not create anything in Halo.                     |
-| Create Test Ticket | Raises a real ticket in Halo using the configured ticket type and default priority, confirming end-to-end delivery. It is safe to close the resulting ticket. |
+| Create Test Ticket | Raises a real ticket in Halo using the configured ticket type, request source and default priority, confirming end-to-end delivery. It is safe to close the resulting ticket. |
 
 {% hint style="warning" %}
 The test ticket is raised against the first mapped Halo client. If no usable mapping exists it falls back to client ID 1, which may not be a client you expect. Map your tenants before using this button.
@@ -160,7 +165,7 @@ The test ticket is created directly rather than through the alert pipeline, so i
 
 Ticket titles are prefixed with `[CIPP]` so that CIPP-generated tickets are easy to identify and filter in Halo.
 
-When **Consolidate Tickets** is enabled, CIPP records the ticket it raised for each combination of client and alert title. A later alert with the same title is added to that ticket as a private note, using the configured outcome. If the ticket has since been closed, or the note cannot be added — most often because the Halo API user is not permitted to run the chosen outcome — a new ticket is created instead, so the alert is never lost.
+When **Consolidate Tickets** is enabled, CIPP records the ticket it raised for each combination of client and alert title. A later alert with the same title is added to that ticket as a private note, using the configured outcome. If the ticket has since been closed, or the note cannot be added, a new ticket is created instead, so the alert is never lost. The usual reason a note cannot be added is that the Halo API user is not permitted to run the chosen outcome.
 
 When **Link Tickets to affected Users** is enabled, CIPP raises a separate ticket per affected user and matches them to a Halo contact within the mapped client, first on Microsoft Entra Object ID and then on email address or network login. Where no contact matches, the ticket is assigned to the client's General User and the affected user's UPN is included in the ticket body.
 

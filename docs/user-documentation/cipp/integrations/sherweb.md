@@ -90,6 +90,10 @@ The role restriction applies to subscription changes made through CIPP by a sign
 
 The **Tenant Mapping** tab pairs each CIPP tenant with a Sherweb customer, so CIPP knows which Sherweb account to place orders against. Licence purchasing and automated migrations both depend on this, and an unmapped tenant is simply skipped.
 
+{% hint style="warning" %}
+Saving on the **Tenant Mapping** tab requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 To map manually, choose a tenant, choose the matching entry under **Select Sherweb Company**, and select the add button. **Automap Companies** fills in matches automatically, and the refresh button reloads the customer list from Sherweb. Mappings are only written when you select **Submit**.
 
 | Column          | Description                                               |
@@ -130,9 +134,9 @@ A scheduled decrease checks the tenant's actual assignment state before it runs,
 
 ## Automated Migrations
 
-Automated migrations identify licences at a non-Sherweb CSP that are approaching their transfer window, and — depending on the strategy chosen — notify you, purchase the equivalent licence at Sherweb, or additionally cancel the legacy subscription.
+Automated migrations identify licences at a non-Sherweb CSP that are approaching their transfer window. Depending on the strategy chosen, they notify you, purchase the equivalent licence at Sherweb, or additionally cancel the legacy subscription.
 
-Once the integration is enabled, CIPP registers a daily background check for each mapped tenant. Each run looks for subscriptions renewing within the next seven days, compares them against the subscriptions already held at Sherweb, and treats anything without an equivalent as a candidate for migration.
+Once automated migrations are enabled, CIPP registers a daily background check for each mapped tenant. Each run looks for subscriptions renewing within the next seven days, compares them against the subscriptions already held at Sherweb, and treats anything without an equivalent as a candidate for migration. Turning the setting back off removes the background check as well, so no further alerts or purchases follow.
 
 {% hint style="danger" %}
 Only enable automated migrations after extensive testing. Run with the notify strategy for at least a month before allowing automatic purchases. Neither Sherweb nor CyberDrain is responsible for purchases made through the API.

@@ -1,5 +1,5 @@
 import { CippDataTable } from "../CippTable/CippDataTable";
-import { Plumbing, Sync } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry"
 
 export const CippTenantResults = (props) => {
   const { importReport = false } = props;
@@ -51,8 +51,8 @@ export const CippTenantResults = (props) => {
               label: "Check Tenant",
               type: "POST",
               url: "/api/ExecAccessChecks?Type=Tenants",
-              data: { TenantId: "TenantId" },
-              icon: <Sync />,
+              data: { TenantId: "TenantId", SkipCache: true },
+              icon: <CippIcons.Sync />,
               confirmText: "Execute the access check for the selected tenant(s)?",
               relatedQueryKeys: "ExecAccessChecks-Tenants",
               multiPost: false,
@@ -63,7 +63,7 @@ export const CippTenantResults = (props) => {
               type: "POST",
               url: "/api/ExecExchangeRoleRepair",
               data: { TenantId: "TenantId" },
-              icon: <Plumbing />,
+              icon: <CippIcons.Plumbing />,
               confirmText: "Repair Exchange roles for [TenantName]?",
               condition: (row) => row.OrgManagementRepairNeeded === true,
               category: "manage",
@@ -92,3 +92,4 @@ export const CippTenantResults = (props) => {
     </>
   );
 };
+

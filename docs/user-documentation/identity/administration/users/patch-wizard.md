@@ -1,6 +1,6 @@
 # Edit Properties Wizard
 
-This wizard applies the same property change to many users at once. It is reached from the **Edit Properties** action on the [.](./ "mention") page, which carries the selected users across, so there is no way to pick users from within the wizard itself.
+This wizard applies the same property change to many users at once. It is reached from the **Edit Properties** action on the [.](./ "mention") page, which carries the selected users across. More users can be added once inside, without going back to the Users page.
 
 {% hint style="info" %}
 The selection is handed over in session storage and cleared as soon as the wizard reads it. Reloading the page loses the list and leaves you with nothing to update, so go back to the Users page and start the action again rather than refreshing.
@@ -10,7 +10,11 @@ The selection is handed over in session storage and cleared as soon as the wizar
 {% step %}
 ### Review Users
 
-The users carried over from the Users page are listed with their display name, user principal name, job title and department. The **Remove from List** row action drops a user from the run, which is the moment to catch anyone caught by an over-broad selection or filter. The wizard will not continue with an empty list.
+The users carried over from the Users page are listed with their display name, user principal name, job title and department. The **Remove from List** row action drops a user from the run, which is the moment to catch anyone caught by an over-broad selection or filter.
+
+**Add users** searches for more users to add to the run without going back to the Users page. It only works when a single tenant is clear: either every user already in the list belongs to the same tenant, or a specific tenant (not **AllTenants**) is selected in the CIPP header. When neither is true, the picker is disabled and CIPP asks you to select a tenant first. Users already in the list are excluded from the picker's results.
+
+The wizard will not continue with an empty list.
 {% endstep %}
 
 {% step %}

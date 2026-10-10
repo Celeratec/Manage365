@@ -26,10 +26,13 @@ BeforeAll {
     # PowerShell parameter names are case-insensitive, so a single $AsApp binds both the -asapp
     # and -AsApp spellings the collectors use.
     function New-GraphBulkRequest { param($Requests, $tenantid, $AsApp, $scope) }
-    function New-ExoBulkRequest { param($tenantid, $cmdletArray, $useSystemMailbox, $Select, $ReturnWithCommand) }
-    function New-ExoRequest { param($cmdlet, $cmdParams, $Select, $Anchor, $useSystemMailbox, $tenantid, $NoAuthCheck, [switch]$Compliance, $ApiVersion, $ModuleVersion, [switch]$AsApp, [switch]$UseCertificate) }
+    function New-ExoBulkRequest { param($tenantid, $cmdletArray, $useSystemMailbox, $Select, $ReturnWithCommand, $TimeoutSec, $MaxConcurrency) }
+    function New-ExoRequest { param($cmdlet, $cmdParams, $Select, $Anchor, $useSystemMailbox, $tenantid, $NoAuthCheck, [switch]$Compliance, $ApiVersion, $ModuleVersion, [switch]$AsApp, [switch]$UseCertificate, [switch]$StreamPages) }
     function Test-CIPPStandardLicense { param($StandardName, $TenantFilter, $Preset, [switch]$SkipLog) }
     function Get-Tenants { param($TenantFilter, [switch]$IncludeErrors) }
+    function Get-CIPPSPOSite { param($TenantFilter, $SiteUrl) @() }
+    function Get-SharePointAdminLink { param($Public, $tenantFilter) [PSCustomObject]@{ AdminUrl = 'https://contoso-admin.sharepoint.com'; SharePointUrl = 'https://contoso.sharepoint.com' } }
+    function Get-CIPPSPOAdminListData { param($TenantFilter, $AdminUrl, $Type) @() }
     function Update-CippQueueEntry { param($RowKey, $TotalTasks, [switch]$IncrementTotalTasks) }
     function Start-CIPPOrchestrator { param($InputObject, $InputObjectGuid, [switch]$CallerIsQueueTrigger) }
     function Get-ExoOnlineStringBytes { param($SizeString) }
@@ -80,6 +83,8 @@ BeforeAll {
     # Real helper, not a stub: it is pure logic with no external calls, and the mailbox collector's
     # AutoExpandingArchive/AutoExpandingArchiveScope columns are part of the row shape under test.
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CIPPAutoExpandingArchiveState.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/ConvertTo-SPOUsageRootWebTemplate.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CIPPSharePointSiteUsageRows.ps1')
 
     . (Get-CollectorPath 'Set-CIPPDBCacheGroups')
     . (Get-CollectorPath 'Set-CIPPDBCacheTeams')
@@ -119,9 +124,11 @@ Describe 'DBCache collectors reworked for bounded memory' {
 
             Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
 
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
             $script:DbWrites.Count | Should -Be 1
             $Rows = $script:DbWrites[0].Rows
             $Rows.Count | Should -Be 2
+            $script:DbWrites[0].EndRan | Should -BeTrue
             # Members are matched by id, not by position - the bulk response above is deliberately
             # in a different order than the group list.
             ($Rows | Where-Object id -EQ 'g1').members.id | Should -Be @('u1a', 'u1b')
@@ -130,7 +137,34 @@ Describe 'DBCache collectors reworked for bounded memory' {
 
         It 'emits the computed properties in the documented order' {
             Mock -CommandName New-GraphGetRequest -MockWith {
-                @([pscustomobject]@{ id = 'g1'; displayName = 'One'; mail = 'one@contoso.com'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false; resourceProvisioningOptions = @('Team') })
+                @([pscustomobject]@{ id = 'g1'; displayName = 'One'; mail = 'one@contoso.com'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false; resourceProvisioningOptions = @('Team'); owners = @([pscustomobject]@{ id = 'o1'; userPrincipalName = 'owner1@contoso.com' }) })
+            }
+            Mock -CommandName New-GraphBulkRequest -MockWith {
+                @([pscustomobject]@{ id = 'g1'; body = [pscustomobject]@{ value = @([pscustomobject]@{ id = 'u1'; userPrincipalName = 'user1@contoso.com' }) } })
+            }
+
+            Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
+
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
+            $Row = $script:DbWrites[0].Rows[0]
+            # membersCsv/ownersCsv are precomputed so the paged list read can stream the blob
+            # verbatim; both sit next to their source arrays in the emitted order. hasOwner is
+            # set unconditionally right after, so the AsRawJson paged read has a stable owner
+            # flag even for a genuinely owner-less group (where ownersCsv itself never gets set).
+            $Added = @($Row.PSObject.Properties.Name) | Select-Object -Last 9
+            $Added | Should -Be @('members', 'membersCsv', 'ownersCsv', 'hasOwner', 'primDomain', 'teamsEnabled', 'dynamicGroupBool', 'groupType', 'calculatedGroupType')
+            $Row.membersCsv | Should -Be 'user1@contoso.com'
+            $Row.ownersCsv | Should -Be 'owner1@contoso.com'
+            $Row.hasOwner | Should -BeTrue
+            $Row.groupType | Should -Be 'Microsoft 365'
+            $Row.calculatedGroupType | Should -Be 'm365'
+            $Row.primDomain | Should -Be 'contoso.com'
+            $Row.teamsEnabled | Should -BeTrue
+        }
+
+        It 'sets hasOwner to false for a genuinely owner-less group' {
+            Mock -CommandName New-GraphGetRequest -MockWith {
+                @([pscustomobject]@{ id = 'g1'; displayName = 'One'; mail = 'one@contoso.com'; groupTypes = @('Unified'); mailEnabled = $true; securityEnabled = $false; resourceProvisioningOptions = @('Team'); owners = @() })
             }
             Mock -CommandName New-GraphBulkRequest -MockWith {
                 @([pscustomobject]@{ id = 'g1'; body = [pscustomobject]@{ value = @() } })
@@ -139,12 +173,8 @@ Describe 'DBCache collectors reworked for bounded memory' {
             Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
 
             $Row = $script:DbWrites[0].Rows[0]
-            $Added = @($Row.PSObject.Properties.Name) | Select-Object -Last 6
-            $Added | Should -Be @('members', 'primDomain', 'teamsEnabled', 'dynamicGroupBool', 'groupType', 'calculatedGroupType')
-            $Row.groupType | Should -Be 'Microsoft 365'
-            $Row.calculatedGroupType | Should -Be 'm365'
-            $Row.primDomain | Should -Be 'contoso.com'
-            $Row.teamsEnabled | Should -BeTrue
+            $Row.hasOwner | Should -BeFalse
+            $Row.PSObject.Properties.Name | Should -Not -Contain 'ownersCsv'
         }
 
         It 'omits the members property entirely when no member lookup ran' {
@@ -156,6 +186,7 @@ Describe 'DBCache collectors reworked for bounded memory' {
 
             Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
 
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
             $Row = $script:DbWrites[0].Rows[0]
             $Row.PSObject.Properties.Name | Should -Not -Contain 'members'
             $Row.groupType | Should -Be 'Mail-Enabled Security'
@@ -169,7 +200,73 @@ Describe 'DBCache collectors reworked for bounded memory' {
 
             Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
 
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
             $script:DbWrites[0].Rows[0].PSObject.Properties.Name | Should -Contain 'members'
+        }
+
+        It 'fetches members in batches of 50 and uses a single writer end block' {
+            $Groups = 1..105 | ForEach-Object {
+                [pscustomobject]@{
+                    id                          = ('g{0:D3}' -f $_)
+                    displayName                 = "Group $_"
+                    mail                        = "g$_@contoso.com"
+                    groupTypes                  = @()
+                    mailEnabled                 = $true
+                    securityEnabled             = $true
+                    resourceProvisioningOptions = @()
+                }
+            }
+            Mock -CommandName New-GraphGetRequest -MockWith { $Groups }
+            $script:BulkCallCount = 0
+            Mock -CommandName New-GraphBulkRequest -MockWith {
+                $script:BulkCallCount++
+                foreach ($Request in $Requests) {
+                    [pscustomobject]@{ id = $Request.id; body = [pscustomobject]@{ value = @() } }
+                }
+            }
+
+            Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
+
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
+            $script:BulkCallCount | Should -Be 3
+            $script:DbWrites.Count | Should -Be 1
+            $script:DbWrites[0].Rows.Count | Should -Be 105
+            $script:DbWrites[0].EndRan | Should -BeTrue
+        }
+
+        It 'writes nothing when the stream is empty, preserving the previous cache' {
+            Mock -CommandName New-GraphGetRequest -MockWith { @() }
+            Mock -CommandName New-GraphBulkRequest -MockWith { throw 'should not be called' }
+
+            Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
+
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
+            Should -Invoke New-GraphBulkRequest -Times 0 -Exactly
+            $script:DbWrites.Count | Should -Be 1
+            $script:DbWrites[0].Rows.Count | Should -Be 0
+            $script:DbWrites[0].EndRan | Should -BeFalse
+        }
+
+        It 'skips member lookup for dynamic groups and omits the members property' {
+            Mock -CommandName New-GraphGetRequest -MockWith {
+                @(
+                    [pscustomobject]@{ id = 'g-static'; displayName = 'Static'; mail = 'static@contoso.com'; groupTypes = @(); mailEnabled = $true; securityEnabled = $true; resourceProvisioningOptions = @() }
+                    [pscustomobject]@{ id = 'g-dynamic'; displayName = 'Dynamic'; mail = 'dynamic@contoso.com'; groupTypes = @('DynamicMembership'); mailEnabled = $false; securityEnabled = $true; resourceProvisioningOptions = @(); membershipRule = '(user.department -eq "Sales")' }
+                )
+            }
+            Mock -CommandName New-GraphBulkRequest -MockWith {
+                param($Requests)
+                $Requests.id | Should -Be @('g-static')
+                @([pscustomobject]@{ id = 'g-static'; body = [pscustomobject]@{ value = @([pscustomobject]@{ id = 'u1'; userPrincipalName = 'u1@contoso.com' }) } })
+            }
+
+            Set-CIPPDBCacheGroups -TenantFilter 'contoso.com'
+
+            Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $Stream.IsPresent }
+            $Rows = $script:DbWrites[0].Rows
+            ($Rows | Where-Object id -EQ 'g-static').members.userPrincipalName | Should -Be @('u1@contoso.com')
+            ($Rows | Where-Object id -EQ 'g-dynamic').PSObject.Properties.Name | Should -Not -Contain 'members'
+            ($Rows | Where-Object id -EQ 'g-dynamic').dynamicGroupBool | Should -BeTrue
         }
     }
 
@@ -193,15 +290,46 @@ Describe 'DBCache collectors reworked for bounded memory' {
 
     Context 'Set-CIPPDBCacheSharePointSiteUsage' {
         BeforeEach {
+            Mock -CommandName Get-CIPPSPOSite -MockWith { @() }
+            Mock -CommandName Get-CIPPSPOAdminListData -MockWith {
+                @(
+                    [pscustomobject]@{
+                        Title           = 'Site One'
+                        SiteUrl         = 'https://c/s1'
+                        SiteId          = '{site-1}'
+                        StorageUsed       = [int64]1073741824
+                        StorageQuota      = [int64]1024
+                        StorageQuotaBytes = [int64](1024 * 1MB)
+                        NumOfFiles        = [int64]10
+                        TemplateName    = 'STS#3'
+                        SiteOwnerEmail  = 'owner1@contoso.com'
+                        SiteOwnerName   = 'Owner One'
+                        LastActivityOn  = '2026-01-01'
+                        TimeCreated     = '2020-01-01'
+                    }
+                    [pscustomobject]@{
+                        Title           = 'Site Two'
+                        SiteUrl         = 'https://c/s2'
+                        SiteId          = '{site-2}'
+                        StorageUsed       = [int64]2048
+                        StorageQuota      = [int64]2048
+                        StorageQuotaBytes = [int64](2048 * 1MB)
+                        NumOfFiles        = [int64]2
+                        TemplateName    = 'GROUP#0'
+                        SiteOwnerEmail  = 'owner2@contoso.com'
+                        SiteOwnerName   = 'Owner Two'
+                        LastActivityOn  = '2026-02-01'
+                        TimeCreated     = '2021-01-01'
+                    }
+                )
+            }
             Mock -CommandName New-GraphBulkRequest -MockWith {
-                # First call: the site listing + usage report. Second call: the per-site lists.
                 if ($Requests[0].id -eq 'listAllSites') {
                     return @(
                         [pscustomobject]@{ id = 'listAllSites'; body = [pscustomobject]@{ value = @(
                                     [pscustomobject]@{ id = 's1'; displayName = 'Site One'; webUrl = 'https://c/s1'; isPersonalSite = $false; sharepointIds = [pscustomobject]@{ siteId = 'site-1'; webId = 'web-1' } }
                                     [pscustomobject]@{ id = 's2'; displayName = 'Site Two'; webUrl = 'https://c/s2'; isPersonalSite = $false; sharepointIds = [pscustomobject]@{ siteId = 'site-2'; webId = 'web-2' } }
                                 ) } }
-                        [pscustomobject]@{ id = 'usage'; status = 200; body = [pscustomobject]@{ value = @([pscustomobject]@{ siteId = 'site-1' }) } }
                     )
                 }
                 return @(
@@ -233,8 +361,39 @@ Describe 'DBCache collectors reworked for bounded memory' {
             Set-CIPPDBCacheSharePointSiteUsage -TenantFilter 'contoso.com'
 
             ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteListing').Rows.Count | Should -Be 2
-            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows.Count | Should -Be 1
-            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].id | Should -Be 'site-1'
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows.Count | Should -Be 2
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].siteId | Should -Be 'site-1'
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].storageUsedInBytes | Should -Be 1073741824
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].storageAllocatedInBytes | Should -Be (1024 * 1MB)
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].ownerPrincipalName | Should -Be 'owner1@contoso.com'
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].rootWebTemplate | Should -Be 'STS'
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[1].rootWebTemplate | Should -Be 'Group'
+            ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteUsage').Rows[0].reportRefreshDate | Should -Not -BeNullOrEmpty
+        }
+
+        It 'merges file-level archive fields from Get-CIPPSPOSite into the site listing' {
+            Mock -CommandName Get-CIPPSPOSite -MockWith {
+                @(
+                    [pscustomobject]@{
+                        Url                    = 'https://c/s1'
+                        ArchivedFileDiskUsed   = 1073741824
+                        AllowFileArchive       = $true
+                    }
+                    [pscustomobject]@{
+                        Url                    = 'https://c/s2/'
+                        ArchivedFileDiskUsed   = 0
+                        AllowFileArchive       = $false
+                    }
+                )
+            }
+
+            Set-CIPPDBCacheSharePointSiteUsage -TenantFilter 'contoso.com'
+
+            $Listing = ($script:DbWrites | Where-Object Type -EQ 'SharePointSiteListing').Rows
+            ($Listing | Where-Object id -EQ 's1').archivedFileDiskUsedBytes | Should -Be 1073741824
+            ($Listing | Where-Object id -EQ 's1').allowFileArchive | Should -BeTrue
+            ($Listing | Where-Object id -EQ 's2').archivedFileDiskUsedBytes | Should -Be 0
+            ($Listing | Where-Object id -EQ 's2').allowFileArchive | Should -BeFalse
         }
     }
 
@@ -313,7 +472,7 @@ Describe 'DBCache collectors reworked for bounded memory' {
     Context 'Set-CIPPDBCacheMailboxes' {
         BeforeEach {
             # 5 mailboxes; m1 grants send-on-behalf to m5's directory id.
-            $Mailboxes = 1..5 | ForEach-Object {
+            $script:TestMailboxes = 1..5 | ForEach-Object {
                 [pscustomobject]@{
                     id                        = "id-$_"
                     ExternalDirectoryObjectId = "id-$_"
@@ -325,9 +484,8 @@ Describe 'DBCache collectors reworked for bounded memory' {
                     GrantSendOnBehalfTo       = if ($_ -eq 1) { @('id-5') } else { @() }
                 }
             }
-            Mock -CommandName New-ExoBulkRequest -MockWith {
-                @{ 'Get-Mailbox' = $Mailboxes; 'Get-User' = @() }
-            }
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-Mailbox' } -MockWith { [pscustomobject]@{ Value = $script:TestMailboxes } }
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-User' } -MockWith { }
             Mock -CommandName New-GraphGetRequest -MockWith { @() }
         }
 
@@ -369,7 +527,7 @@ Describe 'DBCache collectors reworked for bounded memory' {
                     GrantSendOnBehalfTo       = if ($_ -eq 1) { @('id-120') } else { @() }
                 }
             }
-            Mock -CommandName New-ExoBulkRequest -MockWith { @{ 'Get-Mailbox' = $Many; 'Get-User' = @() } }
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-Mailbox' } -MockWith { [pscustomobject]@{ Value = $Many } }
 
             Set-CIPPDBCacheMailboxes -TenantFilter 'contoso.com' -Types @('Permissions')
 
@@ -399,7 +557,7 @@ Describe 'DBCache collectors reworked for bounded memory' {
                 [pscustomobject]@{ id = 'id-1'; ExternalDirectoryObjectId = 'id-1'; UserPrincipalName = 'u1@contoso.com'; DisplayName = 'User 1'; PrimarySMTPAddress = 'u1@contoso.com'; ArchiveGuid = '00000000-0000-0000-0000-000000000000'; EmailAddresses = @(); GrantSendOnBehalfTo = @(); AutoExpandingArchiveEnabled = $true }
                 [pscustomobject]@{ id = 'id-2'; ExternalDirectoryObjectId = 'id-2'; UserPrincipalName = 'u2@contoso.com'; DisplayName = 'User 2'; PrimarySMTPAddress = 'u2@contoso.com'; ArchiveGuid = '00000000-0000-0000-0000-000000000000'; EmailAddresses = @(); GrantSendOnBehalfTo = @(); AutoExpandingArchiveEnabled = $false }
             )
-            Mock -CommandName New-ExoBulkRequest -MockWith { @{ 'Get-Mailbox' = $Mixed; 'Get-User' = @() } }
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-Mailbox' } -MockWith { [pscustomobject]@{ Value = $Mixed } }
 
             Set-CIPPDBCacheMailboxes -TenantFilter 'contoso.com' -Types @('None')
 
@@ -419,6 +577,24 @@ Describe 'DBCache collectors reworked for bounded memory' {
             $Rows.Count | Should -Be 5
             @($Rows.AutoExpandingArchive) | Should -Not -Contain $false
             @($Rows.AutoExpandingArchiveScope) | Select-Object -Unique | Should -Be 'Organization'
+        }
+
+        It 'writes every page through one writer and joins Get-User fields from their own pages' {
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-User' } -MockWith {
+                [pscustomobject]@{ Value = @([pscustomobject]@{ ExternalDirectoryObjectId = 'id-5'; RemotePowerShellEnabled = $true; Guid = 'g-5'; Identity = 'i-5' }) }
+            }
+            Mock -CommandName New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-Mailbox' } -MockWith {
+                [pscustomobject]@{ Value = @($script:TestMailboxes[0..2]) }
+                [pscustomobject]@{ Value = @($script:TestMailboxes[3..4]) }
+            }
+
+            Set-CIPPDBCacheMailboxes -TenantFilter 'contoso.com' -Types @('None')
+
+            $Writes = @($script:DbWrites | Where-Object Type -EQ 'Mailboxes')
+            $Writes.Count | Should -Be 1
+            @($Writes[0].Rows.UPN) | Should -Be @('u1@contoso.com', 'u2@contoso.com', 'u3@contoso.com', 'u4@contoso.com', 'u5@contoso.com')
+            $Writes[0].Rows[4].RemotePowerShellEnabled | Should -BeTrue
+            $Writes[0].Rows[4].Identity | Should -Be 'i-5'
         }
 
         It 'keeps caching mailboxes when the organization config lookup fails' {

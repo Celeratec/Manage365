@@ -24,6 +24,11 @@ _cache/
 build/.devmodules/
 # Local dev: writable .psd1 copies the container rewrites instead of the tracked manifests
 build/.devmanifests/
+# Local dev: exported Proxyman CA + combined trust bundle (machine-local); build/.env
+# activates the optional CA mounts in the compose files. All written by Export-ProxymanCert.ps1.
+build/config/proxyman-ca.pem
+build/config/proxyman-ca-bundle.pem
+build/.env
 # Build-generated Get-Help cache (build-function-parameters.ps1)
 backend/Config/function-parameters.json*
 localfiles/

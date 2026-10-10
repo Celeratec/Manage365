@@ -19,14 +19,13 @@ Opens the [sam-setup-wizard.md](../../cipp/sam-setup-wizard.md "mention") with t
 
 ## GDAP Setup
 
-A guided checklist covering the four stages of a working GDAP configuration. CIPP works out how far you have progressed by inspecting your existing role mappings, templates, and invites, so the highlighted step reflects your current configuration rather than anything you set by hand.
+A guided checklist covering the three stages of a working GDAP configuration. CIPP works out how far you have progressed by inspecting your role templates and invites, so the highlighted step reflects your current configuration rather than anything you set by hand.
 
-| Step                  | Description                                                            |
-| --------------------- | ---------------------------------------------------------------------- |
-| Map your Admin Roles  | Use CIPP to map admin roles to security groups in your partner tenant. |
-| Create Role Templates | Create templates for your role mappings.                               |
-| Create Invites        | Create invites based on your role templates.                           |
-| Setup Complete        | You are ready to start adding your tenants using CIPP.                 |
+| Step                    | Description                                                                                                              |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Create a role template  | Pick the admin roles your technicians need. CIPP maps each one to a security group in your partner tenant.               |
+| Create invites          | Create invites based on your role templates.                                                                             |
+| Setup complete          | You are ready to start adding your tenants using CIPP.                                                                   |
 
 ## GDAP Check
 

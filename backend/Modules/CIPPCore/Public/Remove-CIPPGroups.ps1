@@ -41,6 +41,7 @@ function Remove-CIPPGroups {
         $AllGroups = ($BulkGetResults | Where-Object { $_.id -eq 'getAllGroups' }).body.value
         $UserGroups = ($BulkGetResults | Where-Object { $_.id -eq 'getUserGroups' }).body.value
 
+        #users/$($User.id)/memberOf/microsoft.graph.directoryRole
         if (-not $UserGroups) {
             $Returnval = "$($Username) is not a member of any groups."
             Write-LogMessage -headers $Headers -API $APIName -message "$($Username) is not a member of any groups" -Sev 'Info' -tenant $TenantFilter
@@ -49,12 +50,14 @@ function Remove-CIPPGroups {
 
         Write-Information "Initiating group membership removal for user: $Username in tenant: $TenantFilter"
 
+        # Initialize bulk request arrays and results
         $BulkRequests = [System.Collections.Generic.List[object]]::new()
         $ExoBulkRequests = [System.Collections.Generic.List[object]]::new()
         $GraphLogs = [System.Collections.Generic.List[object]]::new()
         $ExoLogs = [System.Collections.Generic.List[object]]::new()
         $Results = [System.Collections.Generic.List[string]]::new()
 
+        # Process each group and prepare bulk requests
         foreach ($Group in $UserGroups) {
             $GroupInfo = $AllGroups | Where-Object -Property id -EQ $Group.id
             $GroupName = $GroupInfo.displayName
@@ -68,12 +71,13 @@ function Remove-CIPPGroups {
                 Write-LogMessage -headers $Headers -API $APIName -message "Skipping removal of $Username from group '$GroupName' because it has assigned licenses. This group will be handled during the license removal step." -sev 'Info' -tenant $TenantFilter
             } elseif ($IsDynamic) {
                 $Results.Add("Error: Could not remove $Username from group '$GroupName' because it is a Dynamic Group.")
-                Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from group '$GroupName' because it is a Dynamic Group." -Sev 'Warning' -tenant $TenantFilter
+                Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from group '$GroupName' because it is a Dynamic Group." -sev 'Warning' -tenant $TenantFilter
             } elseif ($GroupInfo.onPremisesSyncEnabled) {
-                $Results.Add("Error: Could not remove $Username from group '$GroupName' because it is AD Sync enabled. To remove users from this group, make the change on your local domain controller instead.")
-                Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from group '$GroupName' because it is AD Sync enabled. Group membership must be managed on the local domain controller." -Sev 'Warning' -tenant $TenantFilter
+                $Results.Add("Error: Could not remove $Username from group '$GroupName' because it is synced with Active Directory.")
+                Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from group '$GroupName' because it is synced with Active Directory." -sev 'Warning' -tenant $TenantFilter
             } else {
                 if ($IsM365Group -or (-not $IsMailEnabled)) {
+                    # Use Graph API for M365 Groups and Security Groups
                     $BulkRequests.Add(@{
                             id     = "removeFromGroup-$($Group.id)"
                             method = 'DELETE'
@@ -85,21 +89,28 @@ function Remove-CIPPGroups {
                             groupName = $GroupName
                         })
                 } elseif ($IsMailEnabled) {
+                    # Use Exchange Online for Distribution Lists
+                    # OperationGuid ties this request to its result; see Resolve-CippExoBulkResult.
+                    # Every entry here shares the same target (the user being offboarded), so target
+                    # alone cannot tell one group's removal from another's.
+                    $OperationGuid = [Guid]::NewGuid().ToString()
                     $Params = @{
                         Identity                        = $GroupName
                         Member                          = $UserID
                         BypassSecurityGroupManagerCheck = $true
                     }
                     $ExoBulkRequests.Add(@{
-                            CmdletInput = @{
+                            CmdletInput   = @{
                                 CmdletName = 'Remove-DistributionGroupMember'
                                 Parameters = $Params
                             }
+                            OperationGuid = $OperationGuid
                         })
                     $ExoLogs.Add(@{
-                            message   = "Removed $Username from $GroupName"
-                            target    = $UserID
-                            groupName = $GroupName
+                            message       = "Removed $Username from $GroupName"
+                            target        = $UserID
+                            groupName     = $GroupName
+                            OperationGuid = $OperationGuid
                         })
                 }
             }
@@ -119,7 +130,7 @@ function Remove-CIPPGroups {
                 $GraphError = $RawGraphRequest | Where-Object { $_.id -eq $GraphLog.id -and $_.status -notmatch '^2[0-9]+' }
                 if ($GraphError) {
                     $Message = Get-NormalizedError -message $GraphError.body.error
-                    $Results.Add("Could not remove $Username from group '$($GraphLog.groupName)': $Message. If this is a Dynamic Group, update the membership rules. If it is AD Sync enabled, make this change on your local domain controller instead.")
+                    $Results.Add("Could not remove $Username from group '$($GraphLog.groupName)': $Message. This is likely because it's a Dynamic Group or synced with Active Directory")
                     Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from group '$($GraphLog.groupName)': $Message" -Sev 'Error' -tenant $TenantFilter
                 } else {
                     $Results.Add("Successfully removed $Username from group '$($GraphLog.groupName)'")
@@ -136,21 +147,15 @@ function Remove-CIPPGroups {
     if ($ExoBulkRequests.Count -gt 0) {
         try {
             $RawExoRequest = New-ExoBulkRequest -tenantid $TenantFilter -cmdletArray @($ExoBulkRequests)
-            $LastError = $RawExoRequest | Select-Object -Last 1
+            $ExoResults = Resolve-CippExoBulkResult -Response $RawExoRequest -Operations $ExoLogs
 
-            foreach ($ExoError in $LastError.error) {
-                $Results.Add("Error - $ExoError")
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ExoError -Sev 'Error'
-            }
-
-            foreach ($ExoLog in $ExoLogs) {
-                $ExoError = $LastError | Where-Object { $ExoLog.target -in $_.target -and $_.error }
-                if (!$LastError -or ($LastError.error -and $LastError.target -notcontains $ExoLog.target)) {
-                    $Results.Add("Successfully removed $Username from group $($ExoLog.groupName)")
-                    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ExoLog.message -Sev 'Info'
+            foreach ($ExoResult in $ExoResults) {
+                if ($ExoResult.Success) {
+                    $Results.Add("Successfully removed $Username from group $($ExoResult.Operation.groupName)")
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ExoResult.Operation.message -Sev 'Info'
                 } else {
-                    $Results.Add("Could not remove $Username from $($ExoLog.groupName). If this is a Dynamic Group, update the membership rules. If it is AD Sync enabled, make this change on your local domain controller instead.")
-                    Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from $($ExoLog.groupName)" -Sev 'Error' -tenant $TenantFilter
+                    $Results.Add("Could not remove $Username from $($ExoResult.Operation.groupName): $($ExoResult.ErrorMessage)")
+                    Write-LogMessage -headers $Headers -API $APIName -message "Could not remove $Username from $($ExoResult.Operation.groupName): $($ExoResult.ErrorMessage)" -Sev 'Error' -tenant $TenantFilter
                 }
             }
         } catch {

@@ -115,7 +115,7 @@ export const CippWizardCSVImport = (props) => {
       {/* Upload Card */}
       <Card variant="outlined">
         <Box sx={{ p: smDown ? 2 : 2.5, borderBottom: 1, borderColor: 'divider' }}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
+          <Stack useFlexGap direction="row" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
             <Stack direction="row" spacing={1.5} alignItems="center">
               <Box
                 sx={{

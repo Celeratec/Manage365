@@ -197,6 +197,28 @@ describe('CippGraphExplorerFilter', () => {
       })
     })
 
+    it('does not echo the selectedPreset prop back to onPresetSelect (remount-echo regression)', async () => {
+      ApiGetCall.mockImplementation(() => ({
+        isSuccess: false,
+        isFetching: false,
+        data: undefined,
+        refetch: vi.fn(),
+      }))
+      const onPresetSelect = vi.fn()
+      renderWithProviders(
+        <CippGraphExplorerFilter
+          onSubmitFilter={vi.fn()}
+          component="card"
+          selectedPreset={{ id: 'abc', filterName: 'Licensed Users', value: { $filter: 'x' }, type: 'graph' }}
+          onPresetSelect={onPresetSelect}
+        />
+      )
+      await waitFor(() => {
+        expect(screen.getByRole('combobox', { name: 'Select a preset' })).toHaveValue('Licensed Users')
+      })
+      expect(onPresetSelect).not.toHaveBeenCalled()
+    })
+
     it('switching between two option-shape presets applies the second (dep-array regression)', async () => {
       const optionA = { label: BUILTIN.name, value: BUILTIN.id, addedFields: BUILTIN }
       const optionB = { label: 'Saved Object Select', value: 'saved-1', addedFields: savedObjectSelect }
@@ -274,6 +296,50 @@ describe('CippGraphExplorerFilter', () => {
         expect(onSubmitFilter).toHaveBeenCalledTimes(1)
       })
       expect(onSubmitFilter.mock.calls[0][0]).toEqual({ version: 'beta' })
+    })
+  })
+
+  // Seeding from endpointFilter moved out of the render body (it updated the subscribed
+  // Controller mid-render, which the browser reports as "Cannot update a component while
+  // rendering a different component"). These cover the behaviour that move had to preserve —
+  // the warning itself doesn't reproduce under jsdom, so it can't be asserted here.
+  describe('endpointFilter prop', () => {
+    it('seeds the endpoint field from the prop', async () => {
+      renderWithProviders(
+        <CippGraphExplorerFilter onSubmitFilter={vi.fn()} component="card" endpointFilter="users" />
+      )
+
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: 'Endpoint' })).toHaveValue('users')
+      })
+    })
+
+    it('submits the seeded endpoint', async () => {
+      const onSubmitFilter = vi.fn()
+      const user = userEvent.setup()
+      renderWithProviders(
+        <CippGraphExplorerFilter
+          onSubmitFilter={onSubmitFilter}
+          component="card"
+          endpointFilter="users"
+        />
+      )
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: 'Endpoint' })).toHaveValue('users')
+      })
+
+      await user.click(screen.getByRole('button', { name: 'Apply Filter' }))
+      await waitFor(() => {
+        expect(onSubmitFilter).toHaveBeenCalledTimes(1)
+      })
+      expect(onSubmitFilter.mock.calls[0][0]).toMatchObject({ endpoint: 'users' })
+    })
+
+    it('leaves the endpoint field empty when no endpointFilter is given', async () => {
+      renderWithProviders(<CippGraphExplorerFilter onSubmitFilter={vi.fn()} component="card" />)
+      await waitFor(() => {
+        expect(screen.getByRole('textbox', { name: 'Endpoint' })).toHaveValue('')
+      })
     })
   })
 })

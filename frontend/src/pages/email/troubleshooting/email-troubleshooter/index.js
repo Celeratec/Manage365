@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { useState, useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import {

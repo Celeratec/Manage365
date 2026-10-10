@@ -13,12 +13,12 @@ slots) to the single Manage365 container. Companion to
 
   ```bash
   docker build -f build/Dockerfile \
-    --build-arg APP_VERSION=10.8.5 \
+    --build-arg APP_VERSION=11.0.2 \
     --build-arg COMMIT_SHA=$(git rev-parse --short HEAD) \
-    --build-arg IMAGE_TAG=v6.0.0 \
+    --build-arg IMAGE_TAG=v6.1.0 \
     --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
-    -t ghcr.io/celeratec/manage365:v6.0.0 .
-  docker push ghcr.io/celeratec/manage365:v6.0.0
+    -t ghcr.io/celeratec/manage365:v6.1.0 .
+  docker push ghcr.io/celeratec/manage365:v6.1.0
   ```
 
   `APP_VERSION` must be the upstream baseline (drives out-of-date checks);
@@ -44,7 +44,7 @@ slots) to the single Manage365 container. Companion to
    - [ ] Integration templates list/deploy (NinjaOne enrichment if configured)
    - [ ] Applied standards + drift + license-aware scoring
    - [ ] Alerts/audit logs; scheduler tasks run (watch `CIPPTimers` + queue processing)
-   - [ ] Application Settings shows Manage365 v6.0.0 + upstream 10.8.5, no false
+   - [ ] Application Settings shows Manage365 v6.1.0 + upstream 11.0.2, no false
          out-of-date toasts
 4. Soak for several days; watch container memory/CPU and the Craft worker stats page.
 
@@ -58,13 +58,21 @@ slots) to the single Manage365 container. Companion to
    ./deployment/Invoke-CippMigration.ps1 `
      -ResourceGroupName <prod RG> `
      -CippUrl manage365.<domain> `
-     -ContainerImage 'DOCKER|ghcr.io/celeratec/manage365:v6.0.0'
+     -ContainerImage 'DOCKER|ghcr.io/celeratec/manage365:v6.1.0'
    ```
 
-   The script preserves SAM credentials + API client auth, migrates SWA role assignments
-   into the `allowedUsers` table, deletes the SWA, and removes ALL function apps/plans/App
-   Insights in the RG (main, processor, standards, audit, user-tasks slots included).
-4. Point DNS per the script's summary; verify EasyAuth sign-in and role mapping for each
+   The script preserves the storage account, its tables, blobs, and queues, and the Key Vault
+   that holds SAM credentials. It migrates SWA role assignments into the `allowedUsers` table,
+   deletes the SWA, and removes ALL function apps, plans, and App Insights in the RG.
+
+   v10.10 also deletes every **file share** in that storage account. Tables, blobs, and queues
+   stay. Take a CIPP backup and download it before the live run. The new site is a Linux
+   container Web App whose name must match the Key Vault. Owner (or Contributor plus User
+   Access Administrator) is required. SSO must already be `secrets_stored` or `complete`;
+   `-TestOnly` only warns about that, it does not stop.
+4. Point DNS per the script's summary. Add the custom domain on the new Web App, then use
+   CIPP → Advanced → Authentication → SSO → Refresh Sign-in URLs so the new hostname has an
+   `/.auth/login/aad/callback` redirect. Verify EasyAuth sign-in and role mapping for each
    admin user.
 5. Re-run the Stage 1 smoke checklist against production data (read-only checks first).
 
@@ -79,5 +87,6 @@ slots) to the single Manage365 container. Companion to
 
 Until Stage 2 step 3 completes, rollback = do nothing (production untouched). After the
 migration script has run, rollback requires redeploying the SWA + function apps from the
-archived fork repos against the same storage account (the script does not delete storage)
-— stop the container app first so queues/timers are not double-consumed.
+archived fork repos against the same storage account. The account, its tables, blobs, queues,
+and the Key Vault remain. File shares do not. Stop the new Web App first so queues and timers
+are not double-consumed.

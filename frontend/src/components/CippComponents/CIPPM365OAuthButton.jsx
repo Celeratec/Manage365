@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { Alert, Button, Typography, CircularProgress, Box } from "@mui/material";
-import { Microsoft, Login, Refresh } from "@mui/icons-material";
-import { ApiGetCall } from "../../api/ApiCall";
-import { CippCopyToClipBoard } from "./CippCopyToClipboard";
-import { CippApiDialog } from "./CippApiDialog";
+import { useState, useEffect, useRef } from 'react'
+import { CippIcons } from '../../utils/icon-registry'
+import { Alert, Button, Typography, CircularProgress, Box } from '@mui/material'
+import { ApiGetCall } from '../../api/ApiCall'
+import { CippCopyToClipBoard } from './CippCopyToClipboard'
+import { CippApiDialog } from './CippApiDialog'
 
 export const CIPPM365OAuthButton = ({
   onAuthSuccess,
@@ -24,6 +24,7 @@ export const CIPPM365OAuthButton = ({
   const [codeRetrievalInProgress, setCodeRetrievalInProgress] = useState(false);
   const [isServiceAccount, setIsServiceAccount] = useState(true);
   const [promptDialog, setPromptDialog] = useState({ open: false });
+  const [deviceCodeRestart, setDeviceCodeRestart] = useState(false);
   const [tokens, setTokens] = useState({
     accessToken: null,
     refreshToken: null,
@@ -46,6 +47,7 @@ export const CIPPM365OAuthButton = ({
   const isMountedRef = useRef(true);
   const activeAuthCleanupRef = useRef(null);
   const devicePollTimeoutRef = useRef(null);
+  const devicePopupWatchRef = useRef(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -58,6 +60,10 @@ export const CIPPM365OAuthButton = ({
       if (devicePollTimeoutRef.current) {
         clearTimeout(devicePollTimeoutRef.current);
         devicePollTimeoutRef.current = null;
+      }
+      if (devicePopupWatchRef.current) {
+        clearInterval(devicePopupWatchRef.current);
+        devicePopupWatchRef.current = null;
       }
     };
   }, []);
@@ -76,6 +82,7 @@ export const CIPPM365OAuthButton = ({
   // Function to retrieve device code
   const retrieveDeviceCode = async () => {
     setCodeRetrievalInProgress(true);
+    setDeviceCodeRestart(false);
     setAuthError(null);
 
     // Only refetch appId if not already present
@@ -159,6 +166,27 @@ export const CIPPM365OAuthButton = ({
         `width=${width},height=${height},left=${left},top=${top}`,
       );
 
+      const stopDevicePoll = () => {
+        if (devicePollTimeoutRef.current) {
+          clearTimeout(devicePollTimeoutRef.current);
+          devicePollTimeoutRef.current = null;
+        }
+      };
+
+      // The device code is consumed once it is entered. A closed window cannot resume it.
+      if (popup) {
+        devicePopupWatchRef.current = setInterval(() => {
+          if (!isMountedRef.current || !popup.closed) {
+            return;
+          }
+          clearInterval(devicePopupWatchRef.current);
+          devicePopupWatchRef.current = null;
+          stopDevicePoll();
+          setAuthInProgress(false);
+          setDeviceCodeRestart(true);
+        }, 1000);
+      }
+
       // Start polling for token
       const pollInterval = deviceCodeInfo.interval || 5;
       const expiresIn = deviceCodeInfo.expires_in || 900;
@@ -190,6 +218,10 @@ export const CIPPM365OAuthButton = ({
           const tokenData = await tokenResponse.json();
 
           if (tokenResponse.ok && tokenData.status === "success") {
+            if (devicePopupWatchRef.current) {
+              clearInterval(devicePopupWatchRef.current);
+              devicePopupWatchRef.current = null;
+            }
             // Successfully got token
             if (popup && !popup.closed) {
               popup.close();
@@ -366,18 +398,24 @@ export const CIPPM365OAuthButton = ({
     );
 
     if (!popup) {
-      setAuthError({
+      const error = {
         errorCode: "popup_blocked",
         errorMessage:
           "Authentication popup was blocked by the browser. Please allow popups and try again.",
         timestamp: new Date().toISOString(),
-      });
+      };
+      setAuthError(error);
+      if (onAuthError) onAuthError(error);
       setAuthInProgress(false);
       return;
     }
 
-    popup.location.href = authUrl;
+    if (popup.location) {
+      popup.location.href = authUrl;
+    }
     let codeReceived = false;
+    let popupWatch = null;
+    let closeGrace = null;
 
     // Function to actually exchange the authorization code for tokens
     const handleAuthorizationCode = async (code, receivedState) => {
@@ -580,10 +618,36 @@ export const CIPPM365OAuthButton = ({
     const cleanup = () => {
       channel.close();
       clearTimeout(authTimeout);
+      if (popupWatch) clearInterval(popupWatch);
+      if (closeGrace) clearTimeout(closeGrace);
+      popupWatch = null;
+      closeGrace = null;
       if (activeAuthCleanupRef.current === cleanup) {
         activeAuthCleanupRef.current = null;
       }
     };
+
+    // A closed window is not an immediate cancel: the redirect posts its result, then
+    // the popup closes itself. The 2s grace lets that result win.
+    popupWatch = setInterval(() => {
+      if (!isMountedRef.current || codeReceived || !popup.closed || closeGrace) {
+        return;
+      }
+      closeGrace = setTimeout(() => {
+        if (codeReceived || !isMountedRef.current) {
+          return;
+        }
+        cleanup();
+        const error = {
+          errorCode: "popup_closed",
+          errorMessage: "The sign-in window was closed before authentication finished.",
+          timestamp: new Date().toISOString(),
+        };
+        setAuthError(error);
+        if (onAuthError) onAuthError(error);
+        setAuthInProgress(false);
+      }, 2000);
+    }, 1000);
 
     // Register so an unmount mid-auth tears down the channel and timeout.
     activeAuthCleanupRef.current = cleanup;
@@ -610,6 +674,15 @@ export const CIPPM365OAuthButton = ({
     appIdInfo?.data,
   ]);
 
+  // A device-code attempt that already has a code or an error can be started again.
+  const canRestartDeviceLogin = Boolean(
+    deviceCodeRestart ||
+      (useDeviceCode &&
+        (authError || deviceCodeInfo) &&
+        !authInProgress &&
+        !codeRetrievalInProgress),
+  );
+
   return (
     <div>
       {!applicationId &&
@@ -624,7 +697,9 @@ export const CIPPM365OAuthButton = ({
         )}
 
       {showResults && (
-        <Box mb={2}>
+        <Box sx={{
+          mb: 2
+        }}>
           {deviceCodeInfo ? (
             <Alert severity="info">
               <Typography variant="subtitle2">Application Creation</Typography>
@@ -657,9 +732,16 @@ export const CIPPM365OAuthButton = ({
                   </>
                 )}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 Code expires in {Math.round(deviceCodeInfo.expires_in / 60)} minutes
               </Typography>
+              {deviceCodeRestart && (
+                <Typography variant="body2">
+                  That code cannot be used again. Start over to get a new one.
+                </Typography>
+              )}
             </Alert>
           ) : tokens.accessToken ? (
             <>
@@ -679,7 +761,9 @@ export const CIPPM365OAuthButton = ({
                       </>
                     )}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{
+                    color: "text.secondary"
+                  }}>
                     Refresh token expires: {tokens.refreshTokenExpiresOn?.toLocaleString()}
                   </Typography>
                 </Alert>
@@ -705,10 +789,14 @@ export const CIPPM365OAuthButton = ({
                 Authentication Error: {authError.errorCode}
               </Typography>
               <Typography variant="body2">{authError.errorMessage}</Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 Time: {authError.timestamp}
               </Typography>
-              <Box mt={1}>
+              <Box sx={{
+                mt: 1
+              }}>
                 <Button size="small" variant="outlined" color="error" onClick={handleCloseError}>
                   Dismiss
                 </Button>
@@ -753,6 +841,11 @@ export const CIPPM365OAuthButton = ({
             ))
         }
         onClick={() => {
+          if (deviceCodeRestart) {
+            setDeviceCodeInfo(null);
+            retrieveDeviceCode();
+            return;
+          }
           if (promptBeforeAuth !== false) {
             setPromptDialog({ open: true });
           } else {
@@ -764,20 +857,24 @@ export const CIPPM365OAuthButton = ({
         }}
         color="primary"
         startIcon={
-          authInProgress || codeRetrievalInProgress ? (
+          canRestartDeviceLogin ? (
+            <CippIcons.Refresh />
+          ) : authInProgress || codeRetrievalInProgress ? (
             <CircularProgress size="1rem" color="inherit" />
           ) : tokens.accessToken ? (
-            <Refresh />
+            <CippIcons.Refresh />
           ) : (
-            <Microsoft />
+            <CippIcons.Microsoft />
           )
         }
       >
-        {authInProgress || codeRetrievalInProgress
-          ? "Authenticating..."
-          : deviceCodeInfo && useDeviceCode
-            ? "Authenticate with Code"
-            : buttonText}
+        {deviceCodeRestart
+          ? "Start over with a new code"
+          : authInProgress || codeRetrievalInProgress
+            ? "Authenticating..."
+            : deviceCodeInfo && useDeviceCode
+              ? "Authenticate with Code"
+              : buttonText}
       </Button>
     </div>
   );

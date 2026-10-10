@@ -10,19 +10,20 @@ function Push-TableCleanupTask {
     if ($PSCmdlet.ShouldProcess('Start-TableCleanup', 'Starting Table Cleanup')) {
         if ($Type -eq 'DeleteTable') {
             $DeleteTables = $Item.Tables
-            foreach ($Table in $DeleteTables) {
+            foreach ($TableName in $DeleteTables) {
                 try {
-                    $Table = Get-CIPPTable -tablename $Table
+                    $Table = Get-CIPPTable -tablename $TableName
                     if ($Table) {
                         Write-Information "Deleting table $($Table.Context.TableName)"
                         try {
                             Remove-AzDataTable -Context $Table.Context
+                            Unregister-CIPPTable -TableName $Table.Context.TableName
                         } catch {
                             #Write-LogMessage -API 'TableCleanup' -message "Failed to delete table $($Table.Context.TableName)" -sev Error -LogData (Get-CippException -Exception $_)
                         }
                     }
                 } catch {
-                    Write-Information "Table $Table not found"
+                    Write-Information "Table $TableName not found"
                 }
             }
             Write-Information "#### $($Type) task complete for $($Item.TableName)"

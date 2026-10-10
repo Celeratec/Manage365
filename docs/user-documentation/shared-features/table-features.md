@@ -4,16 +4,16 @@ Most list pages in CIPP share the same table component, so the toolbar, filterin
 
 ## Live and Cached Data
 
-Some tables can display either live data, pulled directly from Microsoft Graph, Exchange or another upstream service, or a cached copy held in CIPP's reporting database and refreshed periodically.
+Some tables can display either live data, pulled directly from Microsoft Graph, Exchange or another upstream service, or a cached copy that CIPP stores and refreshes periodically.
 
 The current mode is shown as a chip at the top of the page:
 
 | Chip       | Meaning                                                          |
 | ---------- | ---------------------------------------------------------------- |
 | **Live**   | Data is being retrieved from the upstream service on every load. |
-| **Cached** | Data is being read from CIPP's reporting database.               |
+| **Cached** | Data is being read from CIPP's cached copy.                      |
 
-Where the page supports both modes, clicking the chip switches between them. On pages that only ever read from the reporting database the chip is not clickable, and hovering over it explains why.
+Where the page supports both modes, clicking the chip switches between them. On pages that only ever read cached data the chip is not clickable, and hovering over it explains why.
 
 When the table is in cached mode a **Sync** button appears alongside the chip. This queues a background task to refresh the cache for the selected tenant, and the queue tracker will update the table once the sync completes.
 
@@ -61,12 +61,14 @@ The **Columns** button controls which columns are visible.
 
 | Menu entry                 | Description                                                                             |
 | -------------------------- | --------------------------------------------------------------------------------------- |
-| Reset to preferred columns | Restores the column selection to the page defaults.                                     |
+| Reset to preferred columns | Restores your saved selection, or the page defaults if you have not saved one.          |
 | Save as preferred columns  | Saves the current selection so it is applied automatically whenever you open this page. |
 | Delete preferred columns   | Removes your saved selection for this page.                                             |
 | Column list                | Tick or untick individual columns to show or hide them.                                 |
 
 Preferred columns are stored per page in your browser's local storage, so they follow the browser and profile you are working in rather than your CIPP account.
+
+A saved selection applies to the page itself, not to the tenant you were viewing when you saved it. Switching tenants or reloading the page keeps the same columns. If another tenant's data contains a column that did not exist when you saved, that column keeps its normal default for the page instead of being shown or hidden by the preference. **Reset to preferred columns** restores your saved choices and leaves any column outside that selection as it currently is.
 
 ### Export
 
@@ -80,13 +82,21 @@ The **Export** button offers several ways to take the data out of CIPP.
 | Export Selected to PDF | Produces a PDF of only the rows you have ticked. Shown when at least one row is selected. |
 | View API Response      | Opens a flyout showing the raw JSON returned by the API call behind the table.            |
 
+PDF exports carry the instance's default [branding.md](../cipp/settings/branding.md "mention"): the logo, the report colours, and the footer text and page numbers.
+
 ### Queue Status
 
 When a page has queued a long-running background task, a queue status button appears on the right of the toolbar with a badge showing outstanding work. Clicking it opens a panel with the task name, progress and per-item results. When the task finishes, the table refreshes automatically.
 
 ### Narrow Screens
 
-On smaller viewports, and whenever the toolbar runs out of room, the **Filters**, **Columns** and **Export** buttons collapse into a single menu behind the vertical ellipsis. That menu also offers **Fullscreen**, which expands the table to fill the window, and **Exit Fullscreen** to return.
+Whenever the toolbar runs out of room, the **Filters**, **Columns** and **Export** buttons collapse into a single menu behind the vertical ellipsis. That menu also offers **Fullscreen**, which expands the table to fill the window, and **Exit Fullscreen** to return.
+
+On a phone the ellipsis opens a sheet instead, holding the same filters, presets, column selection, exports and refresh, along with a **Rows per page** section in place of the footer's page size control.
+
+{% hint style="info" %}
+Below roughly 900px, tables are presented as a list of cards rather than as a table, with their own search, sort and filter controls. Everything on this page still applies, and the full table remains available. See [mobile-layout.md](mobile-layout.md "mention").
+{% endhint %}
 
 ## Row Selection and Actions
 
@@ -95,6 +105,20 @@ Most tables include an **Actions** column pinned to the right of the table. Clic
 Ticking the checkboxes at the left of one or more rows shows a count of the selected rows in the toolbar along with a **Bulk Actions** button, which applies a single action to every row you have selected. Only actions that support bulk operation appear in this menu. Where an action only applies to certain rows, the selection is narrowed automatically to the eligible ones.
 
 The selection checkbox column is pinned to the left and the actions column to the right, so both stay visible as you scroll horizontally. The column headers remain fixed as you scroll vertically.
+
+## Opening a Row
+
+Right-clicking a row opens a menu holding the same actions as the ellipsis in the **Actions** column, along with **More Info** where the page offers it. Actions that do not apply to the row you clicked are greyed out.
+
+**More Info** opens the Extended Info flyout for that row. While the flyout is open, the row it belongs to is marked with a coloured bar down its left edge and a tinted background, so you can see which row you are reading. The up and down arrows in the flyout move through the list in the order it is currently sorted, and the highlight follows.
+
+On some pages a single click anywhere in a row opens that flyout directly, without going through a menu. Where a page works this way, the cursor changes to a pointer as you move over the rows.
+
+Where a row has a page of its own, holding Ctrl (Cmd on a Mac) while clicking, or clicking with the middle mouse button, opens that page in a new browser tab. Under All Tenants the new tab carries the row's own tenant, so you arrive on the tenant the row belongs to rather than the one selected in CIPP. Rows with nothing to open, and rows missing the detail the destination needs, do nothing.
+
+Clicking a button, link, checkbox or menu inside a row does that control's job and nothing else. Selecting text is left alone in the same way: dragging across a cell, or clicking while text is selected, does not open the flyout, and right-clicking while text is selected gives you the browser's own menu so you can copy what you have highlighted.
+
+The cursor shows what you are over. Plain cell text carries an I-beam and can be selected and copied. Chips, buttons, links and checkboxes carry a hand, and on pages where a click opens the preview the rest of the row carries a hand as well.
 
 ## Column Options
 

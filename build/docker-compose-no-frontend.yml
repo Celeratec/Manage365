@@ -13,9 +13,9 @@ services:
       --skipApiVersionCheck
       --disableTelemetry
     ports:
-      - "10000:10000"
-      - "10001:10001"
-      - "10002:10002"
+      - "127.0.0.1:10000:10000"
+      - "127.0.0.1:10001:10001"
+      - "127.0.0.1:10002:10002"
     environment:
       - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
       - NODE_OPTIONS=--max-old-space-size=8192
@@ -37,7 +37,7 @@ services:
     container_name: cipp-api
     restart: unless-stopped
     ports:
-      - "5196:8080"
+      - "127.0.0.1:5196:8080"
     # ── B2 sim (Azure App Service Basic B2: 2 vCPU, 3.5 GB) ──
     # Caps total container memory + disables swap so OOM behaves like B2; cpus:2
     # makes .NET report ProcessorCount=2. Comment out for the light dev loop.
@@ -69,6 +69,10 @@ services:
       - CRAFT_DEV_FRONTEND_URL=http://host.docker.internal:3000
     volumes:
       - ./config/appsettings.Local.Development.json:/app/appsettings.Development.json:ro
+      # Optional Proxyman TLS trust — see docker-compose-all.yml for the full rationale.
+      # /dev/null no-op unless build/.env sets CIPP_API_CA_MOUNT. (Windows runs the frontend
+      # on the host, so only the backend container needs trust injected here.)
+      - "${CIPP_API_CA_MOUNT:-/dev/null:/dev/null:ro}"
       # Live backend source. rw because runtime permission extraction writes
       # Config/function-permissions.json back into the repo (gitignored).
       - ../backend:/app/API

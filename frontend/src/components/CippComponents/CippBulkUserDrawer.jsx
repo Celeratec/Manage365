@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Link, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
+import { Alert, Button, Link, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material";
 import { Grid } from "@mui/system";
 import { useForm, useWatch } from "react-hook-form";
 import { GroupAdd, Delete } from "@mui/icons-material";
@@ -82,6 +82,7 @@ export const CippBulkUserDrawer = ({
   });
 
   const bulkUserData = useWatch({ control: formControl.control, name: "bulkUser" });
+  const isAllTenants = !initialState?.currentTenant || initialState.currentTenant === "AllTenants";
 
   const createBulkUsers = ApiPostCall({
     urlFromData: true,
@@ -176,7 +177,12 @@ export const CippBulkUserDrawer = ({
               variant="contained"
               color="primary"
               onClick={handleSubmit}
-              disabled={createBulkUsers.isLoading || !bulkUserData || bulkUserData.length === 0}
+              disabled={
+                isAllTenants ||
+                createBulkUsers.isLoading ||
+                !bulkUserData ||
+                bulkUserData.length === 0
+              }
             >
               {createBulkUsers.isLoading
                 ? "Creating Users..."
@@ -190,6 +196,12 @@ export const CippBulkUserDrawer = ({
           </div>
         }
       >
+        {isAllTenants && (
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            User creation is single-tenant only. Select a specific tenant using the tenant
+            selector before adding users — with "All Tenants" selected no users will be created.
+          </Alert>
+        )}
         <Grid container spacing={2}>
           <Grid size={{ md: 6, xs: 12 }}>
             <CippFormComponent

@@ -19,7 +19,7 @@ import { ACCESS_TYPES, ACCESS_TYPE_CONTEXTS, DECISION_TREE } from "../../data/ac
 const SettingsLinks = ({ links }) => {
   if (!links?.length) return null;
   return (
-    <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
+    <Stack useFlexGap direction="row" flexWrap="wrap" gap={1} sx={{ mt: 1 }}>
       {links.map((link) => (
         <Link key={link.href} href={link.href} passHref legacyBehavior>
           <Button

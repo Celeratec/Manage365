@@ -34,6 +34,13 @@ import {
 import { ApiGetCall } from "../../api/ApiCall";
 import { useEffect } from "react";
 
+const formatUtc = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (isNaN(date.getTime())) return value;
+  return `${date.toISOString().slice(0, 16).replace("T", " ")} UTC`;
+};
+
 const CippVersionProperties = () => {
   const theme = useTheme();
   const [cleaningUp, setCleaningUp] = useState(false);
@@ -198,6 +205,43 @@ const CippVersionProperties = () => {
   };
 
   const backendVersions = cippVersion?.data?.BackendVersions || [];
+  const hosting = cippVersion?.data?.Hosting;
+  const lastUpdate = cippVersion?.data?.LastUpdate;
+  const [copied, setCopied] = useState(false);
+  const lastUpdateText = lastUpdate
+    ? `v${lastUpdate.PreviousVersion} → v${lastUpdate.NewVersion} (${formatUtc(lastUpdate.RecordedAt)})`
+    : "No update recorded yet";
+
+  const handleCopy = async () => {
+    const versionLine = (label, local, remote, outOfDate) =>
+      `${label}: v${local ?? "Unknown"}${outOfDate === true ? ` (v${remote} available)` : ""}`;
+    const ticket = [
+      `Manage365: v${manage365Version?.data?.version ?? "Unknown"}`,
+      versionLine(
+        "Frontend",
+        version?.data?.version,
+        cippVersion?.data?.RemoteCIPPVersion,
+        cippVersion?.data?.OutOfDateCIPP
+      ),
+      versionLine(
+        "Backend",
+        cippVersion?.data?.LocalCIPPAPIVersion,
+        cippVersion?.data?.RemoteCIPPAPIVersion,
+        cippVersion?.data?.OutOfDateCIPPAPI
+      ),
+      `Hosting: ${hosting?.HostingType ?? "Unknown"}`,
+      `SKU: ${hosting?.SKU ?? "Unknown"}`,
+      `Runtime: ${hosting?.RuntimeStack ?? "Unknown"}`,
+      `Last update: ${lastUpdateText}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(ticket);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error("Failed to copy version info:", error);
+    }
+  };
 
   return (
     <Card sx={{ display: "flex", flexDirection: "column", height: "100%", width: "100%" }}>
@@ -281,6 +325,19 @@ const CippVersionProperties = () => {
             icon={<Cloud />}
           />
 
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", fontWeight: 600, textTransform: "uppercase" }}
+          >
+            Hosting
+          </Typography>
+          <Typography variant="body2">Type: {hosting?.HostingType ?? "Unknown"}</Typography>
+          <Typography variant="body2">App Service SKU: {hosting?.SKU ?? "Unknown"}</Typography>
+          <Typography variant="body2">Runtime: {hosting?.RuntimeStack ?? "Unknown"}</Typography>
+          <Typography variant="body2">Last updated: {lastUpdateText}</Typography>
+
           {/* Backend Function Apps -- collapsible, auto-expands when out of sync */}
           {backendVersions.length > 0 && (() => {
             const outOfSyncCount = backendVersions.filter((app) => app.OutOfSync).length;
@@ -358,6 +415,13 @@ const CippVersionProperties = () => {
       </CardContent>
       <Divider />
       <CardActions sx={{ p: 1.5, gap: 1, flexWrap: "wrap" }}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={handleCopy}
+        >
+          {copied ? "Copied!" : "Copy for Ticket"}
+        </Button>
         <Button
           variant="contained"
           color="primary"

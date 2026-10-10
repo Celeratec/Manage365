@@ -1,6 +1,15 @@
-import { EyeIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { CopyAll, Edit, PlayArrow } from "@mui/icons-material";
+
+import { CippIcons } from "../../utils/icon-registry"
 import { usePermissions } from "../../hooks/use-permissions";
+
+const schedulerJobUrl = (rowKey, clone = false) => {
+  const id = String(rowKey ?? "");
+  if (!/^[\w-]+$/.test(id)) return null;
+  const url = new URL("/cipp/scheduler/job", window.location.origin);
+  url.searchParams.set("id", id);
+  if (clone) url.searchParams.set("Clone", "True");
+  return `${url.pathname}${url.search}`;
+};
 
 export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = [] } = {}) => {
   const { checkPermissions } = usePermissions();
@@ -8,68 +17,60 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
   const canReadScheduler = checkPermissions(["CIPP.Scheduler.Read", "CIPP.Scheduler.ReadWrite"]);
 
   return [
-    {
+{
       label: "View Task Details",
       category: "view",
       link: "/cipp/scheduler/task?id=[RowKey]",
-      icon: <EyeIcon />,
+      pinned: true,
+      icon: <CippIcons.EyeIcon />,
       condition: () => canReadScheduler,
     },
-    {
+{
       label: "Run Now",
       category: "manage",
       type: "POST",
       url: "/api/AddScheduledItem",
       data: { RowKey: "RowKey", RunNow: true },
-      icon: <PlayArrow />,
+      icon: <CippIcons.PlayArrow />,
       confirmText: "Are you sure you want to run [Name]?",
       allowResubmit: true,
       condition: () => canWriteScheduler,
     },
-    {
+{
       label: "Edit Job",
+      pinned: true,
       customFunction:
         drawerHandlers.openEditDrawer ||
         ((row) => {
-          import("next/router")
-            .then(({ default: router }) => {
-              router.push(`/cipp/scheduler/job?id=${row.RowKey}`);
-            })
-            .catch(() => {
-              window.location.href = `/cipp/scheduler/job?id=${row.RowKey}`;
-            });
+          const next = schedulerJobUrl(row.RowKey);
+          if (next) window.location.assign(next);
         }),
       multiPost: false,
-      icon: <Edit />,
+      icon: <CippIcons.Edit />,
       color: "success",
       showInActionsMenu: true,
       noConfirm: true,
       condition: () => canWriteScheduler,
     },
-    {
+{
       label: "Clone Job",
       customFunction:
         drawerHandlers.openCloneDrawer ||
         ((row) => {
-          import("next/router")
-            .then(({ default: router }) => {
-              router.push(`/cipp/scheduler/job?id=${row.RowKey}&Clone=True`);
-            })
-            .catch(() => {
-              window.location.href = `/cipp/scheduler/job?id=${row.RowKey}&Clone=True`;
-            });
+          const next = schedulerJobUrl(row.RowKey, true);
+          if (next) window.location.assign(next);
         }),
       multiPost: false,
-      icon: <CopyAll />,
+      icon: <CippIcons.CopyAll />,
       color: "success",
       showInActionsMenu: true,
       noConfirm: true,
       condition: () => canWriteScheduler,
     },
-    {
+{
       label: "Delete Job",
       category: "danger",
-      icon: <TrashIcon />,
+      icon: <CippIcons.Delete />,
       type: "POST",
       url: "/api/RemoveScheduledItem",
       data: { id: "RowKey" },
@@ -77,7 +78,7 @@ export const CippScheduledTaskActions = (drawerHandlers = {}, { hideActions = []
       multiPost: false,
       condition: () => canWriteScheduler,
     },
-  ].filter((action) => !hideActions.includes(action.label));
+].filter((action) => !hideActions.includes(action.label));
 };
 
 export default CippScheduledTaskActions;

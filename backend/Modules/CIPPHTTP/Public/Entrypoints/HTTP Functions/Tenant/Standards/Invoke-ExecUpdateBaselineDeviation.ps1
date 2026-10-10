@@ -3,7 +3,7 @@ function Invoke-ExecUpdateBaselineDeviation {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Tenant.Standards.ReadWrite
+        Tenant.BaselinesDeviations.ReadWrite
     .DESCRIPTION
         Triage for baseline drift on a resolved (tenant, standard) row:
         Accept (reason required, optional expiry, optional remediate-on-expire),
@@ -40,14 +40,17 @@ function Invoke-ExecUpdateBaselineDeviation {
             $Now = [int64]([datetimeoffset]::UtcNow.ToUnixTimeSeconds())
             $Table.Force = $true
             foreach ($TaskEntity in $Entities) {
-                $TaskEntity | Add-Member -NotePropertyName 'Status' -NotePropertyValue 'Compliant' -Force
-                $TaskEntity | Add-Member -NotePropertyName 'Compliant' -NotePropertyValue $true -Force
-                $TaskEntity | Add-Member -NotePropertyName 'LastRemediated' -NotePropertyValue $Now -Force
+                $TaskProps = [ordered]@{
+                    Status         = 'Compliant'
+                    Compliant      = $true
+                    LastRemediated = $Now
+                }
                 if ($TaskEntity.CurrentValue) {
                     $CurrentTask = $TaskEntity.CurrentValue | ConvertFrom-Json
                     $CurrentTask | Add-Member -NotePropertyName 'completed' -NotePropertyValue $true -Force
-                    $TaskEntity | Add-Member -NotePropertyName 'CurrentValue' -NotePropertyValue (ConvertTo-Json -Compress -Depth 20 -InputObject $CurrentTask) -Force
+                    $TaskProps['CurrentValue'] = (ConvertTo-Json -Compress -Depth 20 -InputObject $CurrentTask)
                 }
+                $TaskEntity | Add-Member -NotePropertyMembers $TaskProps -Force
                 Add-CIPPAzDataTableEntity @Table -Entity $TaskEntity
                 $null = Add-CIPPBaselineHistoryEvent -TenantFilter $TaskEntity.PartitionKey -Standard $Standard -Mode 'triage' -TriggeredBy $User -Outcome 'Task Completed' -Detail 'Marked completed for all tenants from the standard view'
             }
@@ -122,6 +125,13 @@ function Invoke-ExecUpdateBaselineDeviation {
             { $_ -in @('AcceptPath', 'DenyPath', 'ClearPath') } {
                 $Path = $Request.Body.path
                 if (-not $Path) { throw "$Action requires the property path." }
+                # A deny-delete verdict orders an OBJECT deletion on the next run. Only
+                # definitions with a delete executor (the detect-drift standards, where
+                # each path is a whole policy) can carry it out - anything else would
+                # park the row at Delete Pending forever.
+                if ($Action -eq 'DenyPath' -and -not (Get-CIPPBaselineDefinition -Name (($Standard -split '#')[0])).delete) {
+                    throw "$Standard does not support deletion. Accept the property to tolerate it, or Deny the deviation to enforce the baseline configuration."
+                }
                 $AcceptedPaths = if ($Entity.AcceptedPaths) { $Entity.AcceptedPaths | ConvertFrom-Json } else { [PSCustomObject]@{} }
                 # Per-path verdicts: 'accept' tolerates that property's drift; 'denyDelete'
                 # queues the path's object for deletion once delete executors exist. Both

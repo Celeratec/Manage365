@@ -9,6 +9,8 @@ function Invoke-ExecUpdateRefreshToken {
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
+    $APIName = $Request.Params.CIPPEndpoint
+    $Headers = $Request.Headers
     $KV = Get-CippKeyVaultName
 
     try {
@@ -46,6 +48,18 @@ function Invoke-ExecUpdateRefreshToken {
             }
         }
 
+        # Cached access tokens were minted from the old refresh token; drop them so the new one takes effect now.
+        # The partner token backs every GDAP tenant, a direct tenant's token only itself (cached under GUID or domain).
+        if ($IsPartnerTenant) {
+            $null = Clear-CippTokenCache
+        } else {
+            $null = Clear-CippTokenCache -TenantFilter $Request.body.tenantId
+            $TenantsTable = Get-CippTable -tablename 'Tenants'
+            $SafeTenantId = ConvertTo-CIPPODataFilterValue -Value $Request.body.tenantId -Type String
+            $Domain = (Get-CIPPAzDataTableEntity @TenantsTable -Filter "PartitionKey eq 'Tenants' and customerId eq '$SafeTenantId'" -Property defaultDomainName).defaultDomainName
+            if ($Domain) { $null = Clear-CippTokenCache -TenantFilter $Domain }
+        }
+
         if ($IsPartnerTenant) {
             try {
                 $Queue = New-CippQueueEntry -Name 'Update Permissions - Partner Tenant' -TotalTasks 1
@@ -72,8 +86,10 @@ function Invoke-ExecUpdateRefreshToken {
         } else {
             $TenantName = $request.body.tenantId
         }
+        $Result = "Successfully updated the credentials for $($TenantName). You may continue to the next step, or add additional tenants if required."
+        Write-LogMessage -headers $Headers -API $APIName -tenant $Request.body.tenantId -message $Result -Sev 'Info'
         $Results = @{
-            'resultText' = "Successfully updated the credentials for $($TenantName). You may continue to the next step, or add additional tenants if required."
+            'resultText' = $Result
             'state'      = 'success'
         }
 
@@ -82,6 +98,9 @@ function Invoke-ExecUpdateRefreshToken {
                 Body       = $Results
             })
     } catch {
+        $ErrorMessage = Get-CippException -Exception $_
+        $Result = "Failed to update refresh token credentials. $($_.InvocationInfo.ScriptLineNumber): $($ErrorMessage.NormalizedError)"
+        Write-LogMessage -headers $Headers -API $APIName -tenant $Request.body.tenantId -message $Result -Sev 'Error' -LogData $ErrorMessage
         $Results = [pscustomobject]@{
             'Results' = @{
                 resultText = "Failed. $($_.InvocationInfo.ScriptLineNumber): $($_.Exception.message)"

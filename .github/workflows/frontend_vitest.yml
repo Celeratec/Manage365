@@ -20,6 +20,12 @@ jobs:
     # Checkout and test only; nothing is written back to the repo.
     permissions:
       contents: read
+    strategy:
+      # One red shard must not cancel the others: each shard covers different test
+      # files, so the surviving shards still deliver signal on their slice.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: frontend
@@ -40,8 +46,9 @@ jobs:
       # drive userEvent through MUI autocompletes and comfortably exceed vitest's 5s
       # default on a loaded machine - at 5s they fail intermittently, and a different
       # handful each run. They pass consistently at 30s.
-      - name: Run unit tests
-        run: yarn test:unit --testTimeout=30000
+      # --shard splits by test file, so the denominator must match the matrix above.
+      - name: Run unit tests (shard ${{ matrix.shard }}/4)
+        run: yarn test:unit --testTimeout=30000 --shard=${{ matrix.shard }}/4
 
   storybook:
     name: vitest (storybook)
@@ -49,6 +56,13 @@ jobs:
     # Checkout and test only; nothing is written back to the repo.
     permissions:
       contents: read
+    strategy:
+      # See the note on the unit matrix: shards are independent slices, keep them all running.
+      fail-fast: false
+      matrix:
+        # More shards than unit: every story renders in real chromium, which dominates
+        # the workflow's wall-clock time.
+        shard: [1, 2, 3, 4, 5, 6]
     defaults:
       run:
         working-directory: frontend
@@ -63,9 +77,35 @@ jobs:
           cache-dependency-path: frontend/yarn.lock
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+      # Cache the ~150MB chromium download so each shard doesn't pull it separately.
+      # Keyed on yarn.lock: a playwright bump changes the lockfile, which rotates the key.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('frontend/yarn.lock') }}
       # The storybook project renders in a real browser (@vitest/browser-playwright,
       # headless chromium per vitest.config.mjs), which the runner image does not provide.
+      # Runs on cache hits too: it skips the download but still installs the system deps.
       - name: Install Playwright Chromium
         run: npx playwright install --with-deps chromium
-      - name: Run storybook tests
-        run: yarn test:storybook
+      # --shard splits by story file, so the denominator must match the matrix above.
+      - name: Run storybook tests (shard ${{ matrix.shard }}/6)
+        run: yarn test:storybook --shard=${{ matrix.shard }}/6
+
+  # Single stable check name for branch protection: matrixed jobs report as
+  # "vitest (unit) (1)" etc., which would otherwise have to be listed one by one
+  # (and re-listed whenever the shard counts change).
+  summary:
+    if: github.repository_owner == 'CyberDrain' && always()
+    name: vitest (summary)
+    needs: [unit, storybook]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.unit.result }}" != "success" ] || [ "${{ needs.storybook.result }}" != "success" ]; then
+            echo "unit: ${{ needs.unit.result }}, storybook: ${{ needs.storybook.result }}"
+            exit 1
+          fi

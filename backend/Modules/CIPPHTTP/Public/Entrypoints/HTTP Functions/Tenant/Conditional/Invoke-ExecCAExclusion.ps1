@@ -35,11 +35,17 @@ function Invoke-ExecCAExclusion {
             throw "Policy with ID $PolicyId not found in tenant $TenantFilter."
         }
 
-        $VacationGroupName = "Vacation Exclusion - $($Policy.displayName)"
-        $escapedGroupName = $VacationGroupName -replace "'", "''"
-        $groupFilter = "displayName eq '$escapedGroupName' and mailEnabled eq false and securityEnabled eq true"
-        $encodedGroupFilter = [System.Uri]::EscapeDataString($groupFilter)
-        $VacationGroups = @(New-GraphGetRequest -uri "https://graph.microsoft.com/beta/groups?`$select=id,displayName&`$filter=$encodedGroupFilter" -tenantid $TenantFilter)
+        $GroupNamePrefix = 'Vacation Exclusion - '
+        $VacationGroupName = "$GroupNamePrefix$($Policy.displayName)"
+        if ($VacationGroupName.Length -gt 120) {
+            $PolicyIdSuffix = " [$($Policy.id.Substring(0, 8))]"
+            $MaxNameLength = 120 - $GroupNamePrefix.Length - $PolicyIdSuffix.Length
+            $VacationGroupName = '{0}{1}{2}' -f $GroupNamePrefix, $Policy.displayName.Substring(0, $MaxNameLength).TrimEnd(), $PolicyIdSuffix
+        }
+
+        $EscapedGroupName = $VacationGroupName -replace "'", "''"
+        $GroupFilter = [System.Uri]::EscapeDataString("displayName eq '$EscapedGroupName' and mailEnabled eq false and securityEnabled eq true")
+        $VacationGroups = @(New-GraphGetRequest -uri "https://graph.microsoft.com/beta/groups?`$select=id,displayName&`$count=true&`$filter=$GroupFilter" -tenantid $TenantFilter -ComplexFilter)
 
         $DuplicateGroupWarning = $null
         if ($VacationGroups.Count -eq 0) {
@@ -64,11 +70,11 @@ function Invoke-ExecCAExclusion {
         }
 
         if ($Policy.conditions.users.excludeGroups -notcontains $GroupId) {
-            Set-CIPPCAExclusion -TenantFilter $TenantFilter -ExclusionType 'Add' -PolicyId $PolicyId -Groups @{ value = @($GroupId); addedFields = @{ displayName = @("Vacation Exclusion - $($Policy.displayName)") } } -Headers $Headers
+            Set-CIPPCAExclusion -TenantFilter $TenantFilter -ExclusionType 'Add' -PolicyId $PolicyId -Groups @{ value = @($GroupId); addedFields = @{ displayName = @($VacationGroupName) } } -Headers $Headers
         }
 
         $PolicyName = $Policy.displayName
-        if ($Request.Body.vacation -eq 'true') {
+        if ($Request.Body.vacation -eq $true) {
             $StartDate = $Request.Body.StartDate
             $EndDate = $Request.Body.EndDate
             # Detect if policy targets specific named locations (GUIDs) and user requested audit log exclusion
@@ -179,12 +185,15 @@ function Invoke-ExecCAExclusion {
                     Reference     = $Request.Body.reference
                 }
                 Add-CIPPScheduledTask -Task $TravelRemoveTask -hidden $false
-                $Results += "Successfully scheduled temporary travel policy '$TravelPolicyName' restricting sign-ins to $($TravelCountries -join ', '). The policy and named location will be removed at the end date."
+                $TravelResult = "Successfully scheduled temporary travel policy '$TravelPolicyName' restricting sign-ins to $($TravelCountries -join ', '). The policy and named location will be removed at the end date."
+                Write-LogMessage -headers $Headers -API 'Invoke-ExecCAExclusion' -message $TravelResult -Sev 'Info' -tenant $TenantFilter
+                $Results += $TravelResult
             }
 
             if ($DuplicateGroupWarning) {
                 $Results += $DuplicateGroupWarning
             }
+            Write-LogMessage -headers $Headers -API 'Invoke-ExecCAExclusion' -message "Successfully added vacation mode schedule for $Username on policy '$PolicyName'." -Sev 'Info' -tenant $TenantFilter
             $body = @{ Results = $Results }
         } else {
             $Parameters = @{

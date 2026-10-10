@@ -1,5 +1,6 @@
 function Set-CIPPResetPassword {
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingUsernameAndPasswordParams', '', Justification = 'Password is the new mailbox password being set for the user, not an interactive credential prompt')]
     param(
         $UserID,
         $DisplayName,

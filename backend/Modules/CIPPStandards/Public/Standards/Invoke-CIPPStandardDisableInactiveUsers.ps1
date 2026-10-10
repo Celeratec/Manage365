@@ -68,14 +68,18 @@ function Invoke-CIPPStandardDisableInactiveUsers {
             if ($user.signInActivity.lastSuccessfulSignInDateTime) {
                 $lastSignIn = [datetime]$user.signInActivity.lastSuccessfulSignInDateTime
                 if ($lastSignIn.ToUniversalTime() -le $Days) {
-                    $user | Add-Member -NotePropertyName 'EnrichedLastSignInDateTime' -NotePropertyValue $user.signInActivity.lastSuccessfulSignInDateTime -Force
-                    $user | Add-Member -NotePropertyName 'NeverSignedIn' -NotePropertyValue $false -Force
+                    $user | Add-Member -NotePropertyMembers ([ordered]@{
+                            EnrichedLastSignInDateTime = $user.signInActivity.lastSuccessfulSignInDateTime
+                            NeverSignedIn              = $false
+                        }) -Force
                     $user
                 }
             } else {
                 # signInActivity present but no successful sign-in; createdDateTime already <= $Days via server-side filter
-                $user | Add-Member -NotePropertyName 'EnrichedLastSignInDateTime' -NotePropertyValue $null -Force
-                $user | Add-Member -NotePropertyName 'NeverSignedIn' -NotePropertyValue $true -Force
+                $user | Add-Member -NotePropertyMembers ([ordered]@{
+                        EnrichedLastSignInDateTime = $null
+                        NeverSignedIn              = $true
+                    }) -Force
                 $user
             }
         }
@@ -183,6 +187,5 @@ function Invoke-CIPPStandardDisableInactiveUsers {
         }
 
         Set-CIPPStandardsCompareField -FieldName 'standards.DisableInactiveUsers' -CurrentValue $CurrentValue -ExpectedValue $ExpectedValue -TenantFilter $Tenant
-        Add-CIPPBPAField -FieldName 'DisableInactiveUsers' -FieldValue $Filtered -StoreAs json -Tenant $Tenant
     }
 }

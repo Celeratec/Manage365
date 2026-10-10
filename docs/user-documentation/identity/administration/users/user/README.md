@@ -1,6 +1,6 @@
 # View Individual User
 
-This page brings together everything CIPP knows about a single user, and is where most investigation starts before an action is taken. The header shows the user's display name along with their user principal name, object ID and creation date, each of which can be copied, and a **View in Entra** button that opens the same account in the Microsoft Entra admin center. The **Actions** menu in the header offers the same [#table-actions](../#table-actions "mention") available from the Users list, minus the ones that navigate elsewhere: View User, Edit User and Research Compromised Account are reachable from the tabs instead.
+This page brings together everything CIPP knows about a single user, and is where most investigation starts before an action is taken. The header shows the user's display name along with their user principal name, object ID and creation date, each of which can be copied, and a **View in Entra** button that opens the same account in the Microsoft Entra admin center. The display name is also a switcher, opening the tenant's user list so you can move to another account without going back to the Users table: see [entity-switcher.md](../../../../shared-features/entity-switcher.md "mention"). The **Actions** menu in the header offers the same [#table-actions](../#table-actions "mention") available from the Users list, minus the ones that navigate elsewhere: View User, Edit User and Research Compromised Account are reachable from the tabs instead.
 
 Apart from the profile photo, the MFA method controls and the role removal action described below, everything on this page is read only. Use the Edit User tab to change the account.
 
@@ -14,8 +14,12 @@ Apart from the profile photo, the MFA method controls and the role removal actio
 [exchange.md](exchange.md)
 {% endcontent-ref %}
 
-{% content-ref url="bec.md" %}
-[bec.md](bec.md)
+{% content-ref url="onedrive-shortcuts.md" %}
+[onedrive-shortcuts.md](onedrive-shortcuts.md)
+{% endcontent-ref %}
+
+{% content-ref url="../../bec/case.md" %}
+[case.md](../../bec/case.md)
 {% endcontent-ref %}
 
 {% content-ref url="conditional-access.md" %}
@@ -60,7 +64,7 @@ The Conditional Access policies that applied successfully during the sign-in sho
 The card reports separately when the sign-in applied no policies at all and when no policy data is available.
 
 {% hint style="info" %}
-To see how a policy would behave for this user rather than how one behaved on a single sign-in, use the conditional-access.md tab.
+To see how a policy would behave for this user rather than how one behaved on a single sign-in, use the [conditional-access.md](conditional-access.md "mention") tab.
 {% endhint %}
 
 ## Multi-Factor Authentication Devices
@@ -117,6 +121,6 @@ Two cards list what the account belongs to, each showing a count in its header.
 
 ## Managed Devices
 
-The Intune managed devices registered to this user, matched on their user principal name. Each row shows the device name, operating system, OS version and management type, and the row action opens the device.md page. The card reports separately when the user has no managed devices and when the device lookup failed.
+The Intune managed devices registered to this user, matched on their user principal name. Each row shows the device name, operating system, OS version and management type, and the row action opens the [device.md](../../../../endpoint/MEM/devices/device.md "mention") page. The card reports separately when the user has no managed devices and when the device lookup failed.
 
 {% include "../../../../../../.gitbook/includes/feature-request.md" %}

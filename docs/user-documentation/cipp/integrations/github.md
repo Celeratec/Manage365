@@ -1,6 +1,6 @@
 # GitHub
 
-The GitHub integration lets CIPP work with GitHub repositories, most visibly through the Community Repositories catalog where templates and scripts are browsed, imported, and published. Authentication uses a GitHub Personal Access Token, and the scopes you grant determine how much of the functionality is available.
+The GitHub integration lets CIPP work with GitHub repositories, most visibly through the Community Repositories catalogue where templates and scripts are browsed, imported, and published. Authentication uses a GitHub Personal Access Token, and the scopes you grant determine how much of the functionality is available.
 
 {% hint style="info" %}
 The integration is optional. Without it, CIPP falls back to a built-in shared token that provides read-only access to public community repositories. Configure your own token when you need private or internal repositories, or when you want to publish templates and scripts back to GitHub.
@@ -53,8 +53,20 @@ Paste the token into **GitHub Personal Access Token**, then select **Submit** an
 ### Test
 
 Select **Test**. A successful result names the GitHub account CIPP authenticated as, and lists the scopes attached to the token, so you can confirm at a glance whether you have granted enough for what you plan to do.
+
+If GitHub rejects the token, the result says so and repeats the reason GitHub gave, so an expired or revoked token is obvious here rather than appearing to work.
 {% endstep %}
 {% endstepper %}
+
+## When the Token Stops Working
+
+Personal Access Tokens expire, get revoked, and run into rate limits. When GitHub rejects the token you configured, CIPP falls back to the built-in shared token for anything that only reads, so browsing and importing from public community repositories carry on working. Anything that writes, such as publishing a template or creating a repository, keeps failing until the token is replaced.
+
+Every rejection is written to the [logs](../logs/ "mention") as a **GitHub** entry naming the status GitHub returned, so a token that has quietly expired shows up there before anyone reports a failure.
+
+{% hint style="info" %}
+**Test** is the exception to the fallback. It always reports on the token you configured, never on the shared one, so it stays a reliable check on the token even while reads are quietly succeeding through the fallback.
+{% endhint %}
 
 ## What the Integration Enables
 
@@ -62,7 +74,7 @@ Select **Test**. A successful result names the GitHub account CIPP authenticated
 | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Browsing and searching community repositories            | None. Works through the built-in shared token.                                                                               |
 | Importing templates and scripts from a public repository | None, though your own token gives you a higher rate limit.                                                                   |
-| Adding a private or internal repository to the catalog   | Full `repo` scope.                                                                                                           |
+| Adding a private or internal repository to the catalogue | Full `repo` scope.                                                                                                           |
 | Publishing templates and scripts to a repository         | Full `repo` scope.                                                                                                           |
 | Creating a new repository from CIPP                      | Full `repo` scope, on a token belonging to an account with rights to create repositories in the target user or organisation. |
 

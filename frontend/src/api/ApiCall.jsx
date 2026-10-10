@@ -10,6 +10,7 @@ import { useDispatch } from "react-redux";
 import { showToast } from "../store/toasts";
 import { getCippError } from "../utils/get-cipp-error";
 import { buildVersionedHeaders } from "../utils/cippVersion";
+import { impersonationCacheParams } from "../utils/impersonation";
 
 export const STALE_TIMES = {
   FAST: 60000,
@@ -26,7 +27,19 @@ const matchesWildcardPattern = (queryKey, pattern) => wildcardToRegExp(pattern).
 
 const DEFAULT_GET_TIMEOUT_MS = 90000;
 const AUTH_LOGIN_REDIRECT_PATH = "/.auth/login/aad";
-const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 503, 504];
+
+const assertRelativeApiPath = (value) => {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    throw new Error("Refusing empty API path");
+  }
+  const trimmed = value.trim();
+  if (trimmed.includes("://") || trimmed.startsWith("//") || trimmed.includes("\\")) {
+    throw new Error("Refusing non-relative API path");
+  }
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+};
+// 503 is omitted: Craft sheds a saturated worker with 503 and asks the client to retry.
+const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 504];
 
 const getRedirectLocation = (headers) => {
   if (!headers) {
@@ -87,6 +100,24 @@ const createApiRetryFn = ({ maxRetries, queryClient, dispatch, toast, getToastTi
     return returnRetry;
   };
 };
+// The server's Retry-After (seconds) as ms, capped so a large hint can't hang a request indefinitely.
+const getRetryAfterMs = (error) => {
+  if (!isAxiosError(error)) return null;
+  const headers = error.response?.headers;
+  const raw = headers?.get?.("retry-after") ?? headers?.["retry-after"];
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds * 1000, 60000) : null;
+};
+
+// react-query's default exponential backoff, but honouring the server's Retry-After when present so a
+// throttled retry lands after the limit clears instead of hammering inside the window.
+const retryDelayWithRetryAfter = (failureCount, error) =>
+  getRetryAfterMs(error) ?? Math.min(1000 * 2 ** failureCount, 30000);
+
+// A request the user cancelled (navigated away / hit Cancel) aborts the axios signal and surfaces as
+// a CanceledError. That is expected, not a failure: never retry it and never raise an error toast.
+const isCanceledError = (error) =>
+  error?.code === "ERR_CANCELED" || error?.name === "CanceledError";
 
 export function ApiGetCall(props) {
   const {
@@ -130,15 +161,17 @@ export function ApiGetCall(props) {
     enabled: waiting,
     queryKey: [queryKey],
     queryFn: async ({ signal }) => {
+      const safeUrl = assertRelativeApiPath(url);
       if (bulkRequest && Array.isArray(data)) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           const element = data[i];
-          const response = await axios.get(url, {
+          const response = await axios.get(safeUrl, {
             signal: signal,
-            params: element,
+            params: { ...element, ...impersonationCacheParams() },
             headers: await buildVersionedHeaders(),
             timeout,
+            cippQueryKey: queryKey,
           });
           results.push(response.data);
           if (onResult) {
@@ -173,12 +206,13 @@ export function ApiGetCall(props) {
         }
         return results;
       } else {
-        const response = await axios.get(url, {
+        const response = await axios.get(safeUrl, {
           signal: url === "/api/tenantFilter" ? null : signal,
-          params: data,
+          params: { ...data, ...impersonationCacheParams() },
           headers: await buildVersionedHeaders(),
           responseType: responseType,
           timeout,
+          cippQueryKey: queryKey,
         });
 
         let responseData = response.data;
@@ -233,6 +267,7 @@ export function ApiGetCall(props) {
     placeholderData: keepPreviousData ? keepPreviousDataFn : undefined,
     refetchInterval: refetchInterval,
     retry: retryFn,
+    retryDelay: retryDelayWithRetryAfter,
   });
   return queryInfo;
 }
@@ -242,18 +277,41 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
 
   const mutation = useMutation({
     mutationFn: async (props) => {
-      const { url, data, bulkRequest } = props;
+      const { url, data, bulkRequest, followUps } = props;
+      const safeUrl = assertRelativeApiPath(url);
       // Timeout so long-running backend calls don't hang the app (e.g. large site delete, slow APIs).
       const timeoutMs = props.timeout ?? 90000; // 90 seconds default
       const requestConfig = {
         headers: await buildVersionedHeaders(),
         timeout: timeoutMs,
       };
+      if (followUps?.length) {
+        // A failed primary request throws as usual and nothing else is sent. Once it has
+        // succeeded, a failed follow-up is reported next to it rather than raised, so the
+        // primary's results are never hidden behind a follow-up error.
+        const primary = await axios.post(safeUrl, data, requestConfig);
+        if (onResult) {
+          onResult(primary.data);
+        }
+        const results = [primary.data];
+        for (const followUp of followUps) {
+          try {
+            const response = await axios.post(assertRelativeApiPath(followUp.url), followUp.data, requestConfig);
+            results.push(response.data);
+          } catch (error) {
+            results.push({
+              Results:
+                error.response?.data?.Results ?? `Failed ${followUp.url}: ${error.message}`,
+            });
+          }
+        }
+        return results;
+      }
       if (bulkRequest && Array.isArray(data)) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           let element = data[i];
-          const response = await axios.post(url, element, requestConfig);
+          const response = await axios.post(safeUrl, element, requestConfig);
           results.push(response.data);
           if (onResult) {
             onResult(response.data); // Emit each result as it arrives
@@ -261,7 +319,7 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
         }
         return results;
       } else {
-        const response = await axios.post(url, data, requestConfig);
+        const response = await axios.post(safeUrl, data, requestConfig);
         if (onResult) {
           onResult(response.data); // Emit each result as it arrives
         }
@@ -342,19 +400,22 @@ export function ApiGetCallWithPagination({
     queryKey: [queryKey],
     enabled: waiting,
     queryFn: async ({ pageParam = null, signal }) => {
-      const response = await axios.get(url, {
+      const safeUrl = assertRelativeApiPath(url);
+      const response = await axios.get(safeUrl, {
         signal: signal,
-        params: { ...data, ...pageParam },
+        params: { ...data, ...pageParam, ...impersonationCacheParams() },
         headers: await buildVersionedHeaders(),
         timeout,
+        cippQueryKey: queryKey,
       });
       return response.data;
     },
     getNextPageParam: (lastPage) => {
+      // AllTenants pages only when the page opted into manualPagination.
       if (
         data?.noPagination ||
         data?.manualPagination === false ||
-        data?.tenantFilter === "AllTenants"
+        (data?.tenantFilter === "AllTenants" && data?.manualPagination !== true)
       ) {
         return undefined;
       }
@@ -364,6 +425,7 @@ export function ApiGetCallWithPagination({
     refetchOnWindowFocus: false,
     refetchOnMount: refetchOnMount,
     retry: retryFn,
+    retryDelay: retryDelayWithRetryAfter,
   });
 
   return queryInfo;

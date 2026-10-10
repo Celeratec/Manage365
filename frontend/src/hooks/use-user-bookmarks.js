@@ -2,6 +2,8 @@ import { useCallback, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiGetCall, ApiPostCall } from "../api/ApiCall";
 
+export const MAX_BOOKMARKS = 20;
+
 const sanitizeBookmark = (bookmark) => {
   if (!bookmark || typeof bookmark !== "object") {
     return null;
@@ -118,9 +120,30 @@ export const useUserBookmarks = () => {
     [persistBookmarks]
   );
 
+  const isBookmarked = useCallback(
+    (path) => bookmarks.some((bookmark) => bookmark.path === path),
+    [bookmarks]
+  );
+
+  const toggleBookmark = useCallback(
+    ({ label, path, category }) => {
+      if (bookmarks.some((bookmark) => bookmark.path === path)) {
+        persistBookmarks(bookmarks.filter((bookmark) => bookmark.path !== path));
+        return;
+      }
+      if (bookmarks.length >= MAX_BOOKMARKS) {
+        return;
+      }
+      persistBookmarks([...bookmarks, { label, path, category }]);
+    },
+    [bookmarks, persistBookmarks]
+  );
+
   return {
     bookmarks,
     setBookmarks,
+    isBookmarked,
+    toggleBookmark,
     isLoading: userSettings.isLoading,
     isSaving: saveBookmarksPost.isPending,
   };

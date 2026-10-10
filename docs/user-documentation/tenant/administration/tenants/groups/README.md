@@ -2,6 +2,10 @@
 
 Lists your custom tenant groups and gives you the tools to create and maintain them. Tenant groups are logical groupings of managed tenants that can be selected anywhere CIPP asks for a tenant filter, which saves you picking the same set of tenants by hand every time. A group is either static, where you choose its members explicitly, or dynamic, where CIPP evaluates a set of rules against your tenants and works out the membership for you.
 
+{% hint style="warning" %}
+Creating, editing and deleting a group, and re-running a dynamic group's rules, all require a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups is refused these actions. See [roles.md](../../../../../setup/setting-up-cipp/roles.md "mention").
+{% endhint %}
+
 ## Action Buttons
 
 <details>

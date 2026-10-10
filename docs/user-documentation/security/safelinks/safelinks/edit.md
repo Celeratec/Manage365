@@ -2,6 +2,10 @@
 
 Opens an existing Safe Links policy and its rule together, so a change to the protection settings and a change to who receives them are made in one place. The form is the same as [add.md](add.md "mention") with the current values loaded in, and one difference: **Policy Name** is fixed and cannot be changed once the policy exists.
 
+{% hint style="info" %}
+This page needs a single tenant selected and does not support All Tenants.
+{% endhint %}
+
 ## Safe Links Policy Configuration
 
 **Policy Settings**
@@ -51,7 +55,7 @@ Opens an existing Safe Links policy and its rule together, so a change to the pr
 | Recipients | Individual recipients excluded from the policy. |
 
 {% hint style="info" %}
-Changes to Safe Links policies and rules may take up to 6 hours to propagate throughout your organization.
+Changes to Safe Links policies and rules may take up to 6 hours to propagate throughout your organisation.
 {% endhint %}
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

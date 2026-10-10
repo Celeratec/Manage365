@@ -32,16 +32,19 @@ function Invoke-ListIntuneTemplates {
     if ($Request.query.View) {
         $Templates = $RawTemplates | ForEach-Object {
             try {
-                $JSONData = $_.JSON | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
-                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
-                $data | Add-Member -NotePropertyName 'displayName' -NotePropertyValue $JSONData.Displayname -Force
-                $data | Add-Member -NotePropertyName 'description' -NotePropertyValue $JSONData.Description -Force
-                $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
-                $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
-                $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
-                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
-                $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
-                $data | Add-Member -NotePropertyName 'reusableSettings' -NotePropertyValue $JSONData.ReusableSettings -Force
+                $JSONData = $Row.JSON | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
+                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
+                if ($null -eq $data) { throw 'RAWJson is empty or not valid JSON' }
+                $data | Add-Member -NotePropertyMembers ([ordered]@{
+                        displayName      = $JSONData.Displayname
+                        description      = $JSONData.Description
+                        Type             = $JSONData.Type
+                        GUID             = $Row.RowKey
+                        package          = $Row.Package
+                        isSynced         = (![string]::IsNullOrEmpty($Row.SHA))
+                        source           = $Row.Source
+                        reusableSettings = $JSONData.ReusableSettings
+                    }) -Force
                 $data
             } catch {
 
@@ -52,28 +55,30 @@ function Invoke-ListIntuneTemplates {
         if ($Request.query.mode -eq 'Tag') {
             #when the mode is tag, show all the potential tags, return the object with: label: tag, value: tag, count: number of templates with that tag, unique only
             $Templates = @($RawTemplates | Where-Object { $_.Package } | Group-Object -Property Package | ForEach-Object {
-                $package = $_.Name
-                $packageTemplates = @($_.Group)
-                $templateCount = $packageTemplates.Count
-                [pscustomobject]@{
-                    label         = "$($package) ($templateCount Templates)"
-                    value         = $package
-                    type          = 'tag'
-                    templateCount = $templateCount
-                    templates     = @($packageTemplates | ForEach-Object {
-                            try {
-                                $JSONData = $_.JSON | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
-                                $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 20 -ErrorAction SilentlyContinue
-                                $data | Add-Member -NotePropertyName 'displayName' -NotePropertyValue $JSONData.Displayname -Force
-                                $data | Add-Member -NotePropertyName 'description' -NotePropertyValue $JSONData.Description -Force
-                                $data | Add-Member -NotePropertyName 'Type' -NotePropertyValue $JSONData.Type -Force
-                                $data | Add-Member -NotePropertyName 'GUID' -NotePropertyValue $_.RowKey -Force
-                                $data | Add-Member -NotePropertyName 'package' -NotePropertyValue $_.Package -Force
-                                $data | Add-Member -NotePropertyName 'source' -NotePropertyValue $_.Source -Force
-                                $data | Add-Member -NotePropertyName 'isSynced' -NotePropertyValue (![string]::IsNullOrEmpty($_.SHA)) -Force
-                                $data | Add-Member -NotePropertyName 'reusableSettings' -NotePropertyValue $JSONData.ReusableSettings -Force
-                                $data
-                            } catch {
+                    $package = $_.Name
+                    $packageTemplates = @($_.Group)
+                    $templateCount = $packageTemplates.Count
+                    [pscustomobject]@{
+                        label         = "$($package) ($templateCount Templates)"
+                        value         = $package
+                        type          = 'tag'
+                        templateCount = $templateCount
+                        templates     = @($packageTemplates | ForEach-Object {
+                                try {
+                                    $JSONData = $_.JSON | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
+                                    $data = $JSONData.RAWJson | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
+                                    $data | Add-Member -NotePropertyMembers ([ordered]@{
+                                            displayName      = $JSONData.Displayname
+                                            description      = $JSONData.Description
+                                            Type             = $JSONData.Type
+                                            GUID             = $_.RowKey
+                                            package          = $_.Package
+                                            source           = $_.Source
+                                            isSynced         = (![string]::IsNullOrEmpty($_.SHA))
+                                            reusableSettings = $JSONData.ReusableSettings
+                                        }) -Force
+                                    $data
+                                } catch {
 
                             }
                         })

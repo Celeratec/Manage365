@@ -25,6 +25,7 @@ The tenant will not be fully offboarded unless all the relationships and contrac
 | Remove all guest users originating from the CSP tenant.                                                          | Removes guest accounts in the customer tenant that came from your partner tenant. |
 | Remove all notification contacts originating from the CSP tenant (technical, security, marketing notifications). | Clears your partner tenant's addresses from the customer's notification contacts. |
 | Remove all Domain Analyser results for this tenant.                                                              | Deletes the tenant's stored Domain Analyser data from CIPP.                       |
+| Remove the quarantine release request alert created by the CIPP standard.                                        | Deletes the alert that the Quarantine Release Request Alert standard created in the tenant, which emails a nominated address whenever a user asks for a quarantined message to be released. If the tenant has no such alert, the offboarding reports that none was found. |
 
 {% hint style="danger" %}
 The following actions will terminate all delegated access to the customer tenant!

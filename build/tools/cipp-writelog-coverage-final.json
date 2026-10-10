@@ -1,0 +1,1384 @@
+{
+  "GeneratedAt": "2026-09-02T22:42:48.4249569+02:00",
+  "Criteria": "Customer log = Write-LogMessage with sev not Debug. Success-path = Info/Warning/Success. Mutating = non-List/Get HTTP Invoke-* with write signals.",
+  "Summary": {
+    "MutatingTotal": 400,
+    "OkDirect": 256,
+    "OkViaHelper": 64,
+    "PartialErrorOnly": 41,
+    "DebugAccessOnly": 3,
+    "Missing": 36,
+    "CoveredPct": 80.0,
+    "GapPct": 20.0
+  },
+  "Missing": [
+    {
+      "Name": "Invoke-ExecAddTrustedIP",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecAddTrustedIP.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecCippReplacemap",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecCippReplacemap.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecCloneTemplate",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecCloneTemplate.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecCPVRefresh",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecCPVRefresh.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecCustomData",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecCustomData.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite,TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecDiagnosticsPresets",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecDiagnosticsPresets.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecExtensionClearHIBPKey",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Extensions\\Invoke-ExecExtensionClearHIBPKey.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecExtensionNinjaOneQueue",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Extensions\\Invoke-ExecExtensionNinjaOneQueue.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecExtensionsConfig",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Extensions\\Invoke-ExecExtensionsConfig.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecNotificationConfig",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecNotificationConfig.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecOffloadFunctions",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecOffloadFunctions.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecPartnerMode",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecPartnerMode.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecPermissionRepair",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecPermissionRepair.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecRemoveTenant",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecRemoveTenant.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecSAMRoles",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecSAMRoles.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecServicePrincipals",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecServicePrincipals.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecUpdateRefreshToken",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Setup\\Invoke-ExecUpdateRefreshToken.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite,Queue"
+    },
+    {
+      "Name": "Invoke-ExecUserBookmarks",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecUserBookmarks.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecUserSettings",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecUserSettings.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-RemoveCippQueue",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-RemoveCippQueue.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecMailboxRestore",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Tools\\Invoke-ExecMailboxRestore.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "Exo"
+    },
+    {
+      "Name": "Invoke-ExecStartManagedFolderAssistant",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecStartManagedFolderAssistant.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "Exo"
+    },
+    {
+      "Name": "Invoke-AddCorporateDeviceIdentifier",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Autopilot\\Invoke-AddCorporateDeviceIdentifier.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecGetLocalAdminPassword",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-ExecGetLocalAdminPassword.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGetRecoveryKey",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-ExecGetRecoveryKey.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddTenant",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Tenant\\Invoke-AddTenant.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecAddGDAPRole",
+      "Area": "Tenant",
+      "Rel": "Tenant\\GDAP\\Invoke-ExecAddGDAPRole.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite,TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecAddMultiTenantApp",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Application Approval\\Invoke-ExecAddMultiTenantApp.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "Queue"
+    },
+    {
+      "Name": "Invoke-ExecApplication",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Application Approval\\Invoke-ExecApplication.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecDriftClone",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Standards\\Invoke-ExecDriftClone.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGraphExplorerPreset",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Tools\\Invoke-ExecGraphExplorerPreset.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecSendOrgMessage",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Tenant\\Invoke-ExecSendOrgMessage.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecStandardConvert",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Standards\\Invoke-ExecStandardConvert.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-PublicWebhooks",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Alerts\\Invoke-PublicWebhooks.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecCommunityRepo",
+      "Area": "Tools",
+      "Rel": "Tools\\GitHub\\Invoke-ExecCommunityRepo.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecGitHubAction",
+      "Area": "Tools",
+      "Rel": "Tools\\GitHub\\Invoke-ExecGitHubAction.ps1",
+      "Status": "missing",
+      "Via": null,
+      "Detail": null,
+      "Signals": "TableWrite"
+    }
+  ],
+  "DebugAccessOnly": [
+    {
+      "Name": "Invoke-EditIntuneScript",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-EditIntuneScript.ps1",
+      "Status": "debug-access-only",
+      "Via": null,
+      "Detail": "Accessed this API / Debug",
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecGDAPAccessAssignment",
+      "Area": "Tenant",
+      "Rel": "Tenant\\GDAP\\Invoke-ExecGDAPAccessAssignment.ps1",
+      "Status": "debug-access-only",
+      "Via": null,
+      "Detail": "Accessed this API / Debug",
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecTestRefresh",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Tests\\Invoke-ExecTestRefresh.ps1",
+      "Status": "debug-access-only",
+      "Via": null,
+      "Detail": "Accessed this API / Debug",
+      "Signals": "TableWrite"
+    }
+  ],
+  "PartialErrorOnly": [
+    {
+      "Name": "Invoke-ExecEditTemplate",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecEditTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecEditTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecExtensionMapping",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Extensions\\Invoke-ExecExtensionMapping.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecExtensionMapping",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecMaintenanceScripts",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecMaintenanceScripts.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecMaintenanceScripts",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecRunTenantGroupRule",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecRunTenantGroupRule.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecRunTenantGroupRule",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSAMCertificate",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecSAMCertificate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecSAMCertificate",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecTenantGroup",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecTenantGroup.ps1",
+      "Status": "partial-error-only-helper",
+      "Via": "Clear-CippAccessScopeCache",
+      "Detail": "Error",
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddConnectionFilterTemplate",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Transport\\Invoke-AddConnectionFilterTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddConnectionFilterTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddExConnectorTemplate",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Transport\\Invoke-AddExConnectorTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddExConnectorTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddSpamFilterTemplate",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Spamfilter\\Invoke-AddSpamFilterTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddSpamFilterTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddTransportTemplate",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Transport\\Invoke-AddTransportTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddTransportTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecScheduleForwardingVacation",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecScheduleForwardingVacation.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecScheduleForwardingVacation",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecScheduleMailboxVacation",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecScheduleMailboxVacation.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecScheduleMailboxVacation",
+      "Detail": null,
+      "Signals": "Exo"
+    },
+    {
+      "Name": "Invoke-ExecScheduleOOOVacation",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecScheduleOOOVacation.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecScheduleOOOVacation",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSetMailboxRule",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecSetMailboxRule.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecSetMailboxRule",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSetOoO",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecSetOoO.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecSetOoO",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-RemoveContact",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Contacts\\Invoke-RemoveContact.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-RemoveContact",
+      "Detail": null,
+      "Signals": "Exo"
+    },
+    {
+      "Name": "Invoke-RemoveExConnector",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Transport\\Invoke-RemoveExConnector.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-RemoveExConnector",
+      "Detail": null,
+      "Signals": "Exo"
+    },
+    {
+      "Name": "Invoke-AddAssignmentFilter",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddAssignmentFilter.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddAssignmentFilter",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddAssignmentFilterTemplate",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddAssignmentFilterTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddAssignmentFilterTemplate",
+      "Detail": null,
+      "Signals": "TableWrite,Queue"
+    },
+    {
+      "Name": "Invoke-AddDefenderDeployment",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddDefenderDeployment.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddDefenderDeployment",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddIntuneReusableSettingTemplate",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddIntuneReusableSettingTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddIntuneReusableSettingTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddIntuneTemplate",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddIntuneTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddIntuneTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecDeployAppTemplate",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Applications\\Invoke-ExecDeployAppTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecDeployAppTemplate",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddGroupTemplate",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Groups\\Invoke-AddGroupTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddGroupTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddUserBulk",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-AddUserBulk.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddUserBulk",
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecBulkLicense",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecBulkLicense.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecBulkLicense",
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecJITAdmin",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecJITAdmin.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecJITAdmin",
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecPIMRoleAssignment",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Roles\\Invoke-ExecPIMRoleAssignment.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecPIMRoleAssignment",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddDlpCompliancePolicyTemplate",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-DLP\\Invoke-AddDlpCompliancePolicyTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddDlpCompliancePolicyTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddRetentionCompliancePolicyTemplate",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-Retention\\Invoke-AddRetentionCompliancePolicyTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddRetentionCompliancePolicyTemplate",
+      "Detail": null,
+      "Signals": "Exo,TableWrite"
+    },
+    {
+      "Name": "Invoke-AddSensitivityLabelTemplate",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-SensitivityLabel\\Invoke-AddSensitivityLabelTemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddSensitivityLabelTemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecSetOneDriveSharing",
+      "Area": "Teams-Sharepoint",
+      "Rel": "Teams-Sharepoint\\Invoke-ExecSetOneDriveSharing.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecSetOneDriveSharing",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddBPATemplate",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Standards\\Invoke-AddBPATemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddBPATemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddCATemplate",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Conditional\\Invoke-AddCATemplate.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddCATemplate",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-AddTestReport",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Tests\\Invoke-AddTestReport.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-AddTestReport",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-DeleteTestReport",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Tests\\Invoke-DeleteTestReport.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-DeleteTestReport",
+      "Detail": null,
+      "Signals": "TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecAddSPN",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Tenant\\Invoke-ExecAddSPN.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecAddSPN",
+      "Detail": null,
+      "Signals": "GraphWrite"
+    },
+    {
+      "Name": "Invoke-ExecCAExclusion",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Conditional\\Invoke-ExecCAExclusion.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecCAExclusion",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecNamedLocation",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Conditional\\Invoke-ExecNamedLocation.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecNamedLocation",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecScheduleAuditExclusionVacation",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Alerts\\Invoke-ExecScheduleAuditExclusionVacation.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-ExecScheduleAuditExclusionVacation",
+      "Detail": null,
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-RemoveWebhookAlert",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Alerts\\Invoke-RemoveWebhookAlert.ps1",
+      "Status": "partial-error-only-direct",
+      "Via": "Invoke-RemoveWebhookAlert",
+      "Detail": null,
+      "Signals": "TableWrite"
+    }
+  ],
+  "OkViaHelper": [
+    {
+      "Name": "Invoke-AddScheduledItem",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Scheduler\\Invoke-AddScheduledItem.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Add-CIPPScheduledTask",
+      "Detail": "Info,Error,Warning",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecAddAlert",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecAddAlert.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Send-CIPPAlert",
+      "Detail": "info,Error,warning,error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecCPVPermissions",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecCPVPermissions.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPCPVConsent",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecHaloPSATestTicket",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Extensions\\Invoke-ExecHaloPSATestTicket.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Send-CIPPAlert",
+      "Detail": "info,Error,warning,error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecPartnerWebhook",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Core\\Invoke-ExecPartnerWebhook.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPGraphSubscription",
+      "Detail": "Error,Info,Warning",
+      "Signals": "GraphWrite,TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecWebhookSubscriptions",
+      "Area": "CIPP",
+      "Rel": "CIPP\\Settings\\Invoke-ExecWebhookSubscriptions.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPGraphSubscription",
+      "Detail": "Info,Error",
+      "Signals": "GraphWrite,TableWrite"
+    },
+    {
+      "Name": "Invoke-ExecConvertMailbox",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecConvertMailbox.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMailboxType",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecCopyForSent",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecCopyForSent.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMessageCopy",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecEditCalendarPermissions",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecEditCalendarPermissions.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPCalendarPermission",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecEditMailboxPermissions",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecEditMailboxPermissions.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMailboxPermission",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecEmailForward",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecEmailForward.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPForwarding",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecEnableArchive",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecEnableArchive.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMailboxArchive",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecEnableAutoExpandingArchive",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecEnableAutoExpandingArchive.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMailboxArchive",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGroupsDelete",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecGroupsDelete.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPGroup",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGroupsDeliveryManagement",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecGroupsDeliveryManagement.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPGroupAuthentication",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGroupsHideFromGAL",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecGroupsHideFromGAL.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPGroupGAL",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecHideFromGAL",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecHideFromGAL.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPHideFromGAL",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecMailboxMobileDevices",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecMailboxMobileDevices.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPMobileDevice",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecRemoveMailboxRule",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecRemoveMailboxRule.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPMailboxRule",
+      "Detail": "Info,Error,Warning",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSetMailboxEmailSize",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecSetMailboxEmailSize.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CippMaxEmailSize",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSetMailboxLocale",
+      "Area": "Email-Exchange",
+      "Rel": "Email-Exchange\\Administration\\Invoke-ExecSetMailboxLocale.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CippMailboxLocale",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddAutopilotConfig",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Autopilot\\Invoke-AddAutopilotConfig.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPDefaultAPDeploymentProfile",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddEnrollment",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Autopilot\\Invoke-AddEnrollment.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPDefaultAPEnrollment",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddPolicy",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-AddPolicy.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPIntunePolicy",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecAppUpload",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Applications\\Invoke-ExecAppUpload.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Start-ApplicationOrchestrator",
+      "Detail": "Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecAssignApp",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Applications\\Invoke-ExecAssignApp.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPAssignedApplication",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecAssignPolicy",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-ExecAssignPolicy.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPAssignedPolicy",
+      "Detail": "Warning,Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecDeviceAction",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\MEM\\Invoke-ExecDeviceAction.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPDeviceAction",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-RemoveAutopilotConfig",
+      "Area": "Endpoint",
+      "Rel": "Endpoint\\Autopilot\\Invoke-RemoveAutopilotConfig.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPAutopilotProfile",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddGroup",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Groups\\Invoke-AddGroup.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPGroup",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddUser",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-AddUser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPUserTask->New-CIPPUser",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-EditUser",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-EditUser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPUser",
+      "Detail": "Info,Error,Warn",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecClrImmId",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecClrImmId.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Clear-CIPPImmutableID",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecCreateTAP",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecCreateTAP.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPTAP",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecDeviceDelete",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Devices\\Invoke-ExecDeviceDelete.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPDeviceState",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecDisableUser",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecDisableUser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPSignInState",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGroupMembers",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Groups\\Invoke-ExecGroupMembers.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Add-CIPPGroupMember",
+      "Detail": "Info,Error,error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecOffboardUser",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecOffboardUser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Invoke-CIPPOffboardingJob",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecOnedriveProvision",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecOnedriveProvision.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Request-CIPPSPOPersonalSite",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecOneDriveShortCut",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecOneDriveShortCut.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPOneDriveShortCut",
+      "Detail": "info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecPerUserMFA",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecPerUserMFA.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPPerUserMFA",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecRequirePasswordChange",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecRequirePasswordChange.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPRequirePasswordChange",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecResetMFA",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecResetMFA.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPUserMFA",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecResetPass",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecResetPass.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPResetPassword",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecRevokeSessions",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecRevokeSessions.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Revoke-CIPPSessions",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSetCloudManaged",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-ExecSetCloudManaged.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPCloudManaged",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-RemoveTrustedBlockedSender",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-RemoveTrustedBlockedSender.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPTrustedBlockedSender",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-RemoveUser",
+      "Area": "Identity",
+      "Rel": "Identity\\Administration\\Users\\Invoke-RemoveUser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Remove-CIPPUser",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddDlpCompliancePolicy",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-DLP\\Invoke-AddDlpCompliancePolicy.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPDlpCompliancePolicy",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddRetentionCompliancePolicy",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-Retention\\Invoke-AddRetentionCompliancePolicy.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPRetentionCompliancePolicy",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddSensitiveInfoType",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-SIT\\Invoke-AddSensitiveInfoType.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPSensitiveInfoType",
+      "Detail": "Error,Warning,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddSensitivityLabel",
+      "Area": "Security",
+      "Rel": "Security\\Compliance-SensitivityLabel\\Invoke-AddSensitivityLabel.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPSensitivityLabel",
+      "Detail": "Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddSite",
+      "Area": "Teams-Sharepoint",
+      "Rel": "Teams-Sharepoint\\Invoke-AddSite.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPSharepointSite",
+      "Detail": "Error,Warning,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddSiteBulk",
+      "Area": "Teams-Sharepoint",
+      "Rel": "Teams-Sharepoint\\Invoke-AddSiteBulk.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPSharepointSite",
+      "Detail": "Error,Warning,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecSharePointPerms",
+      "Area": "Teams-Sharepoint",
+      "Rel": "Teams-Sharepoint\\Invoke-ExecSharePointPerms.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPSharePointPerms",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddCAPolicy",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Conditional\\Invoke-AddCAPolicy.ps1",
+      "Status": "ok-via-helper",
+      "Via": "New-CIPPCAPolicy",
+      "Detail": "Debug,Warning,Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-AddScriptedAlert",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Alerts\\Invoke-AddScriptedAlert.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Add-CIPPScheduledTask",
+      "Detail": "Info,Error,Warning",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecAutoExtendGDAP",
+      "Area": "Tenant",
+      "Rel": "Tenant\\GDAP\\Invoke-ExecAutoExtendGDAP.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPGDAPAutoExtend",
+      "Detail": "Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecBPA",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Standards\\Invoke-ExecBPA.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Start-BPAOrchestrator",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecCSPLicense",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Reports\\Invoke-ExecCSPLicense.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Add-CIPPScheduledTask",
+      "Detail": "Info,Error,Warning",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecDomainAnalyser",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Standards\\Invoke-ExecDomainAnalyser.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Start-DomainOrchestrator",
+      "Detail": "Info,Error",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecGDAPInviteApproved",
+      "Area": "Tenant",
+      "Rel": "Tenant\\GDAP\\Invoke-ExecGDAPInviteApproved.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPGDAPInviteGroups",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-ExecRegistrationCampaign",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Tenant\\Invoke-ExecRegistrationCampaign.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPRegistrationCampaign",
+      "Detail": "Error,Info",
+      "Signals": ""
+    },
+    {
+      "Name": "Invoke-SetAuthMethod",
+      "Area": "Tenant",
+      "Rel": "Tenant\\Administration\\Tenant\\Invoke-SetAuthMethod.ps1",
+      "Status": "ok-via-helper",
+      "Via": "Set-CIPPAuthenticationPolicy",
+      "Detail": "Error,Info",
+      "Signals": ""
+    }
+  ],
+  "ByArea": [
+    {
+      "Area": "CIPP",
+      "Total": 70,
+      "Ok": 44,
+      "Missing": 20,
+      "DebugOnly": 0,
+      "Partial": 6
+    },
+    {
+      "Area": "Tenant",
+      "Total": 78,
+      "Ok": 58,
+      "Missing": 9,
+      "DebugOnly": 2,
+      "Partial": 9
+    },
+    {
+      "Area": "Endpoint",
+      "Total": 54,
+      "Ok": 44,
+      "Missing": 3,
+      "DebugOnly": 1,
+      "Partial": 6
+    },
+    {
+      "Area": "Email-Exchange",
+      "Total": 84,
+      "Ok": 71,
+      "Missing": 2,
+      "DebugOnly": 0,
+      "Partial": 11
+    },
+    {
+      "Area": "Tools",
+      "Total": 7,
+      "Ok": 5,
+      "Missing": 2,
+      "DebugOnly": 0,
+      "Partial": 0
+    },
+    {
+      "Area": "Identity",
+      "Total": 50,
+      "Ok": 45,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 5
+    },
+    {
+      "Area": "Security",
+      "Total": 31,
+      "Ok": 28,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 3
+    },
+    {
+      "Area": "Teams-Sharepoint",
+      "Total": 26,
+      "Ok": 25,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 1
+    }
+  ]
+}

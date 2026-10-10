@@ -1,5 +1,5 @@
 import { Box, Card, CardHeader, CardContent, Typography, Skeleton } from "@mui/material";
-import { People as UsersIcon } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry";
 import { CippSankey } from "./CippSankey";
 import { useRouter } from "next/router";
 
@@ -47,7 +47,7 @@ export const AuthMethodCard = ({ data, isLoading, compact = false }) => {
     let whfbCount = 0;
 
     enabledUsers.forEach((user) => {
-      const methods = Array.isArray(user.MFAMethods) ? user.MFAMethods : [];
+      const methods = Array.isArray(user.MFAMethods) ? user.MFAMethods : user.MFAMethods ? [user.MFAMethods] : [];
       const perUser = user.PerUser === "enforced" || user.PerUser === "enabled";
       const hasRegistered = user.MFARegistration === true;
 
@@ -237,8 +237,16 @@ export const AuthMethodCard = ({ data, isLoading, compact = false }) => {
         }
         sx={{ pb: compact ? 0.5 : 1, flexShrink: 0 }}
       />
-      <CardContent sx={{ pb: compact ? 1.5 : 2, pt: compact ? 1.5 : 2, flex: 1, display: "flex", flexDirection: "column" }}>
-        <Box sx={{ flex: 1, minHeight: chartHeight }}>
+      <CardContent
+        sx={{
+          pb: compact ? 1.5 : 0,
+          pt: compact ? 1.5 : 2,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Box sx={{ flex: 1, minHeight: compact ? chartHeight : { xs: 360, md: 300 } }}>
           {isLoading ? (
             <Skeleton variant="rectangular" width="100%" height={chartHeight} />
           ) : processedData ? (

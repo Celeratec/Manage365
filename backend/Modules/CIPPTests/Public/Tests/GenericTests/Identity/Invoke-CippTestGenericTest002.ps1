@@ -37,28 +37,29 @@ function Invoke-CippTestGenericTest002 {
         }
 
         if ($UserLicenseMap.Count -eq 0) {
-            $Result = "No users with assigned licenses were found in the cached data.`n`nThis may indicate that the license data has not been synced recently, or no licenses have been assigned to individual users."
+            $Result = [System.Text.StringBuilder]::new("No users with assigned licenses were found in the cached data.`n`nThis may indicate that the license data has not been synced recently, or no licenses have been assigned to individual users.")
             Add-CippTestResult -TenantFilter $Tenant -TestId 'GenericTest002' -TestType 'Identity' -Status 'Informational' -ResultMarkdown $Result -Risk 'Informational' -Name 'User License Overview' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Tenant Overview'
             return
         }
 
-        $Result = "**Total Licensed Users:** $($UserLicenseMap.Count)`n`n"
+        $Result = [System.Text.StringBuilder]::new("**Total Licensed Users:** $($UserLicenseMap.Count)`n`n")
 
-        $Result += "| User | Licenses |`n"
-        $Result += "|------|----------|`n"
+        $null = $Result.Append("| User | Email | Licenses |`n")
+        $null = $Result.Append("|------|-------|----------|`n")
 
         $SortedUsers = $UserLicenseMap.GetEnumerator() | Sort-Object { $_.Value.DisplayName }
         $DisplayCount = 0
         foreach ($Entry in $SortedUsers) {
-            $DisplayName = $Entry.Value.DisplayName
+            $DisplayName = ConvertTo-CippMarkdownCell -Value $Entry.Value.DisplayName
+            $Email = ConvertTo-CippMarkdownCell -Value $Entry.Key
             $LicList = ($Entry.Value.Licenses | Sort-Object) -join ', '
-            $Result += "| $DisplayName | $LicList |`n"
+            $null = $Result.Append("| $DisplayName | $Email | $LicList |`n")
             $DisplayCount++
             if ($DisplayCount -ge 500) { break }
         }
 
         if ($UserLicenseMap.Count -gt 500) {
-            $Result += "`n*Showing 500 of $($UserLicenseMap.Count) licensed users.*`n"
+            $null = $Result.Append("`n*Showing 500 of $($UserLicenseMap.Count) licensed users.*`n")
         }
 
         Add-CippTestResult -TenantFilter $Tenant -TestId 'GenericTest002' -TestType 'Identity' -Status 'Informational' -ResultMarkdown $Result -Risk 'Informational' -Name 'User License Overview' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Tenant Overview'

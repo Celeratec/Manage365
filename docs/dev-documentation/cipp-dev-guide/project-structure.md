@@ -1,39 +1,57 @@
 # Project Structure
 
-this page looks at what's in the `frontend` folder so you know where to look when you start coding.
+CIPP is a mono-repository with three top-level directories: `frontend/` for the web interface, `backend/` for the API, and `build/` for Docker and dev tooling.
 
-### The Root
+## Frontend
 
-In the `frontend` directory itself there are a number of files and folders, the table below highlights the important ones:
+### Root files
 
-| Item                 | Description                                                                                                    |
-| -------------------- | -------------------------------------------------------------------------------------------------------------- |
-| `public`             | Holds static files used when compiling CIPP (building) for use. Mostly images and a little `HTML` scaffolding. |
-| `src`                | Holds the code that powers CIPP, this is where most CIPP development takes place.                              |
-| `tests`              | Holds storybook tests and jsdom test files.                                                                    |
-| `package.json`       | An npm package file - this tells npm what other libraries/resources to use when building CIPP.                 |
-| `package-lock.json`  | An npm package file - this tells npm exact version numbers/packages to use for repeatable builds.              |
-| `version_latest.txt` | Our version file. This gets incremented just before `dev` gets merged into `main` for a new release.           |
+| Item                | Description                                                       |
+| ------------------- | ----------------------------------------------------------------- |
+| `src/`              | Application source code, where most frontend development happens. |
+| `public/`           | Static assets served as-is (images, favicons).                    |
+| `tests/`            | Vitest unit tests and Storybook interaction tests.                |
+| `package.json`      | Dependencies and scripts.                                         |
+| `yarn.lock`         | Locked dependency versions for repeatable installs.               |
+| `next.config.js`    | Next.js configuration.                                            |
+| `eslint.config.mjs` | ESLint flat config (extends `eslint-config-next` + Prettier).     |
+| `vitest.config.mjs` | Vitest test runner configuration.                                 |
 
-### The Source
+### The `src/` directory
 
-The table below goes into detail on the contents of the `src` directory:
+| Item          | Description                                                                        |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `pages/`      | Next.js pages router. Each file or directory maps to a URL route.                  |
+| `components/` | Reusable React components, with CIPP-specific components under `components/Cipp*`. |
+| `sections/`   | Page-specific sections and layouts used by pages.                                  |
+| `layouts/`    | Application layout wrappers (sidebar, header, navigation).                         |
+| `api/`        | API call layer (`ApiCall.jsx`), wrapping React Query around axios.                 |
+| `store/`      | Redux Toolkit slices for cross-cutting application state.                          |
+| `contexts/`   | React context providers.                                                           |
+| `hooks/`      | Custom React hooks.                                                                |
+| `theme/`      | MUI theme configuration (palette, typography, component overrides).                |
+| `styles/`     | Global and utility styles.                                                         |
+| `data/`       | Static data files (for example, `countryList.json`).                               |
+| `icons/`      | Custom icon components.                                                            |
+| `libs/`       | Third-party library wrappers and configuration.                                    |
+| `utils/`      | Shared utility functions.                                                          |
 
-| Item            | Description                                                                                                |
-| --------------- | ---------------------------------------------------------------------------------------------------------- |
-| `assets/images` | Holds image files used when building the app.                                                              |
-| `components`    | Holds custom [React components](https://reactjs.org/docs/components-and-props.html) used throughout CIPP.  |
-| `data`          | Holds static data files used throughout CIPP. At the time of writing the only one is `countryList.json`.   |
-| `hooks`         | Holds custom [React hooks](https://reactjs.org/docs/hooks-reference.html) used throughout CIPP.            |
-| `layout`        | Holds the main layout file which handles setting up the overall layout of the CIPP user interface.         |
-| `scss`          | Holds the [SCSS](https://sass-lang.com/) files which control the look and feel of the CIPP user interface. |
-| `store`         | Holds the various API interfaces, app feature functional code and middle-ware to drive CIPP functionality. |
-| `views`         | Holds the pages which make up the CIPP user interface.                                                     |
+## Backend
 
-of the remaining files in the `src` directory the following are noteworthy:
+Source code lives under `backend/Modules/`, split into purpose-specific modules:
 
-| Item             | Description                                                           |
-| ---------------- | --------------------------------------------------------------------- |
-| `_nav.js`        | Holds the navigation items displayed in the left hand navigation bar. |
-| `adminRoutes.js` | Holds information on admin-privileged routes.                         |
-| `routes.js`      | Holds information on routes.                                          |
+| Module                 | What it holds                                                       |
+| ---------------------- | ------------------------------------------------------------------- |
+| `CIPPCore`             | Shared helpers, Graph/Exchange wrappers, auth, and the HTTP router. |
+| `CIPPHTTP`             | Every `Invoke-*` HTTP endpoint handler, organised by area.          |
+| `CIPPStandards`        | Tenant standards (`Invoke-CIPPStandard*.ps1`).                      |
+| `CIPPAlerts`           | Alert definitions (`Get-CIPPAlert*.ps1`).                           |
+| `CIPPDB`               | Reporting database cache refresh jobs (`Set-CIPPDBCache*.ps1`).     |
+| `CIPPActivityTriggers` | Durable activity, queue, and timer entrypoints.                     |
+| `CippExtensions`       | Third-party integrations (Hudu, NinjaOne, and others).              |
+
+Tests live under `backend/Tests/`, organised by area (Alerts, Endpoint, Standards, Private, Security, Build).
+
+## Build
+
+The `build/` directory contains Docker Compose files, Dockerfiles, the vendored ModuleBuilder, and the dev tooling scripts that compile backend modules and watch for changes. See [setting-up-for-local-development.md](setting-up-for-local-development.md "mention") for how to use them.
