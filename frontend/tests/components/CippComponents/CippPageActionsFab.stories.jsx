@@ -82,7 +82,8 @@ export const RestackedCardButton = {
 
     await step('opens the sheet from the FAB', async () => {
       await userEvent.click(body.getByRole('button', { name: 'Page actions' }))
-      await waitFor(() => expect(body.getByText('Actions')).toBeInTheDocument())
+      // The title is in the document before the action buttons join the accessibility tree.
+      await waitFor(() => expect(body.getByRole('button', { name: 'Add User' })).toBeVisible())
     })
 
     await step('children are restacked to full width', async () => {
@@ -202,9 +203,10 @@ export const PageAndLayoutActions = {
 
     await step('one sheet holds both kinds of action', async () => {
       await userEvent.click(body.getByRole('button', { name: 'Page actions' }))
-      await waitFor(() => expect(body.getByText('Actions')).toBeInTheDocument())
-      expect(body.getByRole('button', { name: 'Add Variable' })).toBeInTheDocument()
-      expect(body.getByText('Reset Password')).toBeInTheDocument()
+      // An earlier story leaves its sheet mounted and hidden, and that sheet's
+      // title is also "Actions". Wait until this sheet's own action is visible.
+      await waitFor(() => expect(body.getByRole('button', { name: 'Add Variable' })).toBeVisible())
+      expect(body.getByText('Reset Password')).toBeVisible()
     })
 
     // Destinations moved to the title row; a FAB is for a screen's primary action.

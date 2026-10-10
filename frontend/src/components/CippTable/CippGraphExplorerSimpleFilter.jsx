@@ -97,9 +97,16 @@ const CippGraphExplorerSimpleFilter = ({
         delete values.AsApp;
       }
 
+      // The mounted query editor writes the preset's id and name onto params so it
+      // can save them. They are not part of the Graph request.
+      delete values.id;
+      delete values.name;
+      delete values.IsShared;
+      delete values.reportTemplate;
+
       // Remove null/empty values
       Object.keys(values).forEach((key) => {
-        if (values[key] === null || values[key] === "") {
+        if (values[key] === null || values[key] === "" || (Array.isArray(values[key]) && values[key].length === 0)) {
           delete values[key];
         }
       });
