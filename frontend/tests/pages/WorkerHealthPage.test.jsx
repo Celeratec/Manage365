@@ -25,6 +25,11 @@ api.get = emptyGetResult
 api.post = postResult()
 api.paginated = jobsResult
 
+// The job table is not the last pagination caller: autocompletes mounted with it
+// start from { url: '', queryKey: '' } and land after the jobs hook in the same commit.
+const lastJobsCall = () =>
+  [...ApiGetCallWithPagination.mock.calls].reverse().find((call) => call[0]?.url === '/api/ListWorkerHealth')?.[0]
+
 describe('Worker Health page - job queue preset filters', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -46,7 +51,7 @@ describe('Worker Health page - job queue preset filters', () => {
     await user.click(screen.getByRole('button', { name: 'Queued' }))
 
     await waitFor(() => {
-      const last = ApiGetCallWithPagination.mock.calls.at(-1)[0]
+      const last = lastJobsCall()
       expect(last.queryKey).toBe('WorkerHealthJobs-2000-Queued')
       expect(last.data).toMatchObject({ Action: 'Jobs', Limit: '2000', Status: 'Queued' })
     })
@@ -62,7 +67,7 @@ describe('Worker Health page - job queue preset filters', () => {
     await user.click(screen.getByRole('button', { name: 'Skipped' }))
 
     await waitFor(() => {
-      const last = ApiGetCallWithPagination.mock.calls.at(-1)[0]
+      const last = lastJobsCall()
       expect(last.queryKey).toBe('WorkerHealthJobs-2000-Skipped')
       expect(last.data).toMatchObject({ Action: 'Jobs', Limit: '2000', Status: 'Skipped' })
     })
@@ -121,12 +126,12 @@ describe('Worker Health page - job queue preset filters', () => {
 
     await user.click(screen.getByRole('button', { name: 'Queued' }))
     await waitFor(() => {
-      expect(ApiGetCallWithPagination.mock.calls.at(-1)[0].data.Status).toBe('Queued')
+      expect(lastJobsCall().data.Status).toBe('Queued')
     })
 
     await user.click(screen.getByRole('button', { name: 'All' }))
     await waitFor(() => {
-      const last = ApiGetCallWithPagination.mock.calls.at(-1)[0]
+      const last = lastJobsCall()
       expect(last.queryKey).toBe('WorkerHealthJobs-2000-')
       expect(last.data.Status).toBeUndefined()
     })

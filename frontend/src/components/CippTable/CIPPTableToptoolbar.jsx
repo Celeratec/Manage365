@@ -307,7 +307,11 @@ export const CIPPTableToptoolbar = React.memo(
       // api.noConfirm true, and its mount effect auto-submits into the same customFunction
       // being called here — every selected row's action fired twice.
       if (action?.noConfirm && action.customFunction) {
-        eligibleRows.forEach((row) => action.customFunction(wrapActionRow(row.original.original ?? row.original), action, {}))
+        if (action.multiPost) {
+          action.customFunction(selectedData, action, {})
+        } else {
+          eligibleRows.forEach((row) => action.customFunction(wrapActionRow(row.original.original ?? row.original), action, {}))
+        }
         // Deliberately no closeMenu() here — that matches the behaviour this branch had
         // before; the only thing being fixed is the duplicate invocation.
         return
@@ -483,6 +487,7 @@ export const CIPPTableToptoolbar = React.memo(
             table.setGlobalFilter(last.value)
             // Keep the visible search box in sync with the filter it now represents
             setSearchValue(typeof last.value === 'string' ? last.value : '')
+            onSearchChange?.(typeof last.value === 'string' ? last.value : '')
             setActiveFilters((prev) => ({
               ...prev,
               table: { id: last.id, name: last.name, type: last.type },
@@ -749,6 +754,22 @@ export const CIPPTableToptoolbar = React.memo(
       settings.setLastUsedFilter(pageName, updater(current))
     }
 
+    // Columns any preset drives with a non-default filterFn (notEquals, notContains), mapped
+    // to a plain contains baseline. material-react-table's per-column filter mode sticks on
+    // the column until columnFilterFns names it again, so clearing to {} leaves the override
+    // in place. Passing this map on every column-preset click forces the reset.
+    const filterFnDefaults = useMemo(() => {
+      const ids = new Set()
+      filters.forEach((f) => {
+        if (Array.isArray(f?.value)) {
+          f.value.forEach((v) => {
+            if (v?.id && v?.filterFn) ids.add(v.id)
+          })
+        }
+      })
+      return Object.fromEntries([...ids].map((id) => [id, 'contains']))
+    }, [filters])
+
     const setTableFilter = (filter, filterType, filterName, presetId) => {
       if (filterType === 'global' || filterType === undefined) {
         if (activeFilters.table?.type === 'column') {
@@ -763,6 +784,7 @@ export const CIPPTableToptoolbar = React.memo(
           clearTimeout(searchDebounceRef.current)
         }
         setSearchValue?.(typeof filter === 'string' ? filter : '')
+        onSearchChange?.(typeof filter === 'string' ? filter : '')
         table.setGlobalFilter(filter)
         setActiveFilters((prev) => ({
           ...prev,
@@ -789,11 +811,22 @@ export const CIPPTableToptoolbar = React.memo(
             clearTimeout(searchDebounceRef.current)
           }
           setSearchValue?.('')
+          onSearchChange?.('')
         }
         if (viewMode !== 'cards') {
           // Card view renders no header row for the filter inputs to appear in
           table.setShowColumnFilters(true)
         }
+        // A preset can request notEquals or notContains via filterFn on its value entry.
+        // Start from the contains baseline so a later plain preset on the same column
+        // is not left inverted.
+        const filterFnOverrides = Array.isArray(filter)
+          ? filter.reduce((acc, f) => {
+              if (f?.id && f?.filterFn) acc[f.id] = f.filterFn
+              return acc
+            }, {})
+          : {}
+        table.setColumnFilterFns({ ...filterFnDefaults, ...filterFnOverrides })
         table.setColumnFilters(filter)
         if (typeof setColumnFilters === 'function') {
           setColumnFilters(filter)
@@ -819,10 +852,12 @@ export const CIPPTableToptoolbar = React.memo(
       if (filterType === 'reset') {
         table.resetGlobalFilter()
         table.resetColumnFilters()
+        table.setColumnFilterFns(filterFnDefaults)
         if (searchDebounceRef.current) {
           clearTimeout(searchDebounceRef.current)
         }
         setSearchValue?.('')
+        onSearchChange?.('')
         if (api?.data) {
           setGraphFilterData({})
           resetToDefaultVisibility()
@@ -904,6 +939,7 @@ export const CIPPTableToptoolbar = React.memo(
             clearTimeout(searchDebounceRef.current)
           }
           setSearchValue?.('')
+          onSearchChange?.('')
         } else {
           table.resetColumnFilters()
           if (typeof setColumnFilters === 'function') {
@@ -1434,7 +1470,12 @@ export const CIPPTableToptoolbar = React.memo(
                 </ListItemText>
               </MenuItem>
               <Divider />
-              <MenuItem onClick={() => setTableFilter('', 'reset', '')}>
+              <MenuItem
+                onClick={() => {
+                  setTableFilter('', 'reset', '')
+                  setFiltersAnchor(null)
+                }}
+              >
                 <ListItemText primary="Reset all filters" />
               </MenuItem>
               {api?.url === '/api/ListGraphRequest' && (

@@ -82,7 +82,7 @@ export const CippWizardStepButtons = (props) => {
           type="button"
           fullWidth={smDown}
           startIcon={<ArrowBack />}
-          sx={smDown ? { ...mobileButtonSx, order: 2 } : {}}
+          sx={smDown ? mobileButtonSx : {}}
         >
           Back
         </Button>
@@ -96,7 +96,7 @@ export const CippWizardStepButtons = (props) => {
           variant="contained"
           fullWidth={smDown}
           endIcon={<ArrowForward />}
-          sx={smDown ? { ...mobileButtonSx, order: 1 } : {}}
+          sx={smDown ? mobileButtonSx : {}}
         >
           Next Step
         </Button>

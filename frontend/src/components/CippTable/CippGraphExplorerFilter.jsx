@@ -224,7 +224,7 @@ const CippGraphExplorerFilter = ({
     if (option.value !== selectedPresets?.value) {
       presetControl.setValue('reportTemplate', option)
     }
-  }, [selectedPreset?.id, selectedPreset?.filterName, presetOptions])
+  }, [selectedPreset?.id, selectedPreset?.filterName, selectedPreset?.value, presetOptions])
 
   useEffect(() => {
     if (selectedPresets?.addedFields?.params) {
@@ -248,7 +248,8 @@ const CippGraphExplorerFilter = ({
         selectedPresets.addedFields.params.$select.length > 0
       ) {
         selectedPresets.addedFields.params.$select = selectedPresets.addedFields.params.$select
-          .map((item) => item.value)
+          .map((item) => (typeof item === 'string' ? item : item?.value))
+          .filter(Boolean)
           .join(',')
       }
       selectedPresets.addedFields.params.$select !== ''
@@ -515,6 +516,7 @@ const CippGraphExplorerFilter = ({
     }
     if (values.ReverseTenantLookup === false) {
       delete values.ReverseTenantLookup
+      delete values.ReverseTenantLookupProperty
     }
     if (values.NoPagination === false) {
       delete values.NoPagination
@@ -531,10 +533,16 @@ const CippGraphExplorerFilter = ({
     delete values.id
     delete values.IsShared
     delete values.reportTemplate
-    delete values.ReverseTenantLookupProperty
+    if (values.manualPagination === false) {
+      delete values.manualPagination
+    }
 
     Object.keys(values).forEach((key) => {
-      if (values[key] === null || values[key] === '') {
+      if (
+        values[key] === null ||
+        values[key] === '' ||
+        (Array.isArray(values[key]) && values[key].length === 0)
+      ) {
         delete values[key]
       }
     })

@@ -327,30 +327,39 @@ export const CippQueueTracker = ({
                           {data.FailedTasks} task{data.FailedTasks > 1 ? "s" : ""} failed
                         </Typography>
                       )}
-                      {/* Task details */}
                       {data.Tasks && data.Tasks.length > 0 && (
                         <Stack spacing={0.5} sx={{ mt: 1 }}>
+                          <Typography variant="subtitle2">Task Details</Typography>
                           {data.Tasks.map((task, i) => (
-                            <Stack key={i} direction="row" justifyContent="space-between" alignItems="center">
-                              <Typography variant="caption" sx={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                                {task.Name}
-                              </Typography>
-                              <Typography
-                                variant="caption"
-                                sx={{
-                                  color:
-                                    task.Status === "Completed"
-                                      ? "success.main"
-                                      : task.Status === "Failed"
-                                      ? "error.main"
-                                      : task.Status === "Running"
-                                      ? "warning.main"
-                                      : "text.secondary",
-                                }}
+                            <Box key={i}>
+                              <Stack
+                                direction="row"
+                                useFlexGap
+                                spacing={1}
+                                flexWrap="wrap"
+                                justifyContent="space-between"
+                                alignItems="center"
                               >
-                                {task.Status}
-                              </Typography>
-                            </Stack>
+                                <Typography variant="caption" sx={{ minWidth: 0, flex: "1 1 8rem", overflowWrap: "anywhere" }}>
+                                  {task.Name}
+                                </Typography>
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    color:
+                                      task.Status === "Completed"
+                                        ? "success.main"
+                                        : task.Status === "Failed"
+                                        ? "error.main"
+                                        : task.Status === "Running"
+                                        ? "warning.main"
+                                        : "text.secondary",
+                                  }}
+                                >
+                                  {task.Status}
+                                </Typography>
+                              </Stack>
+                            </Box>
                           ))}
                         </Stack>
                       )}

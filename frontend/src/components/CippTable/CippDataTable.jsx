@@ -2112,6 +2112,15 @@ export const CippDataTable = (props) => {
     if (initialColumnFilters && Array.isArray(initialColumnFilters) && initialColumnFilters.length > 0) {
       return initialColumnFilters;
     }
+    // Stories and callers pass a column-filter list ({ id, value }) through `filters`.
+    // Preset menus use filterName, so those stay out of the initial filter state.
+    if (
+      Array.isArray(filters) &&
+      filters.length > 0 &&
+      filters.every((filter) => filter?.id && !filter.filterName && !Array.isArray(filter.value))
+    ) {
+      return filters;
+    }
     return [];
   });
   const [cardSearchInput, setCardSearchInput] = useState("");
@@ -3613,6 +3622,7 @@ export const CippDataTable = (props) => {
                 table={table}
                 actions={actions}
                 hasOffCanvas={!!offCanvas || Boolean(cardInfoFields?.length)}
+                openOffCanvasOnTap={!!offCanvas || Boolean(cardInfoFields?.length)}
                 onRowAction={dispatchRowAction}
                 onMoreInfo={openRowOffCanvas}
                 isActionDisabled={handleActionDisabled}

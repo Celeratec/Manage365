@@ -115,7 +115,10 @@ export const getCippFormatting = (
     return (
       <Chip
         icon={
-          <SvgIcon sx={{ fontSize: '1rem !important' }}>
+          <SvgIcon
+            titleAccess={isEnabled ? 'Yes' : 'No'}
+            sx={{ fontSize: '1rem !important' }}
+          >
             {isEnabled ? <CippIcons.CheckCircleIcon /> : <CippIcons.XCircleIcon />}
           </SvgIcon>
         }

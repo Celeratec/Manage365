@@ -107,11 +107,7 @@ export const CippActionMenu = ({
   const { groupedActions, filteredActions, visibleCount } = useMemo(() => {
     // Filter out disabled actions and apply search
     let filtered = actions.filter((action) => {
-      // Check condition
-      if (action.condition && !action.condition(data)) {
-        return false;
-      }
-      // Apply search filter
+      // Unavailable actions stay visible and disabled so the menu shows why they cannot run.
       if (searchTerm) {
         return action.label?.toLowerCase().includes(searchTerm.toLowerCase());
       }

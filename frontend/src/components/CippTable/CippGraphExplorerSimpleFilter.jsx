@@ -59,6 +59,10 @@ const CippGraphExplorerSimpleFilter = ({
   }, [defaultPresets, presetList.isSuccess, presetList.data]);
 
   const handleRunPreset = () => {
+    if (!selectedPreset?.addedFields?.params) {
+      if (currentFilterValues) onSubmitFilter(currentFilterValues)
+      return
+    }
     if (selectedPreset?.addedFields?.params) {
       const params = selectedPreset.addedFields.params;
       const values = { ...params };
@@ -193,6 +197,7 @@ const CippGraphExplorerSimpleFilter = ({
       <CippOffCanvas
         size="md"
         title="Graph Explorer Query"
+        keepMounted
         visible={offCanvasVisible}
         onClose={() => setOffCanvasVisible(false)}
         contentPadding={1}
