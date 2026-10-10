@@ -37,7 +37,7 @@ export const CippBecRemediationHistory = ({ becData }) => {
                 {entry.At
                   ? new Date(entry.At).toLocaleString()
                   : 'Unknown time'}{' '}
-                · {entry.By || 'CIPP'} · {(entry.Actions || []).length}{' '}
+                · {entry.By || 'Manage365'} · {(entry.Actions || []).length}{' '}
                 action(s)
               </Typography>
               {results.length > 0 ? (

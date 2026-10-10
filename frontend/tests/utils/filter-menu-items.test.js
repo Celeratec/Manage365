@@ -156,9 +156,9 @@ describe('filterMenuItems', () => {
         'Email & Exchange > Administration > Contacts',
         'Email & Exchange > Administration > Contact Templates',
       ])
-      // The sign-in permission alone opens nothing under Tools or CIPP (issue #652).
+      // The sign-in permission alone opens nothing under Tools or Manage365 (issue #652).
       const otherPages = pagePaths(result).filter(
-        (path) => path.startsWith('Tools') || path.startsWith('CIPP')
+        (path) => path.startsWith('Tools') || path.startsWith('Manage365')
       )
       expect(otherPages).toEqual([])
     })
@@ -171,7 +171,7 @@ describe('filterMenuItems', () => {
     })
 
     it.each([
-      ['Logbook', 'CIPP.Logs.Read', 'CIPP > Logbook'],
+      ['Logbook', 'CIPP.Logs.Read', 'Manage365 > Logbook'],
       ['Report Builder', 'CIPP.ReportBuilder.Read', 'Tools > Report Builder'],
       [
         'Template Library',

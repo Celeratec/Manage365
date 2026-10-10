@@ -190,7 +190,7 @@ const Page = () => {
         },
       ],
       confirmText:
-        "Create a PIM role settings template from the current PIM settings of [RoleDisplayName]? Anything below CIPP's secure floor is raised to it, and every raised value is listed in the results.",
+        "Create a PIM role settings template from the current PIM settings of [RoleDisplayName]? Anything below Manage365's secure floor is raised to it, and every raised value is listed in the results.",
       relatedQueryKeys: ['ListPIMRoleSettingsTemplates*'],
       condition: (row) =>
         canWriteRole && !!row?.PIMCapable && !!row?.PolicySummary,
@@ -391,7 +391,7 @@ const Page = () => {
                     </List>
                   ) : (
                     <Typography variant="body2">
-                      The live PIM settings for this role fall below CIPP&apos;s
+                      The live PIM settings for this role fall below Manage365&apos;s
                       secure floor.
                     </Typography>
                   )}

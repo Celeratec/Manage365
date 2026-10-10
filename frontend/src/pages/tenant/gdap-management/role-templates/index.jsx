@@ -102,7 +102,7 @@ const Page = () => {
                 <Typography variant="h6">No role templates yet</Typography>
                 <Typography variant="body2" sx={{ color: "text.secondary" }}>
                   A role template is the set of admin roles a GDAP invite grants. Start from the
-                  CIPP defaults, or pick your own roles.
+                  Manage365 defaults, or pick your own roles.
                 </Typography>
                 <Stack
                   direction="row"
@@ -124,7 +124,7 @@ const Page = () => {
                       </SvgIcon>
                     }
                   >
-                    Create CIPP Defaults template
+                    Create Manage365 Defaults template
                   </Button>
                   <Button
                     component={Link}
@@ -150,7 +150,7 @@ const Page = () => {
         <>
           <Box>
             <Alert severity="warning" sx={{ mx: 3 }}>
-              The CIPP Defaults template is missing from the GDAP Role Templates. Create it now?
+              The Manage365 Defaults template is missing from the GDAP Role Templates. Create it now?
               <Button
                 size="small"
                 variant="outlined"
@@ -167,7 +167,7 @@ const Page = () => {
                   </SvgIcon>
                 }
               >
-                Create CIPP Defaults
+                Create Manage365 Defaults
               </Button>
             </Alert>
           </Box>

@@ -109,7 +109,7 @@ export const CippSAMDeploy = (props) => {
             {
               value: "certificate",
               label:
-                "Certificate (recommended) - no client secret; CIPP generates and auto-rotates it.",
+                "Certificate (recommended) - no client secret; Manage365 generates and auto-rotates it.",
             },
             {
               value: "secret",

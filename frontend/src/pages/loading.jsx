@@ -18,7 +18,7 @@ const Page = () => {
       <CippAuthShell
         busy
         version={version?.data?.version}
-        title="Logging into CIPP"
+        title="Logging into Manage365"
         description="Please wait while we log you in..."
       />
     </>

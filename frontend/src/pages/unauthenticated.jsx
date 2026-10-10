@@ -117,7 +117,7 @@ const Page = ({ reason = 'session' }) => {
     orgData.isSuccess || orgData.isError || swaStatus.isSuccess || swaStatus.isError
 
   const sessionProps = {
-    title: 'Sign in to CIPP',
+    title: 'Sign in to Manage365',
     // reading localStorage during render is safe here: the gate below keeps this
     // subtree off the prerender and off the first client render, so the server
     // and client can never disagree on the wording
@@ -207,7 +207,7 @@ const Page = ({ reason = 'session' }) => {
   return (
     <>
       <Head>
-        <title>{isSessionEnded ? 'Sign in - CIPP' : '401 - Access Denied'}</title>
+        <title>{isSessionEnded ? 'Sign in - Manage365' : '401 - Access Denied'}</title>
       </Head>
       {/* If an impersonated role can't load /me, this page is what renders — the exit
           affordance must exist here or the user is stuck until they clear localStorage. */}

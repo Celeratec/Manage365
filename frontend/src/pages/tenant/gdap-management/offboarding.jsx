@@ -230,7 +230,7 @@ const Page = () => {
                   <CippFormComponent
                     formControl={formControl}
                     name="RemoveQuarantineAlert"
-                    label="Remove the quarantine release request alert created by the CIPP standard."
+                    label="Remove the quarantine release request alert created by the Manage365 standard."
                     type="switch"
                   />
                 </Stack>

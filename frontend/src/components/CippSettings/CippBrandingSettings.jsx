@@ -77,19 +77,19 @@ const roleColourValues = (source) =>
 // Which of the tenant's names a report prints on its cover, in its prose and as %tenantname%.
 // "alias" is what CIPP shows for the tenant - an alias when one is set - and was the only choice.
 const TENANT_LABEL_OPTIONS = [
-  { label: "Name as shown in CIPP (alias when set)", value: "alias" },
+  { label: "Name as shown in Manage365 (alias when set)", value: "alias" },
   { label: "Microsoft 365 organisation name", value: "name" },
   { label: "Default domain", value: "domain" },
 ];
 
 const TENANT_LABEL_TOOLTIP =
-  "How reports refer to the tenant: on the cover, in the text and wherever %tenantname% is used. The name shown in CIPP is the tenant's alias when one is set; the organisation name is what Microsoft 365 holds regardless of any alias.";
+  "How reports refer to the tenant: on the cover, in the text and wherever %tenantname% is used. The name shown in Manage365 is the tenant's alias when one is set; the organisation name is what Microsoft 365 holds regardless of any alias.";
 
 const FOOTER_TOOLTIP =
-  "Text shown at the bottom of every report page. Type % for CIPP's variables, plus %reportname% and %reportdate% which reports add. Report templates can override this or switch it off individually.";
+  "Text shown at the bottom of every report page. Type % for Manage365's variables, plus %reportname% and %reportdate% which reports add. Report templates can override this or switch it off individually.";
 
 const WATERMARK_TOOLTIP =
-  "Diagonal text drawn faintly across every page of a report except the cover. Type % for CIPP's variables (e.g. %tenantname%), or a static mark such as DRAFT. Typing text is enough to show it; the toggle only exists to switch it off without losing the wording.";
+  "Diagonal text drawn faintly across every page of a report except the cover. Type % for Manage365's variables (e.g. %tenantname%), or a static mark such as DRAFT. Typing text is enough to show it; the toggle only exists to switch it off without losing the wording.";
 
 const REPORT_DEFAULTS_TOOLTIP =
   "Which preset each report reaches for when nothing else says otherwise. A report template with its own preset still wins over this, and this still wins over the default branding above.";

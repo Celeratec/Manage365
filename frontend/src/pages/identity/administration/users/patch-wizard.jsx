@@ -267,7 +267,7 @@ const UsersDisplayStep = (props) => {
         </Stack>
         {!canAddUsers && (
           <Alert severity="info">
-            Select a specific tenant in CIPP to add users from here, or go back to the Users page
+            Select a specific tenant in Manage365 to add users from here, or go back to the Users page
             with a tenant selected.
           </Alert>
         )}

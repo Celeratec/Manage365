@@ -978,7 +978,7 @@ const CippAppPermissionBuilder = ({
                           <Alert color="info" icon={<CippIcons.WarningAmberOutlined />}>
                             <b>
                               Extra permissions present on the {appDisplayName} app registration that
-                              are not part of the CIPP defaults or your additional permissions
+                              are not part of the Manage365 defaults or your additional permissions
                               (review and remove manually if not required)
                             </b>
                             {appIds.map((perm) =>

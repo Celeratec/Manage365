@@ -1,14 +1,14 @@
 {
   "id": "getting-started",
-  "title": "Getting Started with CIPP",
-  "description": "Learn the basics of navigating CIPP and managing your tenants.",
+  "title": "Getting Started with Manage365",
+  "description": "Learn the basics of navigating Manage365 and managing your tenants.",
   "category": "General",
   "pages": ["/"],
   "steps": [
     {
       "popover": {
-        "title": "Welcome to CIPP! 👋",
-        "description": "This quick tour will show you the key features of the CIPP dashboard. Let's get started!"
+        "title": "Welcome to Manage365! 👋",
+        "description": "This quick tour will show you the key features of the Manage365 dashboard. Let's get started!"
       }
     },
     {
@@ -24,7 +24,7 @@
       "element": "[data-tutorial='side-nav']",
       "popover": {
         "title": "Navigation Menu",
-        "description": "The sidebar gives you access to all CIPP modules — Identity, Endpoint, Security, Email, Teams & SharePoint, and more.",
+        "description": "The sidebar gives you access to all Manage365 modules — Identity, Endpoint, Security, Email, Teams & SharePoint, and more.",
         "side": "right",
         "align": "start"
       }
@@ -41,7 +41,7 @@
     {
       "popover": {
         "title": "You're all set! 🎉",
-        "description": "You now know the basics. Explore the sidebar to discover all the tools CIPP offers. You can replay this tour anytime from the Tutorials menu."
+        "description": "You now know the basics. Explore the sidebar to discover all the tools Manage365 offers. You can replay this tour anytime from the Tutorials menu."
       }
     }
   ]

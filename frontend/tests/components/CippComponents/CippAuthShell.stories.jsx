@@ -15,7 +15,7 @@ export default {
 
 export const SignIn = {
   args: {
-    title: 'Sign in to CIPP',
+    title: 'Sign in to Manage365',
     description: 'Your session has expired. Sign in again to continue.',
     actionText: 'Sign in with Microsoft',
     actionHref: '/.auth/login/aad?prompt=select_account',
@@ -23,7 +23,7 @@ export const SignIn = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement)
-    await expect(canvas.getByRole('heading', { name: 'Sign in to CIPP' })).toBeInTheDocument()
+    await expect(canvas.getByRole('heading', { name: 'Sign in to Manage365' })).toBeInTheDocument()
     await expect(canvas.getByRole('link', { name: 'Sign in with Microsoft' })).toBeInTheDocument()
   },
 }

@@ -78,7 +78,7 @@ describe('PrivateRoute', () => {
     renderRoute()
 
     await waitFor(() => {
-      expect(screen.getByText('Sign in to CIPP')).toBeInTheDocument()
+      expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
     })
     // no identity means nothing was denied
     expect(screen.queryByText('Access Denied')).not.toBeInTheDocument()
@@ -102,7 +102,7 @@ describe('PrivateRoute', () => {
       expect(screen.getByText(/not in the allowed range/)).toBeInTheDocument()
     })
     expect(screen.getByText('Access Denied')).toBeInTheDocument()
-    expect(screen.queryByText('Sign in to CIPP')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sign in to Manage365')).not.toBeInTheDocument()
   })
 
   it('shows the sign-in page when the session has no identity in either shape', async () => {
@@ -112,7 +112,7 @@ describe('PrivateRoute', () => {
     renderRoute()
 
     await waitFor(() => {
-      expect(screen.getByText('Sign in to CIPP')).toBeInTheDocument()
+      expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
     })
   })
 
@@ -134,7 +134,7 @@ describe('PrivateRoute', () => {
     })
     renderRoute()
 
-    expect(screen.getByText('CIPP API Unreachable')).toBeInTheDocument()
+    expect(screen.getByText('Manage365 API Unreachable')).toBeInTheDocument()
   })
 
   it('shows api offline page when /api/me succeeds with no data', () => {
@@ -142,7 +142,7 @@ describe('PrivateRoute', () => {
     authState.me = result({ data: undefined })
     renderRoute()
 
-    expect(screen.getByText('CIPP API Unreachable')).toBeInTheDocument()
+    expect(screen.getByText('Manage365 API Unreachable')).toBeInTheDocument()
   })
 
   it('shows access denied, naming the account, when only blocked roles remain', async () => {
@@ -155,7 +155,7 @@ describe('PrivateRoute', () => {
     })
     // a real identity was denied, so say which one
     expect(screen.getByText('john@contoso.com')).toBeInTheDocument()
-    expect(screen.queryByText('Sign in to CIPP')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sign in to Manage365')).not.toBeInTheDocument()
     expect(screen.queryByText('app content')).not.toBeInTheDocument()
   })
 
@@ -216,7 +216,7 @@ describe('PrivateRoute', () => {
     })
     renderRoute()
 
-    expect(screen.getByText('CIPP is being set up')).toBeInTheDocument()
+    expect(screen.getByText('Manage365 is being set up')).toBeInTheDocument()
     expect(screen.getByText('Sign out')).toBeInTheDocument()
     expect(screen.queryByText('setup gate wizard')).not.toBeInTheDocument()
     expect(screen.queryByText('app content')).not.toBeInTheDocument()
@@ -246,7 +246,7 @@ describe('PrivateRoute', () => {
     const { rerender } = renderRoute()
 
     await waitFor(() => {
-      expect(screen.getByText('Sign in to CIPP')).toBeInTheDocument()
+      expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
     })
 
     // refetch in flight must not flip back to the loading page
@@ -263,7 +263,7 @@ describe('PrivateRoute', () => {
       </Provider>
     )
 
-    expect(screen.getByText('Sign in to CIPP')).toBeInTheDocument()
+    expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
     expect(screen.queryByText('Logging into CIPP')).not.toBeInTheDocument()
   })
 })

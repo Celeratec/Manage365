@@ -96,7 +96,7 @@ export const CIPPM365OAuthButton = ({
           <Typography variant="subtitle2">Application Creation</Typography>
           <Typography component="div" variant="body2" gutterBottom>
             Click the button below to authenticate. When asked to log onto an account, please use a{' '}
-            <strong>CIPP Service Account</strong>. You will need to enter this code:{' '}
+            <strong>Manage365 Service Account</strong>. You will need to enter this code:{' '}
             <Chip size="small" label={deviceCode} />
           </Typography>
           <Typography variant="body2" gutterBottom>

@@ -549,7 +549,7 @@ const Page = () => {
   return (
     <>
       <Head>
-        <title>Diagnostics | CIPP</title>
+        <title>Diagnostics | Manage365</title>
       </Head>
       <Box sx={{ flexGrow: 1, pb: { xs: 10, md: 4 } }}>
         <Container maxWidth="xl">

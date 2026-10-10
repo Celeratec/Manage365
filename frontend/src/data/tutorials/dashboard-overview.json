@@ -1,14 +1,14 @@
 {
   "id": "dashboard-overview",
   "title": "Dashboard Overview",
-  "description": "A guided tour of the CIPP Dashboard — learn what each card, chart, and control does.",
+  "description": "A guided tour of the Manage365 Dashboard — learn what each card, chart, and control does.",
   "category": "General",
   "pages": ["/dashboardv2"],
   "steps": [
     {
       "popover": {
         "title": "Welcome to the Dashboard 👋",
-        "description": "This tour will walk you through every section of the CIPP Dashboard so you know exactly where to find the information you need."
+        "description": "This tour will walk you through every section of the Manage365 Dashboard so you know exactly where to find the information you need."
       }
     },
     {
@@ -104,7 +104,7 @@
     {
       "popover": {
         "title": "You're all set! 🎉",
-        "description": "That covers the Dashboard. Explore the other tabs at the top for more views, or check the sidebar for all CIPP modules. You can replay this tour anytime from the Tutorials menu."
+        "description": "That covers the Dashboard. Explore the other tabs at the top for more views, or check the sidebar for all Manage365 modules. You can replay this tour anytime from the Tutorials menu."
       }
     }
   ]

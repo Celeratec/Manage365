@@ -230,7 +230,7 @@ const ImageOptimizerPage = () => {
     }
     if (status === "Failed") {
       setIsRunning(false);
-      setRunError("The image optimizer job failed. Check the CIPP logs for details and try again.");
+      setRunError("The image optimizer job failed. Check the Manage365 logs for details and try again.");
     }
   }, [queuePoll.data, isRunning, fetchResults]);
 

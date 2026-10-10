@@ -933,7 +933,7 @@ const Page = () => {
   return (
     <>
       <Head>
-        <title>Worker Health | CIPP</title>
+        <title>Worker Health | Manage365</title>
       </Head>
       <Box sx={{ flexGrow: 1, pb: { xs: 10, md: 4 } }}>
         <Container maxWidth="xl">

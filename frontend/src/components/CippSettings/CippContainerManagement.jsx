@@ -567,7 +567,7 @@ export const CippContainerManagement = () => {
         <DialogTitle>Check for updates?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            CIPP will ask the container registry whether a newer image has been
+            Manage365 will ask the container registry whether a newer image has been
             published on the <strong>{channelInfo.label}</strong> channel.
           </DialogContentText>
           {/* A manual check is not read-only when auto-restart is on: the backend calls
@@ -614,7 +614,7 @@ export const CippContainerManagement = () => {
         <DialogTitle>Restart container?</DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ mb: 2 }}>
-            CIPP will be briefly unavailable while the container restarts. The
+            Manage365 will be briefly unavailable while the container restarts. The
             newest image on the <strong>{channelInfo.label}</strong> channel is
             pulled as it comes back up — a restart always updates to the latest
             image on the channel, whatever the reason for it.

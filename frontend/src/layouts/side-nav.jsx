@@ -5,7 +5,6 @@ import { Box, Divider, Drawer, Stack } from '@mui/material'
 import { SideNavItem } from './side-nav-item'
 import { SideNavBookmarks } from './side-nav-bookmarks'
 import { ApiGetCall } from '../api/ApiCall.jsx'
-import { CippSponsor } from '../components/CippComponents/CippSponsor'
 import { useSettings } from '../hooks/use-settings'
 
 import {
@@ -330,13 +329,6 @@ export const SideNav = memo((props) => {
                 onMenuToggle: handleMenuToggle,
               })}
             </Box>
-            {profile?.clientPrincipal && (
-              <Box
-                sx={{ position: 'sticky', bottom: 0, backgroundColor: 'background.default', pt: 1 }}
-              >
-                <CippSponsor />
-              </Box>
-            )}
           </Box>
         </Drawer>
       )}

@@ -127,7 +127,7 @@ export function useCippReportDB(config) {
 
   // Tooltip text
   const tooltipText = !allowToggle
-    ? 'This page always uses cached data from the CIPP reporting database.'
+    ? 'This page always uses cached data from the Manage365 reporting database.'
     : isAllTenants
       ? 'AllTenants always uses cached data'
       : useReportDB

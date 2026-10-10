@@ -287,7 +287,7 @@ export const CippBecIPReviewDrawer = ({
                   <CippFormComponent
                     type="switch"
                     name="SaveToList"
-                    label="Remember for this tenant (CIPP IP list)"
+                    label="Remember for this tenant (Manage365 IP list)"
                     formControl={formControl}
                   />
                 )}

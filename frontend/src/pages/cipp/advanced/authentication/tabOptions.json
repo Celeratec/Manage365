@@ -1,11 +1,11 @@
 [
   {
-    "label": "CIPP Roles",
+    "label": "Manage365 Roles",
     "path": "/cipp/advanced/authentication/cipp-roles",
     "icon": "AdminPanelSettings"
   },
   {
-    "label": "CIPP Users",
+    "label": "Manage365 Users",
     "path": "/cipp/advanced/authentication/cipp-users",
     "icon": "Group"
   },

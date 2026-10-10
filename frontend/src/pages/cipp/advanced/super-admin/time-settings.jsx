@@ -54,9 +54,9 @@ const Page = () => {
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid size={12}>
           <Alert severity="info">
-            Configure the timezone for CIPP. This determines when CIPP&apos;s
+            Configure the timezone for Manage365. This determines when Manage365&apos;s
             built-in background jobs run and which day log entries are grouped
-            under. If you have not chosen one, CIPP defaults to the timezone of
+            under. If you have not chosen one, Manage365 defaults to the timezone of
             the Azure region it is deployed in, falling back to UTC. Scheduled
             Tasks you create yourself are not affected.
           </Alert>

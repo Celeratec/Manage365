@@ -636,7 +636,7 @@ export const useCippSiteActions = () => {
           StorageAllocatedGB: "storageAllocatedInGigabytes",
         },
         confirmText:
-          "Send a notification email to the owner of '[displayName]' ([ownerPrincipalName]) from the CIPP notification mailbox.",
+          "Send a notification email to the owner of '[displayName]' ([ownerPrincipalName]) from the Manage365 notification mailbox.",
         fields: [
           {
             type: "radio",

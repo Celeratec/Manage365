@@ -121,7 +121,7 @@ describe('UnauthenticatedPage, session', () => {
     renderPage('session')
 
     await waitFor(() => {
-      expect(screen.getByText('Sign in to CIPP')).toBeInTheDocument()
+      expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
     })
     expect(screen.queryByText('Access Denied')).not.toBeInTheDocument()
     // the /api/me denial message belongs to the permissions screen, not this one

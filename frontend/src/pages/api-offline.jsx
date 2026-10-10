@@ -69,14 +69,14 @@ const ApiOfflinePage = () => {
             <CippIcons.ErrorOutlineOutlined />
           </SvgIcon>
         }
-        title="CIPP API Unreachable"
+        title="Manage365 API Unreachable"
         description={
           <>
             <Typography variant="body1">
-              The CIPP API appears to be offline or out of date.
+              The Manage365 API appears to be offline or out of date.
             </Typography>
             <Typography variant="body1" sx={{ mt: 2 }}>
-              If you are self-hosting CIPP, please ensure your Function App is running and up to
+              If you are self-hosting Manage365, please ensure your Function App is running and up to
               date.
             </Typography>
           </>

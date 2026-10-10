@@ -19,7 +19,7 @@ describe('ApiOfflinePage', () => {
   it('renders the offline state and the connection test action', () => {
     renderWithTheme(<ApiOfflinePage />)
 
-    expect(screen.getByText('CIPP API Unreachable')).toBeInTheDocument()
+    expect(screen.getByText('Manage365 API Unreachable')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Test API Connection' })).toBeInTheDocument()
     // no result yet, so nothing is in flight
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()

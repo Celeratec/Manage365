@@ -77,17 +77,17 @@ export const ForcedSsoMigrationDialog = () => {
         {!submitted ? (
           <>
             <Typography sx={{ mb: 2 }}>
-              Your CIPP instance requires a dedicated <strong> CIPP-SSO </strong> app registration in
+              Your Manage365 instance requires a dedicated <strong> CIPP-SSO </strong> app registration in
               your tenant for authentication. Sign-in used to be handled by the hosting platform&apos;s
               built-in Entra ID provider, which is why you are seeing this after the upgrade — your
               instance now needs its own app registration to sign in against. This also gives you
               full control over Conditional Access policies, MFA requirements, and session management
-              for your CIPP users.
+              for your Manage365 users.
             </Typography>
             <Alert severity="info" sx={{ mb: 2 }}>
               Clicking the button below is all that is needed. You do <strong>not</strong> need Entra
               ID Global Administrator, and there is no enterprise app for anyone else to approve —
-              CIPP creates the app itself using permissions your tenant consented to when CIPP was
+              Manage365 creates the app itself using permissions your tenant consented to when Manage365 was
               installed.
             </Alert>
 
@@ -115,7 +115,7 @@ export const ForcedSsoMigrationDialog = () => {
                     knows which account signed in.
                   </li>
                   <li>
-                    <strong>email</strong> — reads the UPN, which CIPP matches against the CIPP Users
+                    <strong>email</strong> — reads the UPN, which Manage365 matches against the Manage365 Users
                     list to decide their roles.
                   </li>
                   <li>
@@ -156,7 +156,7 @@ export const ForcedSsoMigrationDialog = () => {
                 color: "text.secondary",
                 display: 'block'
               }}>
-              Leave this off unless the people who sign in to CIPP have accounts in a tenant other
+              Leave this off unless the people who sign in to Manage365 have accounts in a tenant other
               than your partner tenant.
             </Typography>
           </>

@@ -97,7 +97,7 @@ export const usePushSubscription = ({ publicKey, onSubscribed }) => {
     blockedReason = 'This browser does not support push notifications.'
   else if (isIos() && !isStandalone())
     blockedReason =
-      'On iOS, add CIPP to your Home Screen and open it from there to enable notifications.'
+      'On iOS, add Manage365 to your Home Screen and open it from there to enable notifications.'
   else if (getImpersonatedRole())
     blockedReason =
       'Push devices cannot be registered while impersonating a role.'

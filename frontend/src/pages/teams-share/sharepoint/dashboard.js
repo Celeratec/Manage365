@@ -886,7 +886,7 @@ const Page = () => {
             StorageUsedGB: actionSite?.storageUsedInGigabytes,
             StorageAllocatedGB: actionSite?.storageAllocatedInGigabytes,
           },
-          confirmText: `Send a storage-critical notification email to ${actionSite?.ownerPrincipalName ?? "the site owner"} from the CIPP notification mailbox?`,
+          confirmText: `Send a storage-critical notification email to ${actionSite?.ownerPrincipalName ?? "the site owner"} from the Manage365 notification mailbox?`,
         }}
         row={actionSite ?? {}}
       />

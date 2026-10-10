@@ -150,7 +150,7 @@ const clickNext = async (canvas) => {
 
 const atOptionsPage = async (canvas) => {
   await waitFor(() => {
-    expect(canvas.getByText('Welcome to CIPP')).toBeInTheDocument()
+    expect(canvas.getByText('Welcome to Manage365')).toBeInTheDocument()
     expect(canvas.getByText('First Setup')).toBeInTheDocument()
   })
 }
@@ -440,10 +440,10 @@ export const NonAdminHold = {
     const canvas = within(canvasElement)
     await step('non-admins are held out with sign-out as the only action', async () => {
       await waitFor(() => {
-        expect(canvas.getByText('CIPP is being set up')).toBeInTheDocument()
+        expect(canvas.getByText('Manage365 is being set up')).toBeInTheDocument()
       })
       expect(canvas.getByText('Sign out')).toBeInTheDocument()
-      expect(canvas.queryByText('Welcome to CIPP')).not.toBeInTheDocument()
+      expect(canvas.queryByText('Welcome to Manage365')).not.toBeInTheDocument()
       expect(canvas.queryByText('app content')).not.toBeInTheDocument()
     })
   },
@@ -495,7 +495,7 @@ export const WizardCompletionFlow = {
         },
         { timeout: 5000 },
       )
-      expect(canvas.queryByText('Welcome to CIPP')).not.toBeInTheDocument()
+      expect(canvas.queryByText('Welcome to Manage365')).not.toBeInTheDocument()
     })
   },
 }

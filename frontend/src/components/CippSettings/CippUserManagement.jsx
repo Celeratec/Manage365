@@ -115,7 +115,7 @@ export const CippUserManagement = () => {
           <CippIcons.TrashIcon />
         </SvgIcon>
       ),
-      confirmText: "Are you sure you want to remove this user's access to CIPP?",
+      confirmText: "Are you sure you want to remove this user's access to Manage365?",
       url: "/api/ExecCIPPUsers",
       type: "POST",
       data: {
@@ -284,7 +284,7 @@ export const CippUserManagement = () => {
             ? `Bulk Edit Roles — ${bulkEditUsers.length} users`
             : editingUser
               ? `Edit Roles — ${editingUser.UPN}`
-              : "Add CIPP User"}
+              : "Add Manage365 User"}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>

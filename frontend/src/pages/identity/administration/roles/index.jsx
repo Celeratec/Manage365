@@ -109,7 +109,7 @@ const Page = () => {
         },
       ],
       confirmText:
-        "Create a PIM role settings template from the current PIM settings of [RoleDisplayName]? Anything below CIPP's secure floor is raised to it, and every raised value is listed in the results.",
+        "Create a PIM role settings template from the current PIM settings of [RoleDisplayName]? Anything below Manage365's secure floor is raised to it, and every raised value is listed in the results.",
       relatedQueryKeys: ['ListPIMRoleSettingsTemplates*'],
       hideBulk: true,
       condition: (row) =>

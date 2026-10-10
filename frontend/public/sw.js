@@ -15,7 +15,7 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'CIPP', {
+    self.registration.showNotification(data.title || 'Manage365', {
       body: data.body || '',
       icon: '/android-chrome-192x192.png',
       badge: '/android-chrome-192x192.png',

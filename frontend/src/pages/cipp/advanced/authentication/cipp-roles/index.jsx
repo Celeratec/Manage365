@@ -8,12 +8,12 @@ import { CardContent, Stack } from "@mui/material";
 
 const Page = () => {
   return (
-    <CippPageCard hideBackButton={true} title={"CIPP Roles"}>
+    <CippPageCard hideBackButton={true} title={"Manage365 Roles"}>
       <CardContent>
         <Stack spacing={2}>
           <CippExpandableAlert severity="info">
             Custom roles can be used to restrict permissions for users with the 'editor' or
-            'readonly' roles in CIPP. They can be limited to a subset of tenants and API
+            'readonly' roles in Manage365. They can be limited to a subset of tenants and API
             permissions. Built-in and custom roles can be assigned to Entra security groups for
             granular access control.
           </CippExpandableAlert>
