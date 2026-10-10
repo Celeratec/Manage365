@@ -27,7 +27,7 @@
 
 .PARAMETER ContainerImage
     Container image for Manage365. Defaults to the Celeratec image
-    (ghcr.io/celeratec/manage365:v6.1.0), not the upstream CyberDrain image.
+    (ghcr.io/celeratec/manage365:v6.1.1), not the upstream CyberDrain image.
 
 .PARAMETER TestOnly
     Validate the ARM template and detect resources without making any changes.
@@ -59,7 +59,7 @@ param (
 
     [string]$CippUrl = '',
 
-    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.0',
+    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.1',
 
     [switch]$TestOnly,
 
@@ -393,8 +393,19 @@ if (-not $SsoReady) {
     if ($ssoConfig -and $ssoConfig.LastError) {
         $ssoReason += " Last error: $($ssoConfig.LastError)"
     }
+    # A missing table means this install never had the SSO page (Manage365 5.33).
+    # The container opens sign-in setup itself when SAM credentials exist and no
+    # SSO app is stored. Do not invent a complete row. A partial or failed status
+    # still stops a live run.
+    $MissingSsoTable = $SsoStatus -eq '(not found)'
     if ($TestOnly.IsPresent) {
-        Write-Warning "$ssoReason A live migration run would stop here."
+        if ($MissingSsoTable) {
+            Write-Warning "$ssoReason A live run will continue. The new container opens sign-in setup when no SSO app is stored."
+        } else {
+            Write-Warning "$ssoReason A live migration run would stop here."
+        }
+    } elseif ($MissingSsoTable) {
+        Write-Warning "$ssoReason Continuing. The new container opens sign-in setup when no SSO app is stored. SSO is not being marked complete."
     } else {
         Write-Error $ssoReason
         exit 1
