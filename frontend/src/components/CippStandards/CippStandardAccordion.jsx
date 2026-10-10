@@ -16,6 +16,10 @@ import {
   InputAdornment,
   ButtonGroup,
   Button,
+  Menu,
+  MenuItem,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -106,6 +110,8 @@ const CippStandardAccordion = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [savedValues, setSavedValues] = useState({});
   const [originalValues, setOriginalValues] = useState({});
+  const [actionsMenuAnchor, setActionsMenuAnchor] = useState(null);
+  const [bulkActions, setBulkActions] = useState([]);
 
   const watchedValues = useWatch({
     control: formControl.control,
@@ -359,9 +365,46 @@ const CippStandardAccordion = ({
   };
 
   // Cancel changes for a standard
+  const toggleBulkAction = (action) => {
+    setBulkActions((prev) =>
+      prev.some((item) => item.value === action.value)
+        ? prev.filter((item) => item.value !== action.value)
+        : [...prev, action],
+    );
+  };
+
+  // Apply the picked actions to every selected standard, keeping only the actions that
+  // standard allows. Deprecated and unknown standards are left alone, and a standard
+  // with no overlap keeps its current action instead of being written empty.
+  const applyBulkActions = () => {
+    Object.keys(selectedStandards).forEach((standardName) => {
+      const baseStandardName = standardName.split("[")[0];
+      const standard = providedStandards.find((item) => item.name === baseStandardName);
+      if (!standard || standard._unknown || standard.deprecated) return;
+
+      const available = getAvailableActions(standard.disabledFeatures);
+      const picked = bulkActions.filter((action) =>
+        available.some((item) => item.value === action.value),
+      );
+      if (picked.length === 0) return;
+
+      formControl.setValue(`${standardName}.action`, picked);
+      setSavedValues((prev) => {
+        const existing = prev[standardName];
+        if (!existing) return prev;
+        return { ...prev, [standardName]: { ...existing, action: picked } };
+      });
+    });
+
+    if (expanded) {
+      handleAccordionToggle(null);
+    }
+    setActionsMenuAnchor(null);
+  };
+
   const handleCancel = (standardName) => {
-    // Get the last saved values
-    const savedValue = get(savedValues, standardName);
+    // Saved values are keyed by the full standard path, which contains dots.
+    const savedValue = savedValues[standardName] ?? get(savedValues, standardName);
     if (!savedValue) return;
 
     // Set the entire standard's value at once to ensure proper handling of nested objects and arrays
@@ -550,6 +593,31 @@ const CippStandardAccordion = ({
                 }}
               />
             </Stack>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={(event) => setActionsMenuAnchor(event.currentTarget)}
+            >
+              Set All Actions
+            </Button>
+            <Menu
+              anchorEl={actionsMenuAnchor}
+              open={Boolean(actionsMenuAnchor)}
+              onClose={() => setActionsMenuAnchor(null)}
+            >
+              {getAvailableActions().map((action) => (
+                <MenuItem key={action.value} onClick={() => toggleBulkAction(action)}>
+                  <Checkbox
+                    size="small"
+                    checked={bulkActions.some((item) => item.value === action.value)}
+                    tabIndex={-1}
+                    disableRipple
+                  />
+                  <ListItemText>{action.label}</ListItemText>
+                </MenuItem>
+              ))}
+              <MenuItem onClick={applyBulkActions}>Apply to all standards</MenuItem>
+            </Menu>
             <ButtonGroup variant="outlined" color="primary" size="small">
               <Button disabled={true} color="primary">
                 <SvgIcon fontSize="small">

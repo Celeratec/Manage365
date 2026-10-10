@@ -172,7 +172,7 @@ export const CippTranslations = {
   ExecutedRequests: 'Executed',
   ServedRequests: 'Served (incl. cached)',
   EgressToday: 'Egress Today',
-  accountEnabled: "Enabled",
+  accountEnabled: "Account Enabled",
   onPremisesLastPasswordSyncDateTime: "On Premises Last Password Sync Date Time",
   ninjaDeviceId: "NinjaOne Device ID",
   ninjaSystemName: "NinjaOne System Name",

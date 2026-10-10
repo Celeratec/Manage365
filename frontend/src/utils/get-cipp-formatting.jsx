@@ -116,7 +116,7 @@ export const getCippFormatting = (
       <Chip
         icon={
           <SvgIcon sx={{ fontSize: '1rem !important' }}>
-            {isEnabled ? <CheckCircleIcon /> : <XCircleIcon />}
+            {isEnabled ? <CippIcons.CheckCircleIcon /> : <CippIcons.XCircleIcon />}
           </SvgIcon>
         }
         label={isEnabled ? 'Yes' : 'No'}

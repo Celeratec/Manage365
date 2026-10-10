@@ -107,7 +107,8 @@ export const CippWizard = (props) => {
 
   return (
     <Card sx={{ overflow: 'visible' }}>
-      {/* Progress bar */}
+      {/* Phone progress. Desktop keeps the stepper; this bar is the mobile replacement. */}
+      {smDown && (
       <LinearProgress 
         variant="determinate" 
         value={progressPercentage} 
@@ -119,7 +120,8 @@ export const CippWizard = (props) => {
           },
         }} 
       />
-      
+      )}
+
       {orientation === "vertical" ? (
         <CardContent sx={{ p: smDown ? 2 : 3 }}>
           <Grid container spacing={smDown ? 2 : 3}>

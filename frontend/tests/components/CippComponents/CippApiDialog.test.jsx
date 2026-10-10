@@ -86,7 +86,7 @@ describe('CippApiDialog', () => {
       expect(apiState.mutate).toHaveBeenCalledTimes(1)
     })
     // ID resolves through the row, !Disable is a literal, tenantFilter from settings
-    expect(apiState.mutate).toHaveBeenCalledWith({
+    expect(apiState.mutate.mock.calls[0][0]).toEqual({
       url: '/api/ExecDisableUser',
       bulkRequest: false,
       data: {
@@ -140,7 +140,7 @@ describe('CippApiDialog', () => {
     await waitFor(() => {
       expect(apiState.mutate).toHaveBeenCalledTimes(1)
     })
-    expect(apiState.mutate).toHaveBeenCalledWith({
+    expect(apiState.mutate.mock.calls[0][0]).toEqual({
       url: '/api/ExecWhatever',
       bulkRequest: false,
       data: {

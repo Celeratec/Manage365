@@ -3103,7 +3103,7 @@ export const CippDataTable = (props) => {
               }
               isInDialog={isInDialog}
               showBulkExportAction={showBulkExportAction}
-              viewMode={viewMode}
+              viewMode={effectiveViewMode}
               onViewModeChange={handleViewModeChange}
               cardConfigAvailable={!!effectiveCardConfig}
               dataFreshnessField={dataFreshnessField}

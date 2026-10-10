@@ -1814,6 +1814,7 @@ export const nativeMenuItems = [
           {
             title: "Managed Devices",
             path: "/endpoint/MEM/devices",
+            docsPath: "endpoint/mem/devices",
             permissions: [
               "Endpoint.Device.*",
             ],
@@ -1821,6 +1822,7 @@ export const nativeMenuItems = [
           {
             title: "BitLocker Key Search",
             path: "/endpoint/MEM/bitlocker-search",
+            docsPath: "endpoint/mem/bitlocker-search",
             permissions: [
               "Endpoint.Device.*",
             ],
@@ -1834,6 +1836,7 @@ export const nativeMenuItems = [
               {
                 title: "Configuration Policies",
                 path: "/endpoint/MEM/list-policies",
+                docsPath: "endpoint/mem/list-policies",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1841,6 +1844,7 @@ export const nativeMenuItems = [
               {
                 title: "Compliance Policies",
                 path: "/endpoint/MEM/list-compliance-policies",
+                docsPath: "endpoint/mem/list-compliance-policies",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1848,6 +1852,7 @@ export const nativeMenuItems = [
               {
                 title: "App Policies",
                 path: "/endpoint/MEM/list-appprotection-policies",
+                docsPath: "endpoint/mem/list-appprotection-policies",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1855,6 +1860,7 @@ export const nativeMenuItems = [
               {
                 title: "Policy Templates",
                 path: "/endpoint/MEM/list-templates",
+                docsPath: "endpoint/mem/list-templates",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1873,6 +1879,7 @@ export const nativeMenuItems = [
           {
             title: "Reusable Settings",
             path: "/endpoint/MEM/reusable-settings",
+            docsPath: "endpoint/mem/reusable-settings",
             permissions: [
               "Endpoint.MEM.*",
             ],
@@ -1880,6 +1887,7 @@ export const nativeMenuItems = [
           {
             title: "Reusable Settings Templates",
             path: "/endpoint/MEM/reusable-settings-templates",
+            docsPath: "endpoint/mem/reusable-settings-templates",
             permissions: [
               "Endpoint.MEM.*",
             ],
@@ -1893,6 +1901,7 @@ export const nativeMenuItems = [
               {
                 title: "Assignment Filters",
                 path: "/endpoint/MEM/assignment-filters",
+                docsPath: "endpoint/mem/assignment-filters",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1900,6 +1909,7 @@ export const nativeMenuItems = [
               {
                 title: "Filter Templates",
                 path: "/endpoint/MEM/assignment-filter-templates",
+                docsPath: "endpoint/mem/assignment-filter-templates",
                 permissions: [
                   "Endpoint.MEM.*",
                 ],
@@ -1909,6 +1919,7 @@ export const nativeMenuItems = [
           {
             title: "Scripts",
             path: "/endpoint/MEM/list-scripts",
+            docsPath: "endpoint/mem/list-scripts",
             permissions: [
               "Endpoint.MEM.*",
             ],
@@ -1916,6 +1927,7 @@ export const nativeMenuItems = [
           {
             title: "MAA Requests",
             path: "/endpoint/MEM/approval-requests",
+            docsPath: "endpoint/mem/approval-requests",
             permissions: [
               "Endpoint.MEM.*",
             ],

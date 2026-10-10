@@ -45,14 +45,27 @@ const NO_DOCS_YET = new Set([
 // docs location.
 const resolveDocsTarget = (item) => item.docsPath ?? item.path.slice(1)
 
-const docsTargetExists = (target) => {
-  const base = path.join(DOCS_ROOT, target)
-  return (
-    fs.existsSync(`${base}.md`) ||
-    fs.existsSync(path.join(base, 'README.md')) ||
-    (fs.existsSync(base) && fs.statSync(base).isDirectory())
-  )
+// readdir + exact name compare, so a case-insensitive disk cannot hide a mismatch
+// that fails the Ubuntu docs checkout in CI.
+const existsExact = (relativePath) => {
+  let current = DOCS_ROOT
+  for (const part of relativePath.split('/').filter(Boolean)) {
+    let entries
+    try {
+      entries = fs.readdirSync(current)
+    } catch {
+      return false
+    }
+    if (!entries.includes(part)) return false
+    current = path.join(current, part)
+  }
+  return true
 }
+
+const docsTargetExists = (target) =>
+  existsExact(`${target}.md`) ||
+  existsExact(path.join(target, 'README.md')) ||
+  existsExact(target)
 
 const walkNavPaths = (items = [], out = []) => {
   items.forEach((item) => {

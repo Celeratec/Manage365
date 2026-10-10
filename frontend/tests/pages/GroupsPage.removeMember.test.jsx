@@ -126,7 +126,7 @@ describe('Groups page - Remove Member action', () => {
     await waitFor(() => {
       expect(post.mutate).toHaveBeenCalledTimes(1)
     })
-    expect(post.mutate).toHaveBeenCalledWith({
+    expect(post.mutate.mock.calls[0][0]).toEqual({
       url: '/api/ExecGroupMembers',
       bulkRequest: false,
       data: {

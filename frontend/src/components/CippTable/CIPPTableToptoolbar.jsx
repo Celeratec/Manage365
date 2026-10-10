@@ -213,6 +213,21 @@ export const CIPPTableToptoolbar = React.memo(
       showBulkExportAction && exportEnabled && selectedRows.length > 0
     const customBulkActions = getBulkActions(actions, selectedRows)
     const showBulkActionsButton = hasSelection && customBulkActions.length > 0
+    const groupedBulkActions = sortCategoryEntries(
+      Object.entries(
+        customBulkActions.reduce((acc, action) => {
+          const category =
+            typeof action.category === 'string' && action.category.trim().length > 0
+              ? action.category.trim()
+              : 'Other'
+          if (!acc[category]) {
+            acc[category] = []
+          }
+          acc[category].push(action)
+          return acc
+        }, {})
+      )
+    )
 
     const handleExportSelectedToCsv = () => {
       if (!selectedRows.length) {
@@ -237,6 +252,17 @@ export const CIPPTableToptoolbar = React.memo(
         columnVisibility,
         brandingSettings,
       })
+    }
+
+    // Parent owns the cards/table flip. Prefer its toggle; fall back to the mode setter.
+    const handleViewToggle = () => {
+      if (typeof onViewToggle === 'function') {
+        onViewToggle()
+        return
+      }
+      if (typeof onViewModeChange === 'function') {
+        onViewModeChange(viewMode === 'cards' ? 'table' : 'cards')
+      }
     }
 
     // Shared refresh dispatch — desktop refresh button and the mobile filter sheet.
@@ -391,6 +417,12 @@ export const CIPPTableToptoolbar = React.memo(
         const leftContainerWidth = leftContainerRef.current.offsetWidth
         const leftContainerScrollWidth = leftContainerRef.current.scrollWidth
         const actionsWidth = actionsContainerRef.current.scrollWidth
+        // jsdom and the first paint report 0. Collapsing on that hides Columns
+        // before the toolbar has a real width.
+        if (!leftContainerWidth) {
+          setUseCompactMode(false)
+          return
+        }
         const isOverflowing = leftContainerScrollWidth > leftContainerWidth
         const shouldBeCompact =
           isOverflowing || actionsWidth > leftContainerWidth * 0.6 // Actions taking > 60% of left container
