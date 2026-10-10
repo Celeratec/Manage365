@@ -236,7 +236,7 @@
     "addedDate": "2024-03-19",
     "powershellEquivalent": "New-MailContact",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -279,7 +279,7 @@
     "addedDate": "2025-05-31",
     "powershellEquivalent": "New-MailContact",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -312,7 +312,7 @@
     "powershellEquivalent": "Enable-OrganizationCustomization",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -410,7 +410,7 @@
     },
     "powershellEquivalent": "Portal only",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "AAD_PREMIUM",
@@ -534,7 +534,7 @@
     "impactColour": "info",
     "addedDate": "2025-06-06",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -551,7 +551,7 @@
     "addedDate": "2021-11-16",
     "powershellEquivalent": "Update-MgBetaAdminReportSetting -BodyParameter @{displayConcealedNames = $true}",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -585,7 +585,7 @@
     "addedDate": "2022-05-04",
     "powershellEquivalent": "Set-AzureADMSAuthorizationPolicy -GuestUserRoleId '2af84b1e-32c8-42b7-82bc-daa82404023b'",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -611,7 +611,7 @@
     "powershellEquivalent": "Set-TransportConfig -SmtpClientAuthenticationDisabled $true",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -1319,7 +1319,7 @@
     "addedDate": "2026-05-28",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicyAuthenticationMethodConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1360,7 +1360,7 @@
     "addedDate": "2026-04-21",
     "powershellEquivalent": "Update-MgBetaPolicyAuthorizationPolicy",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1380,7 +1380,7 @@
     "addedDate": "2025-07-07",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicy",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1388,7 +1388,7 @@
     "cat": "Entra (AAD) Standards",
     "tag": [],
     "helpText": "Deploys selected applications to the tenant. Use a comma separated list of application IDs to deploy multiple applications. Permissions will be copied from the source application.",
-    "docsDescription": "Uses the CIPP functionality that deploys applications across an entire tenant base as a standard.",
+    "docsDescription": "Uses the Manage365 functionality that deploys applications across an entire tenant base as a standard.",
     "executiveText": "Automatically deploys approved business applications across all company locations and users, ensuring consistent access to essential tools and maintaining standardized software configurations. This streamlines application management and reduces IT deployment overhead.",
     "addedComponent": [
       {
@@ -1474,7 +1474,7 @@
     "addedDate": "2023-04-25",
     "powershellEquivalent": "Portal or Graph API",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1615,7 +1615,7 @@
     "addedDate": "2022-12-08",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicyAuthenticationMethodConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1686,7 +1686,7 @@
     "powershellEquivalent": "Graph API",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1791,7 +1791,7 @@
     "addedDate": "2022-03-15",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicyAuthenticationMethodConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1816,7 +1816,7 @@
     "powershellEquivalent": "Update-MgDomain",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -1955,7 +1955,7 @@
     "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -2194,7 +2194,7 @@
     "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -2355,7 +2355,7 @@
     "powershellEquivalent": "Graph API",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "AAD_PREMIUM",
@@ -2393,7 +2393,7 @@
     "addedDate": "2026-07-22",
     "powershellEquivalent": "Get-MgUser -Property SignInActivity & Update-MgUser -AccountEnabled $false",
     "recommendedBy": [
-      "CIPP",
+      "Manage365",
       "CMMC"
     ],
     "requiredCapabilities": [
@@ -2442,7 +2442,7 @@
     "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -2634,7 +2634,7 @@
     "addedDate": "2023-12-18",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicyAuthenticationMethodConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -2666,7 +2666,7 @@
     "addedDate": "2023-12-18",
     "powershellEquivalent": "Update-MgBetaPolicyAuthenticationMethodPolicyAuthenticationMethodConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -2717,7 +2717,7 @@
     "addedDate": "2026-06-03",
     "powershellEquivalent": "Invoke-MgGraphRequest https://graph.microsoft.com/v1.0/policies/homeRealmDiscoveryPolicies/",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -3053,7 +3053,7 @@
     "addedDate": "2024-04-26",
     "powershellEquivalent": "Set-RemoteDomain -Identity 'Default' -TNEFEnabled $false",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3417,7 +3417,7 @@
     "powershellEquivalent": "Set-ExternalInOutlook –Enabled $true or $false",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3455,7 +3455,7 @@
     "powershellEquivalent": "Set-OrganizationConfig",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3508,7 +3508,7 @@
     "name": "standards.DisableViva",
     "cat": "Exchange Standards",
     "tag": [],
-    "helpText": "Disables the daily viva reports for all users. This standard requires the CIPP-SAM application to have the Company Administrator (Global Admin) role in the tenant. Enable this using CIPP > Advanced > Super Admin > SAM App Roles. Activate the roles with a CPV refresh.",
+    "helpText": "Disables the daily viva reports for all users. This standard requires the CIPP-SAM application to have the Company Administrator (Global Admin) role in the tenant. Enable this using Manage365 > Advanced > Super Admin > SAM App Roles. Activate the roles with a CPV refresh.",
     "docsDescription": "",
     "executiveText": "Disables daily Microsoft Viva Insights reports that are automatically sent to employees, reducing email volume and allowing organizations to control when and how productivity insights are shared. This can help prevent information overload while maintaining the ability to access insights when needed.",
     "addedComponent": [],
@@ -3540,7 +3540,7 @@
     "powershellEquivalent": "Rotate-DkimSigningConfig",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3582,7 +3582,7 @@
     "powershellEquivalent": "Set-Mailbox -Identity user@domain.com -IsExchangeCloudManaged $true or $false",
     "recommendedBy": [
       "Microsoft",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3615,7 +3615,7 @@
     "powershellEquivalent": "New-DkimSigningConfig and Set-DkimSigningConfig",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3700,7 +3700,7 @@
     "powershellEquivalent": "Set-OrganizationConfig -AuditDisabled $false",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -3714,7 +3714,7 @@
     "name": "standards.AutoArchive",
     "cat": "Exchange Standards",
     "tag": [],
-    "helpText": "Configures the auto-archiving threshold percentage for the tenant. When a mailbox exceeds this threshold, the oldest items are automatically moved to the archive mailbox. Archive must be enabled manually or via the CIPP standard 'Enable Online Archive for all users'. More information can be found in [Microsoft's documentation.](https://learn.microsoft.com/en-us/exchange/security-and-compliance/messaging-records-management/auto-archiving)",
+    "helpText": "Configures the auto-archiving threshold percentage for the tenant. When a mailbox exceeds this threshold, the oldest items are automatically moved to the archive mailbox. Archive must be enabled manually or via the Manage365 standard 'Enable Online Archive for all users'. More information can be found in [Microsoft's documentation.](https://learn.microsoft.com/en-us/exchange/security-and-compliance/messaging-records-management/auto-archiving)",
     "docsDescription": "Configures the auto-archiving threshold at the organization level. Auto-archiving automatically moves the oldest items from a user's primary mailbox to their archive mailbox when mailbox usage exceeds the configured threshold percentage. This prevents mail flow disruptions caused by full mailboxes. Valid range is 80-100, where 100 disables auto-archiving for the tenant. More information can be found in [Microsoft's documentation.](https://learn.microsoft.com/en-us/exchange/security-and-compliance/messaging-records-management/auto-archiving)",
     "executiveText": "Configures automatic archiving of mailbox items when storage approaches capacity, preventing email delivery failures due to full mailboxes. This proactive storage management ensures business continuity and reduces helpdesk tickets related to mailbox quota issues.",
     "addedComponent": [
@@ -4012,7 +4012,7 @@
     "addedDate": "2025-05-13",
     "powershellEquivalent": "Set-HostedOutboundSpamFilterPolicy",
     "recommendedBy": [
-      "CIPP",
+      "Manage365",
       "CIS"
     ],
     "requiredCapabilities": [
@@ -4346,7 +4346,7 @@
     "addedDate": "2023-10-26",
     "powershellEquivalent": "Set-MailboxJunkEmailConfiguration",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -4416,7 +4416,7 @@
     "addedDate": "2022-05-25",
     "powershellEquivalent": "Set-Mailbox",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -4556,7 +4556,7 @@
     "powershellEquivalent": "Get-Mailbox & Update-MgUser",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -4576,7 +4576,7 @@
     "powershellEquivalent": "Get-CsOnlineApplicationInstance & Update-MgUser",
     "recommendedBy": [
       "Microsoft",
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -4600,7 +4600,7 @@
     "powershellEquivalent": "Get-Mailbox & Update-MgUser",
     "recommendedBy": [
       "Microsoft",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -4634,7 +4634,7 @@
     "powershellEquivalent": "Set-HostedOutboundSpamFilterPolicy -AutoForwardingMode 'Off'",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -4682,8 +4682,8 @@
     "name": "standards.QuarantineRequestAlert",
     "cat": "Defender Standards",
     "tag": [],
-    "helpText": "Sets a e-mail address to alert when a User requests to release a quarantined message. Set the alert state to Removed to delete the alert rule CIPP created from the tenant.",
-    "docsDescription": "Sets a e-mail address to alert when a User requests to release a quarantined message. This is useful for monitoring and ensuring that the correct messages are released. Setting the alert state to Removed deletes the alert rule CIPP created from the tenant, for when the alert is no longer wanted.",
+    "helpText": "Sets a e-mail address to alert when a User requests to release a quarantined message. Set the alert state to Removed to delete the alert rule Manage365 created from the tenant.",
+    "docsDescription": "Sets a e-mail address to alert when a User requests to release a quarantined message. This is useful for monitoring and ensuring that the correct messages are released. Setting the alert state to Removed deletes the alert rule Manage365 created from the tenant, for when the alert is no longer wanted.",
     "executiveText": "Notifies IT administrators when employees request to release emails that were quarantined for security reasons, enabling oversight of potentially dangerous messages. This helps ensure that legitimate emails are released while maintaining security controls over suspicious content.",
     "addedComponent": [
       {
@@ -6068,7 +6068,7 @@
     "addedDate": "2023-05-19",
     "powershellEquivalent": "Graph API",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "INTUNE_A",
@@ -6973,7 +6973,7 @@
     "addedDate": "2025-07-30",
     "powershellEquivalent": "Set-SPOTenant -CoreRequestFilesLinkEnabled $true -OneDriveRequestFilesLinkEnabled $true -CoreRequestFilesLinkExpirationInDays 30 -OneDriveRequestFilesLinkExpirationInDays 30",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7043,7 +7043,7 @@
     "addedDate": "2026-09-03",
     "powershellEquivalent": "Set-SPOTenant / Set-SPOSite -ShowPeoplePickerSuggestionsForGuestUsers $true or $false",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7105,7 +7105,7 @@
     "powershellEquivalent": "Set-SPOTenant -DisallowInfectedFileDownload $true",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7153,7 +7153,7 @@
     "powershellEquivalent": "Set-SPOTenant -DefaultSharingLinkType Direct",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7253,7 +7253,7 @@
     "powershellEquivalent": "Set-SPOTenant -EmailAttestationRequired $true -EmailAttestationReAuthDays 15",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7308,7 +7308,7 @@
     "powershellEquivalent": "Set-SPOTenant -DefaultSharingLinkType [Direct|Internal] -DefaultLinkPermission View",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7424,7 +7424,7 @@
     "powershellEquivalent": "Set-SPOTenant -LegacyAuthProtocolsEnabled $false",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7485,7 +7485,7 @@
     "powershellEquivalent": "Update-MgBetaAdminSharePointSetting",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7520,7 +7520,7 @@
     "powershellEquivalent": "Update-MgBetaAdminSharePointSetting",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -7963,7 +7963,7 @@
     "addedDate": "2025-10-02",
     "powershellEquivalent": "Set-CsTeamsMessagingConfiguration -FileTypeCheck 'Enabled' -UrlReputationCheck 'Enabled' -ReportIncorrectSecurityDetections 'Enabled'",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "MCOSTANDARD",
@@ -8009,7 +8009,7 @@
     "addedDate": "2025-11-03",
     "powershellEquivalent": "Set-CsTeamsMessagingPolicy -Identity Global -UseB2BInvitesToAddExternalUsers $false/$true",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "MCOSTANDARD",
@@ -8114,7 +8114,7 @@
     "addedDate": "2025-06-14",
     "powershellEquivalent": "Set-CsTeamsMeetingPolicy -CaptchaVerificationForMeetingJoin",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "MCOSTANDARD",
@@ -9434,7 +9434,7 @@
     },
     "impact": "Medium Impact",
     "addedDate": "2026-05-10",
-    "helpText": "Deploy Microsoft Purview DLP compliance policies from CIPP templates.",
+    "helpText": "Deploy Microsoft Purview DLP compliance policies from Manage365 templates.",
     "executiveText": "Deploys Data Loss Prevention policies from a standardized template library. Ensures consistent DLP coverage across tenants for sensitive data such as financial, identity, and regulated content.",
     "addedComponent": [
       {
@@ -9464,7 +9464,7 @@
     },
     "impact": "Medium Impact",
     "addedDate": "2026-05-10",
-    "helpText": "Deploy Microsoft Purview retention compliance policies from CIPP templates.",
+    "helpText": "Deploy Microsoft Purview retention compliance policies from Manage365 templates.",
     "executiveText": "Deploys retention policies that govern how long content is preserved in Exchange, SharePoint, OneDrive, and Teams. Enforces consistent compliance retention across tenants for regulatory and legal hold needs.",
     "addedComponent": [
       {
@@ -9494,7 +9494,7 @@
     },
     "impact": "Medium Impact",
     "addedDate": "2026-05-10",
-    "helpText": "Deploy Microsoft Purview sensitivity labels from CIPP templates.",
+    "helpText": "Deploy Microsoft Purview sensitivity labels from Manage365 templates.",
     "executiveText": "Deploys sensitivity labels for classification and protection of files, emails, and Microsoft 365 group content. Ensures consistent classification taxonomy and encryption settings across tenants.",
     "addedComponent": [
       {
@@ -9525,7 +9525,7 @@
     },
     "impact": "Low Impact",
     "addedDate": "2026-05-10",
-    "helpText": "Deploy custom Microsoft Purview Sensitive Information Types from CIPP templates.",
+    "helpText": "Deploy custom Microsoft Purview Sensitive Information Types from Manage365 templates.",
     "executiveText": "Deploys custom Sensitive Information Types so DLP policies can detect organization-specific identifiers — employee IDs, project codenames, internal account numbers — across tenants consistently.",
     "addedComponent": [
       {
@@ -9647,7 +9647,7 @@
     "addedDate": "2025-05-28",
     "powershellEquivalent": "Set-Mailbox -RecipientLimits",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -9674,7 +9674,7 @@
     "powershellEquivalent": "Set-User -Identity $user -RemotePowerShellEnabled $false",
     "recommendedBy": [
       "CIS",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -9719,7 +9719,7 @@
     "powershellEquivalent": "Set-OwaMailboxPolicy -Identity \"OwaMailboxPolicy-Default\" -ConditionalAccessPolicy ReadOnlyPlusAttachmentsBlocked",
     "recommendedBy": [
       "Microsoft Zero Trust",
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -9750,7 +9750,7 @@
     "cat": "Intune Standards",
     "tag": [],
     "helpText": "Deploys the Check by CyberDrain browser extension via a Win32 script app in Intune for both Chrome and Edge browsers with configurable settings. Chrome ID: benimdeioplgkhanklclahllklceahbe, Edge ID: knepjpocdagponkonnbggpcnhnaikajg",
-    "docsDescription": "Creates an Intune Win32 script application that writes registry keys to install and configure the Check by CyberDrain browser extension on managed devices for both Google Chrome and Microsoft Edge browsers. Uses a PowerShell detection script to enforce configuration drift — when settings change in CIPP the app is automatically redeployed.",
+    "docsDescription": "Creates an Intune Win32 script application that writes registry keys to install and configure the Check by CyberDrain browser extension on managed devices for both Google Chrome and Microsoft Edge browsers. Uses a PowerShell detection script to enforce configuration drift — when settings change in Manage365 the app is automatically redeployed.",
     "executiveText": "Automatically deploys the Check by CyberDrain browser extension across all company devices with configurable security and branding settings, ensuring consistent security monitoring and compliance capabilities. This extension provides enhanced security features and monitoring tools that help protect against threats while maintaining user productivity.",
     "addedComponent": [
       {
@@ -9780,15 +9780,15 @@
       {
         "type": "switch",
         "name": "standards.DeployCheckChromeExtension.enableCippReporting",
-        "label": "Enable CIPP reporting",
+        "label": "Enable Manage365 reporting",
         "defaultValue": true
       },
       {
         "type": "textField",
         "name": "standards.DeployCheckChromeExtension.customRulesUrl",
         "label": "Custom Rules URL",
-        "placeholder": "https://YOUR-CIPP-SERVER-URL/rules.json",
-        "helperText": "Enter the URL for custom rules if you have them. This should point to a JSON file with the same structure as the rules.json used for CIPP reporting.",
+        "placeholder": "https://YOUR-MANAGE365-SERVER-URL/rules.json",
+        "helperText": "Enter the URL for custom rules if you have them. This should point to a JSON file with the same structure as the rules.json used for Manage365 reporting.",
         "required": false
       },
       {
@@ -9938,7 +9938,7 @@
     "addedDate": "2025-09-18",
     "powershellEquivalent": "Add-CIPPW32ScriptApplication",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "INTUNE_A",
@@ -10259,7 +10259,7 @@
     "addedDate": "2026-04-28",
     "powershellEquivalent": "Portal only",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -10284,7 +10284,7 @@
     "addedDate": "2026-04-28",
     "powershellEquivalent": "Set-SPOTenant -DisableSharePointStoreAccess $true",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "SHAREPOINTWAC",
@@ -10309,7 +10309,7 @@
     "addedDate": "2026-04-28",
     "powershellEquivalent": "Set-OrganizationConfig -EwsEnabled $false",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "EXCHANGE_S_STANDARD",
@@ -10323,8 +10323,8 @@
     "name": "standards.EWSAllowedAppIds",
     "cat": "Exchange Standards",
     "tag": [],
-    "helpText": "Adds the selected applications to the Exchange Online EWS app allow list (EwsAllowedAppIDs) and sets EwsEnabled to true. Apps already on the list are kept, and known-malicious apps are never added. Do not use together with the \"Disable Exchange Web Services\" standard on the same tenant: they set EwsEnabled to opposite values. Once CIPP writes the list, Microsoft stops auto-populating it for that tenant, so include every app the tenant needs (check the EWS usage report in the Microsoft 365 admin center). Changes can take up to 24 hours to apply. Keep \"Include the dedicated Exchange hybrid app\" on for hybrid organisations so Free/Busy and MailTips keep working.",
-    "docsDescription": "When EWS is enabled, Exchange Online only allows EWS access from the application IDs on the organization's EwsAllowedAppIDs list, and an empty list blocks all EWS. Microsoft populates that list from recent usage only while the admin has never set it, so the list CIPP writes must be complete. This standard reads the current list and adds the selected presets, the custom application IDs (tenant variables are supported, invalid IDs are skipped with a warning) and, optionally, every app that holds the Exchange Online full_access_as_app application permission or a delegated EWS permission, plus the dedicated Exchange hybrid app (ExchangeServerApp-*) that hybrid Free/Busy, MailTips, profile photos and archive moves depend on. IDs already on the list are never removed; the only exception is known-malicious apps (CIPP's curated list), which are removed only when that option is enabled and are reported as drift otherwise. Known-malicious apps are never added. This conflicts with the \"Disable Exchange Web Services\" standard. Changes can take up to 24 hours to take effect. See Microsoft's guidance on the deprecation of EWS in Exchange Online: https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/deprecation-of-ews-exchange-online",
+    "helpText": "Adds the selected applications to the Exchange Online EWS app allow list (EwsAllowedAppIDs) and sets EwsEnabled to true. Apps already on the list are kept, and known-malicious apps are never added. Do not use together with the \"Disable Exchange Web Services\" standard on the same tenant: they set EwsEnabled to opposite values. Once Manage365 writes the list, Microsoft stops auto-populating it for that tenant, so include every app the tenant needs (check the EWS usage report in the Microsoft 365 admin center). Changes can take up to 24 hours to apply. Keep \"Include the dedicated Exchange hybrid app\" on for hybrid organisations so Free/Busy and MailTips keep working.",
+    "docsDescription": "When EWS is enabled, Exchange Online only allows EWS access from the application IDs on the organization's EwsAllowedAppIDs list, and an empty list blocks all EWS. Microsoft populates that list from recent usage only while the admin has never set it, so the list Manage365 writes must be complete. This standard reads the current list and adds the selected presets, the custom application IDs (tenant variables are supported, invalid IDs are skipped with a warning) and, optionally, every app that holds the Exchange Online full_access_as_app application permission or a delegated EWS permission, plus the dedicated Exchange hybrid app (ExchangeServerApp-*) that hybrid Free/Busy, MailTips, profile photos and archive moves depend on. IDs already on the list are never removed; the only exception is known-malicious apps (Manage365's curated list), which are removed only when that option is enabled and are reported as drift otherwise. Known-malicious apps are never added. This conflicts with the \"Disable Exchange Web Services\" standard. Changes can take up to 24 hours to take effect. See Microsoft's guidance on the deprecation of EWS in Exchange Online: https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/deprecation-of-ews-exchange-online",
     "executiveText": "Keeps the business applications that still rely on Exchange Web Services working as Microsoft retires unrestricted EWS access, by maintaining the approved-application list for each tenant. Existing approvals are preserved and applications known to be used in attacks are never approved.",
     "addedComponent": [
       {
@@ -10776,7 +10776,7 @@
     "cat": "Intune Standards",
     "tag": [],
     "helpText": "Deploys selected Intune application templates to the tenant. Supports WinGet/Store apps, Office apps, Chocolatey apps, Win32 script apps, and MSP apps.",
-    "docsDescription": "Uses CIPP Intune Application Templates to deploy applications across tenants as a standard. Each template can contain multiple applications of different types which will be queued for deployment.",
+    "docsDescription": "Uses Manage365 Intune Application Templates to deploy applications across tenants as a standard. Each template can contain multiple applications of different types which will be queued for deployment.",
     "executiveText": "Automatically deploys approved Intune applications across all managed tenants, ensuring consistent software availability and reducing manual deployment overhead. Supports WinGet, Office, Chocolatey, Win32, and MSP application types.",
     "addedComponent": [
       {
@@ -11252,7 +11252,7 @@
     "addedDate": "2026-05-25",
     "powershellEquivalent": "Graph API PATCH /policies/authenticationMethodsPolicy/authenticationMethodConfigurations/fido2",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ]
   },
   {
@@ -11384,8 +11384,8 @@
     "impactColour": "danger",
     "addedDate": "2026-08-23",
     "tag": [],
-    "helpText": "Deploys a Privileged Identity Management role settings template to the tenant: activation limits, MFA or authentication context, justification, approval, eligibility and active-assignment expiry and notification rules for the roles the template covers. Templates cannot weaken settings below CIPP's secure floor.",
-    "docsDescription": "Deploys a Privileged Identity Management role settings template to the tenant. The template defines, for a set of roles, the maximum activation duration, whether activation requires MFA or an authentication context, justification, ticket and approval requirements, the maximum lifetime of eligible and active assignments, and additional notification recipients. Templates are validated against CIPP's secure floor (activation within 24 hours with MFA or an authentication context and a justification; eligible and active assignments must expire within a year; active assignments require a justification) and are refused, not adjusted, when they fall below it. Requires Entra ID P2.",
+    "helpText": "Deploys a Privileged Identity Management role settings template to the tenant: activation limits, MFA or authentication context, justification, approval, eligibility and active-assignment expiry and notification rules for the roles the template covers. Templates cannot weaken settings below Manage365's secure floor.",
+    "docsDescription": "Deploys a Privileged Identity Management role settings template to the tenant. The template defines, for a set of roles, the maximum activation duration, whether activation requires MFA or an authentication context, justification, ticket and approval requirements, the maximum lifetime of eligible and active assignments, and additional notification recipients. Templates are validated against Manage365's secure floor (activation within 24 hours with MFA or an authentication context and a justification; eligible and active assignments must expire within a year; active assignments require a justification) and are refused, not adjusted, when they fall below it. Requires Entra ID P2.",
     "executiveText": "Enforces consistent Privileged Identity Management settings so that administrator roles can only be used for a limited time, after strong authentication and with a recorded reason. This keeps standing administrative access to a minimum and makes every use of privilege visible and accountable.",
     "addedComponent": [
       {
@@ -11409,7 +11409,7 @@
     ],
     "powershellEquivalent": "Update-MgBetaPolicyRoleManagementPolicyRule",
     "recommendedBy": [
-      "CIPP"
+      "Manage365"
     ],
     "requiredCapabilities": [
       "AAD_PREMIUM_P2"

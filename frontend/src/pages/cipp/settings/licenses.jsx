@@ -71,7 +71,7 @@ const Page = () => {
       url: "/api/ExecExcludeLicenses",
       data: { Action: "!AlertOnly", GUID: "GUID", SKUName: "Product_Display_Name" },
       confirmText:
-        'This license will remain visible in CIPP but will be excluded from alerts. Continue?',
+        'This license will remain visible in Manage365 but will be excluded from alerts. Continue?',
       icon: <CippIcons.NotificationsOff fontSize="small" />,
       category: "edit",
     },

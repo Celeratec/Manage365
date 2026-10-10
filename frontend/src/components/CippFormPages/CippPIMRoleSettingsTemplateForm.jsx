@@ -33,7 +33,7 @@ export const activeAssignmentDurationOptions = [
 export const roleScopeOptions = [
   {
     label:
-      'Privileged roles (CIPP list: Global, Security, Exchange, ... administrators)',
+      'Privileged roles (Manage365 list: Global, Security, Exchange, ... administrators)',
     value: 'PrivilegedRoles',
   },
   { label: 'All directory roles', value: 'AllRoles' },
@@ -213,7 +213,7 @@ export const CippPIMRoleSettingsTemplateForm = ({ formControl }) => {
       </Grid>
       <Grid size={{ xs: 12 }}>
         <Alert severity="info">
-          CIPP enforces a secure floor: activation always requires a
+          Manage365 enforces a secure floor: activation always requires a
           justification and either MFA or an authentication context, activations
           end within 24 hours, and eligible or active assignments end within a
           year. Templates below the floor are refused, not adjusted.

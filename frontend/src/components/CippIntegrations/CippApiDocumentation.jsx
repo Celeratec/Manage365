@@ -99,7 +99,7 @@ const CippApiDocumentation = () => {
     <Box sx={{ p: 3 }}>
       <Alert severity="warning" sx={{ mb: 2 }}>
         <strong>Beta.</strong> This documentation is generated automatically
-        from the CIPP source. Request and response schemas are inferred, so some
+        from the Manage365 source. Request and response schemas are inferred, so some
         fields may be missing, loosely typed, or described only in part — treat
         it as a strong guide rather than a guarantee, and report anything that
         looks wrong.

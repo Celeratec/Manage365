@@ -65,7 +65,7 @@ const Page = () => {
           </Typography>
           <Alert color="warning" icon={<CippIcons.WarningAmberOutlined />}>
             The default CIPP-SAM permissions are always applied and cannot be removed - you
-            can only layer additional permissions on top of them. Use "Reset to CIPP Defaults"
+            can only layer additional permissions on top of them. Use "Reset to Manage365 Defaults"
             to remove all additional permissions and return to the built-in defaults.
           </Alert>
           <Stack direction="row" spacing={1}>
@@ -80,7 +80,7 @@ const Page = () => {
               onClick={() => setResetDialogOpen(true)}
               disabled={resetPermissions.isPending}
             >
-              Reset to CIPP Defaults
+              Reset to Manage365 Defaults
             </Button>
           </Stack>
           <CippApiResults apiObject={resetPermissions} />
@@ -101,9 +101,9 @@ const Page = () => {
       <ConfirmationDialog
         open={resetDialogOpen}
         onCancel={() => setResetDialogOpen(false)}
-        title="Reset to CIPP Defaults"
+        title="Reset to Manage365 Defaults"
         variant="warning"
-        message="This removes all additional permissions you have layered on top of the CIPP-SAM defaults and returns the saved permission set to the built-in CIPP manifest defaults. The default permissions themselves are unaffected. You will need to complete a Permissions repair from the Permissions page, then complete a CPV refresh to finalise the chnages. Continue?"
+        message="This removes all additional permissions you have layered on top of the CIPP-SAM defaults and returns the saved permission set to the built-in Manage365 manifest defaults. The default permissions themselves are unaffected. You will need to complete a Permissions repair from the Permissions page, then complete a CPV refresh to finalise the chnages. Continue?"
         onConfirm={() => {
           handleResetToCippDefaults();
           setResetDialogOpen(false);

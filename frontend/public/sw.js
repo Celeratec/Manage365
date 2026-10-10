@@ -1,12 +1,11 @@
-// Minimal service worker: no caching or offline support, every request passes
-// through to the network. It exists so the site is installable and so Web Push
-// has somewhere to land when the app is closed.
+// Minimal service worker: no caching or offline support. Requests go to the
+// network because this worker does not handle fetch. It exists so the site is
+// installable and so Web Push has somewhere to land when the app is closed.
 
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', (event) =>
   event.waitUntil(self.clients.claim())
 )
-self.addEventListener('fetch', () => {})
 
 self.addEventListener('push', (event) => {
   let data = {}
@@ -16,7 +15,7 @@ self.addEventListener('push', (event) => {
     data = { body: event.data ? event.data.text() : '' }
   }
   event.waitUntil(
-    self.registration.showNotification(data.title || 'CIPP', {
+    self.registration.showNotification(data.title || 'Manage365', {
       body: data.body || '',
       icon: '/android-chrome-192x192.png',
       badge: '/android-chrome-192x192.png',

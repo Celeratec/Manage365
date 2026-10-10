@@ -7,11 +7,11 @@
     "logo": "/assets/integrations/cipp-api.png",
     "forceSyncButton": false,
     "hideTestButton": true,
-    "description": "The CIPP API allows you to access CIPP data outside of CIPP using a RESTful API.",
-    "helpText": "This integration allows you to enable CIPP-API access outside of CIPP. This is useful for integrations with other systems or custom scripts.",
+    "description": "The Manage365 API allows you to access Manage365 data outside of Manage365 using a RESTful API.",
+    "helpText": "This integration allows you to enable API access outside of Manage365. This is useful for integrations with other systems or custom scripts.",
     "links": [
       {
-        "name": "CIPP API Documentation",
+        "name": "Manage365 API Documentation",
         "url": "https://docs.cipp.app/api-documentation/setup-and-authentication"
       }
     ],
@@ -24,8 +24,8 @@
     "cat": "CSP",
     "logo": "/assets/integrations/sherweb.png",
     "logoDark": "/assets/integrations/sherweb_dark.png",
-    "description": "Enable the Sherweb integration to manage your CSP licensing from CIPP.",
-    "helpText": "This integration allows you to manage your CSP licensing from CIPP. Purchase new licenses while adding or editing users in CIPP. Not a Sherweb partner? Sign up for the Sherweb Cloud Services for MSPs program.",
+    "description": "Enable the Sherweb integration to manage your CSP licensing from Manage365.",
+    "helpText": "This integration allows you to manage your CSP licensing from Manage365. Purchase new licenses while adding or editing users in Manage365. Not a Sherweb partner? Sign up for the Sherweb Cloud Services for MSPs program.",
     "mappingRequired": true,
     "links": [
       {
@@ -81,7 +81,7 @@
       {
         "type": "autoComplete",
         "name": "Sherweb.AllowedCustomRoles",
-        "label": "Select CIPP roles that are allowed to purchase licenses",
+        "label": "Select Manage365 roles that are allowed to purchase licenses",
         "api": {
           "url": "/api/ListCustomRole",
           "queryKey": "CustomRoles",
@@ -353,7 +353,7 @@
         "name": "HaloPSA.TicketType",
         "label": "HaloPSA Ticket Type",
         "placeholder": "Select your HaloPSA Ticket Type, leave blank for default",
-        "helperText": "The ticket type used for CIPP alert tickets. Sets the workflow, and the priorities and outcomes available below.",
+        "helperText": "The ticket type used for Manage365 alert tickets. Sets the workflow, and the priorities and outcomes available below.",
         "fullRow": true,
         "multiple": false,
         "api": {
@@ -379,7 +379,7 @@
         "name": "HaloPSA.RequestSource",
         "label": "HaloPSA Request Source",
         "placeholder": "Select a request source, leave blank for default",
-        "helperText": "Optional. Stamps every CIPP-generated ticket with this request source. Halo records tickets created over the API as Manual unless one is set, so create a CIPP request source in Halo to tell them apart.",
+        "helperText": "Optional. Stamps every Manage365-generated ticket with this request source. Halo records tickets created over the API as Manual unless one is set, so create a Manage365 request source in Halo to tell them apart.",
         "fullRow": true,
         "multiple": false,
         "api": {
@@ -406,7 +406,7 @@
         "dependsOn": "HaloPSA.TicketType",
         "label": "HaloPSA Default Priority",
         "placeholder": "Select a priority, leave blank for default",
-        "helperText": "Optional. Sets the priority on every CIPP-generated ticket. Restricted to priorities on the Ticket Type's SLA. Leave blank to use the SLA default.",
+        "helperText": "Optional. Sets the priority on every Manage365-generated ticket. Restricted to priorities on the Ticket Type's SLA. Leave blank to use the SLA default.",
         "fullRow": true,
         "multiple": false,
         "api": {
@@ -588,8 +588,8 @@
         "type": "textField",
         "name": "NinjaOne.CveSyncPrefix",
         "label": "CVE Sync Scan Group Prefix",
-        "placeholder": "CIPP-",
-        "helperText": "Scan groups will be named: [Prefix][tenant-domain] (e.g., CIPP-contoso.com)",
+        "placeholder": "Manage365-",
+        "helperText": "Scan groups will be named: [Prefix][tenant-domain] (e.g., Manage365-contoso.com)",
         "condition": {
           "field": "NinjaOne.CveSyncEnabled",
           "compareType": "is",
@@ -1066,8 +1066,8 @@
     "cat": "Source Control",
     "logo": "/assets/integrations/github.png",
     "logoDark": "/assets/integrations/github_dark.png",
-    "description": "Enable the GitHub integration to manage your repositories from CIPP.",
-    "helpText": "This integration allows you to manage GitHub repositories from CIPP, including the Community Repositories functionality. Requires a GitHub Personal Access Token (PAT) with a minimum of repo:public_repo permissions. If you plan on saving your templates to GitHub or accessing private/internal repositories, you will need to grant the whole repo scope. You can create a PAT in your GitHub account settings, see the GitHub Token documentation for more info. If you do not enable the extension, a read-only API will be provided.",
+    "description": "Enable the GitHub integration to manage your repositories from Manage365.",
+    "helpText": "This integration allows you to manage GitHub repositories from Manage365, including the Community Repositories functionality. Requires a GitHub Personal Access Token (PAT) with a minimum of repo:public_repo permissions. If you plan on saving your templates to GitHub or accessing private/internal repositories, you will need to grant the whole repo scope. You can create a PAT in your GitHub account settings, see the GitHub Token documentation for more info. If you do not enable the extension, a read-only API will be provided.",
     "links": [
       {
         "name": "GitHub Token",

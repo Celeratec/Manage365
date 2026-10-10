@@ -1,10 +1,10 @@
 // Shared copy for the role detail header chips and field help icons.
 
 export const POLICY_BELOW_FLOOR_TOOLTIP =
-  "This role's PIM settings are weaker than CIPP's secure floor: activation must expire within 24 hours and require MFA or an authentication context plus a justification; eligible and active assignments must expire within a year; creating an active assignment requires a justification. Entra defaults often sit below this floor."
+  "This role's PIM settings are weaker than Manage365's secure floor: activation must expire within 24 hours and require MFA or an authentication context plus a justification; eligible and active assignments must expire within a year; creating an active assignment requires a justification. Entra defaults often sit below this floor."
 
 export const PRIVILEGED_ROLE_TOOLTIP =
-  "This role is on CIPP's privileged-roles list (the same list standards and alerts use) — for example Global, Security, Exchange, SharePoint, User, Conditional Access, and Application administrators."
+  "This role is on Manage365's privileged-roles list (the same list standards and alerts use) — for example Global, Security, Exchange, SharePoint, User, Conditional Access, and Application administrators."
 
 export const formatPimDuration = (iso) => {
   if (!iso) return 'No expiration (permanent allowed)'

@@ -43,7 +43,7 @@ const TemplateLibrary = () => {
   // built from whichever one is chosen.
   const targetValue = tenantFilter?.value || templateRepo?.value;
   const hasTarget = Boolean(targetValue);
-  const selectedName = `CIPP Template ${targetValue}`;
+  const selectedName = `Manage365 Template ${targetValue}`;
 
   // Drive form validity from a hidden required field so Submit stays disabled until a target is
   // chosen - this is what stops the "No tenant" job ("CIPP Template undefined") that used to be

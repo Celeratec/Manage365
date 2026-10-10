@@ -171,7 +171,7 @@ export const AccountPopover = (props) => {
             type: "POST",
             data: {},
             confirmText:
-              "Re-check your Entra group membership and refresh your CIPP roles? Use this after activating a role-mapped group through PIM.",
+              "Re-check your Entra group membership and refresh your Manage365 roles? Use this after activating a role-mapped group through PIM.",
             relatedQueryKeys: ["authmecipp"],
           }}
         />

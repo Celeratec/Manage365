@@ -40,12 +40,12 @@ const ssoAppPermissions = [
   {
     name: "profile",
     reason:
-      "Reads the signed-in user's display name, object ID and tenant ID, so CIPP knows which account signed in.",
+      "Reads the signed-in user's display name, object ID and tenant ID, so Manage365 knows which account signed in.",
   },
   {
     name: "email",
     reason:
-      "Reads the signed-in user's UPN, which CIPP matches against the CIPP Users list to decide their roles.",
+      "Reads the signed-in user's UPN, which Manage365 matches against the Manage365 Users list to decide their roles.",
   },
   {
     name: "offline_access",
@@ -69,7 +69,7 @@ const samPermissionsUsed = [
   {
     name: "Policy.ReadWrite.ApplicationConfiguration",
     reason:
-      "Exempts CIPP from a tenant app management policy that blocks adding client secrets — only used when such a policy is in force.",
+      "Exempts Manage365 from a tenant app management policy that blocks adding client secrets — only used when such a policy is in force.",
   },
 ];
 
@@ -251,7 +251,7 @@ export const CippSSOSettings = () => {
   const handleUpdate = () => {
     if (
       !window.confirm(
-        "Updating SSO settings will restart the CIPP instance. Changes may take up to 60 seconds to reflect. Do you want to continue?"
+        "Updating SSO settings will restart the Manage365 instance. Changes may take up to 60 seconds to reflect. Do you want to continue?"
       )
     ) {
       return;
@@ -335,19 +335,19 @@ export const CippSSOSettings = () => {
               <AccordionDetails sx={{ px: 0 }}>
                 <Stack spacing={2}>
                   <Typography variant="body2">
-                    CIPP signs users in through an app registration called <strong>CIPP-SSO</strong>{" "}
-                    in your own partner tenant, which puts CIPP sign-in under your Conditional
+                    Manage365 signs users in through an app registration called <strong>CIPP-SSO</strong>{" "}
+                    in your own partner tenant, which puts Manage365 sign-in under your Conditional
                     Access policies, MFA requirements and session controls. The app only proves who
-                    you are — it has no access to any data in your tenant. Everything CIPP does
+                    you are — it has no access to any data in your tenant. Everything Manage365 does
                     against Microsoft 365 still runs through the CIPP-SAM app and your GDAP
                     relationships.
                   </Typography>
 
                   <Alert severity="info">
                     You do <strong>not</strong> need Entra ID Global Administrator to run this
-                    setup, and there is no separate enterprise app for anyone to approve. CIPP
-                    creates the app itself using permissions your tenant consented to when CIPP was
-                    installed. A CIPP superadmin or admin role is all that is required.
+                    setup, and there is no separate enterprise app for anyone to approve. Manage365
+                    creates the app itself using permissions your tenant consented to when Manage365 was
+                    installed. A Manage365 superadmin or admin role is all that is required.
                   </Alert>
 
                   <div>
@@ -366,13 +366,13 @@ export const CippSSOSettings = () => {
                       without a signed-in user. None of these scopes grant access to mail, files,
                       Teams or directory data — they are the standard OpenID Connect sign-in scopes
                       plus offline_access to renew the session, all classed by Microsoft as low
-                      impact. Who can actually reach CIPP is still controlled by the CIPP Users list.
+                      impact. Who can actually reach Manage365 is still controlled by the Manage365 Users list.
                     </Typography>
                   </div>
 
                   <div>
                     <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                      Permissions CIPP uses to create it
+                      Permissions Manage365 uses to create it
                     </Typography>
                     <PermissionTable rows={samPermissionsUsed} typeLabel="Application · on CIPP-SAM" />
                     <Typography
@@ -383,7 +383,7 @@ export const CippSSOSettings = () => {
                         mt: 1
                       }}>
                       These are part of the standard CIPP-SAM permission set and were consented when
-                      CIPP was installed — nothing new is requested during setup. If setup fails on
+                      Manage365 was installed — nothing new is requested during setup. If setup fails on
                       one of these steps, your CIPP-SAM consent predates that permission and needs
                       re-consenting from the SAM App Permissions page.
                     </Typography>
@@ -395,7 +395,7 @@ export const CippSSOSettings = () => {
                     </Typography>
                     <Typography variant="body2" sx={{ mb: 1 }}>
                       The most common blocker is a tenant app management policy that forbids adding
-                      client secrets. <strong>Repair</strong> retries it, and CIPP will try to exempt
+                      client secrets. <strong>Repair</strong> retries it, and Manage365 will try to exempt
                       itself from the policy. If it still fails, an Entra administrator can create
                       the CIPP-SSO app registration by hand and you can store its credentials under{" "}
                       <strong>Manual configuration</strong> below — the documentation has the exact
@@ -617,7 +617,7 @@ export const CippSSOSettings = () => {
                     Enter an existing Application (client) ID and client secret to store them directly
                     in Key Vault — for example to rotate the secret by hand, or to point SSO at an app
                     registration an Entra administrator created for you because a tenant policy blocks
-                    CIPP from creating one. The instance must be restarted for the change to take
+                    Manage365 from creating one. The instance must be restarted for the change to take
                     effect.{" "}
                     <Link href={`${SSO_DOCS_URL}#creating-the-app-registration-manually`} target="_blank" rel="noopener noreferrer">
                       Settings to use when creating the app manually

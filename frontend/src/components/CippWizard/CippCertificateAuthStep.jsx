@@ -45,7 +45,7 @@ export const CippCertificateAuthStep = (props) => {
         <Typography variant="body2" sx={{
           color: "text.secondary"
         }}>
-          Switch this existing install to authenticate CIPP's application with the SAM certificate
+          Switch this existing install to authenticate Manage365's application with the SAM certificate
           instead of the client secret, for every Graph and Exchange Online call. The client secret
           is kept in Key Vault as a rollback - turn this off to switch back at any time.
         </Typography>
@@ -78,7 +78,7 @@ export const CippCertificateAuthStep = (props) => {
         {certStatus.isSuccess && !registered && (
           <Alert severity="info">
             The SAM certificate is not registered on the application yet. When you finish the wizard,
-            CIPP will generate and register it before enabling certificate authentication. If that
+            Manage365 will generate and register it before enabling certificate authentication. If that
             step fails, the client secret stays in use and nothing breaks.
           </Alert>
         )}

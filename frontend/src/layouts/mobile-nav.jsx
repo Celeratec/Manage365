@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import PropTypes from "prop-types";
 import { Box, Divider, InputAdornment, OutlinedInput, Stack, SwipeableDrawer, Typography } from "@mui/material";
 import { Logo } from "../components/logo";
-import { CippSponsor } from "../components/CippComponents/CippSponsor";
 import { Scrollbar } from "../components/scrollbar";
 import { paths } from "../paths";
 import { MobileNavItem } from "./mobile-nav-item";
@@ -141,7 +140,7 @@ export const MobileNav = (props) => {
             // desktop side-nav renders on background.default, keep the drawer on the same surface
             backgroundColor: "background.default",
             width: MOBILE_NAV_WIDTH,
-            // Column layout so the sponsor footer pins to the bottom and the menu scrolls
+            // Column layout so the menu scrolls inside the drawer.
             // between it and the sticky header, rather than the footer riding the list.
             display: "flex",
             flexDirection: "column",
@@ -242,18 +241,6 @@ export const MobileNav = (props) => {
           </Box>
         </Box>
       </Scrollbar>
-      {/* Pinned below the scrolling menu rather than at the end of it, so it stays visible
-          without the long nav list pushing it off-screen. Compact: the drawer's vertical
-          space belongs to navigation. */}
-      <Box
-        sx={{
-          flexShrink: 0,
-          px: 2,
-          pb: "calc(env(safe-area-inset-bottom) + 8px)",
-        }}
-      >
-        <CippSponsor compact />
-      </Box>
     </SwipeableDrawer>
   );
 };

@@ -36,7 +36,7 @@ export const Unauthenticated = {
     await step('null clientPrincipal blocks the app content', async () => {
       await waitFor(
         () => {
-          expect(canvas.getByText('Sign in to CIPP')).toBeInTheDocument()
+          expect(canvas.getByText('Sign in to Manage365')).toBeInTheDocument()
         })
       expect(canvas.queryByText('app content')).not.toBeInTheDocument()
     })
@@ -107,10 +107,10 @@ export const ApiOffline = {
   },
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement)
-    await step('404 from /api/me shows CIPP API Unreachable', async () => {
+    await step('404 from /api/me shows Manage365 API Unreachable', async () => {
       await waitFor(
         () => {
-          expect(canvas.getByText('CIPP API Unreachable')).toBeInTheDocument()
+          expect(canvas.getByText('Manage365 API Unreachable')).toBeInTheDocument()
         })
     })
   },

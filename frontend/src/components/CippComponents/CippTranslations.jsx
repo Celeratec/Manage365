@@ -119,7 +119,7 @@ export const CippTranslations = {
   ApplicationID: 'Application ID',
   ApplicationSecret: 'Application Secret',
   GUID: 'GUID',
-  cippLink: 'CIPP Link',
+  cippLink: 'Manage365 Link',
   isDrift: 'Drift Template',
   usage: 'Usage',
   portal_m365: 'M365',

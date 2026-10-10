@@ -100,7 +100,7 @@ export const CippAddTenantTypeSelection = (props) => {
       value: 'IndirectReseller',
       label: 'Get Reseller Invite Link',
       description:
-        'Generate a reseller relationship invite link to send to a customer. This does not add the tenant to CIPP, but may be used by other vendors to populate their customer list.',
+        'Generate a reseller relationship invite link to send to a customer. This does not add the tenant to Manage365, but may be used by other vendors to populate their customer list.',
       icon: <CippIcons.LinkIcon />,
       partnerOnly: true,
     },

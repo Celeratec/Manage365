@@ -422,7 +422,7 @@ export const CippAppTemplateDrawer = ({
             <Grid size={{ xs: 12, md: 5 }}>
               <Alert severity="info">
                 Enter tenant-specific parameters (keys, URLs, IDs) below. You can enter a literal
-                value that is the same for every tenant, or reference a CIPP custom variable like{' '}
+                value that is the same for every tenant, or reference a Manage365 custom variable like{' '}
                 <code>%DattoSiteID%</code> (type <code>%</code> to browse). Variables are resolved
                 per tenant at deployment, so define the value once per tenant in your CIPP custom
                 variables and reuse this template everywhere.

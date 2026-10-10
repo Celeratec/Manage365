@@ -584,7 +584,7 @@ export const CippWizardOffboarding = (props) => {
                     display: 'block',
                     mt: 1
                   }}>
-                  CIPP %variable% tokens (for example %tenantname%) stay literal here and are
+                  Manage365 %variable% tokens (for example %tenantname%) stay literal here and are
                   resolved when the offboarding job runs. %username% is not the offboarded user.
                 </Typography>
               </Box>

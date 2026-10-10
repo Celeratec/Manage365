@@ -75,7 +75,7 @@ export const SignIn = {
     const canvas = within(canvasElement)
     await step('sign-in page renders without any denial language', async () => {
       await waitFor(() => {
-        expect(canvas.getByText('Sign in to CIPP')).toBeInTheDocument()
+        expect(canvas.getByText('Sign in to Manage365')).toBeInTheDocument()
       })
       await expect(canvas.queryByText('Access Denied')).not.toBeInTheDocument()
       await expect(

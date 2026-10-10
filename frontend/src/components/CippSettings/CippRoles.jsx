@@ -43,7 +43,7 @@ const CippRoles = () => {
             confirmText: (
               <Stack spacing={2}>
                 <Typography variant="body2">
-                  Impersonate this role? CIPP will reload and behave as if you only hold this
+                  Impersonate this role? Manage365 will reload and behave as if you only hold this
                   role — including its tenant restrictions — until you click Exit in the banner
                   at the top of the page. IP restrictions are not simulated.
                 </Typography>

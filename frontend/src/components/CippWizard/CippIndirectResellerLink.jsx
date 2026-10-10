@@ -58,7 +58,7 @@ export const CippIndirectResellerLink = (props) => {
           color: "text.secondary"
         }}>
           Generate an invite link to send to a customer so they can authorize you as their indirect
-          reseller. This does <strong>not</strong> add the tenant to CIPP — it only provides the
+          reseller. This does <strong>not</strong> add the tenant to Manage365 — it only provides the
           Microsoft Admin Portal invitation link.
         </Typography>
       </Box>
@@ -76,7 +76,7 @@ export const CippIndirectResellerLink = (props) => {
 
       {linkData.isError && (
         <Alert severity="error">
-          Failed to load relationship link from the Partner Center API. Ensure your CIPP application
+          Failed to load relationship link from the Partner Center API. Ensure your Manage365 application
           has the required Partner Center permissions.
         </Alert>
       )}

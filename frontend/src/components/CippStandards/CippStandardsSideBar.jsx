@@ -57,9 +57,9 @@ export const buildSyncedTemplateFields = ({
   let warning;
   let severity = "warning";
   if (!canSaveToGitHub) {
-    warning = `This ${kind} is synchronized from ${source}, which you cannot push to. Saving here keeps your changes in CIPP only, and the next sync will replace them if the repository file changes upstream. To keep a copy that upstream never touches, use ${cloneAction} from the ${list} instead.`;
+    warning = `This ${kind} is synchronized from ${source}, which you cannot push to. Saving here keeps your changes in Manage365 only, and the next sync will replace them if the repository file changes upstream. To keep a copy that upstream never touches, use ${cloneAction} from the ${list} instead.`;
   } else if (hasLocalChanges) {
-    warning = `This ${kind} already has changes that are not in ${source}. Turn on Save to GitHub to push them with this save, or they stay in CIPP only.`;
+    warning = `This ${kind} already has changes that are not in ${source}. Turn on Save to GitHub to push them with this save, or they stay in Manage365 only.`;
   } else {
     warning = `This ${kind} is synchronized from ${source}. Saving here does not push your changes upstream; the repository copy stays out of date until you save it to GitHub.`;
     severity = hasLocalChanges === false ? "info" : "warning";

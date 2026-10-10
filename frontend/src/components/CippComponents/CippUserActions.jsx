@@ -542,6 +542,7 @@ export const useCippUserActions = () => {
   const canWriteUser = checkPermissions(['Identity.User.ReadWrite'])
   const canWriteMailbox = checkPermissions(['Exchange.Mailbox.ReadWrite'])
   const canWriteGroup = checkPermissions(['Identity.Group.ReadWrite'])
+  const canWriteRole = checkPermissions(['Identity.Role.ReadWrite'])
 
   return [
     {

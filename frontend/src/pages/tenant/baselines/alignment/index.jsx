@@ -671,7 +671,7 @@ const Page = () => {
         standard: 'standardName',
       },
       confirmText:
-        'Fix [standardLabel] on [tenantFilter] now? CIPP immediately applies the configured expected value.',
+        'Fix [standardLabel] on [tenantFilter] now? Manage365 immediately applies the configured expected value.',
       multiPost: false,
       relatedQueryKeys,
       // Running remediation by hand is always possible - the engine deploys the expected
@@ -727,7 +727,7 @@ const Page = () => {
         </Stack>
       ),
       confirmText:
-        'Deny the deviation on [standardLabel]? CIPP fixes it back to the baseline on the next run (within 12 hours), regardless of the configured posture.',
+        'Deny the deviation on [standardLabel]? Manage365 fixes it back to the baseline on the next run (within 12 hours), regardless of the configured posture.',
       multiPost: false,
       relatedQueryKeys,
       condition: (row) =>

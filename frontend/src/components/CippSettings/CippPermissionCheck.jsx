@@ -116,7 +116,7 @@ const CippPermissionCheck = (props) => {
   const responseText =
     typeof responseData === "string" ? responseData : responseData ? JSON.stringify(responseData) : "";
   const shouldShowApiResponse = responseText.includes(
-    "Access to this CIPP API endpoint is not allowed",
+    "Access to this Manage365 API endpoint is not allowed",
   );
   const checkErrorMessage =
     shouldShowApiResponse

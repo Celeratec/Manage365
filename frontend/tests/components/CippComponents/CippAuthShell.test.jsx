@@ -7,9 +7,9 @@ import { CippAuthShell } from '../../../src/components/CippComponents/CippAuthSh
 
 describe('CippAuthShell', () => {
   it('renders the title and a string description', () => {
-    renderWithTheme(<CippAuthShell title="Sign in to CIPP" description="Session has expired." />)
+    renderWithTheme(<CippAuthShell title="Sign in to Manage365" description="Session has expired." />)
 
-    expect(screen.getByRole('heading', { name: 'Sign in to CIPP' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Sign in to Manage365' })).toBeInTheDocument()
     expect(screen.getByText('Session has expired.')).toBeInTheDocument()
   })
 
@@ -114,7 +114,7 @@ describe('CippAuthShell', () => {
   it('renders the brand lockup and tagline, with no link in the panel', () => {
     renderWithTheme(<CippAuthShell title="Access Denied" />)
 
-    expect(screen.getByRole('img', { name: 'CIPP' })).toHaveAttribute('src', '/logo.png')
+    expect(screen.getByRole('img', { name: 'Manage365' })).toHaveAttribute('src', '/logo.png')
     expect(screen.getByText('CyberDrain Improved Partner Portal')).toBeInTheDocument()
     // the panel must stay link-free: unauthenticated.js asserts no Login link
     // survives in the return-to-home case

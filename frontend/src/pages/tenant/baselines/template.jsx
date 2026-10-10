@@ -1154,7 +1154,7 @@ const Page = () => {
                     color: "text.secondary"
                   }}>
                     Alerts follow each standard's alert settings. Leave these
-                    empty to deliver through the global CIPP notification
+                    empty to deliver through the global Manage365 notification
                     settings (email, webhook, and PSA).
                   </Typography>
                   <CippFormComponent

@@ -77,7 +77,7 @@ export const SsoMigrationDialog = ({ meData }) => {
   if (isErrorState) {
     return (
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-        <DialogTitle>CIPP Single Sign-On Setup Incomplete</DialogTitle>
+        <DialogTitle>Manage365 Single Sign-On Setup Incomplete</DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ mb: 2 }}>
             The CIPP-SSO app registration could not be set up automatically, so the migration is
@@ -116,17 +116,17 @@ export const SsoMigrationDialog = ({ meData }) => {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Prepare for CIPP Single Sign-On</DialogTitle>
+      <DialogTitle>Prepare for Manage365 Single Sign-On</DialogTitle>
       <DialogContent>
         {!submitted ? (
           <>
             <Typography sx={{ mb: 2 }}>
-              CIPP will soon be moving to a dedicated Single Sign-On model, giving you full control
+              Manage365 will soon be moving to a dedicated Single Sign-On model, giving you full control
               over Conditional Access policies, MFA requirements, and session management for your
-              CIPP users.
+              Manage365 users.
             </Typography>
             <Typography sx={{ mb: 2 }}>
-              To get ready, CIPP needs to create an app registration in your tenant called
+              To get ready, Manage365 needs to create an app registration in your tenant called
               <strong> CIPP-SSO </strong> with minimal permissions (OpenID, Profile, Email, Offline
               Access only).
               This won&apos;t change how you log in today — it just prepares your tenant for when

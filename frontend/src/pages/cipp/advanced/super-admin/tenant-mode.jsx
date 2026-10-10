@@ -62,7 +62,7 @@ const Page = () => {
         <Grid size={{ md: 12, xs: 12 }}>
           <Typography variant="body2" color="textSecondary" sx={{ mb: 3 }}>
             The configuration settings below should only be modified by a super admin. Super admins
-            can configure what tenant mode CIPP operates in. See{" "}
+            can configure what tenant mode Manage365 operates in. See{" "}
             <Link
               href="https://docs.cipp.app/setup/installation/owntenant"
               target="_blank"

@@ -31,7 +31,7 @@ export const FailedPaymentDialog = ({ hostedFailedPayments }) => {
       <DialogTitle>Payment Issue</DialogTitle>
       <DialogContent>
         <Alert severity="warning" sx={{ mb: 2 }}>
-          There is a payment issue with your CIPP subscription.
+          There is a payment issue with your Manage365 subscription.
         </Alert>
         <Typography>
           A recent payment has failed. Please contact your account holder to update payment

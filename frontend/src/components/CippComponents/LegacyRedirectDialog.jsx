@@ -129,7 +129,7 @@ export const LegacyRedirectDialog = () => {
             : 'You came here from an old forwarding URL. This URL will stop working soon.'}
         </Alert>
         <Typography sx={{ mb: 2 }}>
-          Your CIPP instance has moved. The address you used is being forwarded
+          Your Manage365 instance has moved. The address you used is being forwarded
           for now, but that forward is temporary and will be switched off.
         </Typography>
         <Typography sx={{ mb: 2 }}>

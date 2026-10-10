@@ -242,7 +242,7 @@ export const CippOffboardingDefaultSettings = (props) => {
                 display: 'block',
                 mb: 1.5
               }}>
-              Leave blank to not set. CIPP %variable% tokens (for example %tenantname%) are resolved
+              Leave blank to not set. Manage365 %variable% tokens (for example %tenantname%) are resolved
               when the offboarding job runs. %username% is not the offboarded user.
             </Typography>
             <CippFormComponent

@@ -56,18 +56,18 @@ const SetupGatePage = () => {
           <Stack direction="row" spacing={2} sx={{
             alignItems: "center"
           }}>
-            <Box component="img" src="/logo.png" alt="CIPP" sx={{ display: 'block', height: 40 }} />
-            <Typography variant="h4">Welcome to CIPP</Typography>
+            <Box component="img" src="/logo.png" alt="Manage365" sx={{ display: 'block', height: 40 }} />
+            <Typography variant="h4">Welcome to Manage365</Typography>
           </Stack>
           <Alert severity="info">
-            CIPP needs to be connected to your Microsoft tenants before it can be used. Complete
+            Manage365 needs to be connected to your Microsoft tenants before it can be used. Complete
             this setup wizard to unlock the rest of the application.
           </Alert>
           <OnboardingWizardPage
             mode="setupGate"
             samAppPresent={me.data?.samAppPresent === true}
             completionButton={{
-              label: 'Enter CIPP',
+              label: 'Enter Manage365',
               color: 'success',
               onClick: () => {
                 purgePersistedCache()

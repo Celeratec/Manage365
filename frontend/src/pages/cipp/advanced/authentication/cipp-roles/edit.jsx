@@ -14,7 +14,7 @@ const EditRolePage = () => {
         <Stack spacing={2}>
           {!role && (
             <Alert severity="info">
-              No role selected. Open this page from the CIPP Roles list to edit a role.
+              No role selected. Open this page from the Manage365 Roles list to edit a role.
             </Alert>
           )}
           {role && (

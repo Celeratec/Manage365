@@ -132,7 +132,7 @@ export const DragClosesFromWhereItWasLeft = {
 const tallItems = [
   { title: 'Dashboard', path: '/' },
   {
-    title: 'CIPP',
+    title: 'Manage365',
     path: '/cipp',
     items: [
       { title: 'Custom Data', path: '/cipp/custom-data' },
@@ -175,7 +175,7 @@ export const NavListIsTheOnlyScroller = {
       expect(new DOMMatrixReadOnly(getComputedStyle(paper).transform).m41).toBe(0)
     )
 
-    await userEvent.click(await within(paper).findByText('CIPP'))
+    await userEvent.click(await within(paper).findByText('Manage365'))
 
     // the list has to overflow, or the paper assertion below would pass for the wrong reason
     const scroller = paper.querySelector('.simplebar-content-wrapper')

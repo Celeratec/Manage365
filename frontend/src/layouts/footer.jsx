@@ -3,7 +3,6 @@ import { Container } from "@mui/material";
 
 export const Footer = memo(() => {
 
-  //randomize the order of the sponsor images
 
   return (
     <div>

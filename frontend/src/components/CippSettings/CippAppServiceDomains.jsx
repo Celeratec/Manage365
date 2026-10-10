@@ -273,7 +273,7 @@ const DomainWizard = ({ open, onClose, siteInfo, initialDomain }) => {
               helperText={
                 hostname.length > 0 && !hostnameValid
                   ? "Enter a fully qualified domain name (e.g. portal.contoso.com)."
-                  : "The fully qualified domain you want CIPP to answer on."
+                  : "The fully qualified domain you want Manage365 to answer on."
               }
             />
 
@@ -550,7 +550,7 @@ export const CippAppServiceDomains = () => {
       ),
       color: "error.main",
       confirmText:
-        "Remove the custom domain '[Hostname]' from the CIPP App Service? Any managed certificate for it will also be removed. The default *.azurewebsites.net hostname is unaffected.",
+        "Remove the custom domain '[Hostname]' from the Manage365 App Service? Any managed certificate for it will also be removed. The default *.azurewebsites.net hostname is unaffected.",
       url: "/api/ExecAppServiceDomains",
       type: "POST",
       data: { Action: "Remove", Hostname: "Hostname" },
@@ -649,7 +649,7 @@ export const CippAppServiceDomains = () => {
           </Alert>
         ) : (
           <Alert severity="info">
-            Map custom domains to the App Service that hosts this CIPP instance. Each domain needs a
+            Map custom domains to the App Service that hosts this Manage365 instance. Each domain needs a
             DNS alias record, a hostname binding, and (optionally) a free managed TLS certificate —
             the wizard walks through all three and can be reopened at any time to finish or fix a
             domain. The default <code>*.azurewebsites.net</code> hostname always remains available.

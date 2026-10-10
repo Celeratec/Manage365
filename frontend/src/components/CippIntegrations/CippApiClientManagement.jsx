@@ -294,7 +294,7 @@ const CippApiClientManagement = () => {
           name: "mcpAccessWarning",
           severity: "warning",
           label:
-            "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on CIPP-NG.",
+            "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on Manage365.",
         },
         {
           name: "mcpRoleIpWarning",
@@ -598,7 +598,7 @@ const CippApiClientManagement = () => {
             name: "mcpAccessWarning",
             severity: "warning",
             label:
-              "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on CIPP-NG.",
+              "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on Manage365.",
           },
           {
             name: "mcpRoleIpWarning",
@@ -683,7 +683,7 @@ const CippApiClientManagement = () => {
             name: "mcpAccessWarning",
             severity: "warning",
             label:
-              "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on CIPP-NG.",
+              "Enabling MCP Access sets this client up as an MCP connector sign-in app — AI clients (Claude, ChatGPT, Copilot Studio, VS Code) sign in as it, and the shared CIPP-MCP resource app is created automatically. You can enable multiple MCP clients, each with its own role, IP range and Conditional Access. MCP is only supported on Manage365.",
           },
           {
             name: "mcpRoleIpWarning",

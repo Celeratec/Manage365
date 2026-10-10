@@ -53,7 +53,7 @@ const Page = () => {
                 validate: (options) =>
                   options?.length ? true : "At least one role is required",
               }}
-              helperText="CIPP roles assigned this template may only grant these directory roles via JIT Admin."
+              helperText="Manage365 roles assigned this template may only grant these directory roles via JIT Admin."
             />
           </Grid>
         </Grid>

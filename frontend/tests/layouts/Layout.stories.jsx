@@ -178,8 +178,8 @@ export const MaintenanceOutage = {
     msw: {
       handlers: makeHandlers([
         maintenanceAlert({
-          title: 'CIPP is read-only',
-          Alert: 'CIPP is read-only during the storage cutover. Changes will fail to save.',
+          title: 'Manage365 is read-only',
+          Alert: 'Manage365 is read-only during the storage cutover. Changes will fail to save.',
           type: 'error',
           noticeId: 'storybook-outage',
           startTime: daysFromNow(-1),
@@ -194,7 +194,7 @@ export const MaintenanceOutage = {
     const canvas = within(canvasElement)
     await step('a non-dismissible outage has no close button', async () => {
       const banner = await waitFor(() => canvas.getByLabelText('Maintenance notice'))
-      await expect(within(banner).getByText('CIPP is read-only')).toBeInTheDocument()
+      await expect(within(banner).getByText('Manage365 is read-only')).toBeInTheDocument()
       await expect(
         within(banner).queryByRole('button', { name: /dismiss maintenance notice/i })
       ).toBeNull()

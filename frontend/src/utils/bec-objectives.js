@@ -174,7 +174,7 @@ export const BEC_GROUPS = [
           const count = (v) => rows.filter((r) => r.Verdict === v).length
           const base = b.IPBaseline
           return (
-            `${rows.length} address(es): ${count('Compromised')} confirmed compromised, ${count('LikelyAttacker')} likely attacker, ${count('Suspicious')} suspicious, ${count('Unknown')} unknown, ${count('LikelyUser')} likely the user, ${count('Safe')} confirmed safe, ${count('Service')} Microsoft or CIPP service.` +
+            `${rows.length} address(es): ${count('Compromised')} confirmed compromised, ${count('LikelyAttacker')} likely attacker, ${count('Suspicious')} suspicious, ${count('Unknown')} unknown, ${count('LikelyUser')} likely the user, ${count('Safe')} confirmed safe, ${count('Service')} Microsoft or Manage365 service.` +
             (base
               ? ` Judged against ${base.Successful} successful sign-in(s) before the window.`
               : ' No sign-in baseline was available, so nothing was judged as new to the user.') +
@@ -850,7 +850,7 @@ export const BEC_GROUPS = [
       },
       {
         key: 'PartnerActions',
-        title: 'Partner and CIPP actions on this account',
+        title: 'Partner and Manage365 actions on this account',
         // Every audited change in the case whose actor was a partner (GDAP) identity or CIPP's own
         // service principal, gathered from all the sources above. Routine MSP work reads as such, and
         // anything a partner identity did that the investigation did not expect stands out on its own.
@@ -867,7 +867,7 @@ export const BEC_GROUPS = [
         rows: (b) => becPartnerActions(b),
         count: (b) => becPartnerActions(b).length,
         empty:
-          'No actions by partner or CIPP identities were found in the window.',
+          'No actions by partner or Manage365 identities were found in the window.',
       },
       {
         key: 'NewUsers',

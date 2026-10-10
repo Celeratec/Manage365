@@ -399,9 +399,9 @@ const Page = () => {
         infoBar={
           <Stack spacing={2}>
             <Alert severity="info" sx={{ mt: 2 }}>
-              Backups are stored in the storage account associated with your CIPP instance. You can
+              Backups are stored in the storage account associated with your Manage365 instance. You can
               download or restore specific points in time from the list below. Enable automatic
-              backups to have CIPP create daily backups using the scheduler.
+              backups to have Manage365 create daily backups using the scheduler.
             </Alert>
             <CippInfoBar
               isFetching={backupList.isFetching}
@@ -566,8 +566,8 @@ const Page = () => {
                 <Box sx={{ flex: 1 }}>
                   <ReplicationScopeCard
                     scope="Core"
-                    label="CIPP Core Backups"
-                    description="Replicates CIPP configuration (Core) backups."
+                    label="Manage365 Core Backups"
+                    description="Replicates Manage365 configuration (Core) backups."
                     config={replicationConfig.data?.Results?.Core}
                   />
                 </Box>

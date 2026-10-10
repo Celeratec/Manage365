@@ -231,7 +231,7 @@ export const AuthMethodCard = ({ data, isLoading, compact = false }) => {
               "&:hover": { textDecoration: "underline" },
             }}
           >
-            <UsersIcon sx={{ fontSize: compact ? 20 : 24 }} />
+            <CippIcons.UsersIcon sx={{ fontSize: compact ? 20 : 24 }} />
             <Typography variant={titleVariant}>All users auth methods</Typography>
           </Box>
         }
