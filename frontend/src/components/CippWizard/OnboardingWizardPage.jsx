@@ -108,7 +108,7 @@ const OnboardingWizardPage = ({ mode, samAppPresent, completionButton }) => {
       componentProps: {
         title: 'Select your setup method',
         subtext:
-          'This wizard will guide you through setting up Manage365's access to your client tenants. If this is your first time setting up Manage365 you will want to choose the option "First Setup".',
+          "This wizard will guide you through setting up Manage365's access to your client tenants. If this is your first time setting up Manage365 you will want to choose the option \"First Setup\".",
         valuesKey: 'SyncTool',
         options: visibleOptions,
       },
