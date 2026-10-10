@@ -1,4 +1,5 @@
-import { Launch, Delete, Key, Security, ContentCopy, Visibility, Edit } from '@mui/icons-material'
+
+import { CippIcons } from '../../utils/icon-registry'
 import isEqual from 'lodash/isEqual'
 import { CippFormComponent } from './CippFormComponent.jsx'
 import { CertificateCredentialRemovalForm } from './CertificateCredentialRemovalForm.jsx'
@@ -9,10 +10,11 @@ const entraLinkActions = (forHeaderMenu) => {
   const extra = forHeaderMenu ? headerLinkProps : {}
   return [
     {
-      icon: <Launch />,
+      icon: <CippIcons.Launch />,
       label: 'View App Registration',
       category: "view",
       link: `https://entra.microsoft.com/[Tenant]/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/Overview/appId/[appId]/isMSAApp/`,
+      pinned: true,
       color: 'info',
       target: '_blank',
       multiPost: false,
@@ -20,10 +22,11 @@ const entraLinkActions = (forHeaderMenu) => {
       ...extra,
     },
     {
-      icon: <Launch />,
+      icon: <CippIcons.Launch />,
       label: 'View API Permissions',
       category: "view",
       link: `https://entra.microsoft.com/[Tenant]/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/CallAnAPI/appId/[appId]/isMSAApp/`,
+      pinned: true,
       color: 'info',
       target: '_blank',
       multiPost: false,
@@ -34,10 +37,11 @@ const entraLinkActions = (forHeaderMenu) => {
 }
 
 const editInEntraAction = {
-  icon: <Edit />,
+  icon: <CippIcons.Edit />,
   label: 'Edit App Registration',
   category: "edit",
   link: `https://entra.microsoft.com/[Tenant]/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/~/AppRegSettings/appId/[appId]/isMSAApp/`,
+  pinned: true,
   color: 'success',
   target: '_blank',
   multiPost: false,
@@ -80,7 +84,7 @@ export const ADD_CLIENT_SECRET_FIELDS = [
 
 export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication) => [
   {
-    icon: <ContentCopy />,
+    icon: <CippIcons.ContentCopy />,
     label: 'Create Enterprise App Template (Multi-Tenant)',
     category: "manage",
     type: 'POST',
@@ -108,7 +112,7 @@ export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication)
         row?.signInAudience === 'AzureADandPersonalMicrosoftAccount'),
   },
   {
-    icon: <ContentCopy />,
+    icon: <CippIcons.ContentCopy />,
     label: 'Create Manifest Template (Single-Tenant)',
     category: "manage",
     type: 'POST',
@@ -162,7 +166,7 @@ export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication)
       canWriteApplication && row.signInAudience === 'AzureADMyOrg' && !row?.applicationTemplateId,
   },
   {
-    icon: <Key />,
+    icon: <CippIcons.Key />,
     label: 'Add Client Secret',
     category: "security",
     type: 'POST',
@@ -182,7 +186,7 @@ export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication)
     condition: () => canWriteApplication,
   },
   {
-    icon: <Key />,
+    icon: <CippIcons.Key />,
     label: 'Remove Password Credentials',
     category: "security",
     type: 'POST',
@@ -219,7 +223,7 @@ export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication)
     condition: (row) => canWriteApplication && row?.passwordCredentials?.length > 0,
   },
   {
-    icon: <Security />,
+    icon: <CippIcons.Security />,
     label: 'Remove Certificate Credentials',
     category: "security",
     type: 'POST',
@@ -238,7 +242,7 @@ export const getAppRegistrationPostAndDestructiveActions = (canWriteApplication)
     condition: (row) => canWriteApplication && row?.keyCredentials?.length > 0,
   },
   {
-    icon: <Delete />,
+    icon: <CippIcons.Delete />,
     label: 'Delete App Registration',
     category: "danger",
     type: 'POST',
@@ -277,7 +281,7 @@ const redirectUrisFromForm = (value) =>
 // must include tenantFilter from the detail page's actionsData.Tenant.
 export const getAppRegistrationEditActions = (canWriteApplication) => [
   {
-    icon: <Edit />,
+    icon: <CippIcons.Edit />,
     label: 'Edit Authentication',
     category: "edit",
     type: 'POST',
@@ -372,10 +376,11 @@ export const getAppRegistrationEditActions = (canWriteApplication) => [
 
 export const getAppRegistrationListActions = (canWriteApplication) => [
   {
-    icon: <Visibility />,
+    icon: <CippIcons.EyeIcon />,
     label: 'View in Manage365',
     category: "view",
     link: '/tenant/administration/applications/app-registration?appId=[appId]&tenantFilter=[Tenant]',
+    pinned: true,
     color: 'info',
     multiPost: false,
     external: false,

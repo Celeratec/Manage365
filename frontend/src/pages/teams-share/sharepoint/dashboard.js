@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index.jsx";
 import {
   Box,
   Button,

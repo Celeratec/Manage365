@@ -15,6 +15,10 @@ Function Invoke-AddTransportTemplate {
 
     try {
         $GUID = (New-Guid).GUID
+        # Posted from the row action; without a name the template lists blank and deploys with no parameters.
+        if (-not $Request.Body.PowerShellCommand -and [string]::IsNullOrWhiteSpace($Request.Body.Name)) {
+            throw 'Transport rule template name is required but was not provided'
+        }
         $JSON = if ($request.body.PowerShellCommand) {
             Write-Host 'PowerShellCommand'
             $request.body.PowerShellCommand | ConvertFrom-Json
@@ -25,7 +29,7 @@ Function Invoke-AddTransportTemplate {
                     $_ | Select-Object -Property $NonEmptyProperties
                 }
         }
-        $JSON = ($JSON | Select-Object @{n = 'name'; e = { $_.name } }, @{n = 'comments'; e = { $_.comments } }, * | ConvertTo-Json -Depth 10)
+        $JSON = ($JSON | Select-Object @{n = 'name'; e = { $_.name } }, @{n = 'comments'; e = { $_.comments } }, * -ExcludeProperty Name, Comments | ConvertTo-Json -Depth 10)
         $Table = Get-CippTable -tablename 'templates'
         $Table.Force = $true
         Add-CIPPAzDataTableEntity @Table -Entity @{
@@ -33,12 +37,12 @@ Function Invoke-AddTransportTemplate {
             RowKey       = "$GUID"
             PartitionKey = 'TransportTemplate'
         }
-        Write-LogMessage -Headers $Headers -API $APINAME -message "Created Transport Rule Template $($Request.body.name) with GUID $GUID" -Sev Debug
+        Write-LogMessage -Headers $Headers -API $APINAME -tenant 'Global' -message "Created Transport Rule Template $($Request.body.name) with GUID $GUID" -Sev 'Info'
         $body = [pscustomobject]@{'Results' = "Created Transport Rule Template $($Request.body.name) with GUID $GUID" }
         $StatusCode = [HttpStatusCode]::OK
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
-        Write-LogMessage -Headers $Headers -API $APINAME -message "Failed to create Transport Rule Template: $($ErrorMessage.NormalizedError)" -Sev Error -LogData $ErrorMessage
+        Write-LogMessage -Headers $Headers -API $APINAME -tenant 'Global' -message "Failed to create Transport Rule Template: $($ErrorMessage.NormalizedError)" -Sev Error -LogData $ErrorMessage
         $body = [pscustomobject]@{'Results' = "Failed to create Transport Rule Template: $($ErrorMessage.NormalizedError)" }
         $StatusCode = [HttpStatusCode]::Forbidden
     }

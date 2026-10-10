@@ -1,6 +1,6 @@
 # Permissions
 
-The Permissions page verifies that CIPP has the access it needs to manage your tenants. It runs three checks — one covering the permissions on CIPP's own application registration, one covering your GDAP relationships, and one that tests access to each tenant individually — and lets you export the results as a diagnostic report for troubleshooting or support. Where your tenants are added directly rather than through Microsoft Partner Center relationships, the GDAP check does not apply and access is confirmed per tenant by the Tenants check instead.
+The Permissions page verifies that CIPP has the access it needs to manage your tenants. It runs three checks: one covering CIPP's own application registration, one covering your GDAP relationships, and one that tests access to each tenant individually. The results can be exported as a diagnostic report for troubleshooting or support. Where your tenants are added directly rather than through Microsoft Partner Center relationships, the GDAP check does not apply and access is confirmed per tenant by the Tenants check instead.
 
 ## Diagnostic Report
 
@@ -18,6 +18,10 @@ While an imported report is being viewed, each affected check is marked with an 
 ## Permissions Check
 
 Checks the permissions granted to CIPP's application registration and reports anything missing. Select **Refresh** to run the check again without using cached results, or **Details** to open a flyout with the full breakdown. The time of the last run is shown beside the buttons.
+
+The check also confirms that the secret CIPP authenticates with as its own application is still valid. CIPP renews that secret automatically ahead of its expiry date, so a problem is only reported where the stored secret has already expired, or is within a few weeks of expiring and has not been renewed. Both are reported on the card with the expiry date, and both need attention, because CIPP uses that secret to obtain access to your tenants.
+
+Shortly after a renewal, the check can report that the secret CIPP is currently using does not match the one that is stored. That resolves itself once the new value is picked up, which takes up to thirty minutes. Where the secret cannot be checked at all, the card reports that rather than treating it as a failure.
 
 {% hint style="info" %}
 When this check flags missing permissions or required CPV refreshes, the Details flyout provides buttons to handle these tasks easily.

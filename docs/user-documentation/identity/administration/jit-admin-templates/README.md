@@ -4,13 +4,9 @@ JIT Admin templates hold the settings for a just-in-time admin grant so the same
 
 ## Action Buttons
 
-<details>
-
-<summary>Add JIT Admin Template</summary>
-
-Links to [add-jit-admin-template.md](add-jit-admin-template.md "mention")
-
-</details>
+{% content-ref url="add.md" %}
+[add.md](add.md)
+{% endcontent-ref %}
 
 ## Table Details
 
@@ -32,7 +28,7 @@ This list is scoped to the tenant selected in the tenant selector, and shows tha
 
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Template</td><td>Opens the selected template for editing in <a data-mention href="edit-jit-admin-template.md">edit-jit-admin-template.md</a>.</td><td>false</td></tr><tr><td>Save to GitHub</td><td>Uploads the template to one of your GitHub repositories, prompting for the repository and a commit message. Only repositories you have write access to are offered. Greyed out unless the GitHub integration is enabled.</td><td>true</td></tr><tr><td>Delete Template</td><td>Deletes the template from CIPP. Grants already created from it are unaffected and still expire as scheduled.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Template</td><td>Opens the selected template for editing in <a data-mention href="edit.md">edit.md</a>.</td><td>false</td></tr><tr><td>Save to GitHub</td><td>Uploads the template to one of your GitHub repositories, prompting for the repository and a commit message. Only repositories you have write access to are offered. Greyed out unless the GitHub integration is enabled.</td><td>true</td></tr><tr><td>Delete Template</td><td>Deletes the template from CIPP. Grants already created from it are unaffected and still expire as scheduled.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% hint style="warning" %}
 Only one template should be marked as the default for a given tenant. Where both a tenant-specific default and an All Tenants default exist, the tenant-specific one is applied.

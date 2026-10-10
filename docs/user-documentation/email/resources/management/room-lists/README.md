@@ -24,7 +24,7 @@ Creates a new room list in the selected tenant.
 
 The properties returned are for the Exchange Online PowerShell command `Get-DistributionGroup` with a filter for `RoomList`. For more information on the command please see the [Microsoft documentation](https://learn.microsoft.com/en-us/powershell/module/exchange/get-distributiongroup?view=exchange-ps).
 
-**More Info** opens the Extended Info flyout, which shows the room list's display name, address, identity, phone, notes, and GUID, and carries the same actions as the table.
+**More Info** opens the Extended Info flyout, which shows the room list's display name, address, identity, phone, notes, and GUID.
 
 ## Table Actions
 

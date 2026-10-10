@@ -48,6 +48,8 @@ function Get-CippSamPermissions {
         $SamManifestFile = Get-Item (Join-Path $env:CIPPRootPath 'Config\SAMManifest.json')
         $AdditionalPermissionsFile = Get-Item (Join-Path $env:CIPPRootPath 'Config\AdditionalPermissions.json')
 
+        $ServicePrincipalList = New-GraphGetRequest -Uri 'https://graph.microsoft.com/beta/servicePrincipals?$top=999&$select=id,appId,displayName' -tenantid $env:TenantID -NoAuthCheck $true
+
         $SAMManifest = Get-Content -Path $SamManifestFile.FullName | ConvertFrom-Json
         $AdditionalPermissions = Get-Content -Path $AdditionalPermissionsFile.FullName | ConvertFrom-Json
 
@@ -56,21 +58,7 @@ function Get-CippSamPermissions {
         $AppIds = ($RequiredResources.resourceAppId + $AdditionalPermissions.resourceAppId) | Sort-Object -Unique
 
         Write-Information "Retrieving service principals for $($AppIds.Count) applications"
-        # Fetch only the service principals the manifest references (server-side filter) instead of
-        # enumerating every SP in the partner tenant. Cached at script scope so the repair flow
-        # (-ManifestOnly followed by -NoDiff in the same invocation) only queries Graph once.
-        $SPCacheKey = $AppIds -join ','
-        if ($script:CippSamServicePrincipalCache -and
-            $script:CippSamServicePrincipalCacheKey -eq $SPCacheKey -and
-            $script:CippSamServicePrincipalCacheTime -and
-            ((Get-Date) - $script:CippSamServicePrincipalCacheTime).TotalMinutes -lt 5) {
-            $UsedServicePrincipals = $script:CippSamServicePrincipalCache
-        } else {
-            $UsedServicePrincipals = Get-CippServicePrincipalsByAppId -AppIds $AppIds -TenantFilter $env:TenantID
-            $script:CippSamServicePrincipalCache = $UsedServicePrincipals
-            $script:CippSamServicePrincipalCacheKey = $SPCacheKey
-            $script:CippSamServicePrincipalCacheTime = Get-Date
-        }
+        $UsedServicePrincipals = $ServicePrincipalList | Where-Object -Property appId -In $AppIds
         $Requests = $UsedServicePrincipals | ForEach-Object {
             @(
                 @{
@@ -250,7 +238,31 @@ function Get-CippSamPermissions {
         }
     }
 
-    $Timestamp = $SamManifestFile.LastWriteTime.ToUniversalTime()
+    # When the permission set last changed. Content hash, not mtime: git doesn't store mtimes,
+    # so every checkout/build restamped the manifest and re-queued the whole estate for CPV.
+    $ManifestContent = (Get-Content -Path $SamManifestFile.FullName -Raw) + (Get-Content -Path $AdditionalPermissionsFile.FullName -Raw)
+    $ManifestHash = [System.Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData([System.Text.Encoding]::UTF8.GetBytes($ManifestContent)))
+    $HashRow = Get-CippAzDataTableEntity @Table -Filter "PartitionKey eq 'CIPP-SAM' and RowKey eq 'ManifestHash'"
+
+    if ($HashRow.Hash -eq $ManifestHash -and $HashRow.FirstSeenUtc) {
+        $Timestamp = ([datetime]::Parse($HashRow.FirstSeenUtc)).ToUniversalTime()
+    } else {
+        # New permission set - advance the timestamp once and record it.
+        $Timestamp = [datetime]::UtcNow
+        try {
+            $null = Add-CIPPAzDataTableEntity @Table -Force -Entity @{
+                PartitionKey = 'CIPP-SAM'
+                RowKey       = 'ManifestHash'
+                Hash         = $ManifestHash
+                FirstSeenUtc = $Timestamp.ToString('o')
+            }
+        } catch {
+            # Unpersisted, every call would look like first sight; mtime is at least stable.
+            Write-Information "Could not persist the SAM manifest hash: $($_.Exception.Message)"
+            $Timestamp = $SamManifestFile.LastWriteTime.ToUniversalTime()
+        }
+    }
+
     if ($SavedRow.Timestamp) {
         $SavedTimestamp = $SavedRow.Timestamp.DateTime.ToUniversalTime()
         if ($SavedTimestamp -gt $Timestamp) {

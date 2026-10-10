@@ -32,6 +32,11 @@ function Set-CIPPDBCacheCsTeamsMessagingPolicy {
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsMessagingPolicy' -Data $Data
             Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsMessagingPolicy' -Data $Data -Count
             Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached Teams Messaging Policy' -sev Debug
+        } else {
+            # The request succeeded with nothing returned: write the authoritative empty set so the
+            # Count marker records a completed collection and stale rows are cleared.
+            Add-CIPPDbItem -TenantFilter $TenantFilter -Type 'CsTeamsMessagingPolicy' -Data @() -AddCount -ClearOnEmpty
+            Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message 'Cached 0 Teams Messaging Policies (none found)' -sev Debug
         }
         $MessagingPolicy = $null
 

@@ -61,11 +61,16 @@
   "read": {
     "cacheType": "AuthorizationPolicy"
   },
+  "writeTarget": "authorizationPolicy",
+  "writeTargetProperties": {
+    "guestUserRoleId": "%guestUserRoleId%"
+  },
   "remediate": {
     "executor": "GraphRequest",
     "requests": [
       {
         "method": "PATCH",
+        "asApp": false,
         "uri": "policies/authorizationPolicy/authorizationPolicy",
         "body": {
           "guestUserRoleId": "%guestUserRoleId%"

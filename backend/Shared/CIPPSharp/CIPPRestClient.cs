@@ -38,6 +38,47 @@ namespace CIPP
     }
 
     // =====================================================================
+    // CIPPConcurrentRequest / CIPPConcurrentResult
+    // =====================================================================
+    // One PowerShell call, many async HTTP requests. PowerShell builds the
+    // request list (and acquires any auth token once, passing it in Headers),
+    // then calls CIPPRestClient.SendConcurrent — the .NET side fans the requests
+    // out concurrently, bounded by a semaphore, with Retry-After / backoff on
+    // 429 and 5xx. This keeps concurrency in .NET (robust async) rather than
+    // ForEach-Object -Parallel runspaces in the PowerShell worker. Per-hostname
+    // connection caps (see the pool design above) still apply, so a burst to one
+    // host cannot exceed that host's connection budget.
+    // =====================================================================
+    public sealed class CIPPConcurrentRequest
+    {
+        public string                      Uri                { get; set; } = string.Empty;
+        public string                      Method             { get; set; } = "GET";
+        public string?                     Body               { get; set; }
+        public Dictionary<string, string>? Headers            { get; set; }
+        public string?                     ContentType        { get; set; }
+        public int                         TimeoutSec         { get; set; } = 100;
+        public int                         MaximumRedirection { get; set; } = -1;
+    }
+
+    /// <summary>
+    /// Per-request outcome, returned in the same order as the input requests.
+    /// A failed request never aborts the batch: transport failures land in
+    /// <see cref="Error"/>, HTTP responses (including 4xx/5xx after retries) land
+    /// in <see cref="Result"/>. Index maps back to the caller's request array.
+    /// </summary>
+    public sealed class CIPPConcurrentResult
+    {
+        public int         Index      { get; init; }
+        public bool        IsSuccess  { get; init; }
+        public int         StatusCode { get; init; }
+        public HttpResult? Result     { get; init; }
+        public string?     Error      { get; init; }
+        public int         Attempts   { get; init; }
+        /// <summary>True when the request hit its own TimeoutSec (not a server-side cancel).</summary>
+        public bool        TimedOut   { get; init; }
+    }
+
+    // =====================================================================
     // CIPPResponseHeaders / CIPPHttpResponse / CIPPHttpRequestException
     // =====================================================================
     // When a request returns a non-success status, the PowerShell wrapper
@@ -141,10 +182,12 @@ namespace CIPP
     //   AdminPlane      5   admin.microsoft.com, reports, Defender, etc.
     //   Compliance      5   compliance redirect discovery (no-redirect)
     //   PartnerCenter   5   api.partnercenter.microsoft.com
+    //   SPO             5   *.sharepoint.com CSOM/_api (concurrent per-site fan-out)
     //   DNS             2   dns.google.com, cloudflare-dns.com (per host)
+    //   NinjaOne       12   *.ninjarmm.com, *.ninjaone.com (tenant sync fan-out)
     //   Default         5   catch-all + absorbs legacy Invoke-RestMethod calls
     //   ─────────────
-    //   Total          79   leaves a 46-port buffer for the Functions host,
+    //   Total          96   leaves a 29-port buffer for the Functions host,
     //                       Durable extension, AppInsights, Azure SDK clients,
     //                       and any stragglers that bypass the pool.
     //
@@ -196,7 +239,9 @@ namespace CIPP
         private static HttpClient? _complianceClient;
         private static HttpClient? _partnerCenterClient;
         private static HttpClient? _adminPlaneClient;
+        private static HttpClient? _spoClient;
         private static HttpClient? _dnsClient;
+        private static HttpClient? _ninjaOneClient;
         private static HttpClient? _defaultClient;
 
         /// <summary>
@@ -252,6 +297,11 @@ namespace CIPP
         /// Covers graph.microsoft.com and any *.microsoft.com graph surface.
         /// Cap: 30 connections.
         /// </summary>
+        // Per-lane connection cap. Override any lane with env "<Lane>MaxConnectionsPerServer"
+        // (e.g. ExoMaxConnectionsPerServer) for load testing; otherwise the tuned default applies.
+        private static int MaxConn(string envVar, int fallback)
+            => int.TryParse(Environment.GetEnvironmentVariable(envVar), out var v) && v > 0 ? v : fallback;
+
         private static HttpClient BuildGraphClient() => new HttpClient(new SocketsHttpHandler
         {
             AutomaticDecompression         = DecompressionMethods.All,
@@ -260,14 +310,14 @@ namespace CIPP
             EnableMultipleHttp2Connections = true,   // Graph supports HTTP/2; streams share connections
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 10,
-            MaxConnectionsPerServer        = 30,
+            MaxConnectionsPerServer        = MaxConn("GraphMaxConnectionsPerServer", 30),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
         /// EXO client — Exchange Online and Outlook endpoints.
         /// Covers outlook.office365.com, outlook.office.com, outlook.com,
         /// and *.protection.outlook.com (mail protection / transport).
-        /// Cap: 20 connections.
+        /// Cap: 30 connections (override with env <c>ExoMaxConnectionsPerServer</c>).
         /// HTTP/2 enabled — EXO REST APIs support it.
         /// </summary>
         private static HttpClient BuildExoClient() => new HttpClient(new SocketsHttpHandler
@@ -278,7 +328,7 @@ namespace CIPP
             EnableMultipleHttp2Connections = true,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 10,
-            MaxConnectionsPerServer        = 20,
+            MaxConnectionsPerServer        = MaxConn("ExoMaxConnectionsPerServer", 30),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -296,7 +346,7 @@ namespace CIPP
             EnableMultipleHttp2Connections = false,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 5,
-            MaxConnectionsPerServer        = 5,
+            MaxConnectionsPerServer        = MaxConn("LoginMaxConnectionsPerServer", 5),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -315,7 +365,7 @@ namespace CIPP
             PooledConnectionIdleTimeout    = TimeSpan.FromMinutes(2),
             EnableMultipleHttp2Connections = false,
             AllowAutoRedirect              = false,  // 3xx IS the expected response here
-            MaxConnectionsPerServer        = 5,
+            MaxConnectionsPerServer        = MaxConn("ComplianceMaxConnectionsPerServer", 5),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -332,7 +382,7 @@ namespace CIPP
             EnableMultipleHttp2Connections = true,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 10,
-            MaxConnectionsPerServer        = 5,
+            MaxConnectionsPerServer        = MaxConn("PartnerCenterMaxConnectionsPerServer", 5),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -348,7 +398,28 @@ namespace CIPP
             EnableMultipleHttp2Connections = true,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 10,
-            MaxConnectionsPerServer        = 5,
+            MaxConnectionsPerServer        = MaxConn("AdminPlaneMaxConnectionsPerServer", 5),
+        }) { Timeout = Timeout.InfiniteTimeSpan };
+
+        /// <summary>
+        /// SharePoint / OneDrive client — dedicated lane for SPO admin CSOM (ProcessQuery) and
+        /// SPO REST (_api) against *.sharepoint.com, which have no server-side $batch. Concurrent
+        /// per-site writes (Set-CIPPSPOSiteBulk via SendConcurrent) fan out here. HTTP/2 is disabled
+        /// so MaxConnectionsPerServer is a true concurrency ceiling (5) rather than a connection count
+        /// that H2 stream-multiplexing could exceed. Measured on a 526-site tenant, 5 in flight throttled
+        /// far less than 8-10 (43 vs 56 x HTTP 429) and finished sooner — SPO's CSOM-admin throttle is a
+        /// sustained-rate limit, so a lower ceiling plus the once-per-24h sweep guard is the throttle-safe
+        /// combination. Cap: 5 connections.
+        /// </summary>
+        private static HttpClient BuildSpoClient() => new HttpClient(new SocketsHttpHandler
+        {
+            AutomaticDecompression         = DecompressionMethods.All,
+            PooledConnectionLifetime       = TimeSpan.FromMinutes(30),
+            PooledConnectionIdleTimeout    = TimeSpan.FromMinutes(2),
+            EnableMultipleHttp2Connections = false,
+            AllowAutoRedirect              = true,
+            MaxAutomaticRedirections       = 10,
+            MaxConnectionsPerServer        = MaxConn("SpoMaxConnectionsPerServer", 5),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -366,7 +437,24 @@ namespace CIPP
             EnableMultipleHttp2Connections = false,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 5,
-            MaxConnectionsPerServer        = 2,
+            MaxConnectionsPerServer        = MaxConn("DnsMaxConnectionsPerServer", 2),
+        }) { Timeout = Timeout.InfiniteTimeSpan };
+
+        /// <summary>
+        /// NinjaOne client — *.ninjarmm.com / *.ninjaone.com. The tenant sync fans out
+        /// per-device and per-document writes, and NinjaOne scales close to linearly with
+        /// concurrency (300 device PATCHes: 98s at 1 in flight, 12s at 8, 6s at 16), so it gets its own
+        /// lane instead of queueing behind the 5-connection catch-all. Cap: 12 connections.
+        /// </summary>
+        private static HttpClient BuildNinjaOneClient() => new HttpClient(new SocketsHttpHandler
+        {
+            AutomaticDecompression         = DecompressionMethods.All,
+            PooledConnectionLifetime       = TimeSpan.FromMinutes(30),
+            PooledConnectionIdleTimeout    = TimeSpan.FromMinutes(2),
+            EnableMultipleHttp2Connections = false,
+            AllowAutoRedirect              = true,
+            MaxAutomaticRedirections       = 10,
+            MaxConnectionsPerServer        = MaxConn("NinjaOneMaxConnectionsPerServer", 12),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         /// <summary>
@@ -385,7 +473,7 @@ namespace CIPP
             EnableMultipleHttp2Connections = true,
             AllowAutoRedirect              = true,
             MaxAutomaticRedirections       = 10,
-            MaxConnectionsPerServer        = 5,
+            MaxConnectionsPerServer        = MaxConn("DefaultMaxConnectionsPerServer", 5),
         }) { Timeout = Timeout.InfiniteTimeSpan };
 
         // -----------------------------------------------------------------
@@ -405,7 +493,9 @@ namespace CIPP
                 _complianceClient is not null &&
                 _partnerCenterClient is not null &&
                 _adminPlaneClient is not null &&
+                _spoClient        is not null &&
                 _dnsClient        is not null &&
+                _ninjaOneClient   is not null &&
                 _defaultClient    is not null)
                 return;
 
@@ -421,7 +511,9 @@ namespace CIPP
                     _complianceClient = BuildComplianceClient();
                     _partnerCenterClient = BuildPartnerCenterClient();
                     _adminPlaneClient = BuildAdminPlaneClient();
+                    _spoClient        = BuildSpoClient();
                     _dnsClient        = BuildDnsClient();
+                    _ninjaOneClient   = BuildNinjaOneClient();
                     _defaultClient    = BuildDefaultClient();
                 }
             }
@@ -506,11 +598,20 @@ namespace CIPP
                 // Rule 6 — Microsoft admin/reporting/security lanes
                 var h when IsAdminPlaneHost(h)                             => (_adminPlaneClient!, "AdminPlane", host),
 
+                // Rule 6b — SharePoint / OneDrive (CSOM ProcessQuery + _api REST). Covers the
+                // tenant, -admin and -my hosts. No server-side $batch, so concurrent per-site
+                // requests fan out here, capped at 10 connections.
+                var h when h.EndsWith(".sharepoint.com",
+                    StringComparison.OrdinalIgnoreCase)                    => (_spoClient!, "SPO", host),
+
                 // Rule 7 — DNS-over-HTTPS providers (low connection cap)
                 var h when h.Equals("dns.google.com",
                     StringComparison.OrdinalIgnoreCase)                    => (_dnsClient!, "DNS", host),
                 var h when h.Equals("cloudflare-dns.com",
                     StringComparison.OrdinalIgnoreCase)                    => (_dnsClient!, "DNS", host),
+
+                var h when h.EndsWith(".ninjarmm.com", StringComparison.OrdinalIgnoreCase)
+                        || h.EndsWith(".ninjaone.com", StringComparison.OrdinalIgnoreCase) => (_ninjaOneClient!, "NinjaOne", host),
 
                 // Rule 8 — catch-all
                 _                                                           => (_defaultClient!, "Default", host),
@@ -798,6 +899,113 @@ namespace CIPP
                     ResponseHeaders = allHeaders,
                 };
             }
+        }
+
+        // -----------------------------------------------------------------
+        // Concurrent fan-out — one PowerShell call, many async requests
+        // -----------------------------------------------------------------
+        // PowerShell passes a list of requests (each already carrying its auth
+        // header) and gets back one result per request, in order. Concurrency is
+        // bounded by maxConcurrency here AND by each destination's
+        // MaxConnectionsPerServer cap, whichever is tighter. 429/5xx are retried
+        // with Retry-After (when present) or exponential backoff with jitter. A
+        // single request's failure is captured, never thrown, so the batch always
+        // completes and the caller can act on partial success.
+        //
+        // Synchronous shim for PowerShell (cannot await Tasks natively). Safe here
+        // for the same reason Send() is — no SynchronizationContext to deadlock on.
+        // -----------------------------------------------------------------
+        public static CIPPConcurrentResult[] SendConcurrent(
+            IEnumerable<CIPPConcurrentRequest> requests,
+            int maxConcurrency = 8,
+            int maxRetries     = 3)
+        {
+            return SendConcurrentAsync(requests, maxConcurrency, maxRetries)
+                   .GetAwaiter().GetResult();
+        }
+
+        public static async Task<CIPPConcurrentResult[]> SendConcurrentAsync(
+            IEnumerable<CIPPConcurrentRequest> requests,
+            int maxConcurrency = 8,
+            int maxRetries     = 3)
+        {
+            var list = requests is null ? new List<CIPPConcurrentRequest>() : requests.ToList();
+            if (list.Count == 0) return Array.Empty<CIPPConcurrentResult>();
+            if (maxConcurrency < 1) maxConcurrency = 1;
+            if (maxRetries    < 0) maxRetries     = 0;
+
+            using var gate = new SemaphoreSlim(maxConcurrency, maxConcurrency);
+            var tasks = new Task<CIPPConcurrentResult>[list.Count];
+            for (int i = 0; i < list.Count; i++)
+            {
+                int index = i;
+                var req   = list[i];
+                tasks[i] = Task.Run(async () =>
+                {
+                    await gate.WaitAsync().ConfigureAwait(false);
+                    try   { return await SendOneWithRetryAsync(index, req, maxRetries).ConfigureAwait(false); }
+                    finally { gate.Release(); }
+                });
+            }
+            return await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
+
+        private static async Task<CIPPConcurrentResult> SendOneWithRetryAsync(
+            int index, CIPPConcurrentRequest req, int maxRetries)
+        {
+            var attempt = 0;
+            while (true)
+            {
+                attempt++;
+                try
+                {
+                    // skipErrorCheck: 429/5xx must come back as results (not thrown) so we can
+                    // decide whether to retry; the caller inspects StatusCode/Content itself.
+                    var res = await SendAsync(req.Uri, req.Method, req.Body, req.Headers,
+                                              req.ContentType, skipErrorCheck: true,
+                                              timeoutSec: req.TimeoutSec,
+                                              maximumRedirection: req.MaximumRedirection).ConfigureAwait(false);
+
+                    var retryable = res.StatusCode == 429 || (res.StatusCode >= 500 && res.StatusCode <= 599);
+                    if (retryable && attempt <= maxRetries)
+                    {
+                        await Task.Delay(RetryDelay(res, attempt)).ConfigureAwait(false);
+                        continue;
+                    }
+                    return new CIPPConcurrentResult
+                    {
+                        Index = index, IsSuccess = res.IsSuccess, StatusCode = res.StatusCode,
+                        Result = res, Attempts = attempt,
+                    };
+                }
+                catch (Exception ex)
+                {
+                    if (attempt <= maxRetries)
+                    {
+                        await Task.Delay(RetryDelay(null, attempt)).ConfigureAwait(false);
+                        continue;
+                    }
+                    return new CIPPConcurrentResult
+                    {
+                        Index = index, IsSuccess = false, StatusCode = 0,
+                        Error = ex.Message, Attempts = attempt,
+                        TimedOut = ex is OperationCanceledException,
+                    };
+                }
+            }
+        }
+
+        private static TimeSpan RetryDelay(HttpResult? res, int attempt)
+        {
+            // Honour a sane Retry-After (seconds) when the server sends one.
+            if (res is not null &&
+                res.ResponseHeaders.TryGetValue("Retry-After", out var ra) &&
+                ra.Length > 0 && int.TryParse(ra[0], out var secs) && secs > 0 && secs <= 300)
+                return TimeSpan.FromSeconds(secs);
+
+            // Otherwise exponential backoff (1s, 2s, 4s, capped 8s) with jitter.
+            var baseMs = Math.Min(8000, 1000 * (int)Math.Pow(2, attempt - 1));
+            return TimeSpan.FromMilliseconds(baseMs + Random.Shared.Next(0, 1000));
         }
 
         // -----------------------------------------------------------------

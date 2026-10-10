@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { CippTablePage } from "../../../../components/CippComponents/CippTablePage.jsx";
 import { RestoreFromTrash, PlayArrow, Pause, Delete } from "@mui/icons-material";
 import MailboxRestoreDetails from "../../../../components/CippComponents/MailboxRestoreDetails";

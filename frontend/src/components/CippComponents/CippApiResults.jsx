@@ -1,13 +1,4 @@
 import {
-  Close,
-  Download,
-  ExpandMore,
-  ExpandLess,
-  CheckCircle,
-  Error as ErrorIcon,
-  RadioButtonUnchecked,
-} from "@mui/icons-material";
-import {
   Alert,
   Button,
   Chip,
@@ -20,17 +11,17 @@ import {
   SvgIcon,
   Tooltip,
   keyframes,
-} from "@mui/material";
-import { OpenInNew } from "@mui/icons-material";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { ApiGetCall } from "../../api/ApiCall";
-import { getCippError } from "../../utils/get-cipp-error";
-import { CippCopyToClipBoard } from "./CippCopyToClipboard";
-import { CippCodeBlock } from "./CippCodeBlock";
-import React from "react";
-import { CippTableDialog } from "./CippTableDialog";
-import { EyeIcon } from "@heroicons/react/24/outline";
-import { useDialog } from "../../hooks/use-dialog";
+} from '@mui/material'
+import { CippIcons } from '../../utils/icon-registry'
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react'
+import { ApiGetCall } from '../../api/ApiCall'
+import { getCippError } from '../../utils/get-cipp-error'
+import { CippCopyToClipBoard } from './CippCopyToClipboard'
+import { CippCodeBlock } from './CippCodeBlock'
+import React from 'react'
+import { CippTableDialog } from './CippTableDialog'
+import { CippJobProgress, formatJobProgressText } from './CippJobProgress'
+import { useDialog } from '../../hooks/use-dialog'
 
 const extractAllResults = (data, extraIgnoreKeys = []) => {
   const results = [];
@@ -164,6 +155,40 @@ const FormattedResultText = ({ text, severity }) => {
             <li>
               If the issue persists, check that the Manage365 SAM app has the necessary SharePoint
               delegated permissions
+            </li>
+          </ol>
+        </Typography>
+      </Stack>
+    );
+  }
+
+  // Pattern: Graph assignLicense privilege / department-SKU denials
+  const isAssignLicensePrivilegeError =
+    (text.includes("Failed to assign licenses") || text.includes("Failed to remove licenses")) &&
+    text.includes("Insufficient privileges");
+  if (isAssignLicensePrivilegeError) {
+    return (
+      <Stack spacing={1}>
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          License assignment was denied
+        </Typography>
+        <Typography variant="body2">{text}</Typography>
+        <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+          Suggested steps:
+        </Typography>
+        <Typography variant="body2" component="div">
+          <ol style={{ margin: 0, paddingLeft: "1.2em" }}>
+            <li>
+              Confirm the SKU is not a <strong>department or self-service</strong> license — those
+              cannot be assigned directly
+            </li>
+            <li>
+              Run a <strong>CPV Refresh</strong> for this tenant so the Manage365 app has{" "}
+              <strong>User.ReadWrite.All</strong>
+            </li>
+            <li>
+              Confirm GDAP includes <strong>License Administrator</strong> or{" "}
+              <strong>User Administrator</strong>
             </li>
           </ol>
         </Typography>
@@ -483,59 +508,6 @@ const FormattedResultText = ({ text, severity }) => {
   );
 };
 
-const capitalize = (text) =>
-  typeof text === "string" && text.length > 0 ? text.charAt(0).toUpperCase() + text.slice(1) : text;
-
-const JOB_STATUS_CHIP_COLORS = {
-  queued: "default",
-  running: "info",
-  succeeded: "success",
-  failed: "error",
-};
-
-// Status icon for a single job step.
-const JobStepIcon = ({ status }) => {
-  if (status === "succeeded") return <CheckCircle fontSize="small" color="success" />;
-  if (status === "failed") return <ErrorIcon fontSize="small" color="error" />;
-  if (status === "running") return <CircularProgress size={16} />;
-  return <RadioButtonUnchecked fontSize="small" color="disabled" />;
-};
-
-// Live job progress rows (GDAP-onboarding style): one block per row (usually a tenant) with
-// its steps, driven by the jobProgress polling in CippApiResults.
-const CippJobProgress = ({ rows }) => (
-  <Stack spacing={2}>
-    {rows.map((row, rowIndex) => (
-      <Box key={row.Tenant ?? row.Name ?? rowIndex}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
-          <Typography variant="subtitle2">{row.Tenant ?? row.Name}</Typography>
-          <Chip
-            size="small"
-            label={capitalize(row.Status)}
-            color={JOB_STATUS_CHIP_COLORS[row.Status] || "default"}
-            variant={row.Status === "queued" ? "outlined" : "filled"}
-          />
-        </Stack>
-        <Stack spacing={1}>
-          {(row.Steps || []).map((step, index) => (
-            <Stack direction="row" spacing={1} alignItems="flex-start" key={index}>
-              <Box sx={{ pt: 0.25 }}>
-                <JobStepIcon status={step.Status} />
-              </Box>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2">{step.Title}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {step.Message}
-                </Typography>
-              </Box>
-            </Stack>
-          ))}
-        </Stack>
-      </Box>
-    ))}
-  </Stack>
-);
-
 export const CippApiResults = (props) => {
   const { apiObject, errorsOnly = false, alertSx = {}, jobProgress = null } = props;
 
@@ -548,8 +520,9 @@ export const CippApiResults = (props) => {
   const tableDialog = useDialog();
 
   // Optional live job progress: when the mutation result carries jobProgress.idField, poll
-  // jobProgress.url(id) until every row reaches a terminal state.
-  const jobIdField = jobProgress?.idField ?? "JobId";
+  // jobProgress.url(id) until every row reaches a terminal state, then call jobProgress.onComplete(rows).
+  // Pass a memoized jobProgress: a new object each render re-arms the poll.
+  const jobIdField = jobProgress?.idField ?? 'JobId'
   useEffect(() => {
     if (!jobProgress) return;
     if (apiObject.isPending) {
@@ -573,18 +546,29 @@ export const CippApiResults = (props) => {
     waiting: !!(jobProgress && jobId),
     refetchInterval: jobPollActive ? (jobProgress?.interval ?? 5000) : false,
     staleTime: 0,
-  });
-  const jobRows = Array.isArray(jobStatus.data) ? jobStatus.data : [];
+  })
+  const jobRows = useMemo(
+    () => (Array.isArray(jobStatus.data) ? jobStatus.data : []),
+    [jobStatus.data]
+  )
+  // After a re-run the finished rows stay as they are until the job rewrites them, so keep polling
+  // until a row goes active again, or give up after 90 s if the re-run never started.
+  const restartedAt = useRef(null)
+  const handleRerun = useCallback(() => {
+    restartedAt.current = Date.now()
+    setJobPollActive(true)
+  }, [])
   useEffect(() => {
-    if (
-      jobPollActive &&
-      jobRows.length > 0 &&
-      jobRows.every((row) => row.Status === "succeeded" || row.Status === "failed")
-    ) {
-      setJobPollActive(false);
+    if (!jobPollActive || jobRows.length === 0) return
+    if (jobRows.some((row) => row.Status !== 'succeeded' && row.Status !== 'failed')) {
+      restartedAt.current = null
+      return
     }
-  }, [jobPollActive, jobRows]);
-  const pageTitle = `${document.title} - Results`;
+    if (restartedAt.current && Date.now() - restartedAt.current < 90000) return
+    setJobPollActive(false)
+    jobProgress?.onComplete?.(jobRows)
+  }, [jobPollActive, jobRows, jobStatus.dataUpdatedAt, jobProgress])
+  const pageTitle = `${document.title} - Results`
   const correctResultObj = useMemo(() => {
     if (!apiObject.isSuccess) return;
 
@@ -694,6 +678,10 @@ export const CippApiResults = (props) => {
     setFinalResults((prev) => prev.map((r) => (r.id === id ? { ...r, visible: false } : r)));
   }, []);
 
+  const handleCloseAllResults = useCallback(() => {
+    setFinalResults((prev) => prev.map((r) => ({ ...r, visible: false })))
+  }, [])
+
   const toggleDetails = useCallback((id) => {
     setShowDetails((prev) => ({ ...prev, [id]: !prev[id] }));
   }, []);
@@ -743,7 +731,7 @@ export const CippApiResults = (props) => {
                 size="small"
                 onClick={() => setFetchingVisible(false)}
               >
-                <Close fontSize="inherit" />
+                <CippIcons.Close fontSize="inherit" />
               </IconButton>
             }
             variant="outlined"
@@ -762,6 +750,18 @@ export const CippApiResults = (props) => {
           variant="outlined"
           severity={
             failedActionCount === 0 ? "success" : successActionCount === 0 ? "error" : "warning"
+          }
+          action={
+            <Tooltip title="Dismiss all results">
+              <IconButton
+                aria-label="dismiss all results"
+                color="inherit"
+                size="small"
+                onClick={handleCloseAllResults}
+              >
+                <CippIcons.Close fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
           }
         >
           <Typography variant="body2">
@@ -799,6 +799,41 @@ export const CippApiResults = (props) => {
                   severity={resultObj.severity || "success"}
                   action={
                     <>
+                      {resultObj.severity === 'error' && (
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="secondary"
+                          startIcon={<CippIcons.Help />}
+                          onClick={() => {
+                            const docsUrl = new URL("https://docs.cipp.app/");
+                            docsUrl.searchParams.set(
+                              "q",
+                              `Help with: ${resultObj.copyField || resultObj.text || ""}`,
+                            );
+                            docsUrl.searchParams.set("ask", "true");
+                            if (docsUrl.origin === "https://docs.cipp.app") {
+                              window.open(docsUrl.href, "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                          sx={{
+                            ml: 1,
+                            mr: 1,
+                            backgroundColor: 'white',
+                            color: 'error.main',
+                            '&:hover': {
+                              backgroundColor: 'grey.100',
+                            },
+                            py: 0.5,
+                            px: 1,
+                            minWidth: 'auto',
+                            fontSize: '0.875rem',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Get Help
+                        </Button>
+                      )}
                       <CippCopyToClipBoard
                         color="inherit"
                         text={resultObj.copyField || resultObj.text}
@@ -815,9 +850,9 @@ export const CippApiResults = (props) => {
                             aria-label={showDetails[resultObj.id] ? "Hide Details" : "Show Details"}
                           >
                             {showDetails[resultObj.id] ? (
-                              <ExpandLess fontSize="inherit" />
+                              <CippIcons.ExpandLess fontSize="inherit" />
                             ) : (
-                              <ExpandMore fontSize="inherit" />
+                              <CippIcons.ExpandMore fontSize="inherit" />
                             )}
                           </IconButton>
                         </Tooltip>
@@ -829,7 +864,7 @@ export const CippApiResults = (props) => {
                         size="small"
                         onClick={() => handleCloseResult(resultObj.id)}
                       >
-                        <Close fontSize="inherit" />
+                        <CippIcons.Close fontSize="inherit" />
                       </IconButton>
                     </>
                   }
@@ -838,7 +873,11 @@ export const CippApiResults = (props) => {
                     <FormattedResultText text={resultObj.text} severity={resultObj.severity} />
                     {resultObj.details && (
                       <Collapse in={showDetails[resultObj.id]}>
-                        <Box mt={2} sx={{ width: "100%" }}>
+                        <Box
+                          sx={{
+                            mt: 2,
+                            width: '100%'
+                          }}>
                           <CippCodeBlock
                             code={
                               typeof resultObj.details === "string"
@@ -863,17 +902,21 @@ export const CippApiResults = (props) => {
       {(apiObject.isSuccess || apiObject.isError) &&
       finalResults?.length > 0 &&
       hasVisibleResults ? (
-        <Box display="flex" flexDirection="row">
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "row"
+          }}>
           <Tooltip title="View Results">
             <IconButton onClick={() => tableDialog.handleOpen()}>
               <SvgIcon>
-                <EyeIcon />
+                <CippIcons.EyeIcon />
               </SvgIcon>
             </IconButton>
           </Tooltip>
           <Tooltip title="Download Results">
             <IconButton aria-label="download-csv" onClick={handleDownloadCsv}>
-              <Download />
+              <CippIcons.Download />
             </IconButton>
           </Tooltip>
         </Box>
@@ -881,16 +924,31 @@ export const CippApiResults = (props) => {
       {/* Live job progress (opt-in via the jobProgress prop) */}
       {jobProgress && jobId && (
         <Box>
-          <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 2 }}>
-            <Typography variant="h6">{jobProgress.title ?? "Progress"}</Typography>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: "center",
+              mb: 2
+            }}>
+            <Typography variant="h6">{jobProgress.title ?? 'Progress'}</Typography>
             {jobPollActive && <CircularProgress size={16} />}
+            {jobRows.length > 0 && (
+              <CippCopyToClipBoard text={formatJobProgressText(jobRows)} type="button" />
+            )}
           </Stack>
           {jobRows.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" sx={{
+              color: "text.secondary"
+            }}>
               Waiting for the first status update...
             </Typography>
           ) : (
-            <CippJobProgress rows={jobRows} />
+            <CippJobProgress
+              rows={jobRows}
+              onRerun={handleRerun}
+              actions={jobProgress.actions}
+            />
           )}
         </Box>
       )}

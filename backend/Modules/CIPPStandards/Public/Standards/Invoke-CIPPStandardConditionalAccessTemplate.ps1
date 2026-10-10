@@ -62,6 +62,10 @@ function Invoke-CIPPStandardConditionalAccessTemplate {
     $TemplateKey = ConvertTo-CIPPODataFilterValue -Value $Settings.TemplateList.value -Type String
     $TemplateRow = Get-CippAzDataTableEntity @Table -Filter "PartitionKey eq 'CATemplate' and (RowKey eq '$TemplateKey' or GUID eq '$TemplateKey')" | Select-Object -First 1
     $JSONObj = $TemplateRow.JSON
+    # Resolve custom variables for the report path too, not just the deploy inside
+    # New-CIPPCAPolicy - otherwise the compare diffs raw %tokens% against the deployed
+    # policy's resolved values and flags every templated field as permanent drift.
+    if ($JSONObj) { $JSONObj = Get-CIPPTextReplacement -TenantFilter $Tenant -Text $JSONObj -EscapeForJson }
 
     try {
         #Get from DB, as we just downloaded the latest before the standard runs.
@@ -117,8 +121,11 @@ function Invoke-CIPPStandardConditionalAccessTemplate {
         $Policy = if ($JSONObj) { $JSONObj | ConvertFrom-Json -Depth 100 } else { $null }
 
         if ($null -eq $Policy) {
-            Write-LogMessage -API 'Standards' -tenant $Tenant -message "Conditional Access template '$($Settings.TemplateList.label)' ($($Settings.TemplateList.value)) could not be loaded from the template store - skipping." -Sev 'Error'
-            Set-CIPPStandardsCompareField -FieldName $FieldName -CurrentValue @{ Differences = "Template '$($Settings.TemplateList.label)' could not be loaded from the template store." } -ExpectedValue @{ Differences = @() } -Tenant $Tenant
+            # Same wording as Invoke-CIPPCATemplateBatch, so the report row says which template is
+            # gone and what to do about it instead of a bare "could not be loaded".
+            $MissingText = "Template '$($Settings.TemplateList.label)' ($($Settings.TemplateList.value)) no longer exists in the template library. Remove it from the standards template or select the template again."
+            Write-LogMessage -API 'Standards' -tenant $Tenant -message "Conditional Access template '$($Settings.TemplateList.label)' ($($Settings.TemplateList.value)) could not be loaded from the template store - skipping. $MissingText" -Sev 'Error'
+            Set-CIPPStandardsCompareField -FieldName $FieldName -CurrentValue @{ Differences = $MissingText } -ExpectedValue @{ Differences = @() } -Tenant $Tenant
             return
         }
 
@@ -177,9 +184,9 @@ function Invoke-CIPPStandardConditionalAccessTemplate {
                 return
             }
 
-            if ($Settings.state -and $Settings.state -ne 'donotchange' -and $CompareObj.state -eq $Settings.state) {
-                Write-Information "Policy is in the deployed state '$($CompareObj.state)'; not comparing against template state '$($Policy.state)'"
-                $Policy | Add-Member -NotePropertyName 'state' -NotePropertyValue $CompareObj.state -Force
+            # Override the template's state with the standard's state for drift comparison
+            if ($Settings.state -and $Settings.state -ne 'donotchange') {
+                $Policy | Add-Member -NotePropertyName 'state' -NotePropertyValue $Settings.state -Force
             }
 
             try {

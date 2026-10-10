@@ -2,6 +2,10 @@
 
 Creates a new Safe Links policy and the rule that scopes it, in the tenant you currently have selected. The form builds both objects together, so the configuration lands complete rather than as a policy with nobody attached to it.
 
+{% hint style="info" %}
+This page needs a single tenant selected and does not support All Tenants.
+{% endhint %}
+
 ## Safe Links Policy Configuration
 
 **Policy Settings**
@@ -51,7 +55,7 @@ Creates a new Safe Links policy and the rule that scopes it, in the tenant you c
 | Recipients | Individual recipients excluded from the policy. |
 
 {% hint style="info" %}
-Changes to Safe Links policies and rules may take up to 6 hours to propagate throughout your organization.
+Changes to Safe Links policies and rules may take up to 6 hours to propagate throughout your organisation.
 {% endhint %}
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

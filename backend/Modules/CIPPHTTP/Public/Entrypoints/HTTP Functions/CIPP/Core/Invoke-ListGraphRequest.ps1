@@ -5,6 +5,8 @@ function Invoke-ListGraphRequest {
         Entrypoint
     .ROLE
         CIPP.Core.Read
+    .DESCRIPTION
+        Proxies an arbitrary Microsoft Graph API GET request for a tenant. Supports custom endpoints, filters, pagination, and field selection via query parameters. If a request returns a permission error, retry with AsApp set to true: admin and application-scoped endpoints (for example admin/sharepoint/settings) require the application's own permissions rather than the default delegated access.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -15,29 +17,8 @@ function Invoke-ListGraphRequest {
     Write-LogMessage -headers $Headers -API $APIName -message $Message -Sev 'Debug'
 
     $CippLink = ([System.Uri]$TriggerMetadata.Headers.Referer).PathAndQuery
-
-    # Simple backend cache for common list endpoints (5 min TTL)
-    $CacheAllowlist = @('users', 'groups', 'devices', 'servicePrincipals', 'applications')
-    $CacheTtlMinutes = 5
-    $CacheKey = $null
-    $CacheTable = $null
-
-    function Get-CacheKey {
-        param(
-            [string]$TenantFilter,
-            [string]$Endpoint,
-            [hashtable]$Parameters
-        )
-        $raw = @{
-            TenantFilter = $TenantFilter
-            Endpoint     = $Endpoint
-            Parameters   = $Parameters
-        } | ConvertTo-Json -Depth 5 -Compress
-        $sha = [System.Security.Cryptography.SHA256]::Create()
-        $bytes = [System.Text.Encoding]::UTF8.GetBytes($raw)
-        $hash = $sha.ComputeHash($bytes)
-        return ($hash | ForEach-Object { $_.ToString('x2') }) -join ''
-    }
+    # Craft breaks egress accounting out per Graph resource on this header.
+    $EgressHeaders = @{ 'X-Craft-Endpoint' = (Get-CippGraphEndpointLabel -Endpoint $Request.Query.Endpoint) }
 
     $Parameters = @{}
     if ($Request.Query.'$filter') {
@@ -60,12 +41,16 @@ function Invoke-ListGraphRequest {
         $Parameters.'expand' = $Request.Query.expand
     }
 
+    # Graph's page size, NOT a result limit. This endpoint follows @odata.nextLink to the
+    # end by default, so $top alone changes how many round trips it makes and not how many
+    # records come back - asking for 1 still returns everything. Pair it with NoPagination
+    # to stop after one page, or manualPagination to page through deliberately.
     if ($Request.Query.'$top') {
         $Parameters.'$top' = $Request.Query.'$top'
     }
 
     if ($Request.Query.'$count') {
-        $Parameters.'$count' = ([string]([System.Boolean]$Request.Query.'$count')).ToLower()
+        $Parameters.'$count' = ([string]([System.Convert]::ToBoolean($Request.Query.'$count'))).ToLower()
     }
 
 
@@ -82,6 +67,9 @@ function Invoke-ListGraphRequest {
     }
 
     $GraphRequestParams = @{
+        # The Graph path to call, without the version prefix - 'users',
+        # 'deviceManagement/managedDevices', 'groups/<id>/members'. Use ListGraphSchema to
+        # check what an endpoint returns before spending a call on it.
         Endpoint   = $Request.Query.Endpoint
         Parameters = $Parameters
         CippLink   = $CippLink
@@ -95,24 +83,58 @@ function Invoke-ListGraphRequest {
         $GraphRequestParams.QueueId = $Request.Query.QueueId
     }
 
-    if ($Request.Query.Version) {
-        $GraphRequestParams.Version = $Request.Query.Version
+    # Graph API version to call: v1.0 or beta. Defaults to beta when omitted.
+    switch ($Request.Query.Version) {
+        'v1.0' { $GraphRequestParams.Version = 'v1.0' }
+        'beta' { $GraphRequestParams.Version = 'beta' }
+        default {
+            if ($Request.Query.Version) {
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::BadRequest
+                        Body       = 'Version must be v1.0 or beta.'
+                    })
+            }
+        }
     }
 
+    # Return only the first page and stop. The default follows every @odata.nextLink until
+    # the collection is exhausted, which on a large tenant is both slow and very large - use
+    # this with $top when a sample is enough.
     if ($Request.Query.NoPagination) {
-        $GraphRequestParams.NoPagination = [System.Boolean]$Request.Query.NoPagination
+        $GraphRequestParams.NoPagination = [System.Convert]::ToBoolean($Request.Query.NoPagination)
     }
 
+    # Return one page plus its @odata.nextLink in the response metadata, so the caller can
+    # fetch the next page itself by passing that link back as nextLink. Use this to walk a
+    # large collection in bounded steps rather than pulling it all at once.
     if ($Request.Query.manualPagination) {
-        $GraphRequestParams.ManualPagination = [System.Boolean]$Request.Query.manualPagination
+        $GraphRequestParams.ManualPagination = [System.Convert]::ToBoolean($Request.Query.manualPagination)
     }
 
+    # $top is Graph's page size, so $top=1 with pagination fetches the entire collection one
+    # record per round trip. A caller asking for 1 wants one record; only an explicit
+    # NoPagination/manualPagination overrides this.
+    if ($Parameters.'$top' -eq '1' -and $null -eq $Request.Query.NoPagination -and $null -eq $Request.Query.manualPagination) {
+        $GraphRequestParams.NoPagination = $true
+    }
+
+    # Continue a manualPagination walk: pass back the @odata.nextLink returned with the
+    # previous page. Endpoint is still required, and the other query options are already
+    # encoded in the link.
     if ($Request.Query.nextLink) {
         $GraphRequestParams.nextLink = $Request.Query.nextLink
     }
 
+    # Paged AllTenants cache reads only: target page size in bytes of raw JSON, clamped
+    # between 262144 and 8388608 (default 4000000). Pages always hold at least one whole tenant.
+    if ($Request.Query.maxPageBytes -as [int]) {
+        $GraphRequestParams.MaxPageBytes = [int]$Request.Query.maxPageBytes
+    }
+
+    # Return just the number of matching records instead of the records themselves. The
+    # cheapest way to size a collection before deciding whether to fetch it.
     if ($Request.Query.CountOnly) {
-        $GraphRequestParams.CountOnly = [System.Boolean]$Request.Query.CountOnly
+        $GraphRequestParams.CountOnly = [System.Convert]::ToBoolean($Request.Query.CountOnly)
     }
 
     if ($Request.Query.QueueNameOverride) {
@@ -120,7 +142,7 @@ function Invoke-ListGraphRequest {
     }
 
     if ($Request.Query.ReverseTenantLookup) {
-        $GraphRequestParams.ReverseTenantLookup = [System.Boolean]$Request.Query.ReverseTenantLookup
+        $GraphRequestParams.ReverseTenantLookup = [System.Convert]::ToBoolean($Request.Query.ReverseTenantLookup)
     }
 
     if ($Request.Query.ReverseTenantLookupProperty) {
@@ -128,22 +150,7 @@ function Invoke-ListGraphRequest {
     }
 
     if ($Request.Query.SkipCache) {
-        $GraphRequestParams.SkipCache = [System.Boolean]$Request.Query.SkipCache
-    }
-
-    # Backend cache: only for allowlisted endpoints and simple list queries
-    $ShouldUseBackendCache = $false
-    if ($Request.Query.TenantFilter -and $CacheAllowlist -contains $Request.Query.Endpoint) {
-        if (-not $Request.Query.nextLink `
-            -and -not $Request.Query.QueueId `
-            -and -not $Request.Query.ManualPagination `
-            -and -not $Request.Query.NoPagination `
-            -and -not $Request.Query.CountOnly `
-            -and -not $Request.Query.ListProperties `
-            -and -not $Request.Query.ReverseTenantLookup `
-            -and -not $Request.Query.SkipCache) {
-            $ShouldUseBackendCache = $true
-        }
+        $GraphRequestParams.SkipCache = [System.Convert]::ToBoolean($Request.Query.SkipCache)
     }
 
     if ($Request.Query.ListProperties) {
@@ -155,46 +162,78 @@ function Invoke-ListGraphRequest {
     }
 
     if ($Request.Query.AsApp) {
-        $GraphRequestParams.AsApp = $true
+        $GraphRequestParams.AsApp = [System.Convert]::ToBoolean($Request.Query.AsApp)
     }
 
     $Metadata = $GraphRequestParams
 
-    try {
-        # Try backend cache first
-        if ($ShouldUseBackendCache) {
-            try {
-                $CacheTable = Get-CippTable -tablename 'CacheGraphRequest'
-                $CacheKey = Get-CacheKey -TenantFilter $Request.Query.TenantFilter -Endpoint $Request.Query.Endpoint -Parameters $Parameters
-                $CacheCutoff = (Get-Date).AddMinutes(-$CacheTtlMinutes).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-                $CacheFilter = "PartitionKey eq '$($Request.Query.TenantFilter)' and RowKey eq '$CacheKey' and CachedAt ge '$CacheCutoff'"
-                $Cached = Get-CIPPAzDataTableEntity @CacheTable -Filter $CacheFilter
-                if ($Cached -and $Cached.Data) {
-                    $CachedData = $Cached.Data | ConvertFrom-Json -Depth 10
-                    return ([HttpResponseContext]@{
-                        StatusCode = [HttpStatusCode]::OK
-                        Body       = $CachedData
-                        Headers    = @{ 'X-Cache' = 'HIT' }
-                    })
-                }
-            } catch {
-                Write-Information "GraphRequest cache lookup failed: $($_.Exception.Message)"
-            }
-        }
+    # Use raw JSON passthrough for AllTenants cached results when no post-processing is needed.
+    $UseRawJson = $Request.Query.TenantFilter -eq 'AllTenants' -and
+                  -not $Request.Query.ListProperties -and
+                  -not $Request.Query.Sort -and
+                  -not $Request.Query.QueueId
 
+    try {
+        if ($UseRawJson) {
+            $GraphRequestParams.RawJsonArray = $true
+        }
         $Results = Get-GraphRequestList @GraphRequestParams
 
         if ($script:LastGraphResponseHeaders) {
             $Metadata.GraphHeaders = $script:LastGraphResponseHeaders
         }
 
-        if ($Results | Where-Object { $_.PSObject.Properties.Name -contains 'nextLink' }) {
-            if (![string]::IsNullOrEmpty($Results.nextLink) -and $Request.Query.TenantFilter -ne 'AllTenants') {
-                Write-Host "NextLink: $($Results.nextLink | Where-Object { $_ } | Select-Object -Last 1)"
-                $Metadata['nextLink'] = $Results.nextLink | Where-Object { $_ } | Select-Object -Last 1
+        # Paged AllTenants cache serve: one page of tenant blobs plus Metadata.nextLink.
+        if ($UseRawJson -and $Results -isnot [string] -and $Results.PSObject.Properties.Name -contains 'CippPagedJson') {
+            if ($Request.Headers.'x-ms-coldstart' -eq 1) {
+                $Metadata.ColdStart = $true
             }
-            # Remove nextLink trailing object only if it’s the last item
+            if ($Results.CippNextLink) {
+                $Metadata.nextLink = $Results.CippNextLink
+            } else {
+                # Do not echo the incoming token back on the final page.
+                $Metadata.Remove('nextLink')
+            }
+            $MetadataJson = ConvertTo-Json -InputObject $Metadata -Depth 5 -Compress
+            $GraphRequestData = '{"Results":' + $Results.CippPagedJson + ',"Metadata":' + $MetadataJson + '}'
+
+            return ([HttpResponseContext]@{
+                    StatusCode  = [HttpStatusCode]::OK
+                    ContentType = 'application/json'
+                    Headers     = $EgressHeaders
+                    Body        = $GraphRequestData
+                })
+        }
+
+        # RawJsonArray returns a JSON string directly — skip object-level processing
+        if ($UseRawJson -and $Results -is [string] -and $Results.StartsWith('[')) {
+            if ($Request.Headers.'x-ms-coldstart' -eq 1) {
+                $Metadata.ColdStart = $true
+            }
+            $MetadataJson = ConvertTo-Json -InputObject $Metadata -Depth 5 -Compress
+            $GraphRequestData = '{"Results":' + $Results + ',"Metadata":' + $MetadataJson + '}'
+            $StatusCode = [HttpStatusCode]::OK
+
+            return ([HttpResponseContext]@{
+                    StatusCode  = $StatusCode
+                    ContentType = 'application/json'
+                    Headers     = $EgressHeaders
+                    Body        = $GraphRequestData
+                })
+        }
+
+        if ($Results | Where-Object { $_.PSObject.Properties.Name -contains 'nextLink' }) {
+            $NextLink = $Results.nextLink | Where-Object { $_ } | Select-Object -Last 1
+            if ($NextLink -and $Request.Query.TenantFilter -ne 'AllTenants') {
+                Write-Host "NextLink: $NextLink"
+                $Metadata['nextLink'] = $NextLink
+            } else {
+                $Metadata.Remove('nextLink')
+            }
+            # Remove nextLink trailing object only if it's the last item
             $Results = $Results | Where-Object { $_.PSObject.Properties.Name -notcontains 'nextLink' }
+        } else {
+            $Metadata.Remove('nextLink')
         }
         if ($Request.Query.ListProperties) {
             $Columns = ($Results | Select-Object -First 1).PSObject.Properties.Name
@@ -217,21 +256,6 @@ function Invoke-ListGraphRequest {
             Metadata = $Metadata
         }
         $StatusCode = [HttpStatusCode]::OK
-
-        # Store in backend cache
-        if ($ShouldUseBackendCache -and $CacheTable -and $CacheKey) {
-            try {
-                $Entity = @{
-                    PartitionKey = $Request.Query.TenantFilter
-                    RowKey       = $CacheKey
-                    Data         = [string]($GraphRequestData | ConvertTo-Json -Depth 10 -Compress)
-                    CachedAt     = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ')
-                }
-                Add-CIPPAzDataTableEntity @CacheTable -Entity $Entity -Force | Out-Null
-            } catch {
-                Write-Information "GraphRequest cache write failed: $($_.Exception.Message)"
-            }
-        }
     } catch {
         $GraphRequestData = "Graph Error: $(Get-NormalizedError $_.Exception.Message) - Endpoint: $($Request.Query.Endpoint)"
         if ($Request.Query.IgnoreErrors) { $StatusCode = [HttpStatusCode]::OK }
@@ -244,6 +268,7 @@ function Invoke-ListGraphRequest {
 
     return ([HttpResponseContext]@{
             StatusCode = $StatusCode
+            Headers    = $EgressHeaders
             Body       = $GraphRequestData
         })
 }

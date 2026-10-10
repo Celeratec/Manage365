@@ -10,7 +10,7 @@ The task's name is shown as the page heading.
 
 <summary>View Logs</summary>
 
-Opens a flyout showing the logbook entries recorded against this task, which is where to look when an execution failed and the result itself is not explanatory.
+Opens a flyout showing the logbook entries recorded against this task from the last seven days, which is where to look when an execution failed and the result itself is not explanatory.
 
 </details>
 
@@ -28,17 +28,25 @@ Unlike the list, **Edit Job** and **Clone Job** here navigate to the job page ra
 
 The top card summarises the task. Only the values that are set appear, so a task with no post-execution actions simply omits that row.
 
-| Field          | Description                                                |
-| -------------- | ---------------------------------------------------------- |
-| Task State     | Whether the task is Planned, Running, Completed or Failed. |
-| Command        | The command the task executes.                             |
-| Tenant         | The tenant the task runs against.                          |
-| Recurrence     | How often the task repeats.                                |
-| Scheduled Time | When the task is next due to run.                          |
-| Executed Time  | When the task last ran.                                    |
-| Post Execution | Where the results are delivered after the task runs.       |
+| Field          | Description                                                                   |
+| -------------- | ----------------------------------------------------------------------------- |
+| Task State     | Whether the task is Planned, Running, Completed, Failed, or Failed - Planned. |
+| Command        | The command the task executes.                                                |
+| Tenant         | The tenant the task runs against.                                             |
+| Recurrence     | How often the task repeats.                                                   |
+| Scheduled Time | When the task is next due to run.                                             |
+| Executed Time  | When the task last ran.                                                       |
+| Post Execution | Where the results are delivered after the task runs.                          |
 
 The refresh control on the card re-reads the task without reloading the page, which is useful while waiting on a run you have just triggered.
+
+## Progress
+
+Shown for tasks whose command reports progress as it runs, such as a user offboarding started from the [offboarding-wizard.md](../../identity/administration/offboarding-wizard.md "mention"). Each step of the job is listed with its state and outcome, and the section refreshes on its own while the task is Planned, Running or Processing. A copy button places the whole list on the clipboard as text. For an offboarding task, **Re-run** queues the task again, the same as **Run Now**, and the arrow next to a single step queues just that step as its own job, reporting into the same progress list. Both use the offboarding permission rather than the scheduler's. Once the task has finished, the execution results below hold the full outcome; the progress view stays available for around a month afterwards.
+
+## Post Execution Results
+
+Shown once the task's post-execution notifications have been attempted: one line per delivery to a webhook, e-mail or PSA, with what came back. A delivery that failed, or was skipped because the channel is not configured, is recorded here rather than only in the logbook.
 
 ## Trigger Configuration
 

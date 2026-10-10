@@ -122,6 +122,9 @@ export const CippAuthShell = ({
             color: 'common.white',
             px: { xs: 3, md: 8 },
             py: { xs: 2.5, md: 8 },
+            // The strip is the top of the page: keep the lockup out of the iOS status bar
+            // on a home-screen install (viewport-fit=cover). 0px everywhere else.
+            pt: { xs: 'calc(20px + env(safe-area-inset-top, 0px))', md: 8 },
             '&::before': {
               content: '""',
               position: 'absolute',
@@ -217,7 +220,13 @@ export const CippAuthShell = ({
               <Box sx={{ p: { xs: 3, md: 4 } }}>
                 {/* icon is a sibling of the title, never nested inside it, so the
                     heading stays a single unambiguous text node */}
-                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
+                <Stack
+                  direction="row"
+                  spacing={1.5}
+                  sx={{
+                    alignItems: "center",
+                    mb: 2
+                  }}>
                   {titleIcon}
                   <Typography variant="h4" component="h1">
                     {title}
@@ -234,7 +243,14 @@ export const CippAuthShell = ({
                   ))}
 
                 {(hasPrimary || hasSecondary) && (
-                  <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" sx={{ mt: 4 }}>
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    useFlexGap
+                    sx={{
+                      flexWrap: "wrap",
+                      mt: 4
+                    }}>
                     {hasPrimary &&
                       (actionHref ? (
                         <Button
@@ -284,7 +300,7 @@ export const CippAuthShell = ({
         </Grid>
       </Grid>
     </Box>
-  )
+  );
 }
 
 CippAuthShell.propTypes = {

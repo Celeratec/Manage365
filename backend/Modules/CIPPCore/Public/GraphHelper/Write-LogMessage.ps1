@@ -58,6 +58,12 @@ function Write-LogMessage {
     $TzId = if ($env:CIPP_TIMEZONE) { $env:CIPP_TIMEZONE } else { 'UTC' }
     $LocalNow = [TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow, $TzId)
     $PartitionKey = $LocalNow.ToString('yyyyMMdd')
+    # Inverted-ticks RowKey: the table service returns rows in ascending RowKey order, so
+    # (MaxValue - now) makes a partition read newest-first without scanning it whole. The
+    # suffix keeps concurrent writers from colliding; Invoke-ListLogs derives the day
+    # partition back out of the tick prefix. Rows written before this scheme have GUID
+    # RowKeys and simply sort in arbitrary order within their (historical) partitions.
+    $RowKey = '{0:D19}-{1}' -f ([DateTime]::MaxValue.Ticks - [DateTime]::UtcNow.Ticks), [guid]::NewGuid().ToString('N').Substring(0, 12)
     $TableRow = @{
         'Tenant'       = [string]$tenant
         'API'          = [string]$API
@@ -66,7 +72,7 @@ function Write-LogMessage {
         'Severity'     = [string]$sev
         'sentAsAlert'  = $false
         'PartitionKey' = [string]$PartitionKey
-        'RowKey'       = [string]([guid]::NewGuid()).ToString()
+        'RowKey'       = [string]$RowKey
         'FunctionNode' = [string]$env:WEBSITE_SITE_NAME
         'LogData'      = [string]$LogData
     }
@@ -92,6 +98,14 @@ function Write-LogMessage {
     }
     if ($script:CippScheduledTaskIdStorage.Value) {
         $TableRow.ScheduledTaskId = [string]$script:CippScheduledTaskIdStorage.Value
+    }
+    if ($script:CippBaselineRunIdStorage.Value) {
+        $TableRow.BaselineRunId = [string]$script:CippBaselineRunIdStorage.Value
+    }
+    # Set by Set-CippBecCaseContext while a BEC check, containment, content search or evidence
+    # export runs, so the evidence package can bundle every log line of a case.
+    if ($script:CippBecCaseIdStorage.Value) {
+        $TableRow.BecCaseId = [string]$script:CippBecCaseIdStorage.Value
     }
 
     $Table.Entity = $TableRow

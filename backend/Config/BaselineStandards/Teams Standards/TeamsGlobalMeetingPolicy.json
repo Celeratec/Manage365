@@ -11,7 +11,13 @@
     "CIS M365 7.0.0 (8.5.6)",
     "CIS M365 7.0.0 (8.5.7)",
     "CIS M365 7.0.0 (8.5.8)",
-    "CIS M365 7.0.0 (8.5.9)"
+    "CIS M365 7.0.0 (8.5.9)",
+    "meeting_anonymousstartmeeting_v1",
+    "meeting_restrictanonymousjoin_v1",
+    "meeting_autoadmitusers_v1",
+    "meeting_designatedpresenter_v1",
+    "meeting_externalrequestcontrol_v1",
+    "meeting_pstnusersbypasslobby_v1"
   ],
   "impact": "Low Impact",
   "helpText": "Defines the CIS recommended global meeting policy for Teams. This includes AllowAnonymousUsersToJoinMeeting, AllowAnonymousUsersToStartMeeting, AutoAdmittedUsers, AllowPSTNUsersToBypassLobby, MeetingChatEnabledType, DesignatedPresenterRoleMode, AllowExternalParticipantGiveRequestControl, AllowParticipantGiveRequestControl",
@@ -40,7 +46,7 @@
     "TEAMS1",
     "Teams_Room_Standard"
   ],
-  "secureScoreImpact": 0,
+  "secureScoreImpact": 8,
   "compare": "subset",
   "variables": {
     "DesignatedPresenterRoleMode": {
@@ -78,7 +84,13 @@
     "AutoAdmittedUsers": {
       "type": "autoComplete",
       "label": "Who can bypass the lobby?",
+      "helperText": "Teams couples this to the dial-in bypass switch: 'Everyone' requires that switch on, 'Only organizers and co-organizers' requires it off - other pairings are rejected with error 40013.",
+      "omitWhenBlank": true,
       "options": [
+        {
+          "label": "Keep the tenant's current value",
+          "value": ""
+        },
         {
           "label": "Only organizers and co-organizers",
           "value": "OrganizerOnly"
@@ -100,12 +112,13 @@
           "value": "Everyone"
         }
       ],
-      "default": "EveryoneInCompanyExcludingGuests",
+      "default": "",
       "recommended": "EveryoneInCompanyExcludingGuests"
     },
     "AllowPSTNUsersToBypassLobby": {
       "type": "switch",
       "label": "Allow dial-in users to bypass lobby",
+      "helperText": "Must be on when 'Who can bypass the lobby?' is 'Everyone' and off when it is 'Only organizers and co-organizers' - Teams rejects any other combination.",
       "default": false,
       "recommended": false
     },
@@ -140,6 +153,32 @@
       "label": "External participants can give or request control",
       "default": false,
       "recommended": false
+    },
+    "AllowExternalNonTrustedMeetingChat": {
+      "type": "autoComplete",
+      "label": "External meeting chat",
+      "helperText": "CIS 8.5.8 recommends Off. Leave blank to keep the tenant's current value.",
+      "omitWhenBlank": true,
+      "options": [
+        { "label": "Keep the tenant's current value", "value": "" },
+        { "label": "Off (CIS recommended)", "value": false },
+        { "label": "On", "value": true }
+      ],
+      "default": "",
+      "recommended": false
+    },
+    "AllowCloudRecording": {
+      "type": "autoComplete",
+      "label": "Meeting cloud recording",
+      "helperText": "CIS 8.5.9 recommends Off. Leave blank to keep the tenant's current value.",
+      "omitWhenBlank": true,
+      "options": [
+        { "label": "Keep the tenant's current value", "value": "" },
+        { "label": "Off (CIS recommended)", "value": false },
+        { "label": "On", "value": true }
+      ],
+      "default": "",
+      "recommended": false
     }
   },
   "expected": {
@@ -150,7 +189,9 @@
     "MeetingChatEnabledType": "%MeetingChatEnabledType%",
     "DesignatedPresenterRoleMode": "%DesignatedPresenterRoleMode%",
     "AllowExternalParticipantGiveRequestControl": "%AllowExternalParticipantGiveRequestControl%",
-    "AllowParticipantGiveRequestControl": "%AllowParticipantGiveRequestControl%"
+    "AllowParticipantGiveRequestControl": "%AllowParticipantGiveRequestControl%",
+    "AllowExternalNonTrustedMeetingChat": "%AllowExternalNonTrustedMeetingChat%",
+    "AllowCloudRecording": "%AllowCloudRecording%"
   },
   "read": {
     "cacheType": "CsTeamsMeetingPolicy"
@@ -168,7 +209,9 @@
           "MeetingChatEnabledType": "%MeetingChatEnabledType%",
           "DesignatedPresenterRoleMode": "%DesignatedPresenterRoleMode%",
           "AllowExternalParticipantGiveRequestControl": "%AllowExternalParticipantGiveRequestControl%",
-          "AllowParticipantGiveRequestControl": "%AllowParticipantGiveRequestControl%"
+          "AllowParticipantGiveRequestControl": "%AllowParticipantGiveRequestControl%",
+          "AllowExternalNonTrustedMeetingChat": "%AllowExternalNonTrustedMeetingChat%",
+          "AllowCloudRecording": "%AllowCloudRecording%"
         }
       }
     ]

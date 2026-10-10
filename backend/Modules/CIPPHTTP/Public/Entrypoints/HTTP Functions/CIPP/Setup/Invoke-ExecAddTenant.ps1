@@ -9,6 +9,15 @@ function Invoke-ExecAddTenant {
     param($Request, $TriggerMetadata)
 
     try {
+        # AnyTenant: onboarding writes tenant credentials; require unrestricted tenant scope
+        $AllowedTenants = Test-CIPPAccess -Request $Request -TenantList
+        if ($AllowedTenants -notcontains 'AllTenants') {
+            return ([HttpResponseContext]@{
+                    StatusCode = [HttpStatusCode]::Forbidden
+                    Body       = @{'message' = 'Adding a tenant requires unrestricted tenant access'; 'severity' = 'error' }
+                })
+        }
+
         # Get the tenant ID from the request body
         $tenantId = $Request.body.tenantId
         $defaultDomainName = $Request.body.defaultDomainName
@@ -98,7 +107,6 @@ function Invoke-ExecAddTenant {
                 Excluded                      = $false
                 ExcludeUser                   = ''
                 ExcludeDate                   = ''
-                GraphErrorCount               = 0
                 LastGraphError                = ''
                 RequiresRefresh               = $false
                 LastRefresh                   = (Get-Date).ToUniversalTime()

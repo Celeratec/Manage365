@@ -1,4 +1,5 @@
-import { Layout as DashboardLayout } from '../../../layouts/index.js'
+import { Layout as DashboardLayout } from '../../../layouts/index'
+import { CippIcons } from '../../../utils/icon-registry'
 import { Controller, useForm, useFormState } from 'react-hook-form'
 import { ApiGetCall, ApiPostCall } from '../../../api/ApiCall'
 import { useRouter } from 'next/router'
@@ -19,19 +20,13 @@ import {
   CircularProgress,
   Divider,
   IconButton,
+  Link,
   Tooltip,
 } from '@mui/material'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Stack, Grid } from '@mui/system'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import {
-  ExpandMore,
-  NotificationsActive,
-  Code,
-  TableChart,
-  Visibility,
-} from '@mui/icons-material'
 import cacheTypes from '../../../data/CIPPDBCacheTypes.json'
 import { renderCustomScriptMarkdownTemplate } from '../../../utils/customScriptTemplate'
 import { useSettings } from '../../../hooks/use-settings'
@@ -124,6 +119,9 @@ const Page = () => {
   const [testerExpanded, setTesterExpanded] = useState(true)
   const markdownEditorRef = useRef(null)
   const scriptEditorRef = useRef(null)
+  // Holds the latest loaded cache shape so the Monaco completion providers (registered once at
+  // mount) always read current data instead of the empty snapshot captured when the editor mounted.
+  const cacheShapeRef = useRef([])
 
   const toSelectOption = (value, fallback) =>
     value
@@ -162,10 +160,16 @@ const Page = () => {
     queryKey: `CustomScript-${ScriptGuid}`,
     waiting: isEdit,
   })
-  const isScriptLoading = isEdit && (existingScript.isLoading || existingScript.isFetching)
+  const isScriptLoading =
+    isEdit && (existingScript.isLoading || existingScript.isFetching)
 
   useEffect(() => {
-    if (isEdit && existingScript.isSuccess && existingScript?.data && existingScript.data[0]) {
+    if (
+      isEdit &&
+      existingScript.isSuccess &&
+      existingScript?.data &&
+      existingScript.data[0]
+    ) {
       const script = existingScript.data[0]
       formControl.reset({
         ScriptName: script.ScriptName || '',
@@ -182,7 +186,10 @@ const Page = () => {
         Description: script.Description || '',
         Risk: toSelectOption(script.Risk, 'Low'),
         UserImpact: toSelectOption(script.UserImpact, 'Low'),
-        ImplementationEffort: toSelectOption(script.ImplementationEffort, 'Low'),
+        ImplementationEffort: toSelectOption(
+          script.ImplementationEffort,
+          'Low'
+        ),
         ScriptGuid: script.ScriptGuid,
       })
     }
@@ -195,7 +202,8 @@ const Page = () => {
     setTesterExpanded(true)
   }, [isEdit])
 
-  const cacheExplorerTenant = router.query.tenantFilter || settings?.currentTenant
+  const cacheExplorerTenant =
+    router.query.tenantFilter || settings?.currentTenant
 
   const variablesQuery = ApiGetCall({
     url: `/api/ListCustomVariables?tenantFilter=${encodeURIComponent(cacheExplorerTenant || '')}`,
@@ -211,6 +219,57 @@ const Page = () => {
     queryKey: `CacheExplorer-${cacheExplorerTenant}-${expandedCacheType}`,
     waiting: !!expandedCacheType && !!cacheExplorerTenant,
   })
+
+  // Live per-tenant cache shape: every cached collection with its row count and the fields (and
+  // types) recorded when the cache was written (ListDBCache type=_shape). This drives the type list
+  // and field autocomplete from what the tenant has actually cached, instead of the bundled static
+  // catalog, which drifts out of sync.
+  const cacheShapeApi = ApiGetCall({
+    url: '/api/ListDBCache',
+    data: { tenantFilter: cacheExplorerTenant, type: '_shape' },
+    queryKey: `CacheShape-${cacheExplorerTenant}`,
+    waiting: !!cacheExplorerTenant,
+  })
+
+  // The bundled catalog carries friendly names and descriptions the shape endpoint does not, so it
+  // is kept to enrich the live types (and as a fallback before a tenant is selected, or when the
+  // tenant has nothing cached yet).
+  const descriptionByType = useMemo(() => {
+    const map = new Map()
+    cacheTypes.forEach((entry) => map.set(entry.type, entry))
+    return map
+  }, [])
+
+  const cacheShape = useMemo(() => {
+    const shapes = cacheShapeApi.data?.Results
+    const live = (Array.isArray(shapes) ? shapes : [])
+      .map((shape) => {
+        const meta = descriptionByType.get(shape.Type)
+        return {
+          type: shape.Type,
+          count: shape.Count,
+          fields: Array.isArray(shape.Fields) ? shape.Fields : [],
+          friendlyName: meta?.friendlyName || shape.Type,
+          description: meta?.description || '',
+        }
+      })
+      .sort((a, b) => a.type.localeCompare(b.type))
+    if (live.length > 0) {
+      return live
+    }
+    // Nothing cached live yet — fall back to the bundled catalog so the dialog is never empty.
+    return cacheTypes.map((entry) => ({
+      type: entry.type,
+      count: null,
+      fields: [],
+      friendlyName: entry.friendlyName,
+      description: entry.description,
+    }))
+  }, [cacheShapeApi.data, descriptionByType])
+
+  useEffect(() => {
+    cacheShapeRef.current = cacheShape
+  }, [cacheShape])
 
   const handleExploreCache = (cacheType) => {
     setExpandedCacheType(expandedCacheType === cacheType ? null : cacheType)
@@ -234,17 +293,24 @@ const Page = () => {
         // an unchanged re-run would dirty the form and disable Run Test until a no-op save.
         let currentEntries = null
         try {
-          currentEntries = JSON.parse(formControl.getValues('ResultSchema'))?.entries
+          currentEntries = JSON.parse(
+            formControl.getValues('ResultSchema')
+          )?.entries
         } catch {
           currentEntries = null
         }
         const schemaUnchanged =
           !!currentEntries &&
-          JSON.stringify(currentEntries) === JSON.stringify(generatedSchema.entries)
+          JSON.stringify(currentEntries) ===
+            JSON.stringify(generatedSchema.entries)
         if (!schemaUnchanged) {
-          formControl.setValue('ResultSchema', JSON.stringify(generatedSchema, null, 2), {
-            shouldDirty: true,
-          })
+          formControl.setValue(
+            'ResultSchema',
+            JSON.stringify(generatedSchema, null, 2),
+            {
+              shouldDirty: true,
+            }
+          )
         }
       }
     },
@@ -273,7 +339,10 @@ const Page = () => {
       try {
         parsedParams = JSON.parse(rawParams)
       } catch (error) {
-        const sanitizedError = String(error.message || 'Unknown error').replace(/[<>]/g, '')
+        const sanitizedError = String(error.message || 'Unknown error').replace(
+          /[<>]/g,
+          ''
+        )
         formControl.setError('TestParameters', {
           type: 'manual',
           message: `Parameters must be valid JSON: ${sanitizedError}`,
@@ -297,7 +366,10 @@ const Page = () => {
   const handleSubmitResult = (result) => {
     if (!isEdit && result?.ScriptGuid) {
       router.replace(
-        { pathname: router.pathname, query: { ...router.query, ScriptGuid: result.ScriptGuid } },
+        {
+          pathname: router.pathname,
+          query: { ...router.query, ScriptGuid: result.ScriptGuid },
+        },
         undefined,
         { shallow: false }
       )
@@ -324,7 +396,8 @@ const Page = () => {
       Pillar: data.Pillar?.value ?? data.Pillar,
       Risk: data.Risk?.value ?? data.Risk,
       UserImpact: data.UserImpact?.value ?? data.UserImpact,
-      ImplementationEffort: data.ImplementationEffort?.value ?? data.ImplementationEffort,
+      ImplementationEffort:
+        data.ImplementationEffort?.value ?? data.ImplementationEffort,
     }
 
     if (isEdit) {
@@ -590,41 +663,164 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
   const handleScriptEditorMount = (_editor, monaco) => {
     scriptEditorRef.current = _editor
 
-    const provider = monaco.languages.registerCompletionItemProvider('powershell', {
-      triggerCharacters: ['%'],
-      provideCompletionItems: (model, position) => {
-        const linePrefix = model.getValueInRange({
-          startLineNumber: position.lineNumber,
-          startColumn: 1,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column,
-        })
+    const provider = monaco.languages.registerCompletionItemProvider(
+      'powershell',
+      {
+        triggerCharacters: ['%'],
+        provideCompletionItems: (model, position) => {
+          const linePrefix = model.getValueInRange({
+            startLineNumber: position.lineNumber,
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          })
 
-        const triggerIndex = linePrefix.lastIndexOf('%')
-        if (triggerIndex === -1) {
-          return { suggestions: [] }
-        }
+          const triggerIndex = linePrefix.lastIndexOf('%')
+          if (triggerIndex === -1) {
+            return { suggestions: [] }
+          }
 
-        const range = {
-          startLineNumber: position.lineNumber,
-          startColumn: triggerIndex + 1,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column,
-        }
+          const range = {
+            startLineNumber: position.lineNumber,
+            startColumn: triggerIndex + 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          }
 
-        const vars = variablesQuery.data?.Results || []
-        const suggestions = vars.map((v) => ({
-          label: v.Variable,
-          kind: monaco.languages.CompletionItemKind.Variable,
-          insertText: v.Variable,
-          detail: v.Type === 'reserved' ? `Built-in (${v.Category})` : `Custom (${v.Category})`,
-          documentation: v.Description || '',
-          range,
-        }))
+          const vars = variablesQuery.data?.Results || []
+          const suggestions = vars.map((v) => ({
+            label: v.Variable,
+            kind: monaco.languages.CompletionItemKind.Variable,
+            insertText: v.Variable,
+            detail:
+              v.Type === 'reserved'
+                ? `Built-in (${v.Category})`
+                : `Custom (${v.Category})`,
+            documentation: v.Description || '',
+            range,
+          }))
 
-        return { suggestions }
-      },
-    })
+          return { suggestions }
+        },
+      }
+    )
+
+    // Cache-aware completions: cache type names after -Type '…', and a referenced collection's
+    // fields after a property access (e.g. $_. inside a Where-Object). The data is read from a ref
+    // so completions reflect the shape loaded for the current tenant, not the mount-time snapshot.
+    const cacheProvider = monaco.languages.registerCompletionItemProvider(
+      'powershell',
+      {
+        triggerCharacters: ["'", '"', '.'],
+        provideCompletionItems: (model, position) => {
+          const shape = cacheShapeRef.current || []
+          if (shape.length === 0) {
+            return { suggestions: [] }
+          }
+
+          const linePrefix = model.getValueInRange({
+            startLineNumber: position.lineNumber,
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          })
+
+          // -Type '<partial>' → offer the cached collection names.
+          const typeMatch = linePrefix.match(/-Type\s*['"]([A-Za-z0-9_]*)$/i)
+          if (typeMatch) {
+            const range = {
+              startLineNumber: position.lineNumber,
+              startColumn: position.column - typeMatch[1].length,
+              endLineNumber: position.lineNumber,
+              endColumn: position.column,
+            }
+            return {
+              suggestions: shape.map((entry) => ({
+                label:
+                  entry.count != null
+                    ? `${entry.type} (${entry.count})`
+                    : entry.type,
+                kind: monaco.languages.CompletionItemKind.EnumMember,
+                insertText: entry.type,
+                detail:
+                  entry.friendlyName && entry.friendlyName !== entry.type
+                    ? entry.friendlyName
+                    : 'Cache type',
+                range,
+              })),
+            }
+          }
+
+          // Property access ($var.a.b) → fields of the collections this script actually reads.
+          const accessMatch = linePrefix.match(
+            /\$[A-Za-z_][A-Za-z0-9_]*((?:\.[A-Za-z0-9_]*)+)$/
+          )
+          if (!accessMatch) {
+            return { suggestions: [] }
+          }
+
+          const referenced = new Set()
+          const typeRegex =
+            /Get-CIPPTestData[^\r\n]*?-Type\s*['"]([A-Za-z0-9_]+)['"]/gi
+          let typeHit
+          while ((typeHit = typeRegex.exec(model.getValue())) !== null) {
+            referenced.add(typeHit[1])
+          }
+          if (referenced.size === 0) {
+            return { suggestions: [] }
+          }
+
+          // The dotted path already typed after the variable; its last segment is the partial word,
+          // the rest is the base path we only offer children of (shape fields are one level deep).
+          const segments = accessMatch[1].replace(/^\./, '').split('.')
+          segments.pop()
+          const basePath = segments.join('.')
+          const prefix = basePath ? `${basePath}.` : ''
+
+          const word = model.getWordUntilPosition(position)
+          const range = {
+            startLineNumber: position.lineNumber,
+            startColumn: word.startColumn,
+            endLineNumber: position.lineNumber,
+            endColumn: word.endColumn,
+          }
+
+          const seen = new Set()
+          const suggestions = []
+          shape
+            .filter((entry) => referenced.has(entry.type))
+            .forEach((entry) => {
+              entry.fields.forEach((field) => {
+                if (
+                  !field?.name ||
+                  !field.name.startsWith(prefix) ||
+                  field.name === basePath
+                ) {
+                  return
+                }
+                const remainder = field.name.slice(prefix.length)
+                if (!remainder || seen.has(remainder)) {
+                  return
+                }
+                seen.add(remainder)
+                suggestions.push({
+                  label: field.type
+                    ? `${remainder} (${field.type})`
+                    : remainder,
+                  kind:
+                    field.type === 'object' || field.type === 'array'
+                      ? monaco.languages.CompletionItemKind.Struct
+                      : monaco.languages.CompletionItemKind.Field,
+                  insertText: remainder,
+                  detail: `${entry.type} field`,
+                  range,
+                })
+              })
+            })
+          return { suggestions }
+        },
+      }
+    )
 
     const contentListener = _editor.onDidChangeModelContent(() => {
       const model = _editor.getModel()
@@ -645,6 +841,7 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
 
     _editor.onDidDispose(() => {
       provider.dispose()
+      cacheProvider.dispose()
       contentListener.dispose()
       if (scriptEditorRef.current === _editor) {
         scriptEditorRef.current = null
@@ -655,39 +852,42 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
   const handleMarkdownEditorMount = (_editor, monaco) => {
     markdownEditorRef.current = _editor
 
-    const provider = monaco.languages.registerCompletionItemProvider('markdown', {
-      triggerCharacters: ['{'],
-      provideCompletionItems: (model, position) => {
-        const linePrefix = model.getValueInRange({
-          startLineNumber: position.lineNumber,
-          startColumn: 1,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column,
-        })
+    const provider = monaco.languages.registerCompletionItemProvider(
+      'markdown',
+      {
+        triggerCharacters: ['{'],
+        provideCompletionItems: (model, position) => {
+          const linePrefix = model.getValueInRange({
+            startLineNumber: position.lineNumber,
+            startColumn: 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          })
 
-        const triggerIndex = linePrefix.lastIndexOf('{{')
-        if (triggerIndex === -1) {
-          return { suggestions: [] }
-        }
+          const triggerIndex = linePrefix.lastIndexOf('{{')
+          if (triggerIndex === -1) {
+            return { suggestions: [] }
+          }
 
-        const range = {
-          startLineNumber: position.lineNumber,
-          startColumn: triggerIndex + 1,
-          endLineNumber: position.lineNumber,
-          endColumn: position.column,
-        }
+          const range = {
+            startLineNumber: position.lineNumber,
+            startColumn: triggerIndex + 1,
+            endLineNumber: position.lineNumber,
+            endColumn: position.column,
+          }
 
-        const suggestions = markdownAutocompleteOptions.map((item) => ({
-          label: item.token,
-          kind: monaco.languages.CompletionItemKind.Variable,
-          insertText: item.token,
-          detail: item.tokenType ? `Type: ${item.tokenType}` : 'Token',
-          range,
-        }))
+          const suggestions = markdownAutocompleteOptions.map((item) => ({
+            label: item.token,
+            kind: monaco.languages.CompletionItemKind.Variable,
+            insertText: item.token,
+            detail: item.tokenType ? `Type: ${item.tokenType}` : 'Token',
+            range,
+          }))
 
-        return { suggestions }
-      },
-    })
+          return { suggestions }
+        },
+      }
+    )
 
     const contentListener = _editor.onDidChangeModelContent(() => {
       const model = _editor.getModel()
@@ -737,7 +937,7 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
         expanded={guidanceExpanded}
         onChange={(_, expanded) => setGuidanceExpanded(expanded)}
       >
-        <AccordionSummary expandIcon={<ExpandMore />}>
+        <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
           <Typography variant="subtitle2">Test Guidance</Typography>
         </AccordionSummary>
         <AccordionDetails>
@@ -753,9 +953,30 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
               },
             }}
           >
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-              Custom tests run PowerShell against each tenant. The script output determines the
-              result status.
+            <Typography
+              variant="body2"
+              sx={{
+                color: 'text.secondary',
+                mb: 2.5,
+              }}
+            >
+              Custom tests run PowerShell against each tenant. The script output
+              determines the result status.
+            </Typography>
+
+            <Typography
+              variant="body2"
+              sx={{ color: 'text.secondary', mb: 2.5 }}
+            >
+              Using an AI assistant to write your script? Start from the{' '}
+              <Link
+                href="https://docs.cipp.app/user-documentation/tools/custom-tests/add#ai-prompt-template"
+                target="_blank"
+                rel="noreferrer"
+              >
+                AI prompt template in the docs
+              </Link>
+              .
             </Typography>
 
             <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -773,29 +994,44 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                     <Box>
                       <Typography
                         variant="body2"
-                        fontWeight={600}
-                        color="success.main"
-                        sx={{ mb: 0.25 }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'success.main',
+                          mb: 0.25,
+                        }}
                       >
                         Pass
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Return <code>$null</code>, <code>$false</code>, empty string, or{' '}
-                        <code>@()</code>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: 'text.secondary',
+                        }}
+                      >
+                        Return <code>$null</code>, <code>$false</code>, empty
+                        string, or <code>@()</code>
                       </Typography>
                     </Box>
                     <Divider />
                     <Box>
                       <Typography
                         variant="body2"
-                        fontWeight={600}
-                        color="error.main"
-                        sx={{ mb: 0.25 }}
+                        sx={{
+                          fontWeight: 600,
+                          color: 'error.main',
+                          mb: 0.25,
+                        }}
                       >
                         Fail
                       </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Return any non-empty value — the returned data becomes the test output
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          color: 'text.secondary',
+                        }}
+                      >
+                        Return any non-empty value — the returned data becomes
+                        the test output
                       </Typography>
                     </Box>
                   </Stack>
@@ -813,18 +1049,25 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                 >
                   <Typography
                     variant="body2"
-                    fontWeight={600}
-                    color="info.main"
-                    sx={{ mb: 0.25 }}
+                    sx={{
+                      fontWeight: 600,
+                      color: 'info.main',
+                      mb: 0.25,
+                    }}
                   >
                     Explicit Status
                   </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Return a hashtable with <code>CIPPStatus</code> (<code>Passed</code>/
-                    <code>Failed</code>/<code>Info</code>/<code>Investigate</code>),{' '}
-                    <code>CIPPResults</code>, and optional{' '}
-                    <code>CIPPResultMarkdown</code> to control status and rendering directly (Auto
-                    result mode only)
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Return a hashtable with <code>CIPPStatus</code> (
+                    <code>Passed</code>/<code>Failed</code>/<code>Info</code>/
+                    <code>Investigate</code>), <code>CIPPResults</code>, and
+                    optional <code>CIPPResultMarkdown</code> to control status
+                    and rendering directly (Auto result mode only)
                   </Typography>
                 </Box>
               </Grid>
@@ -841,15 +1084,35 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                     height: '100%',
                   }}
                 >
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                    <NotificationsActive sx={{ fontSize: 16 }} color="warning" />
-                    <Typography variant="body2" fontWeight={600}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: 'center',
+                      mb: 0.5,
+                    }}
+                  >
+                    <CippIcons.NotificationsActive
+                      sx={{ fontSize: 16 }}
+                      color="warning"
+                    />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
                       Alerts
                     </Typography>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    Enable &quot;Notify on Alert&quot; for failure alerts, deduplicated per tenant
-                    per day.
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Enable &quot;Notify on Alert&quot; for failure alerts,
+                    deduplicated per tenant per day.
                   </Typography>
                 </Box>
               </Grid>
@@ -863,19 +1126,38 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                     height: '100%',
                   }}
                 >
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                    <Code sx={{ fontSize: 16 }} color="info" />
-                    <Typography variant="body2" fontWeight={600}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: 'center',
+                      mb: 0.5,
+                    }}
+                  >
+                    <CippIcons.Code sx={{ fontSize: 16 }} color="info" />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
                       Scripting Rules
                     </Typography>
                   </Stack>
-                  <Typography variant="caption" color="text.secondary">
-                    Runs in PowerShell <strong>ConstrainedLanguage</strong> — approved cmdlets
-                    only. <code>New-Object</code>, <code>{'[pscustomobject]@{}'}</code> casts, and
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Runs in PowerShell <strong>ConstrainedLanguage</strong> —
+                    approved cmdlets only. <code>New-Object</code>,{' '}
+                    <code>{'[pscustomobject]@{}'}</code> casts, and
                     .NET/reflection are blocked. Build rows with{' '}
-                    <code>{'Select-Object @{Name;Expression}'}</code> and return a plain{' '}
-                    <code>{'@{}'}</code> hashtable. Data access is tenant-locked — do not pass{' '}
-                    <code>-TenantFilter</code>. Type <code>%</code> for replacement variables.
+                    <code>{'Select-Object @{Name;Expression}'}</code> and return
+                    a plain <code>{'@{}'}</code> hashtable. Data access is
+                    tenant-locked — do not pass <code>-TenantFilter</code>. Type{' '}
+                    <code>%</code> for replacement variables.
                   </Typography>
                 </Box>
               </Grid>
@@ -889,20 +1171,36 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                     height: '100%',
                   }}
                 >
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                    <TableChart sx={{ fontSize: 16 }} color="info" />
-                    <Typography variant="body2" fontWeight={600}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: 'center',
+                      mb: 0.5,
+                    }}
+                  >
+                    <CippIcons.TableChart sx={{ fontSize: 16 }} color="info" />
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
                       Data Access
                     </Typography>
                   </Stack>
                   <Typography
                     variant="caption"
-                    color="text.secondary"
-                    sx={{ display: 'block', mb: 0.5 }}
+                    sx={{
+                      color: 'text.secondary',
+                      display: 'block',
+                      mb: 0.5,
+                    }}
                   >
-                    Read-only via <code>Get-CIPPTestData</code> with <code>-Type</code>.{' '}
-                    Tenant is auto-locked — do not pass <code>-TenantFilter</code>. Use{' '}
-                    <code>%variable%</code> syntax for replacement variables.
+                    Read-only via <code>Get-CIPPTestData</code> with{' '}
+                    <code>-Type</code>. Tenant is auto-locked — do not pass{' '}
+                    <code>-TenantFilter</code>. Use <code>%variable%</code>{' '}
+                    syntax for replacement variables.
                   </Typography>
                   <Button
                     size="small"
@@ -910,7 +1208,7 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
                     onClick={() => setCacheTypesDialogOpen(true)}
                     sx={{ mt: 0.5 }}
                   >
-                    View Cached Types ({cacheTypes.length})
+                    View Cached Types ({cacheShape.length})
                   </Button>
                 </Box>
               </Grid>
@@ -918,11 +1216,14 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
 
             <Typography
               variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 2 }}
+              sx={{
+                color: 'text.secondary',
+                display: 'block',
+                mb: 2,
+              }}
             >
-              Manual testing on this page is preview-only. Results are persisted only during
-              scheduled tenant test runs with the script enabled.
+              Manual testing on this page is preview-only. Results are persisted
+              only during scheduled tenant test runs with the script enabled.
             </Typography>
 
             <Divider sx={{ mb: 2 }} />
@@ -935,20 +1236,29 @@ All UPNs: {{join(Result[*].UserPrincipalName, ", ")}}`,
               variant="outlined"
               sx={{ '&:before': { display: 'none' }, boxShadow: 'none' }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2" fontWeight={600}>
+              <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Licensed Users with Resolved SKU Names
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1,
+                  }}
                 >
-                  Lists all users with licenses, resolves SKU IDs to friendly names using the
-                  license cache, and returns a markdown table with an explicit Passed status.
-                  Demonstrates <code>CIPPStatus</code>, <code>CIPPResults</code>, and{' '}
+                  Lists all users with licenses, resolves SKU IDs to friendly
+                  names using the license cache, and returns a markdown table
+                  with an explicit Passed status. Demonstrates{' '}
+                  <code>CIPPStatus</code>, <code>CIPPResults</code>, and{' '}
                   <code>CIPPResultMarkdown</code>.
                 </Typography>
                 <CippCodeBlock
@@ -994,20 +1304,29 @@ $md = @($header) + @($rows) -join "\\n"
               variant="outlined"
               sx={{ '&:before': { display: 'none' }, boxShadow: 'none', mt: 1 }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2" fontWeight={600}>
+              <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Disabled Users with Active Licenses
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1,
+                  }}
                 >
-                  Finds disabled accounts that still have licenses assigned — a common cost waste
-                  indicator. Returns failed rows as JSON (default Result Display Type behavior). No
-                  wrapper needed — non-empty output automatically means fail.
+                  Finds disabled accounts that still have licenses assigned — a
+                  common cost waste indicator. Returns failed rows as JSON
+                  (default Result Display Type behavior). No wrapper needed —
+                  non-empty output automatically means fail.
                 </Typography>
                 <CippCodeBlock
                   code={`# Find disabled users that still have licenses (wasted cost)
@@ -1031,20 +1350,29 @@ $Users | Where-Object {
               variant="outlined"
               sx={{ '&:before': { display: 'none' }, boxShadow: 'none', mt: 1 }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2" fontWeight={600}>
+              <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   MFA Registration Gaps
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1,
+                  }}
                 >
-                  Checks user registration details for accounts that haven&apos;t registered any MFA
-                  method. Uses <code>Info</code> status so results are always informational rather
-                  than a hard fail.
+                  Checks user registration details for accounts that
+                  haven&apos;t registered any MFA method. Uses <code>Info</code>{' '}
+                  status so results are always informational rather than a hard
+                  fail.
                 </Typography>
                 <CippCodeBlock
                   code={`# Find users without any MFA method registered
@@ -1084,20 +1412,29 @@ if ($count -gt 0) {
               variant="outlined"
               sx={{ '&:before': { display: 'none' }, boxShadow: 'none', mt: 1 }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2" fontWeight={600}>
+              <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Stale Guest Accounts
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1,
+                  }}
                 >
-                  Identifies guest accounts that haven&apos;t signed in within 90 days. Uses a{' '}
-                  <code>param</code> with a default so the threshold is configurable via Test
-                  Parameters. Simple auto-detection — empty result = pass, non-empty = fail.
+                  Identifies guest accounts that haven&apos;t signed in within
+                  90 days. Uses a <code>param</code> with a default so the
+                  threshold is configurable via Test Parameters. Simple
+                  auto-detection — empty result = pass, non-empty = fail.
                 </Typography>
                 <CippCodeBlock
                   code={`# Find guest accounts with no recent sign-in
@@ -1124,21 +1461,30 @@ $Guests | Where-Object {
               variant="outlined"
               sx={{ '&:before': { display: 'none' }, boxShadow: 'none', mt: 1 }}
             >
-              <AccordionSummary expandIcon={<ExpandMore />}>
-                <Typography variant="body2" fontWeight={600}>
+              <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                  }}
+                >
                   Conditional Access Policy Summary
                 </Typography>
               </AccordionSummary>
               <AccordionDetails>
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 1 }}
+                  sx={{
+                    color: 'text.secondary',
+                    display: 'block',
+                    mb: 1,
+                  }}
                 >
-                  Provides an informational summary of all Conditional Access policies grouped by
-                  state. Demonstrates using <code>Group-Object</code>, building a multi-section
-                  markdown report, and <code>%tenantname%</code> replacement variables. Always
-                  passes since it&apos;s informational.
+                  Provides an informational summary of all Conditional Access
+                  policies grouped by state. Demonstrates using{' '}
+                  <code>Group-Object</code>, building a multi-section markdown
+                  report, and <code>%tenantname%</code> replacement variables.
+                  Always passes since it&apos;s informational.
                 </Typography>
                 <CippCodeBlock
                   code={`# Summarize Conditional Access policies by state
@@ -1189,32 +1535,109 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
       >
         <DialogTitle>Cached Types</DialogTitle>
         <DialogContent dividers>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
-            Click the eye icon to explore sample data from the currently selected tenant.
+          <Typography
+            variant="caption"
+            sx={{
+              color: 'text.secondary',
+              mb: 2,
+              display: 'block',
+            }}
+          >
+            {!cacheExplorerTenant
+              ? 'Select a tenant to see its cached collections and fields.'
+              : 'Fields are recorded when each collection is cached, so they need no lookup. Click the eye icon to load a live sample record.'}
           </Typography>
-          <Stack spacing={1}>
-            {cacheTypes.map((cacheType) => (
+          {cacheExplorerTenant && cacheShapeApi.isFetching && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', mb: 2 }}
+            >
+              <CircularProgress size={16} />
+              <Typography variant="caption">
+                Loading cached collections...
+              </Typography>
+            </Stack>
+          )}
+          <Stack spacing={1.5}>
+            {cacheShape.map((cacheType) => (
               <Box key={cacheType.type}>
-                <Stack direction="row" alignItems="center" spacing={1}>
+                <Stack
+                  direction="row"
+                  spacing={1}
+                  sx={{
+                    alignItems: 'center',
+                  }}
+                >
                   <Box sx={{ flex: 1 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {cacheType.friendlyName} ({cacheType.type})
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {cacheType.description}
-                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: 'center' }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {cacheType.friendlyName} ({cacheType.type})
+                      </Typography>
+                      {cacheType.count != null && (
+                        <Chip
+                          label={`${cacheType.count} rows`}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
+                    </Stack>
+                    {cacheType.description && (
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                        }}
+                      >
+                        {cacheType.description}
+                      </Typography>
+                    )}
                   </Box>
-                  <Tooltip title="Explore data structure">
+                  <Tooltip title="Load a live sample record">
                     <IconButton
                       size="small"
                       onClick={() => handleExploreCache(cacheType.type)}
-                      color={expandedCacheType === cacheType.type ? 'primary' : 'default'}
+                      color={
+                        expandedCacheType === cacheType.type
+                          ? 'primary'
+                          : 'default'
+                      }
                     >
-                      <Visibility fontSize="small" />
+                      <CippIcons.Visibility fontSize="small" />
                     </IconButton>
                   </Tooltip>
                 </Stack>
-                <Collapse in={expandedCacheType === cacheType.type} unmountOnExit>
+                {cacheType.fields.length > 0 && (
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 0.5,
+                      mt: 0.5,
+                      maxHeight: 120,
+                      overflow: 'auto',
+                    }}
+                  >
+                    {cacheType.fields.map((field) => (
+                      <Tooltip key={field.name} title={field.type || ''}>
+                        <Chip
+                          label={field.name}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}
+                        />
+                      </Tooltip>
+                    ))}
+                  </Box>
+                )}
+                <Collapse
+                  in={expandedCacheType === cacheType.type}
+                  unmountOnExit
+                >
                   <Box
                     sx={{
                       mt: 1,
@@ -1227,9 +1650,17 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                     }}
                   >
                     {cacheExplorerApi.isFetching ? (
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{
+                          alignItems: 'center',
+                        }}
+                      >
                         <CircularProgress size={16} />
-                        <Typography variant="caption">Loading sample data...</Typography>
+                        <Typography variant="caption">
+                          Loading sample data...
+                        </Typography>
                       </Stack>
                     ) : hasCacheSample ? (
                       <CippCodeBlock
@@ -1238,12 +1669,22 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                         showLineNumbers={false}
                       />
                     ) : cacheExplorerApi.isSuccess ? (
-                      <Typography variant="caption" color="text.secondary">
-                        No cached data found for this type on the selected tenant. Run a cache
-                        refresh first.
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                        }}
+                      >
+                        No cached data found for this type on the selected
+                        tenant. Run a cache refresh first.
                       </Typography>
                     ) : !cacheExplorerTenant ? (
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: 'text.secondary',
+                        }}
+                      >
                         Select a tenant to explore cached data.
                       </Typography>
                     ) : null}
@@ -1265,8 +1706,11 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
         </DialogActions>
       </Dialog>
 
-      <Accordion expanded={configExpanded} onChange={(_, expanded) => setConfigExpanded(expanded)}>
-        <AccordionSummary expandIcon={<ExpandMore />}>
+      <Accordion
+        expanded={configExpanded}
+        onChange={(_, expanded) => setConfigExpanded(expanded)}
+      >
+        <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
           <Typography variant="subtitle2">Configuration Options</Typography>
         </AccordionSummary>
         <AccordionDetails>
@@ -1372,7 +1816,7 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
         expanded={scriptContentExpanded}
         onChange={(_, expanded) => setScriptContentExpanded(expanded)}
       >
-        <AccordionSummary expandIcon={<ExpandMore />}>
+        <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
           <Typography variant="subtitle2">Markdown / PowerShell</Typography>
         </AccordionSummary>
         <AccordionDetails>
@@ -1400,22 +1844,31 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                       />
                       <Typography
                         variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 1, display: 'block' }}
+                        sx={{
+                          color: 'text.secondary',
+                          mt: 1,
+                          display: 'block',
+                        }}
                       >
                         {markdownTemplateField.helperText}
                       </Typography>
                       <Typography
                         variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 1, display: 'block' }}
+                        sx={{
+                          color: 'text.secondary',
+                          mt: 1,
+                          display: 'block',
+                        }}
                       >
                         Type <code>{'{{'}</code> to use schema tokens.
                       </Typography>
                       <Typography
                         variant="caption"
-                        color="text.secondary"
-                        sx={{ mt: 1, display: 'block' }}
+                        sx={{
+                          color: 'text.secondary',
+                          mt: 1,
+                          display: 'block',
+                        }}
                       >
                         {markdownTemplateField.placeholder}
                       </Typography>
@@ -1446,35 +1899,47 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                     />
                     <Typography
                       variant="caption"
-                      color="text.secondary"
-                      sx={{ mt: 1, display: 'block' }}
+                      sx={{
+                        color: 'text.secondary',
+                        mt: 1,
+                        display: 'block',
+                      }}
                     >
                       {scriptContentField.placeholder}
                     </Typography>
                     <Typography
                       variant="caption"
-                      color="text.secondary"
-                      sx={{ display: 'block' }}
+                      sx={{
+                        color: 'text.secondary',
+                        display: 'block',
+                      }}
                     >
                       Type <code>%</code> to insert replacement variables (e.g.{' '}
-                      <code>%tenantid%</code>, <code>%defaultdomain%</code>, or custom variables).
+                      <code>%tenantid%</code>, <code>%defaultdomain%</code>, or
+                      custom variables).
                     </Typography>
                     <Alert severity="info" sx={{ mt: 1 }}>
-                      Scripts run in <strong>ConstrainedLanguage</strong>. Build output rows with{' '}
+                      Scripts run in <strong>ConstrainedLanguage</strong>. Build
+                      output rows with{' '}
                       <code>{'Select-Object @{Name;Expression}'}</code> (not{' '}
                       <code>{'[pscustomobject]@{}'}</code>) and return a{' '}
-                      <code>{'@{ CIPPStatus = ... }'}</code> hashtable. <code>New-Object</code> and
-                      .NET reflection are blocked.
+                      <code>{'@{ CIPPStatus = ... }'}</code> hashtable.{' '}
+                      <code>New-Object</code> and .NET reflection are blocked.
                     </Alert>
                     {hasTenantFilterParam && (
                       <Alert severity="warning" sx={{ mt: 1 }}>
-                        <code>-TenantFilter</code> is not needed — data access functions are
-                        automatically locked to the execution tenant. Remove{' '}
-                        <code>-TenantFilter $TenantFilter</code> from your calls.
+                        <code>-TenantFilter</code> is not needed — data access
+                        functions are automatically locked to the execution
+                        tenant. Remove <code>-TenantFilter $TenantFilter</code>{' '}
+                        from your calls.
                       </Alert>
                     )}
                     {fieldState.error?.message && (
-                      <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ mt: 1, display: 'block' }}
+                      >
                         {fieldState.error.message}
                       </Typography>
                     )}
@@ -1492,21 +1957,34 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
         onChange={(_, expanded) => setTesterExpanded(expanded)}
         slotProps={{ transition: { unmountOnExit: true, timeout: 150 } }}
       >
-        <AccordionSummary expandIcon={<ExpandMore />}>
+        <AccordionSummary expandIcon={<CippIcons.ExpandMore />}>
           <Typography variant="subtitle2">Test Script Output</Typography>
         </AccordionSummary>
         <AccordionDetails>
           {testerExpanded &&
             (!isEdit ? (
-              <Stack spacing={2} alignItems="flex-start">
-                <Alert severity="info">Save the script first to test execution output.</Alert>
+              <Stack
+                spacing={2}
+                sx={{
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Alert severity="info">
+                  Save the script first to test execution output.
+                </Alert>
                 <CustomTestSaveButton />
               </Stack>
             ) : (
               <Stack spacing={2}>
-                <Typography variant="caption" color="text.secondary">
-                  Runs a preview against your current tenant and renders output using the current
-                  Return Type and Markdown Template from this form.
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.secondary',
+                  }}
+                >
+                  Runs a preview against your current tenant and renders output
+                  using the current Return Type and Markdown Template from this
+                  form.
                 </Typography>
                 <CippFormComponent
                   name="TestParameters"
@@ -1521,7 +1999,13 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
   "ExcludeDisabled": true
 }`}
                 />
-                <Stack direction="row" spacing={2} alignItems="center">
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{
+                    alignItems: 'center',
+                  }}
+                >
                   <Tooltip
                     title={runTestDisabledReason || ''}
                     disableHoverListener={!runTestDisabledReason}
@@ -1530,7 +2014,9 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                       <Button
                         variant="contained"
                         onClick={handleRunTest}
-                        disabled={!!runTestDisabledReason || testScriptApi.isPending}
+                        disabled={
+                          !!runTestDisabledReason || testScriptApi.isPending
+                        }
                       >
                         Run Test
                       </Button>
@@ -1538,8 +2024,14 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                   </Tooltip>
                   <CustomTestSaveButton />
                   {isDirty && (
-                    <Typography variant="caption" color="text.secondary">
-                      Unsaved changes — tests run the saved version of the script.
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: 'text.secondary',
+                      }}
+                    >
+                      Unsaved changes — tests run the saved version of the
+                      script.
                     </Typography>
                   )}
                 </Stack>
@@ -1547,7 +2039,9 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                 {testScriptApi.isPending && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                     <CircularProgress size={24} />
-                    <Typography variant="body2">Running script test...</Typography>
+                    <Typography variant="body2">
+                      Running script test...
+                    </Typography>
                   </Box>
                 )}
 
@@ -1556,15 +2050,28 @@ $md = $summaryTable + "\n\n---\n\n" + $policyTable
                 )}
 
                 {resultSchemaValue && (
-                  <Typography variant="caption" color="text.secondary">
-                    Result schema detected from latest test output and used for typed markdown
-                    completions above.
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'text.secondary',
+                    }}
+                  >
+                    Result schema detected from latest test output and used for
+                    typed markdown completions above.
                   </Typography>
                 )}
 
-                {(testResults?.Results !== undefined || testResults?.CIPPResultMarkdown) && (
+                {(testResults?.Results !== undefined ||
+                  testResults?.CIPPResultMarkdown) && (
                   <Box>
-                    <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1 }}>
+                    <Stack
+                      direction="row"
+                      spacing={2}
+                      sx={{
+                        alignItems: 'center',
+                        mb: 1,
+                      }}
+                    >
                       <Typography variant="h6">Test Results</Typography>
                       {testResults?.CIPPStatus && (
                         <Chip

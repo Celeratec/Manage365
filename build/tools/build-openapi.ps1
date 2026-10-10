@@ -95,8 +95,12 @@ $CastTypes = @{
     'single'         = @{ type = 'number' }
     'float'          = @{ type = 'number' }
     'string'         = @{ type = 'string' }
-    'datetime'       = @{ type = 'string'; format = 'date-time' }
-    'guid'           = @{ type = 'string'; format = 'uuid' }
+    # [ordered] so the two-key leaf serialises in a fixed order. A plain @{} enumerates
+    # in bucket order, which .NET derives from per-process randomised string hashes, so
+    # ConvertTo-JsonSchema would emit type/format in a coin-flip order that differs between
+    # processes - spurious spec drift and a flaky -Check once any date-time field exists.
+    'datetime'       = [ordered]@{ type = 'string'; format = 'date-time' }
+    'guid'           = [ordered]@{ type = 'string'; format = 'uuid' }
     'timespan'       = @{ type = 'string' }
     'version'        = @{ type = 'string' }
     'semver'         = @{ type = 'string' }
@@ -752,7 +756,10 @@ function Get-HelperSourceIndex {
     $Declaration = [regex]::new('(?im)^\s*function\s+([A-Za-z][\w-]*)\s*(\{|$)')
     foreach ($Root in $SearchPath) {
         if (-not (Test-Path $Root)) { continue }
-        foreach ($File in Get-ChildItem -Path $Root -Filter '*.ps1' -Recurse -File) {
+        # Sorted on a separator-normalized path: first declaration wins, and NTFS
+        # enumerates sorted while ext4 does not, so an unsorted scan makes the winner
+        # differ between a local build and the ubuntu runner.
+        foreach ($File in Get-ChildItem -Path $Root -Filter '*.ps1' -Recurse -File | Sort-Object { $_.FullName.Replace('\', '/') }) {
             foreach ($Match in $Declaration.Matches([IO.File]::ReadAllText($File.FullName))) {
                 $Name = $Match.Groups[1].Value
                 if (-not $Index.ContainsKey($Name)) { $Index[$Name] = $File.FullName }
@@ -1490,7 +1497,11 @@ function Get-TableWriterIndex {
 
     $Index = @{}
 
-    foreach ($File in Get-ChildItem -Path $SearchPath -Recurse -Filter '*.ps1' -File) {
+    # Sorted on a separator-normalized path: the type merge below is order-dependent
+    # (the first writer that states a type wins), and NTFS enumerates sorted while
+    # ext4 does not, so an unsorted scan types fields differently on the ubuntu
+    # runner than on a local Windows build and -Check reports a stale spec.
+    foreach ($File in Get-ChildItem -Path $SearchPath -Recurse -Filter '*.ps1' -File | Sort-Object { $_.FullName.Replace('\', '/') }) {
         $Tokens = $null; $Errs = $null
         $Ast = [System.Management.Automation.Language.Parser]::ParseFile($File.FullName, [ref]$Tokens, [ref]$Errs)
         if ($Errs.Count -gt 0) { continue }
@@ -2142,8 +2153,8 @@ $Report = [System.Collections.Generic.List[object]]::new()
 foreach ($Contract in ($Contracts | Sort-Object Name -CaseSensitive)) {
     # Craft dispatches by name and does not filter on verb, but an endpoint that
     # reads the body is a POST and one that only reads the query string is a GET.
-    # Exactly one operation per path: Get-CippMcpToolList keys tools by endpoint
-    # name, so a second method would advertise a duplicate tool.
+    # A path gets both only for the read/action split below; the MCP catalog keeps one
+    # tool per name by preferring the POST, which carries the query parameters too.
     $HasBodyShape = $Contract.BodyTree.Children.Count -gt 0 -or $Contract.BodyTree.IsArray -or $Contract.BodyTree.IsDynamic
     $ReadsQuery = $Contract.UsesQuery -or $Contract.QueryTree.Children.Count -gt 0
 
@@ -2175,26 +2186,40 @@ foreach ($Contract in ($Contracts | Sort-Object Name -CaseSensitive)) {
     $IsMutation = $Contract.Name -match '^(Add|Set|Remove|Delete|Edit|New|Update|Disable|Enable|Reset|Revoke|Push|Clear|Start|Stop|Rename|Move|Copy)' -or
         $Contract.Role -match '\.ReadWrite$'
 
-    $Method = if ($IsMutation) { 'post' }
-    elseif ($Contract.UsesBody -and $HasBodyShape -and $ReadsQuery -and $IsReadVerb -and $QueryCoversBody) { 'get' }
-    elseif ($Contract.UsesBody -and $HasBodyShape) { 'post' }
-    elseif ($ReadsQuery) { 'get' }
-    elseif ($Contract.UsesBody) { 'post' }
-    else { 'get' }
+    # A List/Get endpoint that reads the query but takes some fields only from the body
+    # answers a plain GET and also accepts a POST for those fields, as ListTenants does for
+    # ClearCache. Documenting only the POST hid the GET every caller actually makes.
+    $IsDualMethod = -not $IsMutation -and $IsReadVerb -and $ReadsQuery -and $Contract.UsesBody -and $HasBodyShape -and -not $QueryCoversBody
 
-    $Operation = ConvertTo-OasOperation -Contract $Contract -Method $Method
+    $Methods = if ($IsMutation) { @('post') }
+    elseif ($IsDualMethod) { @('get', 'post') }
+    elseif ($Contract.UsesBody -and $HasBodyShape -and $ReadsQuery -and $IsReadVerb -and $QueryCoversBody) { @('get') }
+    elseif ($Contract.UsesBody -and $HasBodyShape) { @('post') }
+    elseif ($ReadsQuery) { @('get') }
+    elseif ($Contract.UsesBody) { @('post') }
+    else { @('get') }
+
+    $Override = $null
     if ($Overrides.ContainsKey($Contract.Name)) {
         $Override = $Overrides[$Contract.Name]
-        if ($Override.ContainsKey('method')) { $Method = [string]$Override['method']; $Override.Remove('method') }
-        $Operation = Merge-OpenApiOverride -Base $Operation -Override $Override
+        if ($Override.ContainsKey('method')) { $Methods = @([string]$Override['method']); $Override.Remove('method') }
     }
 
-    $Paths["/api/$($Contract.Name)"] = [ordered]@{ $Method = $Operation }
+    $PathItem = [ordered]@{}
+    foreach ($Method in $Methods) {
+        $Operation = ConvertTo-OasOperation -Contract $Contract -Method $Method
+        # operationIds must be unique across the spec, so the POST half of a dual-method
+        # endpoint gets a suffix and the GET keeps the plain name.
+        if ($Methods.Count -gt 1 -and $Method -ne $Methods[0]) { $Operation['operationId'] = "$($Contract.Name)$($Method.Substring(0,1).ToUpper())$($Method.Substring(1))" }
+        if ($Override) { $Operation = Merge-OpenApiOverride -Base $Operation -Override $Override }
+        $PathItem[$Method] = $Operation
+    }
+    $Paths["/api/$($Contract.Name)"] = $PathItem
     $null = $TagSet.Add($Contract.Tag)
 
     $Report.Add([ordered]@{
             endpoint       = $Contract.Name
-            method         = $Method
+            method         = $Methods -join ','
             role           = $Contract.Role
             tag            = $Contract.Tag
             bodyFields     = $Contract.BodyTree.Children.Count
@@ -2334,8 +2359,8 @@ if ($ReportPath) {
         endpoints          = $Report.Count
         skippedNonEntrypoint = $Skipped.Count
         byMethod           = [ordered]@{
-            get  = @($Report | Where-Object { $_.method -eq 'get' }).Count
-            post = @($Report | Where-Object { $_.method -eq 'post' }).Count
+            get  = @($Report | Where-Object { $_.method -split ',' -contains 'get' }).Count
+            post = @($Report | Where-Object { $_.method -split ',' -contains 'post' }).Count
         }
         withoutRole        = @($Report | Where-Object { -not $_.role }).Count
         withoutDescription = @($Report | Where-Object { -not $_.hasDescription }).Count

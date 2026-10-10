@@ -22,11 +22,16 @@
   "read": {
     "cacheType": "AuthorizationPolicy"
   },
+  "writeTarget": "authorizationPolicy",
+  "writeTargetProperties": {
+    "permissionGrantPolicyIdsAssignedToDefaultUserRole": ["ManagePermissionGrantsForSelf.microsoft-user-default-legacy"]
+  },
   "remediate": {
     "executor": "GraphRequest",
     "requests": [
       {
         "method": "PATCH",
+        "asApp": false,
         "uri": "policies/authorizationPolicy/authorizationPolicy",
         "body": {
           "permissionGrantPolicyIdsAssignedToDefaultUserRole": [

@@ -1,0 +1,456 @@
+{
+  "summary": {
+    "httpInvokeTotal": 694,
+    "missing": 32,
+    "debugAccessOnly": 3,
+    "successAsDebug": 19,
+    "ok": 325,
+    "errorOnly": 23,
+    "mutating": 400
+  },
+  "missing": [
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecAddTrustedIP",
+      "What": "Writes trusted IP table"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecCippReplacemap",
+      "What": "Add/remove replacemap rows"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecCloneTemplate",
+      "What": "Clones template into table"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Permissions",
+      "Name": "Invoke-ExecCPVRefresh",
+      "What": "Starts CPV orchestrator; orchestrator has no Write-LogMessage"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Tenant Graph + CIPP",
+      "Name": "Invoke-ExecCustomData",
+      "What": "Schema/custom data writes"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecDiagnosticsPresets",
+      "What": "Save/delete diagnostics presets"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Secrets",
+      "Name": "Invoke-ExecExtensionClearHIBPKey",
+      "What": "Clears HIBP API key; Remove-ExtensionAPIKey does not log"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Extension sync",
+      "Name": "Invoke-ExecExtensionNinjaOneQueue",
+      "What": "NinjaOne queue worker actions"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecExtensionsConfig",
+      "What": "Persists extension config"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecNotificationConfig",
+      "What": "Set-cippNotificationConfig has no log"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecOffloadFunctions",
+      "What": "Writes offload settings"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecPartnerMode",
+      "What": "Partner mode table + orchestrator"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "SAM permissions",
+      "Name": "Invoke-ExecPermissionRepair",
+      "What": "Update-CippSamPermissions has no log"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecRemoveTenant",
+      "What": "Removes tenant entity"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecSAMRoles",
+      "What": "Writes SAM roles"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Tenant Graph",
+      "Name": "Invoke-ExecServicePrincipals",
+      "What": "Creates service principals (partner tenant)"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "Auth secrets",
+      "Name": "Invoke-ExecUpdateRefreshToken",
+      "What": "Key vault + queue refresh token update"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "User prefs",
+      "Name": "Invoke-ExecUserBookmarks",
+      "What": "Writes user bookmarks"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "User prefs",
+      "Name": "Invoke-ExecUserSettings",
+      "What": "Writes user settings"
+    },
+    {
+      "Area": "CIPP",
+      "Impact": "CIPP ops",
+      "Name": "Invoke-RemoveCippQueue",
+      "What": "Clear-CIPPQueueData has no log"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Impact": "Tenant Exchange",
+      "Name": "Invoke-ExecMailboxRestore",
+      "What": "Create/resume/suspend/remove restore requests"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Partner Center",
+      "Name": "Invoke-AddTenant",
+      "What": "Creates/validates customer tenants"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "GDAP",
+      "Name": "Invoke-ExecAddGDAPRole",
+      "What": "Creates groups + GDAP role mappings"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Apps",
+      "Name": "Invoke-ExecAddMultiTenantApp",
+      "What": "Queues multi-tenant app deploy"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Tenant Graph",
+      "Name": "Invoke-ExecApplication",
+      "What": "Update/Upsert/Delete apps & secrets"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Standards",
+      "Name": "Invoke-ExecDriftClone",
+      "What": "New-CippStandardsDriftClone has no log"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecGraphExplorerPreset",
+      "What": "Save/delete Graph Explorer presets"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Tenant Graph",
+      "Name": "Invoke-ExecSendOrgMessage",
+      "What": "Sends org messages to devices"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Standards",
+      "Name": "Invoke-ExecStandardConvert",
+      "What": "Converts standards templates in table"
+    },
+    {
+      "Area": "Tenant",
+      "Impact": "Webhooks",
+      "Name": "Invoke-PublicWebhooks",
+      "What": "Persists webhook subscription state"
+    },
+    {
+      "Area": "Tools",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecCommunityRepo",
+      "What": "Community repo template imports"
+    },
+    {
+      "Area": "Tools",
+      "Impact": "CIPP config",
+      "Name": "Invoke-ExecGitHubAction",
+      "What": "GitHub action / template writes"
+    }
+  ],
+  "successAsDebug": [
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecEditTemplate"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-AddConnectionFilterTemplate"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-AddExConnectorTemplate"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-AddSpamFilterTemplate"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-AddTransportTemplate"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-ExecSetMailboxRule"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-RemoveContact"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-RemoveExConnector"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-AddAssignmentFilterTemplate"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-AddIntuneReusableSettingTemplate"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-AddIntuneTemplate"
+    },
+    {
+      "Area": "Identity",
+      "Name": "Invoke-AddGroupTemplate"
+    },
+    {
+      "Area": "Security",
+      "Name": "Invoke-AddDlpCompliancePolicyTemplate"
+    },
+    {
+      "Area": "Security",
+      "Name": "Invoke-AddRetentionCompliancePolicyTemplate"
+    },
+    {
+      "Area": "Security",
+      "Name": "Invoke-AddSensitivityLabelTemplate"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-AddBPATemplate"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-AddCATemplate"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-AddTestReport"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-DeleteTestReport"
+    }
+  ],
+  "errorOnly": [
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecExtensionMapping"
+    },
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecMaintenanceScripts"
+    },
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecRunTenantGroupRule"
+    },
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecSAMCertificate"
+    },
+    {
+      "Area": "CIPP",
+      "Name": "Invoke-ExecTenantGroup"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-ExecScheduleForwardingVacation"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-ExecScheduleMailboxVacation"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-ExecScheduleOOOVacation"
+    },
+    {
+      "Area": "Email-Exchange",
+      "Name": "Invoke-ExecSetOoO"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-AddAssignmentFilter"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-AddDefenderDeployment"
+    },
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-ExecDeployAppTemplate"
+    },
+    {
+      "Area": "Identity",
+      "Name": "Invoke-AddUserBulk"
+    },
+    {
+      "Area": "Identity",
+      "Name": "Invoke-ExecBulkLicense"
+    },
+    {
+      "Area": "Identity",
+      "Name": "Invoke-ExecJITAdmin"
+    },
+    {
+      "Area": "Identity",
+      "Name": "Invoke-ExecPIMRoleAssignment"
+    },
+    {
+      "Area": "Teams-Sharepoint",
+      "Name": "Invoke-ExecSetOneDriveSharing"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecAddSPN"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecCAExclusion"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecNamedLocation"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecScheduleAuditExclusionVacation"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-RemoveWebhookAlert"
+    }
+  ],
+  "debugAccessOnly": [
+    {
+      "Area": "Endpoint",
+      "Name": "Invoke-EditIntuneScript",
+      "What": "PATCH Intune scripts; only Debug access log"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecGDAPAccessAssignment",
+      "What": "Creates GDAP access assignments; only Debug access log"
+    },
+    {
+      "Area": "Tenant",
+      "Name": "Invoke-ExecTestRefresh",
+      "What": "Writes test results table; only Debug access log"
+    }
+  ],
+  "byArea": [
+    {
+      "Area": "CIPP",
+      "Total": 70,
+      "Ok": 44,
+      "Missing": 20,
+      "DebugOnly": 0,
+      "Partial": 6
+    },
+    {
+      "Area": "Tenant",
+      "Total": 78,
+      "Ok": 58,
+      "Missing": 9,
+      "DebugOnly": 2,
+      "Partial": 9
+    },
+    {
+      "Area": "Endpoint",
+      "Total": 54,
+      "Ok": 44,
+      "Missing": 3,
+      "DebugOnly": 1,
+      "Partial": 6
+    },
+    {
+      "Area": "Email-Exchange",
+      "Total": 84,
+      "Ok": 71,
+      "Missing": 2,
+      "DebugOnly": 0,
+      "Partial": 11
+    },
+    {
+      "Area": "Tools",
+      "Total": 7,
+      "Ok": 5,
+      "Missing": 2,
+      "DebugOnly": 0,
+      "Partial": 0
+    },
+    {
+      "Area": "Identity",
+      "Total": 50,
+      "Ok": 45,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 5
+    },
+    {
+      "Area": "Security",
+      "Total": 31,
+      "Ok": 28,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 3
+    },
+    {
+      "Area": "Teams-Sharepoint",
+      "Total": 26,
+      "Ok": 25,
+      "Missing": 0,
+      "DebugOnly": 0,
+      "Partial": 1
+    }
+  ]
+}

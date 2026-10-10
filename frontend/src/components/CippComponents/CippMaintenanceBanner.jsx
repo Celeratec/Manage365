@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { CippIcons } from '../../utils/icon-registry'
 import NextLink from 'next/link'
-import { Box, Button, Chip, IconButton, Stack, Typography } from '@mui/material'
+import { Box, Button, Chip, IconButton, Link, Stack, Typography, useMediaQuery } from '@mui/material'
 import { alpha, useTheme } from '@mui/material/styles'
-import { Close, ErrorOutline, InfoOutlined, WarningAmber } from '@mui/icons-material'
 import { formatDistanceStrict } from 'date-fns'
 
 // Dismissal is keyed on the notice id so that re-issuing an edited notice brings the banner back
@@ -13,9 +13,9 @@ const DISMISS_DURATION_MS = 24 * 60 * 60 * 1000 // 1 day, matching FailedPayment
 const SEVERITIES = ['info', 'warning', 'error']
 
 const ICONS = {
-  info: InfoOutlined,
-  warning: WarningAmber,
-  error: ErrorOutline,
+  info: CippIcons.InfoOutlined,
+  warning: CippIcons.WarningAmber,
+  error: CippIcons.ErrorOutlined,
 }
 
 // localStorage throws in locked-down browsers - never let that break the layout.
@@ -85,6 +85,41 @@ const buildWindowText = (start, end, active, now) => {
 export const CippMaintenanceBanner = ({ alert }) => {
   const theme = useTheme()
   const rootRef = useRef(null)
+  const messageRef = useRef(null)
+  // On phones a long notice pushes the whole chrome down by its height — clamp the message
+  // to two lines with a Read more toggle there. Desktop keeps the full inline message.
+  const mdDown = useMediaQuery(theme.breakpoints.down('md'))
+  const [messageExpanded, setMessageExpanded] = useState(false)
+  const [messageClamped, setMessageClamped] = useState(false)
+  const clampActive = mdDown && !messageExpanded
+
+  // Measured off a frame rather than synchronously in the effect: the clamped height isn't
+  // final until the browser has laid the text out, and a synchronous setState here would
+  // cascade a second render on every pass.
+  useEffect(() => {
+    const element = messageRef.current
+    if (!mdDown || !element) {
+      const frame = requestAnimationFrame(() => setMessageClamped(false))
+      return () => cancelAnimationFrame(frame)
+    }
+
+    const measure = () =>
+      setMessageClamped(
+        // Expanded text no longer overflows — keep the toggle so it can collapse again.
+        messageExpanded || element.scrollHeight > element.clientHeight + 1
+      )
+
+    const frame = requestAnimationFrame(measure)
+    if (typeof ResizeObserver === 'undefined') {
+      return () => cancelAnimationFrame(frame)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => {
+      cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }, [mdDown, messageExpanded, alert?.Alert])
 
   const noticeId = alert?.noticeId
   const dismissible = alert?.dismissible !== false
@@ -186,20 +221,31 @@ export const CippMaintenanceBanner = ({ alert }) => {
         borderBottom: `1px solid ${solid ? alpha('#000000', 0.18) : alpha(palette.main, 0.42)}`,
         boxShadow: solid ? 'none' : `inset 0 3px 0 0 ${palette.main}`,
         px: { xs: 2, md: 3 },
-        py: 1.25,
+        // Extend into the status-bar region under black-translucent / notched devices;
+        // the measured --cipp-banner-h then carries the inset for chrome below.
+        pt: 'calc(10px + env(safe-area-inset-top, 0px))',
+        pb: 1.25,
       }}
     >
       {/* Top-aligned so the icon and actions sit level with the title when the message wraps. */}
-      <Stack direction="row" spacing={1.5} alignItems="flex-start">
+      <Stack direction="row" spacing={1.5} sx={{
+        alignItems: "flex-start"
+      }}>
         <Icon fontSize="small" sx={{ color: solid ? 'inherit' : palette.main, mt: 0.25 }} />
 
         <Stack
+          useFlexGap
           direction={{ xs: 'column', md: 'row' }}
           spacing={{ xs: 0.25, md: 1.5 }}
-          alignItems={{ xs: 'flex-start', md: 'baseline' }}
-          sx={{ flexGrow: 1, minWidth: 0, flexWrap: 'wrap' }}
-        >
-          <Stack direction="row" spacing={1} alignItems="center">
+          sx={{
+            alignItems: { xs: 'flex-start', md: 'baseline' },
+            flexGrow: 1,
+            minWidth: 0,
+            flexWrap: 'wrap'
+          }}>
+          <Stack direction="row" spacing={1} sx={{
+            alignItems: "center"
+          }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               {alert.title}
             </Typography>
@@ -219,9 +265,33 @@ export const CippMaintenanceBanner = ({ alert }) => {
             )}
           </Stack>
 
-          <Typography variant="body2" sx={{ color: 'text.primary', opacity: solid ? 0.9 : 0.86 }}>
+          <Typography
+            ref={messageRef}
+            variant="body2"
+            sx={{
+              color: 'text.primary',
+              opacity: solid ? 0.9 : 0.86,
+              ...(clampActive && {
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+              }),
+            }}
+          >
             {alert.Alert}
           </Typography>
+          {messageClamped && (
+            <Link
+              component="button"
+              type="button"
+              variant="body2"
+              onClick={() => setMessageExpanded((prev) => !prev)}
+              sx={{ color: 'inherit', fontWeight: 600, textDecorationColor: 'currentColor' }}
+            >
+              {messageExpanded ? 'Show less' : 'Read more'}
+            </Link>
+          )}
 
           {windowText && (
             <Typography
@@ -230,7 +300,7 @@ export const CippMaintenanceBanner = ({ alert }) => {
                 color: 'text.primary',
                 opacity: solid ? 0.85 : 0.62,
                 fontVariantNumeric: 'tabular-nums',
-                whiteSpace: 'nowrap',
+                whiteSpace: { xs: 'normal', md: 'nowrap' },
               }}
             >
               {windowText}
@@ -238,7 +308,13 @@ export const CippMaintenanceBanner = ({ alert }) => {
           )}
         </Stack>
 
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ flexShrink: 0 }}>
+        <Stack
+          direction="row"
+          spacing={0.5}
+          sx={{
+            alignItems: "center",
+            flexShrink: 0
+          }}>
           {link && (
             <Button
               size="small"
@@ -269,11 +345,11 @@ export const CippMaintenanceBanner = ({ alert }) => {
                 '&:hover': { backgroundColor: alpha(solid ? '#FFFFFF' : palette.main, 0.16) },
               }}
             >
-              <Close fontSize="inherit" />
+              <CippIcons.Close fontSize="inherit" />
             </IconButton>
           )}
         </Stack>
       </Stack>
     </Box>
-  )
+  );
 }

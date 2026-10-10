@@ -1,26 +1,31 @@
 import { useEffect, useMemo, useCallback, useState } from "react";
 import { useRouter } from "next/router";
 import { useForm } from "react-hook-form";
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from '../../../../layouts/index'
+import CippFormPage from '../../../../components/CippFormPages/CippFormPage'
+import CippFormSkeleton from '../../../../components/CippFormPages/CippFormSkeleton'
 import { useSettings } from "../../../../hooks/use-settings";
 import { ApiGetCall, ApiPostCall } from "../../../../api/ApiCall";
 import countryList from "../../../../data/countryList.json";
 import { Grid } from "@mui/system";
 import CippFormComponent from "../../../../components/CippComponents/CippFormComponent";
 import {
+  Divider,
   Alert,
   Avatar,
   Button,
   Chip,
   CircularProgress,
   Container,
-  Divider,
   Paper,
   Tooltip,
   Typography,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import { Box, Stack } from "@mui/system";
+} from '@mui/material'
+import { alpha } from '@mui/material/styles'
+import {
+  Box,
+  Stack,
+} from '@mui/system'
 import {
   ArrowBack,
   Email,
@@ -34,9 +39,12 @@ import {
   CloudSync,
   Save,
   Language,
-} from "@mui/icons-material";
-import Link from "next/link";
-import { getInitials, stringToColor } from "../../../../utils/get-initials";
+} from '@mui/icons-material'
+import Link from 'next/link'
+import {
+  getInitials,
+  stringToColor,
+} from '../../../../utils/get-initials'
 
 const countryLookup = new Map(countryList.map((country) => [country.Name, country.Code]));
 

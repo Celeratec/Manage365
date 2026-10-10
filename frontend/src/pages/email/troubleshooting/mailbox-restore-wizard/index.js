@@ -1,5 +1,5 @@
 
-import { Layout as DashboardLayout } from "../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 
 const Page = () => {
   const pageTitle = "Mailbox Restore Wizard";

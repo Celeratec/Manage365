@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { CippIcons } from "../../utils/icon-registry";
 import {
   Card,
   Stack,
@@ -15,6 +16,10 @@ import {
   InputAdornment,
   ButtonGroup,
   Button,
+  Menu,
+  MenuItem,
+  Checkbox,
+  ListItemText,
 } from "@mui/material";
 import {
   ExpandMore as ExpandMoreIcon,
@@ -105,6 +110,8 @@ const CippStandardAccordion = ({
   const [searchQuery, setSearchQuery] = useState("");
   const [savedValues, setSavedValues] = useState({});
   const [originalValues, setOriginalValues] = useState({});
+  const [actionsMenuAnchor, setActionsMenuAnchor] = useState(null);
+  const [bulkActions, setBulkActions] = useState([]);
 
   const watchedValues = useWatch({
     control: formControl.control,
@@ -220,6 +227,12 @@ const CippStandardAccordion = ({
             // For single selection, check if value exists
             return !!fieldValue;
           }
+        }
+
+        // Number fields now carry a real 0 (or null when empty) instead of a string - "0" was
+        // truthy so !!fieldValue passed, but 0 is falsy and would wrongly read as unfilled.
+        if (component.type === "number") {
+          return fieldValue !== undefined && fieldValue !== null && fieldValue !== "";
         }
 
         // For other field types
@@ -352,9 +365,46 @@ const CippStandardAccordion = ({
   };
 
   // Cancel changes for a standard
+  const toggleBulkAction = (action) => {
+    setBulkActions((prev) =>
+      prev.some((item) => item.value === action.value)
+        ? prev.filter((item) => item.value !== action.value)
+        : [...prev, action],
+    );
+  };
+
+  // Apply the picked actions to every selected standard, keeping only the actions that
+  // standard allows. Deprecated and unknown standards are left alone, and a standard
+  // with no overlap keeps its current action instead of being written empty.
+  const applyBulkActions = () => {
+    Object.keys(selectedStandards).forEach((standardName) => {
+      const baseStandardName = standardName.split("[")[0];
+      const standard = providedStandards.find((item) => item.name === baseStandardName);
+      if (!standard || standard._unknown || standard.deprecated) return;
+
+      const available = getAvailableActions(standard.disabledFeatures);
+      const picked = bulkActions.filter((action) =>
+        available.some((item) => item.value === action.value),
+      );
+      if (picked.length === 0) return;
+
+      formControl.setValue(`${standardName}.action`, picked);
+      setSavedValues((prev) => {
+        const existing = prev[standardName];
+        if (!existing) return prev;
+        return { ...prev, [standardName]: { ...existing, action: picked } };
+      });
+    });
+
+    if (expanded) {
+      handleAccordionToggle(null);
+    }
+    setActionsMenuAnchor(null);
+  };
+
   const handleCancel = (standardName) => {
-    // Get the last saved values
-    const savedValue = get(savedValues, standardName);
+    // Saved values are keyed by the full standard path, which contains dots.
+    const savedValue = savedValues[standardName] ?? get(savedValues, standardName);
     if (!savedValue) return;
 
     // Set the entire standard's value at once to ensure proper handling of nested objects and arrays
@@ -485,13 +535,20 @@ const CippStandardAccordion = ({
           <Stack
             direction={{ xs: "column", sm: "row" }}
             spacing={2}
+            useFlexGap
             sx={{
+              flexWrap: "wrap",
               mt: 2,
               mb: 3,
-              alignItems: { xs: "flex-start", sm: "center" },
-            }}
-          >
-            <Stack direction="row" alignItems="center" spacing={1} sx={{ flexGrow: 1 }}>
+              alignItems: { xs: "flex-start", sm: "center" }
+            }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: "center",
+                flexGrow: 1
+              }}>
               <TextField
                 size="small"
                 variant="filled"
@@ -510,7 +567,7 @@ const CippStandardAccordion = ({
                   input: {
                     startAdornment: (
                       <InputAdornment position="start" sx={{ margin: "0 !important" }}>
-                        <Search />
+                        <CippIcons.Search />
                       </InputAdornment>
                     ),
                     endAdornment: searchQuery && (
@@ -527,7 +584,7 @@ const CippStandardAccordion = ({
                             }}
                             aria-label="Clear search"
                           >
-                            <Close />
+                            <CippIcons.Close />
                           </IconButton>
                         </Tooltip>
                       </InputAdornment>
@@ -536,10 +593,35 @@ const CippStandardAccordion = ({
                 }}
               />
             </Stack>
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={(event) => setActionsMenuAnchor(event.currentTarget)}
+            >
+              Set All Actions
+            </Button>
+            <Menu
+              anchorEl={actionsMenuAnchor}
+              open={Boolean(actionsMenuAnchor)}
+              onClose={() => setActionsMenuAnchor(null)}
+            >
+              {getAvailableActions().map((action) => (
+                <MenuItem key={action.value} onClick={() => toggleBulkAction(action)}>
+                  <Checkbox
+                    size="small"
+                    checked={bulkActions.some((item) => item.value === action.value)}
+                    tabIndex={-1}
+                    disableRipple
+                  />
+                  <ListItemText>{action.label}</ListItemText>
+                </MenuItem>
+              ))}
+              <MenuItem onClick={applyBulkActions}>Apply to all standards</MenuItem>
+            </Menu>
             <ButtonGroup variant="outlined" color="primary" size="small">
               <Button disabled={true} color="primary">
                 <SvgIcon fontSize="small">
-                  <FilterAlt />
+                  <CippIcons.FilterAlt />
                 </SvgIcon>
               </Button>
               <Button
@@ -583,7 +665,9 @@ const CippStandardAccordion = ({
 
           {!hasFilteredStandards && (
             <Box sx={{ textAlign: "center", my: 4 }}>
-              <Typography variant="body1" color="text.secondary">
+              <Typography variant="body1" sx={{
+                color: "text.secondary"
+              }}>
                 No standards match the selected filter criteria or search query.
               </Typography>
             </Box>
@@ -598,6 +682,76 @@ const CippStandardAccordion = ({
           </Typography>
 
           {filteredGroupedStandards[category].map(({ standardName, standard }) => {
+            if (standard._unknown) {
+              const isExpanded = expanded === standardName;
+              const rawData = get(watchedValues, standardName);
+              return (
+                <Card key={standardName} sx={{ mb: 2, borderLeft: "4px solid", borderColor: "warning.main" }}>
+                  <Stack
+                    direction="row"
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      p: 2
+                    }}>
+                    <Stack direction="row" spacing={2} sx={{
+                      alignItems: "center"
+                    }}>
+                      <Avatar sx={{ bgcolor: "warning.main" }}>
+                        <CippIcons.Warning />
+                      </Avatar>
+                      <Stack>
+                        <Typography variant="h6">{standard.label}</Typography>
+                        <Typography variant="body2" sx={{
+                          color: "text.secondary"
+                        }}>
+                          This standard no longer exists and should be removed.
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{
+                      alignItems: "center"
+                    }}>
+                      <Tooltip title="Remove Unknown Standard">
+                        <IconButton color="error" onClick={() => handleRemoveStandard(standardName)}>
+                          <CippIcons.Delete />
+                        </IconButton>
+                      </Tooltip>
+                      <IconButton onClick={() => handleAccordionToggle(standardName)}>
+                        <SvgIcon
+                          component={CippIcons.ExpandMore}
+                          sx={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}
+                        />
+                      </IconButton>
+                    </Stack>
+                  </Stack>
+                  <Collapse in={isExpanded} unmountOnExit>
+                    <Divider />
+                    <Box sx={{ p: 2 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Stored Configuration
+                      </Typography>
+                      <Box
+                        component="pre"
+                        sx={{
+                          p: 2,
+                          borderRadius: 1,
+                          bgcolor: "background.default",
+                          overflow: "auto",
+                          maxHeight: 300,
+                          fontSize: "0.8rem",
+                          whiteSpace: "pre-wrap",
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {JSON.stringify(rawData, null, 2)}
+                      </Box>
+                    </Box>
+                  </Collapse>
+                </Card>
+              );
+            }
+
             const isExpanded = expanded === standardName;
             const hasAddedComponents =
               standard.addedComponent && standard.addedComponent.length > 0;
@@ -703,6 +857,13 @@ const CippStandardAccordion = ({
                     }
                   }
 
+                  // Number fields now carry a real 0 (or null when empty) instead of a string -
+                  // "0" was truthy so !!fieldValue passed, but 0 is falsy and would wrongly read
+                  // as unfilled.
+                  if (component.type === "number") {
+                    return fieldValue !== undefined && fieldValue !== null && fieldValue !== "";
+                  }
+
                   // For other field types
                   return !!fieldValue;
                 }) ?? true)
@@ -738,14 +899,17 @@ const CippStandardAccordion = ({
               <Card key={standardName} sx={{ mb: 2 }}>
                 <Stack
                   direction="row"
-                  justifyContent="space-between"
-                  alignItems="center"
-                  sx={{ p: 2 }}
-                >
-                  <Stack direction="row" alignItems="center" spacing={2}>
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    p: 2
+                  }}>
+                  <Stack direction="row" spacing={2} sx={{
+                    alignItems: "center"
+                  }}>
                     <Avatar>
                       {standard.cat === "Global Standards" ? (
-                        <Public />
+                        <CippIcons.Public />
                       ) : standard.cat === "Entra (AAD) Standards" ? (
                         <Azure />
                       ) : standard.cat === "Exchange Standards" ? (
@@ -782,9 +946,9 @@ const CippStandardAccordion = ({
                                   sx={{ mr: 1 }}
                                   icon={
                                     <SvgIcon>
-                                      {action.value === "Report" && <Assignment />}
-                                      {action.value === "warn" && <NotificationImportant />}
-                                      {action.value === "Remediate" && <Construction />}
+                                      {action.value === "Report" && <CippIcons.Assignment />}
+                                      {action.value === "warn" && <CippIcons.NotificationImportant />}
+                                      {action.value === "Remediate" && <CippIcons.Construction />}
                                     </SvgIcon>
                                   }
                                 />
@@ -833,7 +997,9 @@ const CippStandardAccordion = ({
                       </Box>
                     </Stack>
                   </Stack>
-                  <Stack direction="row" alignItems="center" spacing={1}>
+                  <Stack direction="row" spacing={1} sx={{
+                    alignItems: "center"
+                  }}>
                     {standard.multiple && (
                       <Tooltip
                         title={
@@ -847,7 +1013,7 @@ const CippStandardAccordion = ({
                             onClick={() => handleAddMultipleStandard(standardName)}
                             disabled={standard.deprecated}
                           >
-                            <SvgIcon component={Add} />
+                            <SvgIcon component={CippIcons.Add} />
                           </IconButton>
                         </span>
                       </Tooltip>
@@ -865,13 +1031,13 @@ const CippStandardAccordion = ({
                     </Typography>
                     <Tooltip title="Remove Standard">
                       <IconButton color="error" onClick={() => handleRemoveStandard(standardName)}>
-                        <Delete />
+                        <CippIcons.Delete />
                       </IconButton>
                     </Tooltip>
 
                     <IconButton onClick={() => handleAccordionToggle(standardName)}>
                       <SvgIcon
-                        component={ExpandMoreIcon}
+                        component={CippIcons.ExpandMore}
                         sx={{ transform: isExpanded ? "rotate(180deg)" : "rotate(0)" }}
                       />
                     </IconButton>
@@ -959,7 +1125,7 @@ const CippStandardAccordion = ({
                     ) : (
                       /* Standard mode layout - original grid layout */
                       <Grid container spacing={2}>
-                        <Grid size={4}>
+                        <Grid size={{ xs: 12, md: 4 }}>
                           <CippFormComponent
                             type="autoComplete"
                             name={`${standardName}.action`}
@@ -972,7 +1138,7 @@ const CippStandardAccordion = ({
                         </Grid>
 
                         {hasAddedComponents && (
-                          <Grid size={8}>
+                          <Grid size={{ xs: 12, md: 8 }}>
                             <Grid container spacing={2}>
                               {/* Add catalog button for Intune Template standard - appears first */}
                               {standardName.startsWith("standards.IntuneTemplate") && (
@@ -1019,7 +1185,9 @@ const CippStandardAccordion = ({
                   </Box>
                   <Divider sx={{ mt: 2 }} />
                   <Box sx={{ px: 3, py: 2 }}>
-                    <Stack direction="row" justifyContent="flex-end" spacing={1}>
+                    <Stack direction="row" spacing={1} sx={{
+                      justifyContent: "flex-end"
+                    }}>
                       <Button
                         variant="outlined"
                         color="primary"

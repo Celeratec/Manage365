@@ -1,41 +1,33 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
-import { useSettings } from "../../../../../hooks/use-settings";
-import { useRouter } from "next/router";
-import { ApiGetCall, ApiPostCall } from "../../../../../api/ApiCall";
-import CippFormSkeleton from "../../../../../components/CippFormPages/CippFormSkeleton";
-import CalendarIcon from "@heroicons/react/24/outline/CalendarIcon";
-import { 
-  AdminPanelSettings, 
-  Check, 
-  Group, 
-  Mail, 
-  Fingerprint, 
-  Launch,
-  Login,
-  Security,
-  Devices,
-  Badge,
-  PersonAdd,
-} from "@mui/icons-material";
-import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
-import tabOptions from "./tabOptions";
-import { CippCopyToClipBoard } from "../../../../../components/CippComponents/CippCopyToClipboard";
-import { Box, Stack } from "@mui/system";
-import { Grid } from "@mui/system";
-import { CippUserInfoCard } from "../../../../../components/CippCards/CippUserInfoCard";
-import { SvgIcon, Typography, Divider } from "@mui/material";
-import { CippBannerListCard } from "../../../../../components/CippCards/CippBannerListCard";
-import { CippTimeAgo } from "../../../../../components/CippComponents/CippTimeAgo";
-import { useEffect, useState, useMemo, useCallback } from "react";
-import { useCippUserActions } from "../../../../../components/CippComponents/CippUserActions";
-import { EyeIcon, PencilIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
-import { getGroupTypeLabel } from "../../../../../utils/group-types";
-import dynamic from "next/dynamic";
-const CippMap = dynamic(() => import("../../../../../components/CippComponents/CippMap"), {
-  ssr: false,
-});
-
+import { Layout as DashboardLayout } from '../../../../../layouts/index'
+import { CippIcons } from '../../../../../utils/icon-registry'
+import { useSettings } from '../../../../../hooks/use-settings'
+import { useRouter } from 'next/router'
+import { ApiGetCall, ApiPostCall } from '../../../../../api/ApiCall'
+import { HeaderedTabbedLayout } from '../../../../../layouts/HeaderedTabbedLayout'
+import tabOptions from './tabOptions'
+import { CippCopyToClipBoard } from '../../../../../components/CippComponents/CippCopyToClipboard'
+import { Box, Stack } from '@mui/system'
+import { Grid } from '@mui/system'
+import { CippUserInfoCard } from '../../../../../components/CippCards/CippUserInfoCard'
+import { CippUserSwitcher } from '../../../../../components/CippComponents/CippUserSwitcher'
+import { SvgIcon, Typography } from '@mui/material'
+import { CippBannerListCard } from '../../../../../components/CippCards/CippBannerListCard'
+import { CippTimeAgo } from '../../../../../components/CippComponents/CippTimeAgo'
+import { Fragment, useEffect, useState, useRef, useMemo, useCallback } from 'react'
+import { useCippUserActions } from '../../../../../components/CippComponents/CippUserActions'
+import { useCippRoleAssignmentActions } from '../../../../../components/CippComponents/CippRoleAssignmentActions'
+import { CippDataTable } from '../../../../../components/CippTable/CippDataTable'
+import dynamic from 'next/dynamic'
+const CippMap = dynamic(
+  () => import('../../../../../components/CippComponents/CippMap'),
+  {
+    ssr: false,
+  }
+)
+import { Badge, Devices, Group, Login, PersonAdd, Security } from '@mui/icons-material'
+import { Divider } from '@mui/material'
+import { PencilIcon } from '@heroicons/react/24/outline'
+import { getGroupTypeLabel } from '../../../../../utils/group-types'
 import {
   Button,
   Dialog,
@@ -54,6 +46,163 @@ import { CippPropertyList } from "../../../../../components/CippComponents/CippP
 import { CippCodeBlock } from "../../../../../components/CippComponents/CippCodeBlock";
 import { CippHead } from "../../../../../components/CippComponents/CippHead";
 import { CippUserDevicesSection } from "../../../../../components/CippComponents/CippUserDevicesSection";
+import { usePermissions } from '../../../../../hooks/use-permissions'
+import { useDialog } from '../../../../../hooks/use-dialog'
+import { CippApiDialog } from '../../../../../components/CippComponents/CippApiDialog'
+
+// The only six values Graph accepts for userPreferredMethodForSecondaryAuthentication.
+// Shared by the "Set Default" dropdown, the default marker, and the system-preferred alert.
+const MFA_PREF_LABELS = {
+  push: 'Microsoft Authenticator (push)',
+  oath: 'Authenticator app or hardware token (OATH code)',
+  sms: 'SMS',
+  voiceMobile: 'Voice call - mobile',
+  voiceAlternateMobile: 'Voice call - alternate mobile',
+  voiceOffice: 'Voice call - office',
+}
+
+// systemPreferredAuthenticationMethod is undocumented on signInPreferences and comes
+// back in the legacy MFA vocabulary ("SoftwareOTP"), NOT the six values above, so it
+// maps to @odata.type suffixes rather than to a preference value.
+// Keyed lowercase so a casing change upstream doesn't silently break matching; an
+// unrecognised value simply marks no card.
+const SYSTEM_PREF_METHOD_TYPES = {
+  phoneappnotification: [
+    'microsoftAuthenticatorAuthenticationMethod',
+    'passwordlessMicrosoftAuthenticatorAuthenticationMethod',
+  ],
+  phoneappotp: [
+    'microsoftAuthenticatorAuthenticationMethod',
+    'softwareOathAuthenticationMethod',
+  ],
+  softwareotp: ['softwareOathAuthenticationMethod'],
+  hardwareotp: ['hardwareOathAuthenticationMethod'],
+  onewaysms: ['phoneAuthenticationMethod'],
+  twowayvoicemobile: ['phoneAuthenticationMethod'],
+  twowayvoicealternatemobile: ['phoneAuthenticationMethod'],
+  twowayvoiceoffice: ['phoneAuthenticationMethod'],
+  fido2: ['fido2AuthenticationMethod'],
+  temporaryaccesspass: ['temporaryAccessPassAuthenticationMethod'],
+  windowshelloforbusiness: ['windowsHelloForBusinessAuthenticationMethod'],
+  qrcodepin: ['qrCodePinAuthenticationMethod'],
+  externalmethod: ['externalAuthenticationMethod'],
+}
+
+// Keyed by the @odata.type suffix Graph returns. /authentication/methods is a
+// polymorphic collection, so the identifying field differs per method type.
+const MFA_METHOD_TYPES = {
+  microsoftAuthenticatorAuthenticationMethod: {
+    label: 'Microsoft Authenticator',
+    icon: <CippIcons.PhoneIphone />,
+    identifier: (method) => method.displayName || method.deviceTag,
+  },
+  passwordlessMicrosoftAuthenticatorAuthenticationMethod: {
+    // Deprecated by Graph, but still present on users registered before the merge.
+    label: 'Microsoft Authenticator (passwordless)',
+    icon: <CippIcons.PhoneIphone />,
+    identifier: (method) => method.displayName,
+  },
+  phoneAuthenticationMethod: {
+    // SMS and voice are the same registration — phoneType is what separates them.
+    label: 'Phone',
+    icon: <CippIcons.Smartphone />,
+    identifier: (method) =>
+      method.phoneNumber && method.phoneType
+        ? `${method.phoneNumber} (${method.phoneType})`
+        : method.phoneNumber,
+  },
+  fido2AuthenticationMethod: {
+    label: 'Passkey (FIDO2)',
+    icon: <CippIcons.Key />,
+    identifier: (method) => method.model || method.displayName,
+  },
+  softwareOathAuthenticationMethod: {
+    // Any TOTP-capable app, not just Microsoft Authenticator — password managers included.
+    label: 'Software OATH token',
+    icon: <CippIcons.Dialpad />,
+    identifier: (method) => method.displayName,
+  },
+  hardwareOathAuthenticationMethod: {
+    // This type has no displayName; the serial number lives on the device
+    // relationship, which Graph only returns when explicitly expanded.
+    label: 'Hardware OATH token',
+    icon: <CippIcons.Password />,
+    identifier: (method) => method.device?.serialNumber,
+  },
+  emailAuthenticationMethod: {
+    label: 'Email',
+    icon: <CippIcons.Mail />,
+    identifier: (method) => method.emailAddress,
+  },
+  windowsHelloForBusinessAuthenticationMethod: {
+    label: 'Windows Hello for Business',
+    icon: <CippIcons.Fingerprint />,
+    identifier: (method) => method.displayName,
+  },
+  platformCredentialAuthenticationMethod: {
+    label: 'Platform credential',
+    icon: <CippIcons.Laptop />,
+    identifier: (method) => method.displayName || method.platform,
+  },
+  temporaryAccessPassAuthenticationMethod: {
+    label: 'Temporary Access Pass',
+    icon: <CippIcons.Key />,
+    identifier: () => null,
+  },
+  qrCodePinAuthenticationMethod: {
+    // Only id and lastUsedDateTime come back on this type — nothing to identify it by.
+    label: 'QR code',
+    icon: <CippIcons.QrCode />,
+    identifier: () => null,
+  },
+  externalAuthenticationMethod: {
+    label: 'External provider',
+    icon: <CippIcons.Language />,
+    identifier: (method) => method.displayName,
+  },
+}
+
+const getMethodType = (method) =>
+  method['@odata.type']?.split('.').pop() || 'N/A'
+
+// A method type Graph adds later still renders: raw suffix as label, generic icon.
+const getMethodMeta = (method) =>
+  MFA_METHOD_TYPES[getMethodType(method)] ?? {
+    label: getMethodType(method),
+    icon: <CippIcons.Check />,
+    identifier: () => null,
+  }
+
+// Which of the six preference values this specific method can satisfy. Graph stores
+// the default by method *type*, not by method id. A mobile number backs both SMS and
+// voice; FIDO2/Hello/email/TAP back none, so they can never be the default.
+const prefValuesForMethod = (method) => {
+  const type = getMethodType(method)
+  if (type === 'phoneAuthenticationMethod') {
+    if (method.phoneType === 'mobile') return ['sms', 'voiceMobile']
+    if (method.phoneType === 'alternateMobile') return ['voiceAlternateMobile']
+    if (method.phoneType === 'office') return ['voiceOffice']
+    return []
+  }
+  // The Authenticator app always shows a verification code alongside push, and Graph
+  // does not surface that as a separate softwareOathAuthenticationMethod entity — so an
+  // Authenticator registration backs 'oath' too. Omitting it left Authenticator-only
+  // users unable to select a preference they can actually satisfy.
+  if (
+    type === 'microsoftAuthenticatorAuthenticationMethod' ||
+    type === 'passwordlessMicrosoftAuthenticatorAuthenticationMethod'
+  ) {
+    return ['push', 'oath']
+  }
+  // The 'oath' preference covers both software and hardware OATH tokens.
+  if (
+    type === 'softwareOathAuthenticationMethod' ||
+    type === 'hardwareOathAuthenticationMethod'
+  ) {
+    return ['oath']
+  }
+  return []
+}
 
 const SignInLogsDialog = ({ open, onClose, userId, tenantFilter }) => {
   return (
@@ -65,7 +214,7 @@ const SignInLogsDialog = ({ open, onClose, userId, tenantFilter }) => {
           onClick={onClose}
           sx={{ position: "absolute", right: 8, top: 8 }}
         >
-          <Close />
+          <CippIcons.Close />
         </IconButton>
       </DialogTitle>
       <DialogContent dividers>
@@ -200,6 +349,11 @@ const Page = () => {
   const [signInLogsDialogOpen, setSignInLogsDialogOpen] = useState(false);
   const [addRoleDialogOpen, setAddRoleDialogOpen] = useState(false);
   const userActions = useCippUserActions();
+  const { checkPermissions } = usePermissions();
+  const canWriteUser = checkPermissions(["Identity.User.ReadWrite"]);
+  const removeMethodDialog = useDialog();
+  const defaultMethodDialog = useDialog();
+  const [selectedMethod, setSelectedMethod] = useState(null);
   const tenant = router.query.tenantFilter ?? userSettingsDefaults.currentTenant;
   const settingsReady = userSettingsDefaults.isInitialized && !!tenant;
   const queryReady = router.isReady && !!userId && settingsReady;
@@ -220,6 +374,16 @@ const Page = () => {
   const userBulkRequest = ApiPostCall({
     urlFromData: true,
   });
+  const bulkFetchedForId = useRef(null);
+
+  const roleAssignments = ApiGetCall({
+    url: `/api/ListRoleAssignments?principalId=${userId}&tenantFilter=${
+      router.query.tenantFilter ?? userSettingsDefaults.currentTenant
+    }`,
+    queryKey: `ListRoleAssignments-${userId}`,
+    waiting: queryReady,
+  });
+  const roleAssignmentActions = useCippRoleAssignmentActions();
 
   const addRoleMutation = ApiPostCall({
     urlFromData: true,
@@ -240,6 +404,11 @@ const Page = () => {
         method: "GET",
       },
       {
+        id: "signInPreferences",
+        url: `/users/${userId}/authentication/signInPreferences`,
+        method: "GET",
+      },
+      {
         id: "signInLogs",
         url: `/auditLogs/signIns?$filter=(userId eq '${userId}')&$top=1`,
         method: "GET",
@@ -254,83 +423,103 @@ const Page = () => {
       });
     }
 
+    bulkFetchedForId.current = userId
     userBulkRequest.mutate({
       url: "/api/ListGraphBulkRequest",
       data: {
         Requests: requests,
-        tenantFilter: userSettingsDefaults.currentTenant,
-        noPaginateIds: ["signInLogs"],
+        tenantFilter: router.query.tenantFilter ?? userSettingsDefaults.currentTenant,
+        noPaginateIds: ['signInLogs', 'signInPreferences'],
       },
     });
   }, [userId, userSettingsDefaults.currentTenant, userBulkRequest]);
 
   useEffect(() => {
-    if (userId && userSettingsDefaults.currentTenant && userRequest.isSuccess && !userBulkRequest.isSuccess) {
-      refreshFunction();
+    if (
+      userId &&
+      userSettingsDefaults.currentTenant &&
+      userRequest.isSuccess &&
+      bulkFetchedForId.current !== userId
+    ) {
+      refreshFunction()
     }
-  }, [userId, userSettingsDefaults.currentTenant, userRequest.isSuccess, userBulkRequest.isSuccess]);
+  }, [
+    userId,
+    userSettingsDefaults.currentTenant,
+    userRequest.isSuccess,
+  ])
 
-  const { signInLogsData, userMemberOfData, mfaDevicesData, managedDevicesData, signInLogs, userMemberOf, mfaDevices, managedDevices } = useMemo(() => {
-    const bulkData = userBulkRequest?.data?.data ?? [];
-    const signInLogsData = bulkData?.find((item) => item.id === "signInLogs");
-    const userMemberOfData = bulkData?.find((item) => item.id === "userMemberOf");
-    const mfaDevicesData = bulkData?.find((item) => item.id === "mfaDevices");
-    const managedDevicesData = bulkData?.find((item) => item.id === "managedDevices");
+  const bulkData = userBulkRequest?.data?.data ?? []
+  const signInLogsData = bulkData?.find((item) => item.id === 'signInLogs')
+  const userMemberOfData = bulkData?.find((item) => item.id === 'userMemberOf')
+  const mfaDevicesData = bulkData?.find((item) => item.id === 'mfaDevices')
+  const managedDevicesData = bulkData?.find(
+    (item) => item.id === 'managedDevices'
+  )
+  const signInPrefsData = bulkData?.find(
+    (item) => item.id === 'signInPreferences'
+  )
 
-    return {
-      signInLogsData,
-      userMemberOfData,
-      mfaDevicesData,
-      managedDevicesData,
-      signInLogs: signInLogsData?.body?.value || [],
-      userMemberOf: userMemberOfData?.body?.value || [],
-      mfaDevices: mfaDevicesData?.body?.value || [],
-      managedDevices: managedDevicesData?.body?.value || [],
-    };
-  }, [userBulkRequest?.data?.data]);
+  // signInPreferences is a singleton resource, so the payload is .body itself, not .body.value.
+  // It can 403/404 on some tenants; everything downstream falls back to the unmarked state.
+  const signInPrefs = signInPrefsData?.body ?? {}
 
-  // Set the title and subtitle for the layout - memoized for performance
-  const title = userRequest.isSuccess ? userRequest.data?.[0]?.displayName : "Loading...";
+  const signInLogs = signInLogsData?.body?.value || []
+  const userMemberOf = userMemberOfData?.body?.value || []
+  const mfaDevices = mfaDevicesData?.body?.value || []
+  const managedDevices = managedDevicesData?.body?.value || []
 
-  const subtitle = useMemo(() => {
-    if (!userRequest.isSuccess) return [];
-    const userData = userRequest.data?.[0];
-    return [
-      {
-        icon: <Mail />,
-        text: <CippCopyToClipBoard type="chip" text={userData?.userPrincipalName} />,
-      },
-      {
-        icon: <Fingerprint />,
-        text: <CippCopyToClipBoard type="chip" text={userData?.id} />,
-      },
-      {
-        icon: <CalendarIcon />,
-        text: (
-          <>
-            Created: <CippTimeAgo data={userData?.createdDateTime} />
-          </>
-        ),
-      },
-      {
-        icon: <Launch style={{ color: "#757575" }} />,
-        text: (
-          <Button
-            color="muted"
-            style={{ paddingLeft: 0 }}
-            size="small"
-            href={`https://entra.microsoft.com/${userSettingsDefaults.currentTenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View in Entra
-          </Button>
-        ),
-      },
-    ];
-  }, [userRequest.isSuccess, userRequest.data, userSettingsDefaults.currentTenant, userId]);
+  // Set the title and subtitle for the layout
+  const title = userRequest.isSuccess
+    ? userRequest.data?.[0]?.displayName
+    : 'Loading...'
+
+  const subtitle = userRequest.isSuccess
+    ? [
+        {
+          icon: <CippIcons.Mail />,
+          text: (
+            <CippCopyToClipBoard
+              type="chip"
+              text={userRequest.data?.[0]?.userPrincipalName}
+            />
+          ),
+        },
+        {
+          icon: <CippIcons.Fingerprint />,
+          text: (
+            <CippCopyToClipBoard type="chip" text={userRequest.data?.[0]?.id} />
+          ),
+        },
+        {
+          icon: <CippIcons.CalendarIcon />,
+          text: (
+            <>
+              Created:{' '}
+              <CippTimeAgo data={userRequest.data?.[0]?.createdDateTime} />
+            </>
+          ),
+        },
+        {
+          icon: <CippIcons.Launch />,
+          text: (
+            <Button
+              color="muted"
+              style={{ paddingLeft: 0 }}
+              size="small"
+              href={`https://entra.microsoft.com/${userSettingsDefaults.currentTenant}/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/${userId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              View in Entra
+            </Button>
+          ),
+        },
+      ]
+    : []
 
   const data = userRequest.data?.[0];
+  const userPrincipalName = data?.userPrincipalName;
 
   // Prepare the sign-in log item
   let signInLogItem = null;
@@ -362,7 +551,7 @@ const Page = () => {
           onClick={() => setSignInLogsDialogOpen(true)}
           startIcon={
             <SvgIcon fontSize="small">
-              <EyeIcon />
+              <CippIcons.EyeIcon />
             </SvgIcon>
           }
         >
@@ -571,101 +760,157 @@ const Page = () => {
     ];
   }
 
+  const mfaDevicesFiltered = mfaDevices.filter(
+    (method) =>
+      method['@odata.type'] !== '#microsoft.graph.passwordAuthenticationMethod'
+  )
+
+  const userPreferredMethod =
+    signInPrefs.userPreferredMethodForSecondaryAuthentication
+  // Only meaningful while system-preferred MFA is on; the field can be populated but inert.
+  const systemPreferredTypes =
+    (signInPrefs.isSystemPreferredAuthenticationMethodEnabled &&
+      SYSTEM_PREF_METHOD_TYPES[
+        String(signInPrefs.systemPreferredAuthenticationMethod ?? '').toLowerCase()
+      ]) ||
+    []
+  const availablePrefValues = [
+    ...new Set(mfaDevicesFiltered.flatMap(prefValuesForMethod)),
+  ]
+  const defaultMethodOptions = Object.entries(MFA_PREF_LABELS)
+    .filter(([value]) => availablePrefValues.includes(value))
+    .map(([value, label]) => ({ label, value }))
+
   // Prepare MFA devices items
   if (mfaDevices.length > 0) {
-    // Exclude password authentication method
-    const mfaDevicesFiltered = mfaDevices.filter(
-      (method) => method["@odata.type"] !== "#microsoft.graph.passwordAuthenticationMethod",
-    );
-
     if (mfaDevicesFiltered.length > 0) {
-      mfaDevicesItems = mfaDevicesFiltered.map((device, index) => ({
-        id: index,
-        cardLabelBox: {
-          cardLabelBoxHeader: <Check />,
-        },
-        text: device.displayName || "MFA Device",
-        subtext: device.deviceTag || device.clientAppName || "Unknown device",
-        statusColor: "success.main",
-        statusText: "Enabled",
-        propertyItems: [
-          {
-            label: "Device Name",
-            value: device.displayName || "N/A",
+      mfaDevicesItems = mfaDevicesFiltered.map((device, index) => {
+        const methodType = getMethodType(device)
+        const meta = getMethodMeta(device)
+        const identifier = meta.identifier(device)
+        // Both preferences are type-level, so every method of a preferred type is marked.
+        const methodPrefValues = prefValuesForMethod(device)
+        const statusLabels = []
+        if (
+          userPreferredMethod &&
+          methodPrefValues.includes(userPreferredMethod)
+        ) {
+          statusLabels.push('User default')
+        }
+        // Matched by @odata.type, since the system value uses a different vocabulary.
+        if (systemPreferredTypes.includes(methodType)) {
+          statusLabels.push('System-preferred')
+        }
+        return {
+          id: index,
+          cardLabelBox: {
+            cardLabelBoxHeader: meta.icon,
           },
-          {
-            label: "App Version",
-            value: device.phoneAppVersion || "N/A",
-          },
-          {
-            label: "Created Date",
-            value: device.createdDateTime
-              ? new Date(device.createdDateTime).toLocaleString()
-              : "N/A",
-          },
-          {
-            label: "Authentication Method",
-            value: device["@odata.type"]?.split(".").pop() || "N/A",
-          },
-        ],
-      }));
+          text: identifier ? `${meta.label} · ${identifier}` : meta.label,
+          // lastUsedDateTime is beta-only and optional — Graph nulls it for method
+          // types that don't populate it, so keep a fallback.
+          subtext: device.lastUsedDateTime
+            ? `Last used ${new Date(device.lastUsedDateTime).toLocaleDateString()}`
+            : 'Last used unknown',
+          statusColor:
+            statusLabels.length > 0 ? 'primary.main' : 'success.main',
+          statusText:
+            statusLabels.length > 0 ? statusLabels.join(' · ') : 'Enabled',
+          // The card id is the collapse key, so the Graph method id travels via selectedMethod.
+          cardLabelBoxActions: canWriteUser ? (
+            <IconButton
+              size="small"
+              title="Remove this MFA method"
+              onClick={() => {
+                setSelectedMethod({ ...device, methodType: meta.label })
+                removeMethodDialog.handleOpen()
+              }}
+            >
+              <CippIcons.Delete fontSize="small" />
+            </IconButton>
+          ) : undefined,
+          propertyItems: [
+            {
+              label: 'Device Name',
+              value: device.displayName || 'N/A',
+            },
+            {
+              label: 'App Version',
+              value: device.phoneAppVersion || 'N/A',
+            },
+            {
+              label: 'Created Date',
+              value: device.createdDateTime
+                ? new Date(device.createdDateTime).toLocaleString()
+                : 'N/A',
+            },
+            {
+              label: 'Authentication Method',
+              value: methodType,
+            },
+          ],
+        }
+      })
     } else {
       // No MFA devices other than password
       mfaDevicesItems = [
         {
           id: 1,
-          cardLabelBox: "-",
-          text: "No MFA devices available",
-          subtext: "The user does not have any MFA devices registered.",
-          statusColor: "warning.main",
-          statusText: "No Devices",
+          cardLabelBox: '-',
+          text: 'No MFA devices available',
+          subtext: 'The user does not have any MFA devices registered.',
+          statusColor: 'warning.main',
+          statusText: 'No Devices',
           propertyItems: [],
         },
-      ];
+      ]
     }
   } else if (mfaDevicesData?.status !== 200) {
     // Error fetching MFA devices
     mfaDevicesItems = [
       {
         id: 1,
-        cardLabelBox: "!",
-        text: "Error loading MFA devices",
+        cardLabelBox: '!',
+        text: 'Error loading MFA devices',
         subtext: `Status code: ${mfaDevicesData?.status}`,
-        statusColor: "error.main",
-        statusText: "Error",
+        statusColor: 'error.main',
+        statusText: 'Error',
         propertyItems: [
           {
-            label: "Error",
-            value: mfaDevicesData?.body?.error?.message || "Unknown Error",
+            label: 'Error',
+            value: mfaDevicesData?.body?.error?.message || 'Unknown Error',
           },
           {
-            label: "Inner Error",
+            label: 'Inner Error',
             value: (
               <CippCodeBlock
                 language="json"
                 code={
-                  JSON.stringify(mfaDevicesData?.body?.error?.innerError, null, 2) ||
-                  "Unknown Error"
+                  JSON.stringify(
+                    mfaDevicesData?.body?.error?.innerError,
+                    null,
+                    2
+                  ) || 'Unknown Error'
                 }
               />
             ),
           },
         ],
       },
-    ];
+    ]
   } else if (mfaDevices.length === 0) {
     // No MFA devices data available
     mfaDevicesItems = [
       {
         id: 1,
-        cardLabelBox: "-",
-        text: "No MFA devices available",
-        subtext: "The user does not have any MFA devices registered.",
-        statusColor: "warning.main",
-        statusText: "No Devices",
+        cardLabelBox: '-',
+        text: 'No MFA devices available',
+        subtext: 'The user does not have any MFA devices registered.',
+        statusColor: 'warning.main',
+        statusText: 'No Devices',
         propertyItems: [],
       },
-    ];
+    ]
   }
 
   // Memoize group membership items
@@ -704,65 +949,60 @@ const Page = () => {
     ];
   }, [userMemberOf, refreshFunction]);
 
-  // Memoize role membership items
-  const roleMembershipItems = useMemo(() => {
-    if (!userMemberOf) return [];
-    const roles = userMemberOf.filter((item) => item?.["@odata.type"] === "#microsoft.graph.directoryRole");
-    return [
-      {
-        id: 1,
-        cardLabelBox: {
-          cardLabelBoxHeader: <AdminPanelSettings />,
+  const roleAssignmentRows = roleAssignments.data ?? []
+  const permanentRoleCount = roleAssignmentRows.filter(
+    (row) => row.AssignmentType === 'Permanent'
+  ).length
+  const eligibleRoleCount = roleAssignmentRows.filter(
+    (row) => row.AssignmentType === 'Eligible'
+  ).length
+  const roleMembershipItems = roleAssignments.isSuccess
+    ? [
+        {
+          id: 1,
+          cardLabelBox: {
+            cardLabelBoxHeader: <CippIcons.AdminPanelSettings />,
+          },
+          text: 'Admin Roles',
+          subtext:
+            'Directory roles held by this user and how they are assigned (permanent, eligible or time-bound)',
+          statusText: ` ${roleAssignmentRows.length} assignment(s) - ${permanentRoleCount} permanent, ${eligibleRoleCount} eligible`,
+          statusColor: permanentRoleCount > 0 ? 'warning.main' : 'info.main',
+          actionButton: (
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<PersonAdd />}
+              onClick={() => setAddRoleDialogOpen(true)}
+            >
+              Add Role
+            </Button>
+          ),
+          table: {
+            title: 'Admin Roles',
+            hideTitle: true,
+            actions: roleAssignmentActions,
+            data: roleAssignmentRows,
+            simpleColumns: [
+              'RoleDisplayName',
+              'AssignmentType',
+              'MemberType',
+              'Scope',
+              'EndDateTime',
+              'PolicySummary',
+            ],
+            refreshFunction: refreshFunction,
+          },
         },
-        text: "Admin Roles",
-        subtext: "List of roles the user is a member of",
-        statusText: ` ${roles.length} Role(s)`,
-        statusColor: "info.main",
-        actionButton: (
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<PersonAdd />}
-            onClick={() => setAddRoleDialogOpen(true)}
-          >
-            Add Role
-          </Button>
-        ),
-        table: {
-          title: "Admin Roles",
-          hideTitle: true,
-          data: roles,
-          simpleColumns: ["displayName", "description"],
-          refreshFunction: refreshFunction,
-          actions: [
-            {
-              label: "Remove Role",
-              type: "POST",
-              url: "/api/ExecRoleAssignment",
-              icon: <TrashIcon />,
-              dataFunction: (row) => ({
-                userId: data?.id,
-                userPrincipalName: data?.userPrincipalName,
-                displayName: data?.displayName,
-                tenantFilter: tenant,
-                action: "Remove",
-                roles: [{ label: row.displayName, value: row.roleTemplateId }],
-              }),
-              confirmText: "Are you sure you want to remove the [displayName] role from this user?",
-              category: "danger",
-            },
-          ],
-        },
-      },
-    ];
-  }, [userMemberOf, refreshFunction, data, tenant]);
+      ]
+    : []
 
   const ownedDevicesItems = managedDevices.length > 0
     ? [
         {
           id: 1,
           cardLabelBox: {
-            cardLabelBoxHeader: <Devices />,
+            cardLabelBoxHeader: <CippIcons.Devices />,
           },
           text: "Managed Devices",
           subtext: "List of devices managed for this user",
@@ -776,10 +1016,11 @@ const Page = () => {
             simpleColumns: ["deviceName", "operatingSystem", "osVersion", "managementType"],
             actions: [
               {
-                icon: <EyeIcon />,
+                icon: <CippIcons.EyeIcon />,
                 label: "View Device",
                 link: `/endpoint/MEM/devices/device?deviceId=[id]&tenantFilter=${userSettingsDefaults.currentTenant}`,
                 category: "view",
+                pinned: true,
               },
             ],
           },
@@ -813,22 +1054,53 @@ const Page = () => {
     <HeaderedTabbedLayout
       tabOptions={tabOptions}
       title={title}
+      titleControl={
+        <CippUserSwitcher
+          title={title}
+          currentUserId={userId}
+          tenantFilter={router.query.tenantFilter ?? userSettingsDefaults.currentTenant}
+        />
+      }
       actions={userActions}
       actionsData={data}
       subtitle={subtitle}
       isFetching={userRequest.isLoading}
     >
-      {userRequest.isLoading && <CippFormSkeleton layout={[2, 1, 2, 2]} />}
+      {/* The loading state is the loaded page's own scaffold with each card in its
+          skeleton form — generic form-row bars looked nothing like what replaces them
+          and left the rest of the viewport empty. */}
+      {userRequest.isLoading && (
+        <Box sx={{ flexGrow: 1, py: { xs: 2, md: 4 } }}>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, lg: 4 }}>
+              <CippUserInfoCard isFetching />
+            </Grid>
+            <Grid size={{ xs: 12, lg: 8 }}>
+              <Stack spacing={3}>
+                {['Latest Logon', 'Applied Conditional Access Policies', 'Multi-Factor Authentication Devices', 'Memberships'].map(
+                  (section) => (
+                    <Fragment key={section}>
+                      <Typography variant="h6">{section}</Typography>
+                      <CippBannerListCard isFetching items={[]} />
+                    </Fragment>
+                  )
+                )}
+              </Stack>
+            </Grid>
+          </Grid>
+        </Box>
+      )}
       {userRequest.isSuccess && (
         <Box
           sx={{
             flexGrow: 1,
-            py: 4,
+            py: { xs: 2, md: 4 },
           }}
         >
           <CippHead title={title} />
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 4 }}>
+            {/* Stacked below lg so a phone-width split does not break labels one word per line. */}
+            <Grid size={{ xs: 12, lg: 4 }}>
               <CippUserInfoCard
                 user={data}
                 tenant={userSettingsDefaults.currentTenant}
@@ -836,7 +1108,7 @@ const Page = () => {
                 onRefresh={() => userRequest.refetch()}
               />
             </Grid>
-            <Grid size={{ xs: 12, md: 8 }}>
+            <Grid size={{ xs: 12, lg: 8 }}>
               <Stack spacing={3}>
                 {/* Sign-In Activity Section */}
                 <Stack direction="row" alignItems="center" spacing={1}>
@@ -861,6 +1133,32 @@ const Page = () => {
                   items={conditionalAccessPoliciesItems}
                   isCollapsible={conditionalAccessPoliciesItems.length > 0 ? true : false}
                 />
+                <Stack
+                  direction="row"
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}>
+                  <Typography variant="h6">
+                    Multi-Factor Authentication Devices
+                  </Typography>
+                  {canWriteUser && (
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<CippIcons.LockPerson />}
+                      disabled={defaultMethodOptions.length === 0}
+                      title={
+                        defaultMethodOptions.length === 0
+                          ? 'This user has no registered method that can be set as the default second factor.'
+                          : undefined
+                      }
+                      onClick={() => defaultMethodDialog.handleOpen()}
+                    >
+                      Set Default MFA Method
+                    </Button>
+                  )}
+                </Stack>
                 <CippBannerListCard
                   isFetching={userBulkRequest.isPending}
                   items={mfaDevicesItems}
@@ -880,7 +1178,7 @@ const Page = () => {
                   isCollapsible={true}
                 />
                 <CippBannerListCard
-                  isFetching={userBulkRequest.isPending}
+                  isFetching={roleAssignments.isFetching}
                   items={roleMembershipItems}
                   isCollapsible={true}
                 />
@@ -936,10 +1234,48 @@ const Page = () => {
           )}
         </DialogContent>
       </Dialog>
+      <CippApiDialog
+        createDialog={removeMethodDialog}
+        title="Remove MFA Method"
+        row={selectedMethod ?? {}}
+        allowResubmit={true}
+        api={{
+          type: 'POST',
+          url: '/api/ExecResetMFA',
+          data: { ID: `!${userPrincipalName}`, MethodId: 'id' },
+          confirmText:
+            'Are you sure you want to remove the [methodType] method from this user?',
+          onSuccess: refreshFunction,
+        }}
+      />
+      <CippApiDialog
+        createDialog={defaultMethodDialog}
+        title="Set Default MFA Method"
+        row={{}}
+        fields={[
+          {
+            type: 'autoComplete',
+            name: 'MethodType',
+            label: 'Default method',
+            options: defaultMethodOptions,
+            multiple: false,
+            creatable: false,
+            validators: { required: 'Please select a default MFA method' },
+          },
+        ]}
+        api={{
+          type: 'POST',
+          url: '/api/ExecSetDefaultMFAMethod',
+          data: { ID: `!${userPrincipalName}` },
+          onSuccess: refreshFunction,
+        }}
+      />
     </HeaderedTabbedLayout>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => (
+  <DashboardLayout allTenantsSupport={false}>{page}</DashboardLayout>
+)
 
 export default Page;

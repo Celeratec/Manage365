@@ -10,6 +10,7 @@ The page opens on whichever scope currently applies to you: your own settings if
 | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Default usage location for users          | The country pre-selected as the usage location when creating a new user. Required.                                                                                                                                                                                                                                                                                                           |
 | Default Page Size                         | How many rows tables show per page by default, chosen from 25, 50, 100, or 250. Required.                                                                                                                                                                                                                                                                                                    |
+| Table view on small screens               | How tables present themselves when the window is narrow: **Automatic (cards on mobile)** shows a card list below roughly 900px and the classic table above it, **Always card list** shows cards at every width, and **Always classic table** keeps the table at every width. See [mobile-layout.md](../mobile-layout.md "mention").                                                                             |
 | Default test suite on the Home page       | The test suite whose results are shown on the Home page by default, chosen from your saved test reports.                                                                                                                                                                                                                                                                                     |
 | Added Attributes when creating a new user | Additional user attributes to make available on the new user form. Anything selected here appears as an extra field when creating a user. The available attributes are `consentProvidedForMinor`, `employeeId`, `employeeHireDate`, `employeeLeaveDateTime`, `employeeType`, `faxNumber`, `legalAgeGroupClassification`, `officeLocation`, `otherMails`, `showInAddressList`, and `sponsor`. |
 | Save last used table filter               | When enabled, the filter you last applied to a table is remembered and re-applied the next time you open it.                                                                                                                                                                                                                                                                                 |
@@ -46,15 +47,37 @@ A label on the card indicates which defaults are currently in effect: **Using Te
 | Remove all Rules                              | Removes the inbox rules on the user's mailbox.                         |
 | Reset Password                                | Resets the user's password.                                            |
 | Keep copy of forwarded mail in source mailbox | Where mail is being forwarded, retains a copy in the original mailbox. |
-| Delete user                                   | Deletes the user account.                                              |
+| Delete User                                   | Deletes the user account.                                              |
+| Wipe Mobile Devices (account data only)       | Wipes the Exchange account data from the user's registered mobile devices, without removing the devices themselves. |
 | Remove all Mobile Devices                     | Removes the user's registered mobile devices.                          |
 | Disable Sign in                               | Blocks the user from signing in.                                       |
 | Remove all MFA Devices                        | Removes the user's registered multi-factor authentication methods.     |
 | Remove Teams Phone DID                        | Removes the phone number assigned to the user in Teams.                |
 | Clear Immutable ID                            | Clears the user's immutable ID.                                        |
 | Disable OneDrive Sharing Links                | Disables the sharing links the user created in OneDrive.               |
+| Out of Office Message                         | Default automatic reply for offboardings. Leave blank to not set. Supports CIPP `%variable%` tokens (for example `%tenantname%` and tenant custom variables), which are resolved when the offboarding job runs. `%username%` is not the offboarded user. |
 
-A **Send results to** section chooses where the outcome of an offboarding is reported, with options for Webhook, E-mail, and PSA.
+An Out of Office message alone is enough for these defaults to count as configured for the user vs all-users precedence.
+
+A **Send results to** section chooses where the outcome of an offboarding is reported, with options for Webhook, E-mail, PSA, and Push notification.
+
+{% hint style="info" %}
+If a tenant has its own offboarding defaults saved, those replace your personal defaults entirely for that tenant, including when the tenant message field is empty.
+{% endhint %}
+
+## Push Notifications
+
+Registers the browser or installed app you are using to receive push notifications from CIPP. Notifications are per person: a scheduled task, alert, offboarding or JIT admin grant with **Push (notify me)** selected notifies the devices registered by whoever created it, and nobody else. Each browser and each installed copy of the app counts as its own device.
+
+| Control                | Description                                                                                                                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enable on this device  | Asks the browser for notification permission and registers this device. On iOS this is only available once CIPP has been added to the Home Screen and opened from there. Unavailable while impersonating a role. |
+| Remove                 | Stops notifications to that device. Removing a device from another browser is fine; the registration is deleted, not the browser's permission.                                                 |
+| Send test notification | Sends a test notification to every device you have registered.                                                                                                                                 |
+
+{% hint style="info" %}
+A device the browser has silently dropped, for example after the site data was cleared, is removed from the list automatically the next time a notification to it fails.
+{% endhint %}
 
 ## Portal Links Configuration
 

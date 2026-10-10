@@ -1,7 +1,6 @@
 import { Alert, Button, List, ListItem, Skeleton, SvgIcon, Typography } from "@mui/material";
-import { Cancel, CheckCircle, Warning } from "@mui/icons-material";
+import { CippIcons } from "../../utils/icon-registry";
 import { CippPropertyList } from "../CippComponents/CippPropertyList";
-import { WrenchIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { CippOffCanvas } from "../CippComponents/CippOffCanvas";
 import { CippDataTable } from "../CippTable/CippDataTable";
 import { ApiPostCall } from "../../api/ApiCall";
@@ -43,9 +42,9 @@ export const CippGDAPResults = (props) => {
       results?.Results?.MissingGroups?.length > 0 ||
       hasRoleMappingIssues
     ) {
-      setCardIcon(<Cancel />);
+      setCardIcon(<CippIcons.Cancel />);
     } else {
-      setCardIcon(<CheckCircle />);
+      setCardIcon(<CippIcons.CheckCircle />);
     }
   }, [results]);
 
@@ -59,8 +58,8 @@ export const CippGDAPResults = (props) => {
     return (
       <>
         <SvgIcon fontSize="sm" style={{ marginRight: 4 }}>
-          {type && <>{type === "Warning" ? <Warning /> : <XMarkIcon />}</>}
-          {match && <>{issues > 0 ? <Warning /> : <CheckCircle />}</>}
+          {type && <>{type === "Warning" ? <CippIcons.Warning /> : <CippIcons.XMarkIcon />}</>}
+          {match && <>{issues > 0 ? <CippIcons.Warning /> : <CippIcons.CheckCircle />}</>}
         </SvgIcon>
         {issues}
       </>
@@ -68,6 +67,15 @@ export const CippGDAPResults = (props) => {
   };
 
   const gdapTests = [
+    {
+      resultProperty: "GDAPIssues",
+      matchProperty: "Issue",
+      match: ".+Partner Center API.+",
+      count: 0,
+      successMessage: "Partner Center API access is granted to the SAM application",
+      failureMessage:
+        "The SAM application cannot access the Partner Center API. Click Details for more information.",
+    },
     {
       resultProperty: "Memberships",
       matchProperty: "displayName",
@@ -143,7 +151,15 @@ export const CippGDAPResults = (props) => {
       )}
 
       {!importReport && executeCheck?.isFetching ? (
-        <Skeleton variant="rectangular" height={100} sx={{ borderRadius: 1, ml: 3, mr: 1 }} />
+        <List>
+          {[70, 85, 60, 75].map((width, index) => (
+            <ListItem key={index} sx={{ py: 0 }}>
+              <Typography variant="body2" sx={{ width: `${width}%` }}>
+                <Skeleton />
+              </Typography>
+            </ListItem>
+          ))}
+        </List>
       ) : !importReport && executeCheck?.isError ? (
         <Alert severity="error" sx={{ ml: 3, mr: 1 }}>
           Failed to load GDAP check results. Please try refreshing or contact support if the issue
@@ -168,7 +184,7 @@ export const CippGDAPResults = (props) => {
                 <ListItem sx={{ py: 0 }} key={index}>
                   <Typography variant="body2">
                     <SvgIcon fontSize="sm" style={{ marginRight: 4 }}>
-                      {testResult ? <CheckCircle /> : <XMarkIcon />}
+                      {testResult ? <CippIcons.CheckCircle /> : <CippIcons.XMarkIcon />}
                     </SvgIcon>
                     {testResult ? test.successMessage : test.failureMessage}
                   </Typography>
@@ -230,7 +246,7 @@ export const CippGDAPResults = (props) => {
                         onClick={handleRepairRoleMappings}
                         startIcon={
                           <SvgIcon fontSize="sm">
-                            <WrenchIcon />
+                            <CippIcons.WrenchIcon />
                           </SvgIcon>
                         }
                       >

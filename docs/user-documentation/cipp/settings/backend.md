@@ -24,6 +24,8 @@ Every card carries a **Launch** button that opens the corresponding Azure portal
 | Function App (Overview)          | Performance and usage information for the API, and the controls to stop and start it.                                                                         |
 | Cloud Shell                      | Opens an Azure Cloud Shell session in a new window, preset to PowerShell.                                                                                     |
 
+On CIPP-NG the instance is a container web app rather than a function app and static web app, so the cards differ: **Web App (Overview)** and **Web App (Configuration)** replace the Function App cards, **App Service Plan** opens the plan that provides the web app's compute, and the Static Web App and Deployment Center cards are not shown. Users and roles are managed from the Authentication pages, and updates from Container Management.
+
 {% hint style="warning" %}
 Stopping the Function App halts all CIPP background processing, including scheduled tasks, alerts and standards runs. Restarting it is usually the safer option when troubleshooting.
 {% endhint %}
@@ -45,6 +47,8 @@ The commands in the flyout are generated with your own resource group, function 
 | Watch Function Logs     | Streams the function app log tail live, which is the quickest way to watch what the API is doing during a reproduction.                      |
 | Static Web App Config   | Returns the static web app's name, custom domain, default hostname and repository URLs.                                                      |
 | List CIPP Users         | Lists the users invited to CIPP together with their assigned roles, across all authentication providers.                                     |
+
+On CIPP-NG the flyout lists web-app commands instead: **Web App Config** (name, state, location and kind), **Container Config** (the container image and registry settings) and **Watch Web App Logs** (the live log tail).
 
 {% hint style="info" %}
 The **Command Reference** button is unavailable on hosted instances, since the commands operate on Azure resources a hosted client does not own.

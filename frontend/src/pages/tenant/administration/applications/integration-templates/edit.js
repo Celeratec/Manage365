@@ -1,6 +1,6 @@
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { TabbedLayout } from "../../../../../layouts/TabbedLayout";
 import tabOptions from "../tabOptions";
 import CippPageCard from "../../../../../components/CippCards/CippPageCard";

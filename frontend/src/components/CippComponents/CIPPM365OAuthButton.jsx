@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from "react";
-import { Alert, Button, Typography, CircularProgress, Box } from "@mui/material";
-import { Microsoft, Login, Refresh } from "@mui/icons-material";
-import { ApiGetCall } from "../../api/ApiCall";
-import { CippCopyToClipBoard } from "./CippCopyToClipboard";
-import { CippApiDialog } from "./CippApiDialog";
+import { useState, useEffect, useRef } from 'react'
+import { CippIcons } from '../../utils/icon-registry'
+import { Alert, Button, Typography, CircularProgress, Box } from '@mui/material'
+import { ApiGetCall } from '../../api/ApiCall'
+import { CippCopyToClipBoard } from './CippCopyToClipboard'
+import { CippApiDialog } from './CippApiDialog'
 
 export const CIPPM365OAuthButton = ({
   onAuthSuccess,
@@ -624,7 +624,9 @@ export const CIPPM365OAuthButton = ({
         )}
 
       {showResults && (
-        <Box mb={2}>
+        <Box sx={{
+          mb: 2
+        }}>
           {deviceCodeInfo ? (
             <Alert severity="info">
               <Typography variant="subtitle2">Application Creation</Typography>
@@ -657,7 +659,9 @@ export const CIPPM365OAuthButton = ({
                   </>
                 )}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 Code expires in {Math.round(deviceCodeInfo.expires_in / 60)} minutes
               </Typography>
             </Alert>
@@ -679,7 +683,9 @@ export const CIPPM365OAuthButton = ({
                       </>
                     )}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" sx={{
+                    color: "text.secondary"
+                  }}>
                     Refresh token expires: {tokens.refreshTokenExpiresOn?.toLocaleString()}
                   </Typography>
                 </Alert>
@@ -705,10 +711,14 @@ export const CIPPM365OAuthButton = ({
                 Authentication Error: {authError.errorCode}
               </Typography>
               <Typography variant="body2">{authError.errorMessage}</Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" sx={{
+                color: "text.secondary"
+              }}>
                 Time: {authError.timestamp}
               </Typography>
-              <Box mt={1}>
+              <Box sx={{
+                mt: 1
+              }}>
                 <Button size="small" variant="outlined" color="error" onClick={handleCloseError}>
                   Dismiss
                 </Button>
@@ -764,12 +774,14 @@ export const CIPPM365OAuthButton = ({
         }}
         color="primary"
         startIcon={
-          authInProgress || codeRetrievalInProgress ? (
+          canRestartDeviceLogin ? (
+            <CippIcons.Refresh />
+          ) : authInProgress || codeRetrievalInProgress ? (
             <CircularProgress size="1rem" color="inherit" />
           ) : tokens.accessToken ? (
-            <Refresh />
+            <CippIcons.Refresh />
           ) : (
-            <Microsoft />
+            <CippIcons.Microsoft />
           )
         }
       >

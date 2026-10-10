@@ -31,6 +31,10 @@ Both alert types share the same tenant scoping card.
 | Included Tenants for alert | The tenants, tenant groups or \*All Tenants the alert applies to. At least one entry is required.   |
 | Excluded Tenants for alert | Optional. Tenants selected here are skipped even if they fall within the included tenants or group. |
 
+{% hint style="info" %}
+Tenant group membership is resolved each time the alert runs, for both alert types. A tenant added to or removed from a targeted group is picked up automatically, with no need to edit and re-save the alert.
+{% endhint %}
+
 ## Alert Criteria
 
 The criteria card changes depending on which alert type you selected.
@@ -49,6 +53,19 @@ Use **Add a condition** to build the rule. Each condition is a property, an oper
 | Select property | The audit log property to test. The list is driven by the chosen log source. You can also type a property that is not in the list to create a custom one, which is treated as a text value.  |
 | is              | The comparison to apply: `Equals to`, `Not Equals to`, `Like`, `Not like`, `Does not match`, `Greater than`, `Less than`, `In`, or `Not In`.                                                 |
 | Input           | The value to compare against. This is a free-text box for most properties, a picker when the property has a known set of values, and a multi-value picker when the operator is In or Not In. |
+
+#### Alerting on failed sign-ins
+
+With the Azure AD log source, a failed sign-in (operation `UserLoginFailed`) carries two properties that say why it failed:
+
+| Property      | Contains                                                        | Example                      |
+| ------------- | --------------------------------------------------------------- | ---------------------------- |
+| `ErrorNumber` | The AADSTS error code as a number, without the `AADSTS` prefix. | `53003`                      |
+| `LogonError`  | The name of the same error.                                     | `BlockedByConditionalAccess` |
+
+Both properties offer a picker of the error codes and names Microsoft publishes, so you can search for the error you want rather than typing it. For example, to alert when Conditional Access blocks a sign-in, use either `ErrorNumber` `Equals to` `53003` or `LogonError` `Equals to` `BlockedByConditionalAccess`.
+
+For what each code means, see Microsoft's [AADSTS error code reference](https://learn.microsoft.com/en-us/entra/identity-platform/reference-error-codes). The full list of sign-in record properties is in Microsoft's [Azure Active Directory STS logon schema](https://learn.microsoft.com/en-us/office/office-365-management-api/office-365-management-activity-api-schema#azure-active-directory-secure-token-service-sts-logon-schema).
 
 ### Scripted CIPP Alert
 
@@ -71,6 +88,7 @@ For a **Scripted CIPP Alert**, this is how the alert is delivered:
 * Webhook - Delivers a JSON payload to the webhook configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * PSA - Delivers a formatted payload to the PSA configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * Email - Delivers an HTML-formatted table to the email address provided in [notifications.md](../../../cipp/settings/notifications.md "mention").
+* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert.
 
 For an **Audit Log Alert**, this is what CIPP does when a matching log entry arrives, and it can include remediation as well as notification:
 
@@ -95,6 +113,18 @@ Shown for scripted alerts when PSA is one of the selected actions. It overrides 
 
 Whichever option matches your current HaloPSA integration setting is labelled as the integration default.
 
+### PSA Ticket Priority
+
+Shown for both alert types when Generate a PSA ticket (or PSA) is one of the selected actions, and only while the HaloPSA integration is enabled. Overrides the HaloPSA Default Priority for tickets raised by this alert, restricted to the priorities available on the integration's Ticket Type. Leave it blank to use the integration default.
+
+{% hint style="info" %}
+The dropdown is shown disabled with an explanation instead of a priority list when there is nothing valid to offer: no Ticket Type is set on the integration yet, the configured Ticket Type has no SLA attached (so HaloPSA is left to apply its own priority regardless of any selection here), or the priority list could not be loaded.
+{% endhint %}
+
+### BEC containment actions to run
+
+Shown for audit log alerts when Execute a BEC Remediate is one of the selected actions. Choose which containment actions run against the user in the log entry. Each option is listed with its impact level. Leave it empty to run the default set: reset the password, block sign-in, revoke sessions, and disable inbox rules. The instance-wide [bec-remediation.md](../../../cipp/settings/bec-remediation.md "mention") do not change this set. Actions rated Critical run without a typed confirmation when an alert triggers them.
+
 ### Custom Subject
 
 Overrides the default notification subject with your own text. The value is prefixed with the tenant default domain name for easier filtering, giving `$TenantDomain - $CustomSubject`. Leave it blank to use the default subject format.
@@ -116,6 +146,14 @@ Once the criteria and notification settings are complete, **Save Alert** on the 
 ## Available Alerts
 
 You can review the available alerts embedded below or navigate to [https://resources.cipp.app/?tab=alerts](https://resources.cipp.app/?tab=alerts).
+
+{% hint style="info" %}
+The **Alert on Huntress or CIPP Rogue Apps detected** alert checks tenants against both the public Huntress RogueApps feed and a list curated by CIPP, so it can report applications that do not appear on the Huntress website. See [rogue-apps.md](rogue-apps.md "mention") for how the list is built and which applications the CIPP list contains.
+{% endhint %}
+
+{% hint style="warning" %}
+The **Alert on OneDrive accounts with over-long paths** alert reads from a cache that CIPP does not refresh on a schedule, unlike most alert data. Run **Refresh CIPPDB Cache** for the **OneDrive Long Paths** cache type on the tenant from [tenants.md](../../../cipp/settings/tenants.md "mention") before relying on this alert, and again whenever you want it to reflect current data. It stores each affected user's UPN and a count of long paths only, never file or folder names.
+{% endhint %}
 
 {% @cipp-external-webpage-block/cyberdrain url="https://resources.cipp.app/?tab=alerts" fullWidth="true" %}
 

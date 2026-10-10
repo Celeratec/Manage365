@@ -4,6 +4,8 @@ function Invoke-ExecMDOAlertsList {
         Entrypoint
     .ROLE
         Security.Alert.Read
+    .DESCRIPTION
+        Lists Microsoft Defender for Office 365 and Defender for Endpoint alerts for a tenant, filtered to those service sources. tenantFilter=AllTenants reads the cached alert table rather than querying each tenant live.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -13,7 +15,7 @@ function Invoke-ExecMDOAlertsList {
     try {
         $GraphRequest = if ($TenantFilter -ne 'AllTenants') {
             # Single tenant functionality
-            New-GraphGetRequest -uri "https://graph.microsoft.com/beta/security/alerts_v2?`$filter=serviceSource eq 'microsoftDefenderForOffice365'" -tenantid $TenantFilter
+            New-GraphGetRequest -uri "https://graph.microsoft.com/beta/security/alerts_v2?`$filter=serviceSource eq 'microsoftDefenderForOffice365' or serviceSource eq 'microsoftDefenderForEndpoint'" -tenantid $TenantFilter
         } else {
             # AllTenants functionality
             $Table = Get-CIPPTable -TableName cachealertsandincidents

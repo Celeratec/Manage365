@@ -18,7 +18,7 @@ const CippRelatedSettings = ({ severity = "info", title, description, links = []
         {description}
       </Typography>
       {links.length > 0 && (
-        <Stack direction="row" flexWrap="wrap" gap={1}>
+        <Stack useFlexGap direction="row" flexWrap="wrap" gap={1}>
           {links.map((link) => (
             <Link key={link.href} href={link.href} passHref legacyBehavior>
               <Button

@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { useForm } from "react-hook-form";
 import { ApiPostCall } from "../../../../../api/ApiCall";
 import { Box } from "@mui/material";

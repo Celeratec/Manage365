@@ -1,0 +1,198 @@
+name: Update Permissions Translator
+
+# Refreshes backend/Config/PermissionsTranslator.json (the GUID -> scope-value lookup used when CIPP
+# grants delegated/application permissions) from AzAdvertizer's published Entra ID API permissions
+# dataset, and opens a PR against dev when it changed. Requires "Allow GitHub Actions to create and
+# approve pull requests" in the repository's Actions settings.
+#
+# Weekly, not daily: the data changes rarely and the source is a community-run site.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-permissions-translator
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'CyberDrain/CIPP'
+    name: Update permissions translator
+    # ubuntu on purpose, matching the license SKU workflow: the generator writes LF, which is what
+    # the file is stored with, so there is nothing for autocrlf to normalise.
+    runs-on: ubuntu-latest
+    env:
+      BASE_BRANCH: dev
+      BRANCH_PREFIX: chore/permissions-translator-update
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          # Full history: pushing a new branch from a shallow clone is rejected.
+          fetch-depth: 0
+
+      - name: Clean up temp branches from earlier runs
+        shell: pwsh
+        run: |
+          # A prefixed branch with no open PR has been merged, closed, or orphaned.
+          # Best effort - a failure here must not block today's update.
+          $Branches = git ls-remote --heads origin |
+            ForEach-Object { ($_ -split "`t")[1] -replace '^refs/heads/', '' } |
+            Where-Object { $_ -like "$env:BRANCH_PREFIX-*" }
+
+          foreach ($Branch in $Branches) {
+            $OpenPrs = @(gh pr list --head $Branch --state open --json number | ConvertFrom-Json)
+            if ($OpenPrs.Count -eq 0) {
+              Write-Host "Deleting merged/closed branch $Branch"
+              git push origin --delete $Branch
+              if ($LASTEXITCODE -ne 0) { Write-Warning "Could not delete $Branch." }
+            } else {
+              Write-Host "Keeping $Branch (PR #$($OpenPrs[0].number) is still open)"
+            }
+          }
+          exit 0
+
+      - name: Update permissions translator
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Snapshot the current data so the PR body can say what actually changed.
+          Copy-Item ./backend/Config/PermissionsTranslator.json "$env:RUNNER_TEMP/PermissionsTranslator.before.json"
+          ./build/tools/Update-PermissionsTranslator.ps1
+
+      - name: Validate the generated data
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # The generator validates the download, but re-assert on the written file so a bad refresh
+          # can never open a PR: sane entry count, unique ids, and a couple of well-known GUIDs.
+          $Json = Get-Content -Path ./backend/Config/PermissionsTranslator.json -Raw | ConvertFrom-Json
+          if (@($Json).Count -lt 2000) {
+            throw "PermissionsTranslator.json has only $(@($Json).Count) entries - refusing to continue."
+          }
+          $Ids = @($Json.id)
+          $Unique = @($Ids | Sort-Object -Unique)
+          if ($Ids.Count -ne $Unique.Count) {
+            throw "PermissionsTranslator.json has duplicate ids ($($Ids.Count) rows, $($Unique.Count) unique)."
+          }
+          foreach ($Id in '44d6b5f2-d42b-4fa7-b999-1c5fcab98e4d', 'df021288-bdef-4463-88db-98f22de89214') {
+            if ($Id -notin $Ids) { throw "PermissionsTranslator.json is missing well-known GUID $Id." }
+          }
+          Write-Host "Validated $(@($Json).Count) permission entries."
+
+      - name: Stage changes
+        id: stage
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git add -- backend/Config/PermissionsTranslator.json
+          $Staged = @(git diff --cached --name-only)
+          if ($Staged.Count -eq 0) {
+            Write-Host 'Permissions translator is already up to date.'
+            'changed=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          Write-Host "Changed files:`n$($Staged -join "`n")"
+          'changed=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Build the PR body
+        if: steps.stage.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Before = Get-Content -Path "$env:RUNNER_TEMP/PermissionsTranslator.before.json" -Raw | ConvertFrom-Json
+          $After = Get-Content -Path ./backend/Config/PermissionsTranslator.json -Raw | ConvertFrom-Json
+
+          $BeforeById = @{}
+          foreach ($Entry in $Before) { if ($Entry.id) { $BeforeById[$Entry.id] = $Entry.value } }
+          $AfterById = @{}
+          foreach ($Entry in $After) { if ($Entry.id) { $AfterById[$Entry.id] = $Entry.value } }
+
+          $Added = $AfterById.Keys | Where-Object { -not $BeforeById.ContainsKey($_) } | Sort-Object { $AfterById[$_] }
+          $Removed = $BeforeById.Keys | Where-Object { -not $AfterById.ContainsKey($_) } | Sort-Object { $BeforeById[$_] }
+          $Changed = $AfterById.Keys |
+            Where-Object { $BeforeById.ContainsKey($_) -and $BeforeById[$_] -cne $AfterById[$_] } |
+            Sort-Object { $AfterById[$_] }
+
+          function Format-PermList {
+            param($Ids, $Names, $Heading, $Previous)
+            $Count = @($Ids).Count
+            if ($Count -eq 0) { return @() }
+            $Lines = @('', "### $Heading ($Count)", '')
+            $Lines += @($Ids) | Select-Object -First 50 | ForEach-Object {
+              if ($Previous) { '- {0} -> {1} `{2}`' -f $Previous[$_], $Names[$_], $_ }
+              else { '- {0} `{1}`' -f $Names[$_], $_ }
+            }
+            if ($Count -gt 50) { $Lines += '- ...and {0} more' -f ($Count - 50) }
+            return $Lines
+          }
+
+          $Body = @(
+            'Automated refresh of the Entra ID API permission translator, generated by `build/tools/Update-PermissionsTranslator.ps1` from [AzAdvertizer''s published permissions dataset](https://www.azadvertizer.net/azEntraIdAPIpermissionsAdvertizer.json).'
+            ''
+            '**Entries:** {0:N0} -> {1:N0}' -f @($Before).Count, @($After).Count
+          )
+          $Body += Format-PermList -Ids $Added -Names $AfterById -Heading 'New permissions'
+          $Body += Format-PermList -Ids $Removed -Names $BeforeById -Heading 'Removed permissions'
+          $Body += Format-PermList -Ids $Changed -Names $AfterById -Previous $BeforeById -Heading 'Changed values'
+          $Body += @(
+            ''
+            '<details><summary>Files changed</summary>'
+            ''
+            '```'
+            (git diff --cached --stat)
+            '```'
+            ''
+            '</details>'
+            ''
+            '---'
+            ''
+            '_Opened by the [Update Permissions Translator]({0}/{1}/actions/runs/{2}) workflow. The `{3}-*` branch is deleted on the next run once this PR is merged or closed._' -f $env:GITHUB_SERVER_URL, $env:GITHUB_REPOSITORY, $env:GITHUB_RUN_ID, $env:BRANCH_PREFIX
+          )
+          $Body -join "`n" | Set-Content -Path "$env:RUNNER_TEMP/pr-body.md" -Encoding utf8
+
+      - name: Commit, push and open the PR
+        if: steps.stage.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+
+          # Reuse the branch of an already-open PR so a run of updates does not stack up one PR per
+          # run; otherwise cut a fresh dated branch.
+          $OpenPrs = @(gh pr list --state open --base $env:BASE_BRANCH --limit 100 --json number,headRefName | ConvertFrom-Json)
+          $Existing = $OpenPrs | Where-Object { $_.headRefName -like "$env:BRANCH_PREFIX-*" } | Select-Object -First 1
+
+          if ($Existing) {
+            $Branch = $Existing.headRefName
+            Write-Host "Updating PR #$($Existing.number) on $Branch"
+          } else {
+            $Branch = '{0}-{1}' -f $env:BRANCH_PREFIX, (Get-Date -Format 'yyyyMMdd')
+            Write-Host "Creating $Branch"
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git switch -c $Branch
+          git commit -m 'chore(permissions): update Entra API permission translator'
+          # Force: the branch is disposable and always one commit on top of dev.
+          git push --force origin $Branch
+
+          if (-not $Existing) {
+            gh pr create `
+              --base $env:BASE_BRANCH `
+              --head $Branch `
+              --title ('chore(permissions): update Entra API permission translator ({0})' -f (Get-Date -Format 'yyyy-MM-dd')) `
+              --body-file "$env:RUNNER_TEMP/pr-body.md"
+          } else {
+            gh pr edit $Existing.number --body-file "$env:RUNNER_TEMP/pr-body.md"
+          }

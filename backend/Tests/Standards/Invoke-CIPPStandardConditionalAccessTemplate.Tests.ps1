@@ -25,6 +25,7 @@ BeforeAll {
     function Write-LogMessage { [CmdletBinding()] param($API, $tenant, $Tenant2, $message, $sev, $headers) }
     function Set-CIPPStandardsCompareField { [CmdletBinding()] param($FieldName, $FieldValue, $CurrentValue, $ExpectedValue, $Tenant, [bool]$LicenseAvailable = $true) }
     function Get-NormalizedError { [CmdletBinding()] param($Message) $Message }
+    function Get-CIPPTextReplacement { [CmdletBinding()] param($TenantFilter, $Text, [switch]$EscapeForJson) $Text }
 
     . $StandardPath
 
@@ -124,7 +125,7 @@ Describe 'Invoke-CIPPStandardConditionalAccessTemplate template resolution' {
         Invoke-CIPPStandardConditionalAccessTemplate -Tenant $script:Tenant -Settings $Settings
 
         ($script:logs | Where-Object { $_.Message -match 'could not be loaded from the template store' -and $_.Sev -eq 'Error' }) | Should -Not -BeNullOrEmpty
-        $script:compareFields[0].Current.Differences | Should -Match 'could not be loaded from the template store'
+        $script:compareFields[0].Current.Differences | Should -Match 'no longer exists in the template library'
     }
 
     It 'does not attempt a deployment with a null template body' {

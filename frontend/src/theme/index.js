@@ -28,7 +28,10 @@ export const createTheme = (config) => {
               "--sb-thumb-color": "rgba(255, 255, 255, 0.38)",
               "--sb-size": "8px",
             },
-            // Apply global scrollbar styles to every element
+            // Apply global scrollbar styles to every element. Below `lg` (same pivot as
+            // useIsMobileLayout) drop the branded gutter — forced ::-webkit-scrollbar
+            // width kills overlay auto-hide in Chromium, and phones don't need a
+            // permanent track advertising that a page can scroll.
             "html, body, *": {
               "&::-webkit-scrollbar": {
                 width: "var(--sb-size)",
@@ -47,6 +50,16 @@ export const createTheme = (config) => {
               },
               "@supports not selector(::-webkit-scrollbar)": {
                 scrollbarColor: "var(--sb-thumb-color) var(--sb-track-color)",
+              },
+              "@media (max-width:1199.95px)": {
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": {
+                  width: 0,
+                  height: 0,
+                },
+                "@supports not selector(::-webkit-scrollbar)": {
+                  scrollbarColor: "transparent transparent",
+                },
               },
             },
           },

@@ -24,12 +24,14 @@ function Remove-CIPPCache {
                 "Removing cache table $Table"
                 $TableContext = Get-CIPPTable -TableName $Table
                 Remove-AzDataTable @TableContext
+                Unregister-CIPPTable -TableName $Table
             }
         }
 
         'Clearing Intune policy tracking data'
         $TrackingTableContext = Get-CIPPTable -TableName 'IntunePolicyTypeTracking'
         Remove-AzDataTable @TrackingTableContext
+        Unregister-CIPPTable -TableName 'IntunePolicyTypeTracking'
 
         'Clearing domain analyser results'
         # Remove Domain Analyser cached results

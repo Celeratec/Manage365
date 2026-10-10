@@ -43,6 +43,9 @@ function Get-CIPPIntuneAssignmentTarget {
                           the request still can
             GroupNames  - display names for any virtual group a broad target resolved to, keyed by
                           id, so the comparison can name it instead of printing a bare GUID
+            Equivalents - assignment types that express the same audience as a broad group target,
+                          keyed by that target's group id. Remediation keeps writing the group
+                          target; the comparison accepts either shape.
 
     .EXAMPLE
         Get-CIPPIntuneAssignmentTarget -AssignTo 'allLicensedUsers' -PolicyType 'iosManagedAppProtections'
@@ -72,8 +75,11 @@ function Get-CIPPIntuneAssignmentTarget {
 
     # Policy types whose assignment surface is user groups only. Device Preparation deployments
     # trigger on the enrolling user, so a device audience cannot be expressed for them at all.
+    # Apple enrollment type profiles apply to the enrolling user the same way - the portal's
+    # picker offers user groups and nothing else.
     $UserGroupOnlyTypes = @(
         'DevicePrepProfile'
+        'AppleEnrollmentTypeProfile'
     )
     $IsUserGroupOnly = $IsMam -or ($UserGroupOnlyTypes -contains $PolicyType)
 
@@ -119,11 +125,20 @@ function Get-CIPPIntuneAssignmentTarget {
         $GroupNames[$MamAllUsersGroupId] = 'All Users'
     }
 
+    # Outside MAM, the device management service reports an All Users group assignment back as
+    # allLicensedUsersAssignmentTarget, so both shapes describe the same working assignment and the
+    # comparison must accept either. The MAM service rejects that type outright, so it stays out.
+    $Equivalents = @{}
+    if (-not $IsMam -and $Targets.groupId -contains $MamAllUsersGroupId) {
+        $Equivalents[$MamAllUsersGroupId] = @('#microsoft.graph.allLicensedUsersAssignmentTarget')
+    }
+
     [PSCustomObject]@{
         Targets     = @($Targets)
         Unsupported = $Unsupported
         Dropped     = @($Dropped)
         GroupNames  = $GroupNames
+        Equivalents = $Equivalents
         IsMam       = $IsMam
     }
 }

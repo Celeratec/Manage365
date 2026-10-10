@@ -899,7 +899,7 @@ const CippGuestInviteDialog = ({
                                   {diag.listType === "allowList" ? "allowed" : "blocked"}{" "}
                                   domains:
                                 </Typography>
-                                <Stack direction="row" flexWrap="wrap" gap={0.5}>
+                                <Stack useFlexGap direction="row" flexWrap="wrap" gap={0.5}>
                                   {diag.currentList.map((domain, di) => (
                                     <Chip
                                       key={di}

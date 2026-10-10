@@ -14,7 +14,7 @@
   "powershellEquivalent": "Update-MgPolicyAuthorizationPolicy",
   "recommendedBy": [],
   "requiredCapabilities": [],
-  "secureScoreImpact": 0,
+  "secureScoreImpact": 4,
   "compare": "subset",
   "variables": {},
   "expected": {
@@ -25,11 +25,16 @@
   "read": {
     "cacheType": "AuthorizationPolicy"
   },
+  "writeTarget": "authorizationPolicy",
+  "writeTargetProperties": {
+    "permissionGrantPolicyIdsAssignedToDefaultUserRole": ["ManagePermissionGrantsForSelf.microsoft-user-default-low"]
+  },
   "remediate": {
     "executor": "GraphRequest",
     "requests": [
       {
         "method": "PATCH",
+        "asApp": false,
         "uri": "policies/authorizationPolicy/authorizationPolicy",
         "body": {
           "permissionGrantPolicyIdsAssignedToDefaultUserRole": [
@@ -39,6 +44,7 @@
       },
       {
         "method": "POST",
+        "asApp": false,
         "uri": "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/delegatedPermissionClassifications",
         "body": {
           "permissionName": "offline_access",
@@ -48,6 +54,7 @@
       },
       {
         "method": "POST",
+        "asApp": false,
         "uri": "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/delegatedPermissionClassifications",
         "body": {
           "permissionName": "openid",
@@ -57,6 +64,7 @@
       },
       {
         "method": "POST",
+        "asApp": false,
         "uri": "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/delegatedPermissionClassifications",
         "body": {
           "permissionName": "User.Read",
@@ -66,6 +74,7 @@
       },
       {
         "method": "POST",
+        "asApp": false,
         "uri": "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/delegatedPermissionClassifications",
         "body": {
           "permissionName": "profile",
@@ -75,6 +84,7 @@
       },
       {
         "method": "POST",
+        "asApp": false,
         "uri": "servicePrincipals(appId='00000003-0000-0000-c000-000000000000')/delegatedPermissionClassifications",
         "body": {
           "permissionName": "email",

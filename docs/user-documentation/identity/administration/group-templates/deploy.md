@@ -20,12 +20,12 @@ Choose the tenants the group should be created in. Several can be selected, and 
 
 | Field                                              | Description                                                                                                                                                                                                               |
 | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Group Type                                         | The kind of group to create: Dynamic Group, Dynamic Distribution Group, Security Group, Distribution Group, Azure Role Group or Mail Enabled Security Group. Required, and it decides which of the settings below appear. |
+| Group Type                                         | The kind of group to create: Dynamic Group, Security Group, Distribution Group, Azure Role Group or Mail Enabled Security Group. Required, and it decides which of the settings below appear. |
 | Group Display Name                                 | The name the group is created with. Required.                                                                                                                                                                             |
 | Group Description                                  | A description for the group.                                                                                                                                                                                              |
 | Group Username                                     | The mail nickname the group's email address is built from.                                                                                                                                                                |
 | Allow external emails to the group                 | Allows senders outside the organisation to email the group. Shown for a Distribution Group.                                                                                                                               |
-| Membership Rules                                   | The rule that decides membership. Shown for a Dynamic Group or Dynamic Distribution Group, and required for both.                                                                                                         |
+| Membership Rules                                   | The rule that decides membership. Shown for a Dynamic Group, and required.                                                                                                                                                |
 | Email Aliases                                      | Additional email addresses, one per line. Shown for a Distribution Group or Mail Enabled Security Group.                                                                                                                  |
 | Hide this group from the Global Address List (GAL) | Hides the group from address lists. Shown for a Distribution Group or Mail Enabled Security Group.                                                                                                                        |
 {% endstep %}
@@ -38,7 +38,7 @@ Review the values and submit. The group is created in every tenant selected in t
 {% endstepper %}
 
 {% hint style="info" %}
-**Group Username** and **Email Aliases** accept variables, so one template can produce tenant-appropriate addresses across a multi-tenant deployment. `%tenantfilter%` is replaced with the target tenant's domain, as in `postmaster@%tenantfilter%`.
+Any of the fields above accepts a variable, written as `%variablename%`, which is replaced with each target tenant's value as the group is created. `%tenantfilter%` gives the tenant's default domain, as in `postmaster@%tenantfilter%`, and `%tenantname%` gives the tenant's name, so one deployment can give every tenant a correctly named group. Values for your own variables are set for every tenant in [global-variables.md](../../../tenant/administration/tenants/global-variables.md "mention"), or for one tenant in the Custom Variables box on [edit.md](../../../tenant/manage/edit.md "mention"), where the tenant's own value wins.
 {% endhint %}
 
 {% hint style="info" %}

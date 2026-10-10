@@ -13,16 +13,20 @@ The editor is built from the Graph schema, so it exposes conditions the policy l
 
 ## Users and Groups
 
-Defines who the policy applies to.
+Defines who the policy applies to. Entra stores the assigned users and groups as object IDs; the editor resolves them to names when it opens, and the four pickers search the tenant as you type, so you pick the account or group by name rather than looking up its ID first.
 
-| Field                   | Description                                                        |
-| ----------------------- | ------------------------------------------------------------------ |
-| Include Users           | The users the policy targets.                                      |
-| Exclude Users           | Users exempt from the policy.                                      |
-| Include Groups          | The groups the policy targets.                                     |
-| Exclude Groups          | Groups exempt from the policy.                                     |
-| Include Directory Roles | Directory roles the policy targets, for scoping to administrators. |
-| Exclude Directory Roles | Directory roles exempt from the policy.                            |
+| Field                   | Description                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Include Users           | The users the policy targets, shown as display name with the user principal name in brackets. `All`, `None` and `GuestsOrExternalUsers` are offered as fixed options alongside the search results. |
+| Exclude Users           | Users exempt from the policy. `GuestsOrExternalUsers` is offered as a fixed option.                                                                                    |
+| Include Groups          | The groups the policy targets, shown by display name.                                                                                                                    |
+| Exclude Groups          | Groups exempt from the policy.                                                                                                                                           |
+| Include Directory Roles | Directory roles the policy targets, for scoping to administrators.                                                                                                       |
+| Exclude Directory Roles | Directory roles exempt from the policy.                                                                                                                                  |
+
+{% hint style="info" %}
+Type at least two characters to search. The search matches the start of any word in a display name, user principal name or mail address, so `smi` finds **John Smith**. A user or group that has been deleted since it was assigned cannot be resolved and shows its raw object ID instead; remove it from the policy if it is no longer wanted. Pasting an object ID still works, for an account the search does not surface.
+{% endhint %}
 
 ### Include or Exclude Guests or External Users
 

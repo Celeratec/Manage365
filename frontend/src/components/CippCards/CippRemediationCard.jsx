@@ -129,7 +129,9 @@ export default function CippRemediationCard(props) {
         compromised. All data is retrieved from the last 7 days of logs.
       </Typography>
 
-      <Typography color="text.secondary">
+      <Typography sx={{
+        color: "text.secondary"
+      }}>
         Hit the button below to execute the following tasks:
       </Typography>
       <List>
@@ -145,7 +147,7 @@ export default function CippRemediationCard(props) {
         api={{
           url: "/api/execBecRemediate",
           confirmText:
-            "This will remediate this user, blocking their signin, resetting their password, disconnecting their sessions, and disabling all their inbox rules. Are you sure you want to continue?",
+            "This will remediate this user: block sign-in, reset the password, disconnect sessions, and remove MFA. Inbox rules are disabled in the background. Are you sure you want to continue?",
           type: "POST",
           data: { tenantFilter: tenantFilter, userId: "userId", username: "userPrincipalName" },
           replacementBehaviour: "removeNulls",

@@ -22,6 +22,12 @@ CIPP keeps the last twenty pages and displays the five most recent. The history 
 Both modes ignore the tenant selection when building the trail, so switching tenants does not add duplicate entries or leave the tenant name embedded in a breadcrumb label.
 {% endhint %}
 
+## On Narrow Screens
+
+On a phone the trail is kept to a single line. The most recent entries are shown, with everything before them collapsed behind an ellipsis that expands the full trail when selected, and the bookmark button moves to the right-hand edge of the row.
+
+Where the trail would say nothing the page does not already say, it is hidden altogether. That covers pages with a single entry, and the Home page and dashboard, whose trail only repeats the views their own picker offers. See [mobile-layout.md](mobile-layout.md "mention").
+
 ## Bookmark Button
 
 The bookmark button sits at the end of the breadcrumb trail and adds or removes the current page from your bookmarks. An outlined bookmark means the page is not yet saved, and a solid, coloured bookmark means it is.

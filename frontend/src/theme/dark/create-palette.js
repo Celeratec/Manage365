@@ -10,12 +10,14 @@ export const createPalette = (config) => {
   // https://m2.material.io/design/color/dark-theme.html#properties
   return {
     action: {
-      active: alpha(common.white, 0.56),
-      disabled: alpha(common.white, 0.38),
-      disabledBackground: alpha(common.white, 0.12),
-      focus: alpha(common.white, 0.12),
-      hover: alpha(common.white, 0.08),
-      selected: alpha(common.white, 0.16)
+      active: neutral[400],
+      // A mid-grey at 0.38 over the disabled background is ~2:1 here, which erases icon-only
+      // disabled controls; white at 0.5 keeps them readable while still reading as disabled.
+      disabled: alpha(common.white, 0.5),
+      disabledBackground: alpha(neutral[400], 0.12),
+      focus: alpha(neutral[400], 0.16),
+      hover: alpha(neutral[400], 0.04),
+      selected: alpha(neutral[400], 0.12)
     },
     background: {
       // Material Design recommends #121212 as base dark surface

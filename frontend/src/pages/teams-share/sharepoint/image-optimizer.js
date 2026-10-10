@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index.jsx";
 import { CippHead } from "../../../components/CippComponents/CippHead";
 import {
   Alert,
@@ -602,7 +602,7 @@ const ImageOptimizerPage = () => {
                 </Box>
               )}
 
-              <Stack direction="row" spacing={2} sx={{ mt: 3 }} flexWrap="wrap">
+              <Stack useFlexGap direction="row" spacing={2} sx={{ mt: 3 }} flexWrap="wrap">
                 <Button
                   variant="outlined"
                   startIcon={<SearchIcon />}

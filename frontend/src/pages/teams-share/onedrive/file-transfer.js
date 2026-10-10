@@ -1,4 +1,4 @@
-import { Layout as DashboardLayout } from "../../../layouts/index.js";
+import { Layout as DashboardLayout } from "../../../layouts/index.jsx";
 import { useSettings } from "../../../hooks/use-settings";
 import { ApiGetCall, ApiPostCall } from "../../../api/ApiCall";
 import { getFileIcon } from "../../../utils/get-file-icon";
@@ -617,7 +617,7 @@ const ReviewStep = ({
           <Typography variant="body2" color="text.secondary">
             {selectedItems.length} item{selectedItems.length !== 1 ? "s" : ""} selected:
           </Typography>
-          <Stack direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
+          <Stack useFlexGap direction="row" flexWrap="wrap" gap={0.5} sx={{ mt: 0.5 }}>
             {selectedItems.slice(0, 10).map((item) => (
               <Chip
                 key={item.id}

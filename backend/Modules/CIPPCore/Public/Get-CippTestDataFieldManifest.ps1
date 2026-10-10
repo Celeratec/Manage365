@@ -84,12 +84,12 @@ function Get-CippTestDataFieldManifest {
             'ConditionalAccessPolicies'          = @('id', 'displayName', 'state', 'conditions', 'grantControls', 'sessionControls', 'createdDateTime', 'modifiedDateTime')
             'CopilotReadinessActivity'           = @('userPrincipalName', 'usesOutlookEmail', 'usesTeamsMeetings', 'usesTeamsChat', 'usesOfficeDocs', 'onQualifiedUpdateChannel', 'hasCopilotLicenseAssigned')
             'CrossTenantAccessPolicy'            = @('id', 'b2bCollaborationOutbound', 'b2bDirectConnectOutbound', 'tenantRestrictions')
-            'CsExternalAccessPolicy'             = @('EnableFederationAccess', 'EnableTeamsConsumerAccess')
+            'CsExternalAccessPolicy'             = @('EnableFederationAccess', 'EnableTeamsConsumerAccess', 'EnableTeamsConsumerInbound')
             'CsTeamsAppPermissionPolicy'         = @('Identity', 'GlobalCatalogAppsType', 'DefaultCatalogAppsType')
             'CsTeamsClientConfiguration'         = @('AllowDropbox', 'AllowBox', 'AllowGoogleDrive', 'AllowShareFile', 'AllowEgnyte', 'AllowEmailIntoChannel')
             'CsTeamsMeetingPolicy'               = @('AllowAnonymousUsersToJoinMeeting', 'AllowAnonymousUsersToStartMeeting', 'AutoAdmittedUsers', 'AllowPSTNUsersToBypassLobby', 'MeetingChatEnabledType', 'DesignatedPresenterRoleMode', 'AllowExternalParticipantGiveRequestControl', 'AllowExternalNonTrustedMeetingChat', 'AllowCloudRecording')
             'CsTeamsMessagingPolicy'             = @('UseB2BInvitesToAddExternalUsers', 'AllowSecurityEndUserReporting')
-            'CsTenantFederationConfiguration'    = @('AllowFederatedUsers', 'AllowedDomains', 'AllowTeamsConsumer')
+            'CsTenantFederationConfiguration'    = @('AllowFederatedUsers', 'AllowedDomains', 'AllowTeamsConsumer', 'AllowTeamsConsumerInbound')
             'DefaultAppManagementPolicy'         = @('isEnabled', 'applicationRestrictions', 'servicePrincipalRestrictions')
             'DeviceRegistrationPolicy'           = @('azureADJoin', 'userDeviceQuota', 'localAdminPassword', 'multiFactorAuthConfiguration')
             'DeviceSettings'                     = @('secureByDefault')
@@ -106,7 +106,8 @@ function Get-CippTestDataFieldManifest {
             'ExoHostedOutboundSpamFilterPolicy'  = @('Identity', 'IsDefault', 'RecipientLimitExternalPerHour', 'RecipientLimitInternalPerHour', 'RecipientLimitPerDay', 'ActionWhenThresholdReached', 'NotifyOutboundSpam', 'NotifyOutboundSpamRecipients', 'BccSuspiciousOutboundMail', 'BccSuspiciousOutboundAdditionalRecipients', 'AutoForwardingMode')
             'ExoInboundConnector'                = @('Identity', 'Enabled', 'SenderDomains', 'EFSkipLastIP', 'EFSkipIPs', 'EFTestMode', 'EFUsers')
             'ExoMalwareFilterPolicies'           = @('Name', 'Identity', 'IsDefault', 'EnableFileFilter', 'FileTypes', 'EnableInternalSenderAdminNotifications', 'InternalSenderAdminAddress', 'ZapEnabled', 'Action', 'RecipientDomainIs')
-            'ExoOrganizationConfig'              = @('CustomerLockBoxEnabled', 'BookingsEnabled', 'AuditDisabled', 'ExternalInOutlookEnabled', 'ExternalInOutlook', 'OAuth2ClientProfileEnabled', 'MailTipsAllTipsEnabled', 'MailTipsExternalRecipientsTipsEnabled', 'MailTipsGroupMetricsEnabled', 'MailTipsLargeAudienceThreshold', 'RejectDirectSend')
+            'ExoExternalInOutlook'               = @('Identity', 'Enabled', 'AllowList')
+            'ExoOrganizationConfig'              = @('CustomerLockBoxEnabled', 'BookingsEnabled', 'AuditDisabled', 'OAuth2ClientProfileEnabled', 'MailTipsAllTipsEnabled', 'MailTipsExternalRecipientsTipsEnabled', 'MailTipsGroupMetricsEnabled', 'MailTipsLargeAudienceThreshold', 'RejectDirectSend')
             'ExoPresetSecurityPolicy'            = @('Identity', 'State', 'ImpersonationProtectionState', 'EnableMailboxIntelligence', 'EnableMailboxIntelligenceProtection', 'EnableSimilarUsersSafetyTips', 'EnableSimilarDomainsSafetyTips', 'EnableUnusualCharactersSafetyTips')
             'ExoProtectionAlert'                 = @('Name', 'Disabled')
             'ExoRemoteDomain'                    = @('Name', 'DomainName', 'AutoForwardEnabled')
@@ -129,7 +130,7 @@ function Get-CippTestDataFieldManifest {
             'IntuneDeviceConfigurations'         = @('@odata.type', 'displayName', 'assignments', 'qualityUpdatesDeferralPeriodInDays', 'fileVaultEnabled', 'wiFiSecurityType')
             'IntuneDeviceEnrollmentConfigurations' = @('@odata.type', 'displayName', 'priority', 'deviceEnrollmentConfigurationType', 'assignments', 'androidForWorkRestriction', 'androidRestriction', 'iosRestriction', 'macOSRestriction', 'windowsRestriction')
             'LicenseOverview'                    = @('License', 'TotalLicenses', 'CountUsed', 'ServicePlans', 'AssignedUsers', 'TermInfo')
-            'Mailboxes'                          = @('UPN', 'UserPrincipalName', 'displayName', 'recipientTypeDetails', 'ExternalDirectoryObjectId', 'AuditEnabled', 'AuditOwner', 'AuditBypassEnabled', 'WhenSoftDeleted', 'LitigationHoldEnabled', 'LicensedForLitigationHold', 'ComplianceTagHoldApplied', 'RetentionPolicy', 'InPlaceHolds')
+            'Mailboxes'                          = @('UPN', 'UserPrincipalName', 'displayName', 'recipientTypeDetails', 'ExternalDirectoryObjectId', 'AuditEnabled', 'AuditOwner', 'AuditDelegate', 'AuditAdmin', 'DefaultAuditSet', 'AuditBypassEnabled', 'WhenSoftDeleted', 'LitigationHoldEnabled', 'LicensedForLitigationHold', 'ComplianceTagHoldApplied', 'RetentionPolicy', 'InPlaceHolds')
             'ManagedDevices'                     = @('deviceName', 'lastSyncDateTime', 'operatingSystem', 'osVersion')
             'MDEOnboarding'                      = @('partnerState')
             'MFAState'                           = @('UPN', 'userPrincipalName', 'DisplayName', 'AccountEnabled', 'UserType', 'IsAdmin', 'isLicensed', 'PerUser', 'PerUserMFAState', 'CoveredByCA', 'CoveredBySD', 'MFARegistration', 'MFACapable', 'MFAMethods')
@@ -144,8 +145,8 @@ function Get-CippTestDataFieldManifest {
             # 'principal' is NOT read by any test file — Get-CippDbRoleMembers reads
             # $member.principal.displayName/.userPrincipalName. Omitting it would silently blank
             # every role member across the CIS/E8/ZTNA privileged-access tests.
-            'RoleAssignmentScheduleInstances'    = @('roleDefinitionId', 'assignmentType', 'memberType', 'endDateTime', 'principalId', 'principal')
-            'RoleEligibilitySchedules'           = @('roleDefinitionId', 'principalId', 'principal', 'scheduleInfo')
+            'RoleAssignmentScheduleInstances'    = @('id', 'roleDefinitionId', 'assignmentType', 'memberType', 'startDateTime', 'endDateTime', 'principalId', 'principal', 'directoryScopeId', 'roleAssignmentOriginId', 'roleAssignmentScheduleId')
+            'RoleEligibilitySchedules'           = @('id', 'roleDefinitionId', 'principalId', 'principal', 'scheduleInfo', 'directoryScopeId', 'memberType', 'status')
             # policyId, not id: this type is sourced from roleManagementPolicyAssignments (only the
             # assignment carries roleDefinitionId) and the policy is flattened up one level.
             'RoleManagementPolicies'             = @('policyId', 'scopeId', 'scopeType', 'roleDefinitionId', 'rules', 'effectiveRules')

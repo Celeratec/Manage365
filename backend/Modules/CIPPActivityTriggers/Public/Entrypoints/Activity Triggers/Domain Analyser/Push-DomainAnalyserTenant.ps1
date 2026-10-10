@@ -16,8 +16,6 @@ function Push-DomainAnalyserTenant {
             Write-LogMessage -API 'DomainAnalyser' -tenant $Tenant.defaultDomainName -tenantid $Tenant.customerId -message "Cleaning up $CleanupCount domain(s) for excluded tenant" -sev Info
             Remove-CIPPAzDataTableEntity -Force @DomainTable -Entity $CleanupRows
         }
-    } elseif ($Tenant.GraphErrorCount -gt 50) {
-        return
     } else {
         try {
             # Get domains from cached database instead of making Graph API calls
@@ -109,8 +107,10 @@ function Push-DomainAnalyserTenant {
                                 $Domain.MailProviders = $OldDomain.MailProviders
                             }
                             # Fix tenant info in the event of a default domain name change in a tenant
-                            $Domain | Add-Member -MemberType NoteProperty -Name 'TenantId' -Value $TenantDomain.Tenant -Force
-                            $Domain | Add-Member -MemberType NoteProperty -Name 'TenantGUID' -Value $TenantDomain.TenantGUID -Force
+                            $Domain | Add-Member -NotePropertyMembers ([ordered]@{
+                                    TenantId   = $TenantDomain.Tenant
+                                    TenantGUID = $TenantDomain.TenantGUID
+                                }) -Force
                         }
                         # Return domain object to list
                         $TenantDomainObjects.Add($Domain)

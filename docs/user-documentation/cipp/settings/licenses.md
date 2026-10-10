@@ -14,7 +14,7 @@ An exclusion works in one of two ways, shown in the Exclusion Type column.
 Separately from the exclusion type, each entry carries a flag controlling whether the licence still appears in CIPP's licence pickers.
 
 {% hint style="info" %}
-Excluding a licence hides it from reporting, but it does not stop the licence existing in the tenant or prevent it being assigned in Microsoft 365. Allow an excluded licence back into the pickers with **Show in License Dropdowns** when you still need to assign it from within CIPP.
+Excluding a licence hides it from reporting, but it does not stop the licence existing in the tenant or being assignable in Microsoft 365. A licence stays visible in CIPP's own licence pickers by default even while excluded, so you can still assign it from within CIPP; use **Hide from License Dropdowns** if you also want it out of the pickers.
 {% endhint %}
 
 ## Page Actions

@@ -10,6 +10,9 @@ function Invoke-ExecCloneTemplate {
         $TriggerMetadata
     )
 
+    $APIName = $Request.Params.CIPPEndpoint
+    $Headers = $Request.Headers
+
     $GUID = $Request.Query.GUID ?? $Request.Body.GUID
     $Type = $Request.Query.Type ?? $Request.Body.Type
 
@@ -23,6 +26,15 @@ function Invoke-ExecCloneTemplate {
             $NewGuid = [guid]::NewGuid().ToString()
             $Template.RowKey = $NewGuid
             $Template.JSON = $Template.JSON -replace $GUID, $NewGuid
+            # Some template types (e.g. CA) also key lookups off the GUID column, not just RowKey
+            if ($Template.GUID) {
+                $Template.GUID = $NewGuid
+            }
+            # Clearing Source detaches the clone from its library: community sync matches existing
+            # templates on displayName + Source, so a clone keeping the Source could be overwritten
+            if ($Template.Source) {
+                $Template.Source = $null
+            }
             if ($Template.Package) {
                 $Template.Package = $null
             }
@@ -31,6 +43,8 @@ function Invoke-ExecCloneTemplate {
             }
             try {
                 Add-CIPPAzDataTableEntity @Table -Entity $Template
+                $Result = "Template cloned successfully (Type=$Type, NewGuid=$NewGuid)"
+                Write-LogMessage -headers $Headers -API $APIName -tenant 'Global' -message $Result -Sev 'Info'
                 $body = @{
                     Results = @{
                         state      = 'success'
@@ -38,11 +52,14 @@ function Invoke-ExecCloneTemplate {
                     }
                 }
             } catch {
+                $ErrorMessage = Get-CIPPException -Exception $_
+                $Result = "Failed to clone template (Type=$Type, GUID=$GUID): $($ErrorMessage.NormalizedError)"
+                Write-LogMessage -headers $Headers -API $APIName -tenant 'Global' -message $Result -Sev 'Error' -LogData $ErrorMessage
                 $body = @{
                     Results = @{
                         state      = 'error'
                         resultText = 'Failed to clone template'
-                        details    = Get-CIPPException -Exception $_
+                        details    = $ErrorMessage
                     }
                 }
             }

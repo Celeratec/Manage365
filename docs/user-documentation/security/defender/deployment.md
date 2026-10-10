@@ -64,7 +64,7 @@ Turn on **Show Defender Setup Options** to configure how Defender connects to In
 | ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | EDR: Connect Defender Configuration Package automatically from Connector | Pulls the Defender onboarding package from the connector automatically. <mark style="color:$warning;">The rest of this section stays greyed out until this is on.</mark> |
 | EDR: Enable Sample Sharing                                               | Enables sharing of file samples for analysis.                                                                                                                          |
-| Assignment                                                               | Who the EDR policy is assigned to: Do not assign, Assign to all users, Assign to all devices, or Assign to all users and devices.                                       |
+| Assignment                                                               | Who the EDR policy is assigned to: Do Not Assign, Assign to All Users, Assign to All Devices, or Assign to All Users and Devices.                                       |
 
 #### iOS / iPadOS
 
@@ -136,7 +136,7 @@ Set what Defender does with a detection, separately for **Low severity threats**
 
 #### Policy Assignment
 
-Who the antivirus policy is assigned to: Do not assign, Assign to all users, Assign to all devices, or Assign to all users and devices.
+Who the antivirus policy is assigned to: Do Not Assign, Assign to All Users, Assign to All Devices, or Assign to All Users and Devices.
 {% endstep %}
 
 {% step %}
@@ -149,7 +149,7 @@ Turn on **Show Exclusion Policy Options** to build a policy that keeps Defender 
 | Excluded Extensions | File extensions to exclude from scanning, one per row, for example `txt`, `log` or `tmp`.      |
 | Excluded Paths      | File and folder paths to exclude, one per row, for example `C:\temp`.                          |
 | Excluded Processes  | Processes to exclude, one per row, for example `notepad.exe`.                                  |
-| Assign to Group     | Who the exclusion policy is assigned to: Do not assign, Assign to all users, Assign to all devices, or Assign to all users and devices. |
+| Assign to Group     | Who the exclusion policy is assigned to: Do Not Assign, Assign to All Users, Assign to All Devices, or Assign to All Users and Devices. |
 
 {% hint style="warning" %}
 Exclusions apply to every device the policy is assigned to. Excluding a broad path or a commonly abused process creates a blind spot that malware can be dropped into, so keep the lists as narrow as the application actually requires.
@@ -192,7 +192,7 @@ The mode applies to the whole policy rather than to individual rules. Deploying 
 | Use advanced protection against ransomware                                                        | Enables heuristic ransomware detection in addition to signature based protection. Analyses file behaviour patterns associated with ransomware activity.                                                                    |
 | Block executable content from email client and webmail                                            | Prevents executable files and scripts from being launched directly from email clients and webmail. Targets phishing attachments.                                                                                           |
 | Block abuse of exploited vulnerable signed drivers (Device)                                       | Prevents malware from using legitimately signed but vulnerable drivers, sometimes described as bring your own vulnerable driver, to gain kernel level access and disable security software.                                 |
-| Assign to Group                                                                                   | Who the ASR policy is assigned to: Do not assign, Assign to all users, Assign to all devices, or Assign to all users and devices.                                                                                          |
+| Assign to Group                                                                                   | Who the ASR policy is assigned to: Do Not Assign, Assign to All Users, Assign to All Devices, or Assign to All Users and Devices.                                                                                          |
 {% endstep %}
 {% endstepper %}
 

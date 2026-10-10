@@ -70,12 +70,14 @@ Describe 'Send-CIPPScheduledTaskAlert - PSA snooze links' {
         }
 
         Mock -CommandName Send-CIPPAlert -MockWith {
-            param($Type, $Title, $HTMLContent, $JSONContent, $TenantFilter, $AffectedUser)
+            param($Type, $Title, $HTMLContent, $JSONContent, $TenantFilter, $AffectedUser, $PSAReference, $PSATicketId)
             $script:SentAlerts.Add([pscustomobject]@{
                     Type         = $Type
                     Title        = $Title
                     HTMLContent  = $HTMLContent
                     AffectedUser = $AffectedUser
+                    PSAReference = $PSAReference
+                    PSATicketId  = $PSATicketId
                 })
         }
     }
@@ -150,5 +152,148 @@ Describe 'Send-CIPPScheduledTaskAlert - PSA snooze links' {
             $script:SentAlerts.Count | Should -Be 1
             $script:SentAlerts[0].HTMLContent | Should -Match 'Snooze Individual Alerts'
         }
+    }
+
+    # The task's reference is what lets a PSA add the result to the ticket the request came from
+    # rather than opening a second one, so every PSA call has to carry it - including the per-user
+    # split, or a split task's notes would land in new tickets while the consolidated one threads.
+    Context 'when the task carries a reference' {
+        BeforeEach {
+            $script:TaskInfo | Add-Member -NotePropertyName Reference -NotePropertyValue '[ID:1380] Starter Creation' -Force
+        }
+
+        It 'passes it on the consolidated ticket' {
+            $script:LinkTicketsToUsers = $false
+
+            Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+            $script:SentAlerts.Count | Should -Be 1
+            $script:SentAlerts[0].PSAReference | Should -Be '[ID:1380] Starter Creation'
+        }
+
+        It 'passes it on every split ticket' {
+            Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+            $script:SentAlerts.Count | Should -Be 2
+            foreach ($Alert in $script:SentAlerts) {
+                $Alert.PSAReference | Should -Be '[ID:1380] Starter Creation'
+            }
+        }
+
+        It 'passes an explicit PsaTicketId alongside it' {
+            $script:TaskInfo | Add-Member -NotePropertyName PsaTicketId -NotePropertyValue '1380' -Force
+            $script:LinkTicketsToUsers = $false
+
+            Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+            $script:SentAlerts[0].PSATicketId | Should -Be '1380'
+        }
+
+        It 'keeps the ticket id out of the email subject entirely' {
+            # PsaTicketId drives the PSA note and nothing else. A mail-ingesting PSA threads on
+            # whatever the operator chose to put in Reference, so the subject must not be stamped
+            # with a ticket token nobody asked for.
+            $script:TaskInfo | Add-Member -NotePropertyName PsaTicketId -NotePropertyValue '1380' -Force
+            $script:TaskInfo | Add-Member -NotePropertyName Reference -NotePropertyValue 'Starter Creation' -Force
+            $script:TaskInfo.PostExecution = 'email'
+
+            Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+            $script:SentAlerts[0].Type | Should -Be 'email'
+            $script:SentAlerts[0].Title | Should -Not -Match '\[ID:'
+            $script:SentAlerts[0].Title | Should -BeLike '*Reference: Starter Creation*'
+        }
+
+        It 'sends nothing extra when the task has no reference' {
+            $script:TaskInfo | Add-Member -NotePropertyName Reference -NotePropertyValue $null -Force
+            $script:LinkTicketsToUsers = $false
+
+            Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+            $script:SentAlerts[0].PSAReference | Should -BeNullOrEmpty
+        }
+    }
+}
+
+Describe 'Send-CIPPScheduledTaskAlert - display title' {
+    # Scripted multi-tenant alerts store Name as "{every selected tenant}: {subject}". That list
+    # must not appear in per-tenant PSA bodies - only the subject and the current Tenant line.
+    BeforeEach {
+        $script:SentAlerts = [System.Collections.Generic.List[object]]::new()
+
+        $script:Results = @(
+            [pscustomobject]@{ UsedStoragePercentage = 95; Tenant = 'contoso.com' }
+        )
+
+        $script:LongTenantName = 'Acme Corp (acme.com), Beta Ltd (beta.com), Contoso (contoso.com): Sharepoint Allowance is over 90%'
+
+        $script:TaskInfo = [pscustomobject]@{
+            RowKey            = 'task-quota'
+            Name              = $script:LongTenantName
+            Command           = 'Get-CIPPAlertSharepointQuota'
+            PostExecution     = 'psa'
+            AlertComment      = ''
+            CustomSubject     = ''
+            PsaTicketStrategy = 'consolidated'
+            Parameters        = '{}'
+        }
+
+        Mock -CommandName Get-CippTable -MockWith { param([string]$TableName) @{ TableName = $TableName } }
+        Mock -CommandName Get-Tenants -MockWith { [pscustomobject]@{ customerId = '00000000-0000-0000-0000-000000000001' } }
+        Mock -CommandName Get-CIPPTextReplacement -MockWith { param($Text, $TenantFilter) $Text }
+        Mock -CommandName Write-LogMessage -MockWith { }
+        Mock -CommandName Get-CIPPAzDataTableEntity -MockWith {
+            param($TableName, $Filter)
+            switch ($TableName) {
+                'Config' { [pscustomobject]@{ Value = 'cipp.contoso.com' } }
+                'Extensionsconfig' { New-HaloExtConfig -LinkTicketsToUsers $false }
+                default { $null }
+            }
+        }
+        Mock -CommandName Send-CIPPAlert -MockWith {
+            param($Type, $Title, $HTMLContent, $JSONContent, $TenantFilter, $AffectedUser, $PSAReference, $PSATicketId)
+            $script:SentAlerts.Add([pscustomobject]@{
+                    Type        = $Type
+                    Title       = $Title
+                    HTMLContent = $HTMLContent
+                })
+        }
+    }
+
+    It 'strips the multi-tenant Name prefix from Alert body and title' {
+        Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+        $script:SentAlerts.Count | Should -Be 1
+        $Body = $script:SentAlerts[0].HTMLContent
+        $Body | Should -Match 'Sharepoint Allowance is over 90%'
+        $Body | Should -Match 'Tenant:.*contoso\.com'
+        $Body | Should -Not -Match 'Acme Corp'
+        $Body | Should -Not -Match 'Beta Ltd'
+        $script:SentAlerts[0].Title | Should -Be 'Alert - contoso.com - Sharepoint Allowance is over 90%'
+        $script:SentAlerts[0].Title | Should -Not -Match 'Acme Corp'
+    }
+
+    It 'prefers CustomSubject over a legacy multi-tenant Name' {
+        $script:TaskInfo.CustomSubject = 'SharePoint quota high'
+        $script:TaskInfo.Name = $script:LongTenantName
+
+        Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Alert'
+
+        $Body = $script:SentAlerts[0].HTMLContent
+        $Body | Should -Match 'SharePoint quota high'
+        $Body | Should -Not -Match 'Acme Corp'
+        $Body | Should -Not -Match 'Sharepoint Allowance is over 90%'
+        $script:SentAlerts[0].Title | Should -Be 'SharePoint quota high - contoso.com'
+    }
+
+    It 'keeps the full task Name for non-Alert scheduled tasks' {
+        $script:TaskInfo.Name = 'Weekly report for Contoso (contoso.com)'
+        $script:TaskInfo.CustomSubject = ''
+
+        Send-CIPPScheduledTaskAlert -Results $script:Results -TaskInfo $script:TaskInfo -TenantFilter 'contoso.com' -TaskType 'Scheduled Task'
+
+        $Body = $script:SentAlerts[0].HTMLContent
+        $Body | Should -Match 'Weekly report for Contoso \(contoso\.com\)'
+        $script:SentAlerts[0].Title | Should -Be 'Scheduled Task - contoso.com - Weekly report for Contoso (contoso.com)'
     }
 }

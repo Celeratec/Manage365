@@ -2,6 +2,7 @@
 # Covers the shared-calendar onboarding block: one scheduled Set-CIPPCalendarPermission task per
 # calendar, the sharing-invitation flag, the Editor fallback, plain-string calendar entries, the
 # no-calendars case, and the guard that only shared mailboxes of the tenant can be targeted.
+# Also covers scheduling SharePoint site membership from the template.
 
 BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
@@ -25,13 +26,13 @@ BeforeAll {
 
     # Minimal user object: only the shared-calendar branch should do anything.
     function New-TestUserObj {
-        param($SharedCalendars, $SharedCalendarPermission, $SharedMailboxes, $SharedMailboxPermission)
+        param($SharedCalendars, $SharedCalendarPermission, $SharedMailboxes, $SharedMailboxPermission, $SharePointSites, $SharePointSiteRole)
         $UserObj = [pscustomobject]@{
             tenantFilter = 'contoso.com'
             givenName    = 'New'
             surname      = 'User'
         }
-        foreach ($Field in @('SharedCalendars', 'SharedCalendarPermission', 'SharedMailboxes', 'SharedMailboxPermission')) {
+        foreach ($Field in @('SharedCalendars', 'SharedCalendarPermission', 'SharedMailboxes', 'SharedMailboxPermission', 'SharePointSites', 'SharePointSiteRole')) {
             if ($PSBoundParameters.ContainsKey($Field)) {
                 # The request body uses camelCase, matching what the Add User form posts.
                 $Name = $Field.Substring(0, 1).ToLower() + $Field.Substring(1)
@@ -225,6 +226,39 @@ Describe 'New-CIPPUserTask' {
             $Result.Results | Should -Contain 'Scheduled SendAs on the shared mailbox Facility in 15 minutes.'
         }
 
+        It 'grants FullAccess without automapping when the no-automap variant is selected' {
+            $UserObj = New-TestUserObj -SharedMailboxes @(
+                [pscustomobject]@{ label = 'Facility'; value = 'facility@contoso.com' }
+            ) -SharedMailboxPermission ([pscustomobject]@{ label = 'Full Access (no Automapping)'; value = 'FullAccessNoAutoMap' })
+
+            $Result = New-CIPPUserTask -UserObj $UserObj
+
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter {
+                $Task.Parameters.PermissionLevel -eq 'FullAccess' -and
+                $Task.Parameters.AutoMap -eq $false
+            }
+            $Result.Results | Should -Contain 'Scheduled FullAccess (no automapping) on the shared mailbox Facility in 15 minutes. Automapping is off, so the user adds the mailbox to Outlook themselves.'
+        }
+
+        It 'lets the no-automap variant win when both FullAccess variants are selected' {
+            # One grant carries one automapping flag; scheduling both would make the second
+            # Add-MailboxPermission fail on the already existing permission entry anyway.
+            $UserObj = New-TestUserObj -SharedMailboxes @(
+                [pscustomobject]@{ label = 'Facility'; value = 'facility@contoso.com' }
+            ) -SharedMailboxPermission @(
+                [pscustomobject]@{ label = 'Full Access'; value = 'FullAccess' }
+                [pscustomobject]@{ label = 'Full Access (no Automapping)'; value = 'FullAccessNoAutoMap' }
+            )
+
+            $null = New-CIPPUserTask -UserObj $UserObj
+
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter {
+                $Task.Parameters.PermissionLevel -eq 'FullAccess' -and
+                $Task.Parameters.AutoMap -eq $false
+            }
+        }
+
         It 'schedules one task per permission level when several are selected' {
             $UserObj = New-TestUserObj -SharedMailboxes @(
                 [pscustomobject]@{ label = 'Facility'; value = 'facility@contoso.com' }
@@ -274,6 +308,61 @@ Describe 'New-CIPPUserTask' {
             Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter {
                 $Task.Command.value -eq 'Set-CIPPMailboxPermission'
             }
+        }
+    }
+
+    Context 'SharePoint site onboarding' {
+        It 'schedules one site membership task per site, carrying the site type and backing group' {
+            $UserObj = New-TestUserObj -SharePointSites @(
+                [pscustomobject]@{ label = 'HR'; value = 'https://contoso.sharepoint.com/sites/hr'; addedFields = [pscustomobject]@{ rootWebTemplate = 'Group'; ownerPrincipalName = 'hr@contoso.com' } }
+                [pscustomobject]@{ label = 'Intranet'; value = 'https://contoso.sharepoint.com/sites/intranet'; addedFields = [pscustomobject]@{ rootWebTemplate = 'Communication Site'; ownerPrincipalName = $null } }
+            ) -SharePointSiteRole ([pscustomobject]@{ label = 'Visitors'; value = 'Visitors' })
+
+            $Result = New-CIPPUserTask -UserObj $UserObj
+
+            Should -Invoke Add-CIPPScheduledTask -Times 2 -Exactly
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter {
+                $Task.Command.value -eq 'Set-CIPPSharePointSiteMember' -and
+                $Task.Parameters.SiteUrl -eq 'https://contoso.sharepoint.com/sites/hr' -and
+                $Task.Parameters.UserPrincipalName -eq 'new.user@contoso.com' -and
+                $Task.Parameters.Role -eq 'Visitors' -and
+                $Task.Parameters.SharePointType -eq 'Group' -and
+                $Task.Parameters.GroupId -eq 'hr@contoso.com'
+            }
+            $Result.Results | Should -Contain 'Scheduled Visitors access to the SharePoint site HR in 15 minutes.'
+        }
+
+        It 'schedules the membership 15 minutes out so the account can replicate to SharePoint first' {
+            $UserObj = New-TestUserObj -SharePointSites @([pscustomobject]@{ label = 'HR'; value = 'https://contoso.sharepoint.com/sites/hr' })
+            $Before = [int64](([datetime]::UtcNow).AddMinutes(15) - (Get-Date '1/1/1970')).TotalSeconds
+
+            $null = New-CIPPUserTask -UserObj $UserObj
+
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter {
+                $Task.ScheduledTime -ge $Before -and $Task.ScheduledTime -le ($Before + 60)
+            }
+        }
+
+        It 'falls back to Members and accepts a plain string role' {
+            $null = New-CIPPUserTask -UserObj (New-TestUserObj -SharePointSites @([pscustomobject]@{ label = 'HR'; value = 'https://contoso.sharepoint.com/sites/hr' }))
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter { $Task.Parameters.Role -eq 'Members' }
+
+            $null = New-CIPPUserTask -UserObj (New-TestUserObj -SharePointSites @([pscustomobject]@{ label = 'HR'; value = 'https://contoso.sharepoint.com/sites/hr' }) -SharePointSiteRole 'Owners')
+            Should -Invoke Add-CIPPScheduledTask -Times 1 -Exactly -ParameterFilter { $Task.Parameters.Role -eq 'Owners' }
+        }
+
+        It 'reports a failure when the scheduler rejects the task instead of throwing' {
+            Mock -CommandName Add-CIPPScheduledTask -MockWith { 'Error - duplicate task name' }
+            $UserObj = New-TestUserObj -SharePointSites @([pscustomobject]@{ label = 'HR'; value = 'https://contoso.sharepoint.com/sites/hr' })
+
+            $Result = New-CIPPUserTask -UserObj $UserObj
+
+            $Result.Results | Should -Contain 'Failed to schedule SharePoint access to HR: Error - duplicate task name'
+        }
+
+        It 'schedules nothing when no sites are configured' {
+            $null = New-CIPPUserTask -UserObj (New-TestUserObj)
+            Should -Invoke Add-CIPPScheduledTask -Times 0 -Exactly
         }
     }
 }

@@ -49,13 +49,17 @@ These settings pre-select the offboarding options used when a user in this tenan
 | Remove all Rules                              | Deletes the inbox rules on the user's mailbox, including any forwarding rules.                                           |
 | Reset Password                                | Sets the account password to a new random value.                                                                         |
 | Keep copy of forwarded mail in source mailbox | Where forwarding is configured during offboarding, retains a copy of each forwarded message in the leaver's mailbox.     |
-| Delete user                                   | Deletes the user account.                                                                                                |
+| Delete User                                   | Deletes the user account.                                                                                                |
+| Wipe Mobile Devices (account data only)       | Wipes the Exchange account data from the leaver's registered mobile devices, without removing the devices themselves.    |
 | Remove all Mobile Devices                     | Removes the mobile devices registered against the user.                                                                  |
 | Disable Sign in                               | Blocks the account from signing in while leaving it in place.                                                            |
 | Remove all MFA Devices                        | Removes the user's registered authentication methods.                                                                    |
 | Remove Teams Phone DID                        | Releases the phone number assigned to the user in Teams.                                                                 |
 | Clear Immutable ID                            | Clears the immutable ID, which is needed where the account is to be rematched or moved out of directory synchronisation. |
 | Disable OneDrive Sharing Links                | Disables the sharing links the user created from their OneDrive.                                                         |
+| Out of Office Message                         | The automatic reply set on the leaver's mailbox. Left blank, automatic replies are not touched. CIPP `%variable%` tokens, such as `%tenantname%` and this tenant's custom variables, stay literal in the editor and are resolved when the offboarding runs. See [offboarding-wizard.md](../../identity/administration/offboarding-wizard.md "mention"). |
+
+The tenant's saved defaults are applied in full, so an empty Out of Office message here is applied too, and a message saved in your own defaults is not used for this tenant.
 
 Under **Send results to**, choose where the outcome of an offboarding run is reported: Webhook, E-mail, or PSA.
 

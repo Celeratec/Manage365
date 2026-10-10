@@ -51,6 +51,26 @@ function Get-CIPPAuthentication {
             }
 
             if (-not $env:SAMCertificate -and $env:SAMCertProvisionAttempted -ne 'true') {
+                # Another worker may have just written the cert — re-read before minting.
+                if ($IsDevMode) {
+                    $Table = Get-CIPPTable -tablename 'DevSecrets'
+                    $Secret = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'Secret' and RowKey eq 'Secret'"
+                    if ($Secret.SAMCertificate) {
+                        $env:SAMCertificate = $Secret.SAMCertificate
+                    }
+                } else {
+                    try {
+                        $SAMCertificateRetry = Get-CippKeyVaultSecret -VaultName $keyvaultname -Name 'SAMCertificate' -AsPlainText -ErrorAction Stop
+                        if ($SAMCertificateRetry) {
+                            $env:SAMCertificate = $SAMCertificateRetry
+                        }
+                    } catch {
+                        Write-Information "SAM certificate still not found on re-read: $($_.Exception.Message)"
+                    }
+                }
+            }
+
+            if (-not $env:SAMCertificate -and $env:SAMCertProvisionAttempted -ne 'true') {
                 # First run on this instance: provision the certificate now, at most once per
                 # process. The guard also breaks a recursion loop: Update-CIPPSAMCertificate
                 # calls Get-GraphToken, which re-enters this function when the AppCache
@@ -63,6 +83,16 @@ function Get-CIPPAuthentication {
             }
         } catch {
             Write-LogMessage -message 'Could not preload or provision the SAM certificate. It will be retried by the weekly token update.' -Sev 'Warning' -API 'CIPP Authentication' -LogData (Get-CippException -Exception $_)
+        }
+
+        # Mirror the CertificateAuthentication flag to an env var so the hot token path (Get-GraphToken)
+        # reads it without a table hit. The flag is the single source of truth; set when enabled,
+        # cleared when not - consumers do a plain truthiness check (same pattern as SetFromProfile).
+        try {
+            $CertFlag = Get-CIPPFeatureFlag -Id 'CertificateAuthentication'
+            $env:CertificateAuthMode = if ($CertFlag.Enabled -eq $true) { $true } else { $null }
+        } catch {
+            Write-Information "Could not resolve certificate auth mode: $($_.Exception.Message)"
         }
 
         Write-LogMessage -message 'Reloaded authentication data from KeyVault' -Sev 'debug' -API 'CIPP Authentication'
