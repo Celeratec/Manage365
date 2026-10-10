@@ -1,0 +1,136 @@
+name: "Build: Manage365 Image"
+
+# Publishes ghcr.io/celeratec/manage365:<image tag> from an explicit ref.
+# APP_VERSION is the upstream CIPP baseline (out-of-date checks). The Manage365
+# release number lives in frontend/public/manage365-version.json and is chosen
+# separately as the image tag. Do not publish this image from a GitHub release:
+# release-container.yml strips the v and passes that tag as APP_VERSION, so a
+# v6.1.0 release would make the app believe its upstream baseline is 6.1.0.
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag, or SHA to build
+        required: true
+        default: main
+      app_version:
+        description: Upstream CIPP baseline baked in as APP_VERSION
+        required: true
+        default: "11.0.2"
+      image_tag:
+        description: Image tag. Manage365 release, not the upstream baseline.
+        required: true
+        default: v6.1.0
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+concurrency:
+  group: manage365-image-${{ github.event.inputs.image_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve image identity
+        id: image
+        run: |
+          echo "commit_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+
+      - name: Set lower case image name
+        run: echo "IMAGE_NAME_LC=${REPO,,}" >> $GITHUB_ENV
+        env:
+          REPO: ${{ github.repository }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Compute cache epoch
+        id: cache-epoch
+        run: echo "week=$(date -u +%Y-%W)" >> $GITHUB_OUTPUT
+
+      - name: Restore frontend build caches
+        id: build-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            yarn-cache
+            next-cache
+          key: cipp-frontend-cache-manage365-${{ hashFiles('frontend/yarn.lock') }}-${{ steps.cache-epoch.outputs.week }}
+          restore-keys: |
+            cipp-frontend-cache-manage365-${{ hashFiles('frontend/yarn.lock') }}-
+            cipp-frontend-cache-release-
+
+      - name: Inject build caches into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723 # v3.4.0
+        with:
+          builder: ${{ steps.buildx.outputs.name }}
+          cache-map: |
+            {
+              "yarn-cache": "/usr/local/share/.cache/yarn",
+              "next-cache": "/build/.next/cache"
+            }
+          skip-extraction: ${{ steps.build-cache.outputs.cache-hit }}
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: build/Dockerfile
+          platforms: linux/amd64
+          push: true
+          cache-from: type=gha,scope=manage365
+          cache-to: type=gha,mode=max,scope=manage365
+          build-args: |
+            APP_VERSION=${{ github.event.inputs.app_version }}
+            COMMIT_SHA=${{ steps.image.outputs.commit_sha }}
+            IMAGE_TAG=${{ github.event.inputs.image_tag }}
+            BUILD_DATE=${{ steps.image.outputs.build_date }}
+            DOTNET_REGISTRY=${{ vars.DOTNET_REGISTRY || 'ghcr.io/cyberdrain' }}
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ github.event.inputs.image_tag }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.description=Manage365 container
+            org.opencontainers.image.revision=${{ steps.image.outputs.commit_sha }}
+            org.opencontainers.image.version=${{ github.event.inputs.app_version }}
+            org.opencontainers.image.created=${{ steps.image.outputs.build_date }}
+
+      - name: Summary
+        env:
+          PUBLISHED_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME_LC }}:${{ github.event.inputs.image_tag }}
+          PUBLISHED_APP_VERSION: ${{ github.event.inputs.app_version }}
+          PUBLISHED_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo "### Manage365 image published"
+            echo
+            echo '```'
+            echo "$PUBLISHED_IMAGE"
+            echo '```'
+            echo
+            echo "APP_VERSION \`$PUBLISHED_APP_VERSION\`."
+            echo "Digest \`$PUBLISHED_DIGEST\`."
+          } >> "$GITHUB_STEP_SUMMARY"
