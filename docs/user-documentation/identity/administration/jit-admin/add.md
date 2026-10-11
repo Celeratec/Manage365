@@ -7,7 +7,7 @@ This page grants time-limited administrative access. You choose who gets it, wha
 | Field                                      | Description                                                                                                                                                |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Select a tenant to create the JIT Admin in | The tenant the access is granted in. Required, and it has to be chosen before the template list and the tenant's Temporary Access Pass policy can be read. |
-| JIT Admin Template (optional)              | Applies a saved template, filling in the rest of the form. Templates are managed on the [jit-admin-templates](../jit-admin-templates/ "mention") page.     |
+| JIT Admin Template (optional)              | Applies a saved template, filling in the rest of the form. Templates are managed on the [README.md](templates/README.md "mention") page.     |
 
 {% hint style="info" %}
 A default template is applied on its own once a tenant is selected. A template marked as the default for that specific tenant wins; failing that, a template marked as the default across All Tenants is used. Anything a template fills in can still be changed before submitting. A template can contain `%cipptechnician%` in its name, username or reason text, or `%cipptechnicianupn%` in its reason; those are replaced with your own signed-in account name as the template is applied.
@@ -40,7 +40,7 @@ Changing the tenant clears the selected user, groups and Conditional Access poli
 
 | Field                    | Description                                                                                                                      |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Apply JIT Role Template  | Picks one or more [JIT Role Templates](../jit-role-templates/README.md "mention") and adds their roles into Roles below. Selections are additive to whatever Roles already holds, and everything stays editable afterwards. |
+| Apply JIT Role Template  | Picks one or more [JIT Role Templates](role-templates/README.md "mention") and adds their roles into Roles below. Selections are additive to whatever Roles already holds, and everything stays editable afterwards. |
 | Roles                    | The Entra ID directory roles to assign for the duration of the access.                                                           |
 | Groups                   | The groups to add the account to for the duration of the access.                                                                 |
 | Reason                   | Why the access was granted. Required, and it is shown on the JIT Admin list, which is what makes the list reviewable afterwards. |
@@ -50,7 +50,7 @@ Apply least privilege here. Grant the narrowest role that covers the work rather
 {% endhint %}
 
 {% hint style="info" %}
-If your CIPP role has a [JIT Role Template](../jit-role-templates/README.md "mention") assigned, Roles only offers the roles that template allows, and Apply JIT Role Template only offers roles you are permitted to grant. Requesting a role outside your allow-list is also rejected when you submit. A role with no template assigned is unaffected.
+If your CIPP role has a [JIT Role Template](role-templates/README.md "mention") assigned, Roles only offers the roles that template allows, and Apply JIT Role Template only offers roles you are permitted to grant. Requesting a role outside your allow-list is also rejected when you submit. A role with no template assigned is unaffected.
 {% endhint %}
 
 ## Temporary Access Pass
@@ -61,6 +61,16 @@ The pass lifetime is worked out from the access window rather than entered, then
 
 {% hint style="info" %}
 Temporary Access Pass has to be enabled in the tenant's authentication methods policy first. The **Enable Temporary Access Passes (TAP)** standard turns it on.
+{% endhint %}
+
+## Approval
+
+If JIT Admin approval is switched on in the [application settings](../../../cipp/settings/README.md#jit-admin-settings) and the request includes a role that needs approval, submitting the form does not create anything. The request is saved on the [requests.md](requests.md "mention") tab, the approvers are notified, and the result says how many approvals it needs and from which CIPP roles. When no specific roles are set to need approval, every request needs it, including one that only adds groups.
+
+The duration limit and the roles you are allowed to grant are checked when you submit, and again when the request is approved.
+
+{% hint style="info" %}
+When an approved request is created, no password or Temporary Access Pass is generated, even if **Generate TAP** was on, so the approver never sees the account's sign-in details. Once the request is approved, use **Create Temporary Access Pass** or **Reset Password** on the [README.md](README.md "mention") tab to sign in.
 {% endhint %}
 
 ## Expiry and notification

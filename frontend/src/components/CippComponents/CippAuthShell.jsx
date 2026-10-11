@@ -3,6 +3,7 @@ import PropTypes from 'prop-types'
 import { Box, Button, Card, LinearProgress, Stack, Typography } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import { Grid } from '@mui/system'
+import { Logo } from '../logo'
 import { blue } from '../../theme/colors'
 
 // Full-viewport shell for the screens a signed-out user can land on: sign-in,
@@ -21,17 +22,9 @@ const fullHeight = {
   '@supports (min-height: 100dvh)': { minHeight: '100dvh' },
 }
 
-// public/logo.png carries its own white keyline, so it reads on the navy panel
-// untouched — no mask, no plate, no light/dark variant. Do not swap this for
-// src/components/logo.js: that file throws if its inlined payload is altered.
-const CippBrandLockup = () => (
-  <Box
-    component="img"
-    src="/logo.png"
-    alt="Manage365"
-    sx={{ display: 'block', width: 'auto', height: { xs: 46, md: 96 } }}
-  />
-)
+// The panel is navy in both themes, so this is always the dark wordmark.
+// Transparent artwork: no oval plate. Do not swap in the inlined logo.js payload.
+const CippBrandLockup = () => <Logo mode="dark" height={{ xs: 46, md: 96 }} />
 
 // public/cippy-auth.png is the source artwork with its flat background flood-filled away
 // from the corners — the mug body, the eyes and the little icon interiors are all
@@ -84,7 +77,7 @@ export const CippAuthShell = ({
   onSecondaryClick,
   busy = false,
   children,
-  tagline = 'CyberDrain Improved Partner Portal',
+  tagline = 'Microsoft 365 management',
 }) => {
   // href wins over onClick so a caller passing both gets one control, not two
   const hasPrimary = Boolean(actionText) && Boolean(actionHref || onActionClick)
@@ -105,8 +98,8 @@ export const CippAuthShell = ({
             overflow: 'hidden',
             display: 'flex',
             // On the stacked layout the panel turns into a row: the logo and tagline sit
-            // side by side as one lockup. The mark is only ~70px wide at 46px tall, so
-            // the tagline still gets ~168px even with Cippy's corner reserved.
+            // side by side as one lockup. The wordmark is wider than the old oval, and
+            // the tagline still wraps beside it with Cippy's corner reserved.
             //
             // md+ centres the tagline on the panel's own vertical midpoint, which lines it
             // up with the sign-in card opposite: both halves have symmetric padding, so

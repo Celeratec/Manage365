@@ -4,7 +4,7 @@ description: View and amend the settings for your CIPP instance.
 
 # Application Settings
 
-The General tab of the application settings brings together the instance-wide controls for your CIPP deployment: version information, password generation, DNS resolution, caching, backups, retention periods, JIT admin limits, and the default BEC containment actions. Each card operates independently and saves on its own, so there is no single submit action for the page.
+The General tab of the application settings brings together the instance-wide controls for your CIPP deployment: version information, password generation, DNS resolution, caching, backups, retention periods, JIT admin limits and approval, and the default BEC containment actions. Each card operates independently and saves on its own, so there is no single submit action for the page.
 
 ## Version
 
@@ -112,16 +112,26 @@ A download link expires after the retention period that applied when its email w
 
 ## JIT Admin Settings
 
-Caps how long a Just-In-Time admin account created through CIPP may remain active, which stops technicians from provisioning long-lived privileged accounts.
+Caps how long a Just-In-Time admin account created through CIPP may remain active, which stops technicians from provisioning long-lived privileged accounts, and can require JIT Admin requests to be approved before they are carried out.
 
 | Field                       | Description                                                                                                                                                                                             |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Maximum Duration (ISO 8601) | The longest duration a JIT admin account may be granted. Presets range from 1 hour to 30 days, and a custom ISO 8601 duration such as `PT6H` or `P21D` can be typed directly. Leave empty for no limit. |
+| Require approval for JIT Admin requests | Holds JIT Admin requests until they are approved, instead of carrying them out straight away. The fields below appear when this is on. |
+| Roles that need approval    | The Entra ID directory roles that trigger approval. A request including any of them needs approval, and a request without them goes ahead as before. Leave empty to require approval for every request, including one that only adds groups. |
+| Approver roles              | The CIPP roles, built-in or custom, whose users can approve or reject requests. Required when approval is on. |
+| Approvals required          | How many different approvers must approve a request before it is carried out. Defaults to 1.                    |
 
-Select **Save Settings** to apply. The limit applies globally across all tenants, and any attempt to create a JIT admin account exceeding it is rejected.
+Select **Save Settings** to apply. The settings apply globally across all tenants. Any attempt to create a JIT admin account exceeding the maximum duration is rejected.
 
 {% hint style="info" %}
 Custom values must be valid ISO 8601 durations, so use forms such as `PT1H`, `P1D` or `P28D`. An invalid value prevents the card from saving.
+{% endhint %}
+
+When approval is on, a request is never approved by the person who submitted it, and a single rejection ends it. Approvers are notified through the [notifications.md](notifications.md "mention") settings, and on the new CIPP infrastructure by push to any device they have registered. Requests are approved and rejected on the [Requests](../../identity/administration/jit-admin/requests.md) tab of JIT Admin, which describes the whole flow.
+
+{% hint style="warning" %}
+If the technicians who request JIT Admin access also hold an approver role, they can approve each other's requests, though never their own. Choose approver roles held by the people who should sign off on elevated access.
 {% endhint %}
 
 ## BEC Remediation Defaults

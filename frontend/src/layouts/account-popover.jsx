@@ -137,7 +137,7 @@ export const AccountPopover = (props) => {
             <>
               <Box sx={{ minWidth: 100 }}>
                 <Typography variant="caption" sx={{
-                  color: "neutral.400"
+                  color: "text.secondary"
                 }}>
                   {orgData.data?.clientPrincipal?.userDetails?.split("@")?.[1]}
                 </Typography>

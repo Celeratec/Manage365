@@ -29,6 +29,8 @@ class CustomDocument extends Document {
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Manage365" />
+          <link rel="icon" href="/favicon-light.png" type="image/png" media="(prefers-color-scheme: light)" />
+          <link rel="icon" href="/favicon-dark.png" type="image/png" media="(prefers-color-scheme: dark)" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
           <link
             rel="preconnect"

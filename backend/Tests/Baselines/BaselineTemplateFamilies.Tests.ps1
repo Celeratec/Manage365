@@ -261,6 +261,52 @@ Describe 'Get-CIPPBaselineTransportRuleTemplateState' {
         @($Prepared.Current.ruleBodies).Count | Should -Be 1
         $Prepared.Current.ruleBodies[0].FromScope | Should -Be 'InOrganization'
     }
+
+    It 'overwrites an existing rule without Enabled and applies the state with <Expected>' -ForEach @(
+        @{ Enabled = $true; Expected = 'Enable-TransportRule' }
+        @{ Enabled = $false; Expected = 'Disable-TransportRule' }
+    ) {
+        Mock New-ExoRequest { }
+        $Current = [PSCustomObject]@{ ruleBodies = @([PSCustomObject]@{ name = 'Tag'; PrependSubject = '[EXT] '; Enabled = $Enabled }); deployedNames = @('Tag') }
+        Invoke-CIPPBaselineTransportRuleTemplate -Remediate ([PSCustomObject]@{ overwrite = $true }) -TenantFilter $script:Tenant -Current $Current
+        Should -Invoke New-ExoRequest -Times 1 -Exactly -ParameterFilter {
+            $cmdlet -eq 'Set-TransportRule' -and -not $cmdParams.ContainsKey('Enabled') -and $cmdParams.Identity -eq 'Tag'
+        }
+        Should -Invoke New-ExoRequest -Times 1 -Exactly -ParameterFilter { $cmdlet -eq $Expected -and $cmdParams.Identity -eq 'Tag' }
+    }
+
+    It 'updates a rule the stale cache missed when overwrite is on, and leaves it when off (overwrite <Overwrite>)' -ForEach @(
+        @{ Overwrite = $true; SetCalls = 1 }
+        @{ Overwrite = $false; SetCalls = 0 }
+    ) {
+        Mock New-ExoRequest { throw "|System.ArgumentException|A rule with this name already exists. (Parameter 'Name')" } -ParameterFilter { $cmdlet -eq 'New-TransportRule' }
+        Mock New-ExoRequest { }
+        $Current = [PSCustomObject]@{ ruleBodies = @([PSCustomObject]@{ name = 'Tag'; PrependSubject = '[EXT] ' }); deployedNames = @() }
+        { Invoke-CIPPBaselineTransportRuleTemplate -Remediate ([PSCustomObject]@{ overwrite = $Overwrite }) -TenantFilter $script:Tenant -Current $Current } | Should -Not -Throw
+        Should -Invoke New-ExoRequest -Times $SetCalls -Exactly -ParameterFilter { $cmdlet -eq 'Set-TransportRule' -and $cmdParams.Identity -eq 'Tag' }
+    }
+
+    It 'still fails a create that errors for another reason' {
+        Mock New-ExoRequest { throw 'Access denied' }
+        $Current = [PSCustomObject]@{ ruleBodies = @([PSCustomObject]@{ name = 'Tag' }); deployedNames = @() }
+        { Invoke-CIPPBaselineTransportRuleTemplate -Remediate ([PSCustomObject]@{ overwrite = $true }) -TenantFilter $script:Tenant -Current $Current } | Should -Throw '*Access denied*'
+    }
+
+    It 'grades and deploys the template under its resolved %variables%' {
+        Mock Get-CIPPTextReplacement { $Text -replace '%tenantname%', 'Contoso' }
+        Mock Get-CIPPAzDataTableEntity { [PSCustomObject]@{ RowKey = 'tpl-t'; JSON = '{"name":"%tenantname% Block Autoforward","PrependSubject":"[%tenantname%] "}' } }
+        Mock New-CIPPDbRequest { @(@{ Identity = 'x'; DisplayName = 'Contoso Block Autoforward'; Name = 'y' } | ConvertTo-Cached) }
+        $Prepared = Get-CIPPBaselineTransportRuleTemplateState -Item $script:TransportItem -TenantFilter $script:Tenant
+        (Get-Verdict -Expected $Prepared.Expected -Current $Prepared.Current).Count | Should -Be 0
+
+        Mock New-CIPPDbRequest { @() }
+        Mock New-ExoRequest { }
+        $Prepared = Get-CIPPBaselineTransportRuleTemplateState -Item $script:TransportItem -TenantFilter $script:Tenant
+        Invoke-CIPPBaselineTransportRuleTemplate -Remediate ([PSCustomObject]@{}) -TenantFilter $script:Tenant -Current $Prepared.Current
+        Should -Invoke New-ExoRequest -Times 1 -Exactly -ParameterFilter {
+            $cmdlet -eq 'New-TransportRule' -and $cmdParams.name -eq 'Contoso Block Autoforward' -and $cmdParams.PrependSubject -eq '[Contoso] '
+        }
+    }
 }
 
 Describe 'Template family executors' {

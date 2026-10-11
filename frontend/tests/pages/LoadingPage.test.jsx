@@ -11,7 +11,7 @@ describe('LoadingPage', () => {
   it('renders the waiting state with a progress bar', () => {
     renderWithTheme(<LoadingPage />)
 
-    expect(screen.getByText('Logging into CIPP')).toBeInTheDocument()
+    expect(screen.getByText('Logging into Manage365')).toBeInTheDocument()
     expect(screen.getByText('Please wait while we log you in...')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })

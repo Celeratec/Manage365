@@ -43,6 +43,9 @@ function New-CippCoreRequest {
     $FunctionName = 'Invoke-{0}' -f $Request.Params.CIPPEndpoint
     Write-Debug "API Endpoint: $($Request.Params.CIPPEndpoint) | Frontend Version: $($Request.Headers.'X-CIPP-Version' ?? 'Not specified')"
 
+    # Store action source + acting identity for outbound User-Agent attribution
+    Set-CippUserAgentContext -Headers $Request.Headers
+
     # Check if endpoint is disabled via feature flags
     $FeatureFlags = Get-CIPPFeatureFlag
     $DisabledEndpoint = $FeatureFlags | Where-Object {

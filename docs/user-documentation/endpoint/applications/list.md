@@ -65,8 +65,16 @@ ConnectWise RMM, previously known as Command and before that Continuum.
 | ---------- | ---------------------------------------------------------------------------------- |
 | Client URL | Per tenant. The full download URL of the agent installer for that customer's site. |
 
+**NinjaOne**
+
+| Field           | Description                                                                                                                                                                            |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Installer Token | Per tenant. The token for the customer organisation and location, from a generic installer in NinjaOne. Accepts a CIPP custom variable such as `%NinjaOneToken%` (type `%` to browse). |
+
+CIPP packages NinjaOne's generic installer and passes the token at install time, so one package serves every organisation. The install is skipped on devices that already run the NinjaOne agent. The tokens are generated as described in NinjaOne's [quick deployment guide](https://www.ninjaone.com/docs/new-to-ninjaone/getting-started/best-practice-guides/quick-deployment-guide/).
+
 {% hint style="info" %}
-Datto RMM, CW Automate and CW Command are community contributions and are not covered by a vendor sponsorship. CIPP shows a notice to this effect when one of them is selected, and support for these is through the Discord community rather than the vendor.
+Datto RMM, CW Automate, CW Command and NinjaOne are community contributions and are not covered by a vendor sponsorship. CIPP shows a notice to this effect when one of them is selected, and support for these is through the Discord community rather than the vendor.
 {% endhint %}
 
 {% hint style="warning" %}

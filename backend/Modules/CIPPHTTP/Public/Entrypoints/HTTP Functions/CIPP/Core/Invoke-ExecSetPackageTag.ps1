@@ -13,6 +13,7 @@ function Invoke-ExecSetPackageTag {
 
     $Table = Get-CippTable -tablename 'templates'
 
+    $StatusCode = [HttpStatusCode]::OK
     try {
         # multiPost bulk actions POST an array of template objects. Do not read
         # $Request.Body.Remove on an array — that resolves to Array.Remove (method),
@@ -67,6 +68,7 @@ function Invoke-ExecSetPackageTag {
         $body = [pscustomobject]@{ 'Results' = $SuccessMessage }
 
     } catch {
+        $StatusCode = [HttpStatusCode]::InternalServerError
         $ErrorMessage = Get-CippException -Exception $_
         if ($Remove -eq $true) {
             Write-LogMessage -headers $Headers -API $APIName -message "Failed to remove package tag: $($ErrorMessage.NormalizedError)" -Sev 'Error' -LogData $ErrorMessage
@@ -78,7 +80,7 @@ function Invoke-ExecSetPackageTag {
     }
 
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = $body
         })
 }

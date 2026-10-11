@@ -22,6 +22,7 @@ Function Invoke-ExecMailboxMobileDevices {
         $Results = [pscustomobject]@{'Results' = $MobileResults }
     } catch {
         $Results = [pscustomobject]@{'Results' = "Failed to update mobile device for $($UserId): $((Get-CippException -Exception $_).NormalizedError)" }
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
 
     return ([HttpResponseContext]@{

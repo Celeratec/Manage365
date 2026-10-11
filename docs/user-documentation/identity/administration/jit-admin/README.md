@@ -2,6 +2,19 @@
 
 JIT Admin creates administrative accounts that expire on their own, so temporary elevation does not turn into a permanent standing privilege. Each account is created with a chosen set of roles and an expiry, and CIPP removes the roles or disables the account when the window closes. This page lists the accounts CIPP is tracking, whether they are currently active, and what they were created for.
 
+JIT Admin is a tabbed page:
+
+| Tab                 | What it is for                                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------------------------- |
+| JIT Admins          | This list of JIT Admin accounts.                                                                     |
+| Requests            | Requests waiting for approval, and the decisions made on earlier ones. See [requests.md](requests.md "mention"). |
+| JIT Admin Templates | Saved settings for repeated grants. See [README.md](templates/README.md "mention").                  |
+| JIT Role Templates  | Allow-lists of the roles a CIPP role can grant. See [README.md](role-templates/README.md "mention"). |
+
+{% hint style="info" %}
+When JIT Admin approval is switched on, a request that needs approval only appears on this list once it has been approved and created. Until then it is on the [requests.md](requests.md "mention") tab.
+{% endhint %}
+
 ## Action Buttons
 
 {% content-ref url="add.md" %}
@@ -38,7 +51,7 @@ Under All Tenants, the first time the list is opened CIPP queues a background jo
 {% endhint %}
 
 {% hint style="info" %}
-If your CIPP role has a [JIT Role Template](../jit-role-templates/README.md "mention") assigned, this list is filtered to JIT Admins whose roles fall entirely within that template. An account holding any role outside your allow-list is left off the list rather than shown with roles hidden.
+If your CIPP role has a [JIT Role Template](role-templates/README.md "mention") assigned, this list is filtered to JIT Admins whose roles fall entirely within that template. An account holding any role outside your allow-list is left off the list rather than shown with roles hidden.
 {% endhint %}
 
 ## Table Actions

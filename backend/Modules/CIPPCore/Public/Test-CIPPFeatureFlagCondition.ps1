@@ -13,6 +13,8 @@ function Test-CIPPFeatureFlagCondition {
                                classic Standards and Drift and hides their pages, so an install that
                                never created a classic standard can start on the new engine straight
                                away, while an install with standards keeps them until it opts in.
+          DefaultOn           - start the flag enabled. Used when a flag that was seeded off should
+                               turn on once for installs that never toggled it. A later toggle wins.
     .PARAMETER Condition
         The condition name as written in FeatureFlags.json.
     .FUNCTIONALITY
@@ -31,6 +33,9 @@ function Test-CIPPFeatureFlagCondition {
                 $Table = Get-CippTable -tablename 'templates'
                 $Templates = @(Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq 'StandardsTemplateV2'" -Property RowKey)
                 return ($Templates.Count -eq 0)
+            }
+            'DefaultOn' {
+                return $true
             }
             default {
                 Write-Warning "Unknown feature flag condition '$Condition' - treated as not met"

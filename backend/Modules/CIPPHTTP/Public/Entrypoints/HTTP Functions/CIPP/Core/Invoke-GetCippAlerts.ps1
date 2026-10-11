@@ -40,31 +40,56 @@ function Invoke-GetCippAlerts {
     }
     if ($Version.OutOfDateCIPP) {
         $Alerts.Add(@{
-                title = 'CIPP Frontend Out of Date'
-                Alert = "Your CIPP Frontend is out of date. $UpdateAction Find more on the following "
-                link  = 'https://docs.cipp.app/setup/self-hosting-guide/updating'
+                title = 'Manage365 Frontend Behind Upstream'
+                Alert = "Manage365 frontend reports v$($Version.LocalCIPPVersion) but upstream CIPP is v$($Version.RemoteCIPPVersion). $UpdateAction"
+                link  = 'https://github.com/Celeratec/Manage365'
                 type  = 'warning'
             })
-        Write-LogMessage -message "Your CIPP Frontend is out of date. $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
+        Write-LogMessage -message "Manage365 frontend v$($Version.LocalCIPPVersion) is behind upstream CIPP v$($Version.RemoteCIPPVersion). $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
 
     }
     if ($Version.OutOfDateCIPPAPI) {
         $Alerts.Add(@{
-                title = 'CIPP API Out of Date'
-                Alert = "Your CIPP API is out of date. $UpdateAction Find more on the following"
-                link  = 'https://docs.cipp.app/setup/self-hosting-guide/updating'
+                title = 'Manage365 API Behind Upstream'
+                Alert = "Manage365 API reports v$($Version.LocalCIPPAPIVersion) but upstream CIPP-API is v$($Version.RemoteCIPPAPIVersion). $UpdateAction"
+                link  = 'https://github.com/Celeratec/Manage365'
                 type  = 'warning'
             })
-        Write-LogMessage -message "Your CIPP API is out of date. $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
+        Write-LogMessage -message "Manage365 API v$($Version.LocalCIPPAPIVersion) is behind upstream CIPP-API v$($Version.RemoteCIPPAPIVersion). $UpdateAction" -API 'Updates' -tenant 'All Tenants' -sev Alert
+    }
+
+    # The placeholder ApplicationID is what a fresh deploy ships before SAM setup.
+    if ($env:ApplicationID -eq 'LongApplicationID' -or $null -eq $env:ApplicationID) {
+        $Alerts.Add(@{
+                title          = 'SAM Setup Incomplete'
+                Alert          = 'You have not yet completed your setup. Please go to the Setup Wizard in Application Settings to connect Manage365 to your tenants.'
+                link           = '/cipp/setup'
+                type           = 'warning'
+                setupCompleted = $false
+            })
     }
 
     if ($role -like '*superadmin*') {
-        $Alerts.Add(@{
-                title = 'Superadmin Account Warning'
-                Alert = 'You are logged in under a superadmin account. This account should not be used for normal usage.'
-                link  = 'https://docs.cipp.app/setup/installation/owntenant'
-                type  = 'error'
-            })
+        $Username = $null
+        $Principal = $Request.Headers.'x-ms-client-principal'
+        if ($Principal) {
+            try {
+                $SwaCreds = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Principal)) | ConvertFrom-Json)
+                $Username = $SwaCreds.userDetails
+            } catch {
+                Write-Information "Could not read the signed-in user for the superadmin warning: $($_.Exception.Message)"
+            }
+        }
+        # This account is the instance owner and is expected to sign in as superadmin.
+        $SuperAdminIgnoreList = @('Clint@celeratec.cloud')
+        if ($Username -notin $SuperAdminIgnoreList) {
+            $Alerts.Add(@{
+                    title = 'Superadmin Account Warning'
+                    Alert = 'You are logged in under a superadmin account. This account should not be used for normal usage.'
+                    link  = 'https://docs.cipp.app/setup/installation/owntenant'
+                    type  = 'error'
+                })
+        }
     }
 
     # Outstanding SAM permissions are only visible by opening the permissions page, so an

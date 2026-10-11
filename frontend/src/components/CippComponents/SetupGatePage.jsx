@@ -4,6 +4,7 @@ import { useRouter } from 'next/router'
 import { Alert, Box, Container, Stack, Typography } from '@mui/material'
 import { useQueryClient } from '@tanstack/react-query'
 import { ApiGetCall } from '../../api/ApiCall'
+import { Logo } from '../logo'
 
 const OnboardingWizardPage = dynamic(() => import('../CippWizard/OnboardingWizardPage.jsx'), {
   ssr: false,
@@ -56,7 +57,7 @@ const SetupGatePage = () => {
           <Stack direction="row" spacing={2} sx={{
             alignItems: "center"
           }}>
-            <Box component="img" src="/logo.png" alt="Manage365" sx={{ display: 'block', height: 40 }} />
+            <Logo height={40} />
             <Typography variant="h4">Welcome to Manage365</Typography>
           </Stack>
           <Alert severity="info">

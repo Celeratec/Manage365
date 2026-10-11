@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="frontend/public/Main%20logo%20-CMYK.png" alt="Manage365 Logo" height="80">
+  <img src="frontend/public/logo-light.png" alt="Manage365 Logo" height="80">
 </p>
 
 <h1 align="center">Manage365 v2</h1>
@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.0) &nbsp;·&nbsp; CIPP baseline <strong>11.0.2</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.3) &nbsp;·&nbsp; CIPP baseline <strong>11.0.2</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current alignment is **6.1.0** on CIPP baseline **11.0.2**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.3** on CIPP baseline **11.0.2**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -40,6 +40,27 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 | Local: SWA CLI + Azurite + multiple function hosts | `build/docker-compose-all.yml` (Azurite + Craft on :5196) |
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+
+## Release 6.1.3 (October 2026)
+
+This is the first production release after the v1 forks. It keeps the 11.0.2 baseline and adds the upstream work that landed after that tag, plus the Manage365 fixes that did not survive the monorepo move.
+
+**Since the two-repo v1 (5.33.0 on CIPP 10.8.5)**
+
+- One repository and one Linux container replace the Static Web App and Function Apps. Storage, tables, blobs, queues, and Key Vault stayed.
+- One Manage365 menu. The sponsor panel is gone. The sign-in screen says Manage365.
+- Card and table toggle is back on list pages.
+- EasyAuth, in-app users, SSO, and container management are native.
+
+**In 6.1.3**
+
+- Light and dark wordmarks, no oval plate. The top bar follows light and dark mode. An orange V2 badge marks the monorepo generation.
+- MCP is on unless someone has turned the flag off. Create an API client with MCP Access Allowed, save it to Azure, and connect to `{ApiUrl}/api/ExecMcp?client={AppId}`. The Entra app name stays CIPP-MCP.
+- Baselines replace classic Standards and Drift when the flag is on. They never run side by side. A fresh install with no classic Standards turns the flag on. An install that already has Standards keeps the flag off until it is enabled, then uses **Migrate from Standards** as report-only.
+- New baseline standards: EISCDA pack, CIS foundation, Global Secure Access, Teams files, external meeting bots, mailbox default audit, Azure MFA push apps, shared mailbox creation, and group reviewer. The SAM app keeps Dynamics, BAP, and Power Platform and gains the two Global Secure Access roles.
+- JIT admin approval in a tabbed layout. Open service-health issues on the dashboard. GCC message-trace fallback. Shared-mailbox license warning. Custom OneDrive shortcut names. Optional login hint on portal links. License-price import and export, including decimal prices. SharePoint version policy on existing libraries, and editing locked or classic sites. Vacation defaults that add users to groups for the vacation period. A 30-day BEC lookback for tenants with Entra ID P1 or P2. Failed API calls return a real status code, and a bulk action continues past a failed row. NinjaOne is an MSP vendor app.
+- Left out of this intake: Hudu, Halo, CIPPPwPush, the baselines module split, the performance and worker rewrite, Craft live queue, Premium hosting, and frontend dependency bumps.
+- Kept as Manage365 behavior: quarantine release, the guest mailbox permission retry, and license privilege messages.
 
 ---
 
@@ -77,7 +98,7 @@ Manage365 includes the complete CIPP feature set:
 - GDAP relationship management with GDAP trace and AI Administrator role support
 - Tenant group management with usage reporting
 - Standards alignment and drift detection (including device registration local admin controls, CIS7 alignment, and CA template package tags)
-- **Baselines** (preview) — drift-first baseline engine parallel to Applied Standards; feature-flagged off by default (see [Baselines](#baselines-manage365-v2) below)
+- **Baselines** (preview) — desired-state engine that replaces classic Standards and Drift when enabled. Off while classic Standards templates exist (see [Baselines](#baselines-manage365-v2) below)
 - Standards with custom variable support, requiredCapabilities filtering, and license capability presets
 - Group-based licensing for security groups and templates
 - Alert-only license exclusions (exclude licenses from alerting without removing them from standards checks)
@@ -164,7 +185,7 @@ Manage365 includes the complete CIPP feature set:
 - Logbook with severity color mapping
 - Custom data / directory extensions
 - Super admin tools (tenant mode, function offloading, time settings, CIPP roles, SAM app roles/permissions, **SSO**, **CIPP Users**, **container management**)
-- API client management with optional MCP access (feature-flagged; see [MCP Server](#mcp-server-manage365-v2) below)
+- API client management with MCP access on by default (see [MCP Server](#mcp-server-manage365-v2) below)
 
 ---
 
@@ -513,19 +534,19 @@ Model Context Protocol (MCP) support for internal team use — expose CIPP's rea
 - **API client toggle** -- enable **MCP Access Allowed** per API client; warning copy explains the blast radius; table column shows which clients are MCP-enabled
 - **MCP URL chip** -- Application Settings / API clients surface `…/api/ExecMcp` for connector configuration
 - **Backend** -- `Invoke-ExecMcp` (Streamable-HTTP JSON-RPC), OpenAPI-projected `.Read` tools, `MCPAllowed` check against the ApiClients table, per-call RBAC via `New-CippCoreRequest`
-- **Feature flag** -- `MCPServer` ships **disabled**; enable in Feature Flags only after deploy smoke (`tools/list` + one `.Read` tools/call)
+- **Feature flag** -- `MCPServer` ships **on** (`EnabledWhen` `DefaultOn`). A later toggle on the Features page is remembered and wins. Confirm with `tools/list` and one `.Read` tools/call after the image that contains this default is deployed
 - **Auth** -- MCP runs on the container EasyAuth path (v1's SWA audience workaround is gone)
 
 Intake notes: [docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md](docs/upstream-sync/history-cipp/MCP_INTAKE_20260803.md) (v1 intake; still applies).
 
 ### Baselines (Manage365 v2)
 
-Drift-first **Baselines** engine from upstream 10.8.x — parallel to Applied Standards, not a replacement. Native on Craft (orchestrator + Azure Tables).
+**Baselines** are the desired-state engine from upstream. When the flag is on they replace classic Standards and Drift: those scheduled runs skip, and their pages hide. The two systems never run side by side. Native on Craft (orchestrator + Azure Tables).
 
-- **Pages** -- Fleet overview, alignment, and templates under `/tenant/baselines`
-- **Backend** -- baseline modules, `Start-CIPPBaselineOrchestrator`, HTTP List/Add/Run/Stage/Override/Alignment APIs, and `backend/Config/BaselineStandards/**` definitions
-- **Feature flag** -- `Baselines` ships **disabled**; flag gates the **scheduled 12h timer** only. Enable in Feature Flags after orchestrator smoke
-- **Preserved Manage365 standards** -- Applied Standards / drift UI and license-aware scoring workflows are unchanged
+- **Pages** -- Fleet overview, alignment, and templates under `/tenant/baselines`. **Migrate from Standards** copies existing templates and leaves the originals alone. Import as report-only, then turn on automatic fixing per standard after review.
+- **Backend** -- baseline executors in `CIPPCore`, `Start-CIPPBaselineOrchestrator`, HTTP List/Add/Run/Stage/Override/Alignment APIs, and `backend/Config/BaselineStandards/**` definitions
+- **Feature flag** -- `Baselines` stays **off** while classic Standards templates exist (`EnabledWhen` `NoClassicStandards`). An install with no classic templates turns it on. Enabling it does not migrate templates by itself.
+- **6.1.3 standards** -- EISCDA, CIS foundation, Global Secure Access, Teams files, external meeting bots, mailbox default audit, Azure MFA push apps, shared mailbox creation, and group reviewer
 
 Intake notes: [docs/upstream-sync/history-cipp/BASELINES_INTAKE_20260814.md](docs/upstream-sync/history-cipp/BASELINES_INTAKE_20260814.md). Checkpoint: [docs/upstream-sync/history-cipp/SYNC_20260814.md](docs/upstream-sync/history-cipp/SYNC_20260814.md).
 
@@ -554,7 +575,7 @@ Manage365 tracks the [CyberDrain CIPP monorepo](https://github.com/CyberDrain/CI
 |---------|------|--------|
 | **Light delta** | Monthly | Low-risk bugfixes, JSON data, tests |
 | **Major cycle** | Quarterly | Full delta inventory + dependency review |
-| **Feature intake** | Backlog | New capabilities — design first; MCP and Baselines shipped in v1 and remain in v2 (flags off by default) |
+| **Feature intake** | Backlog | New capabilities — design first. MCP ships on unless toggled off. Baselines stay off while classic Standards exist |
 | **Hotfix** | As needed | Critical upstream security fixes |
 
 Start a cycle: `./Tools/Start-UpstreamSyncCycle.ps1` (single repo — frontend and backend move together).
@@ -568,8 +589,24 @@ Selective merge of v10.9.1, v10.10.3, and v11.0.2 onto the 6.0.0 monorepo. Check
 | Intake | What changed |
 |--------|----------------|
 | **v10.9.1** | Mobile UI, role simple mode, report data-source controls. Manage365 quarantine portal kept |
-| **v10.10.3** | Linux container Web App migration, MUI 9, Graph message trace, JIT/PIM. Cutover script now deletes file shares; storage account, tables, blobs, queues, and Key Vault stay. Script was not run |
-| **v11.0.2** | Baselines public beta and Security Simulator. Baselines feature flag stays off, so Applied Standards keep running. SAM manifest keeps Dynamics, BAP, and Power Platform |
+| **v10.10.3** | Linux container Web App migration, MUI 9, Graph message trace, JIT/PIM. Cutover deletes file shares; storage account, tables, blobs, queues, and Key Vault stay. Production cutover has been run |
+| **v11.0.2** | Baselines public beta and Security Simulator. The Baselines flag stays off while classic Standards exist, so Applied Standards keep running until someone enables Baselines. SAM manifest keeps Dynamics, BAP, and Power Platform |
+
+### Taken from upstream after 11.0.2 (Manage365 6.1.3 — October 2026)
+
+Selective intake of `upstream/dev` commits after tag v11.0.2. The baselines module was not split out. Hudu, Halo, CIPPPwPush, the worker rewrite, Craft live queue, and Premium hosting were not taken.
+
+| Intake | What changed |
+|--------|----------------|
+| **Baseline standards** | EISCDA, CIS foundation, Global Secure Access, Teams files, meeting bots, mailbox audit, MFA push apps, shared mailbox, group reviewer, plus the small baseline fixes |
+| **Identity** | JIT admin approval and a tabbed JIT layout. Vacation defaults and vacation group membership |
+| **Dashboard and mail** | Open service-health issues. GCC message-trace fallback. Shared-mailbox license warning. Custom OneDrive shortcut names |
+| **Portals and licensing** | Optional login hint. License-price CSV import and export, including decimal prices |
+| **SharePoint** | Version policy on existing libraries. Edit locked and classic sites |
+| **Security operations** | 30-day BEC lookback for Entra ID P1 or P2 |
+| **API** | Accurate status codes. Bulk actions continue past a failed row |
+| **NinjaOne** | NinjaOne MSP vendor app |
+| **Manage365** | Light and dark logos, V2 badge, light-mode top bar, card/table toggle, MCP default on |
 
 ### Taken from upstream (v10.8.5 — August 2026)
 
@@ -610,7 +647,7 @@ dedicated feature intakes (checkpoint docs in `docs/upstream-sync/`):
 **Deferred from that v1 cycle:** Custom Test Alerting overhaul, Purview DLP standard,
 Intune policy sync, Sherweb client changes, and assorted small items listed in
 the checkpoint docs. The SSO/CIPP-users family and MCP were deferred then; both
-are in v2 (SSO native; MCP feature-flagged).
+are in v2 (SSO native; MCP on unless toggled off).
 
 ### Taken from upstream (v10.5 / v10.5.1 — June 2026)
 
@@ -638,7 +675,7 @@ are in v2 (SSO native; MCP feature-flagged).
 
 ### Deferred (not merged)
 
-Full-file replacements for Applied Standards, CippDataTable, top-nav, and `package.json` were skipped in v1 where they would remove the items above. In **v2**, worker health / container management and SSO / CIPP Users are native. MCP and Baselines remain feature-flagged **off**. Still deferred: Teams V2, Node engine bumps, full BEC/user UI rewrite, and Default MFA UI wire-up.
+Full-file replacements for Applied Standards, CippDataTable, top-nav, and `package.json` were skipped in v1 where they would remove the items above. In **v2**, worker health / container management and SSO / CIPP Users are native. MCP ships on unless a Features toggle has turned it off. Baselines stay off while classic Standards templates exist. Still deferred: Teams V2, Node engine bumps, full BEC/user UI rewrite, Default MFA UI wire-up, Hudu, Halo, and CIPPPwPush.
 
 ### Version tracking and out-of-date alerts
 
@@ -652,7 +689,7 @@ Manage365 tracks **two** version numbers:
 After each upstream intake, bump both and redeploy:
 
 ```powershell
-./Tools/Update-Version.ps1 -UpstreamVersion 11.0.2 -Manage365Version 6.1.0
+./Tools/Update-Version.ps1 -UpstreamVersion 11.0.2 -Manage365Version 6.1.3
 ```
 
 Then **build the container image with `APP_VERSION=<upstream baseline>` and deploy it** to the App Service container. Until redeployed, the settings page may still show old versions.

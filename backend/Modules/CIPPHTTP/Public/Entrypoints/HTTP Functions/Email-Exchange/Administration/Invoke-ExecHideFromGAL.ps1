@@ -25,7 +25,7 @@ Function Invoke-ExecHideFromGAL {
 
     } catch {
         $Result = (Get-CippException -Exception $_).NormalizedError
-        $StatusCode = [HttpStatusCode]::Forbidden
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
     return ([HttpResponseContext]@{
             StatusCode = $StatusCode

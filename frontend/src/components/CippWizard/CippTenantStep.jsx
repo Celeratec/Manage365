@@ -14,6 +14,7 @@ export const CippTenantStep = (props) => {
     currentStep,
     onPreviousStep,
     preText,
+    includeTenantDefaults = false,
     includeOffboardingDefaults = false,
   } = props;
   const theme = useTheme();
@@ -55,7 +56,7 @@ export const CippTenantStep = (props) => {
         formControl={formControl}
         allTenants={allTenants}
         type={type}
-        includeOffboardingDefaults={includeOffboardingDefaults}
+        includeTenantDefaults={includeTenantDefaults || includeOffboardingDefaults}
         preselectedEnabled={true}
       />
       <CippWizardStepButtons

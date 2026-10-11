@@ -20,6 +20,7 @@ import { CippDataTable } from "../../../components/CippTable/CippDataTable";
 import { useState, useEffect } from "react";
 import { CippFormTenantSelector } from "../../../components/CippComponents/CippFormTenantSelector";
 import { CippHead } from "../../../components/CippComponents/CippHead";
+import { getCippError } from "../../../utils/get-cipp-error";
 
 const simpleColumns = ["Cmdlet"];
 const roleColumns = ["Error", "Name", "Description"];
@@ -138,6 +139,9 @@ const Page = () => {
             </Grid>
           </Grid>
         </CippButtonCard>
+        {exchangeCmdlets.isError && (
+          <Alert severity="error">{getCippError(exchangeCmdlets.error)}</Alert>
+        )}
         <CippDataTable
           title={pageTitle}
           simpleColumns={simpleColumns}
@@ -159,6 +163,9 @@ const Page = () => {
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
+          {managementRole.isError && (
+            <Alert severity="error">{getCippError(managementRole.error)}</Alert>
+          )}
           {roleDetails.isPending ? (
             <Skeleton variant="rectangular" height={200} />
           ) : (

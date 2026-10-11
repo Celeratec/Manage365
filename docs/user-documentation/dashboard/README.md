@@ -63,6 +63,8 @@ The portfolio average alignment score, with tenants grouped into bands of 90% an
 
 ### Operations and Triage
 
+The band opens with **Service health**: the open Microsoft 365 incidents and advisories across the estate, each listed once with how many of your tenants it reached. Unlike the single-tenant card this reads from the nightly cache, so it can run up to a day behind Microsoft. **View all** opens the [issues.md](../tenant/administration/service-health/issues.md "mention") page filtered to open items.
+
 Four tiles cover what needs attention right now.
 
 | Tile                                   | Description                                                                                                                                                    |
@@ -248,6 +250,16 @@ Every item the tenant's scripted alerts are currently reporting, with counts for
 * Recently resolved items appear in a muted section for two days, so you can confirm a fix landed.
 
 **History** opens the [alert-history](../tenant/administration/alert-configuration/alert-history.md "mention") page for every tenant; **Manage** opens the [alert-configuration](../tenant/administration/alert-configuration/ "mention") page, as does the card's **Alerts** heading.
+
+</details>
+
+<details>
+
+<summary>Service health</summary>
+
+Open Microsoft 365 incidents and advisories for the tenant, read live from Microsoft each time the dashboard loads, so a fresh outage shows here before it reaches any cache. Incidents are listed first. Each row shows the affected service, Microsoft's current status, and when the issue was last updated. When a customer reports something odd, check here before assuming the tenant is at fault.
+
+**View all** opens the [issues.md](../tenant/administration/service-health/issues.md "mention") page filtered to open items. The card's **Service health** heading opens the [service-health](../tenant/administration/service-health/ "mention") overview.
 
 </details>
 

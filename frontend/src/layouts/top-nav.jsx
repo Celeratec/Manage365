@@ -231,12 +231,16 @@ export const TopNav = (props) => {
     }
   }, [openUniversalSearch])
 
+  const lightBar = effectivePaletteMode === 'light'
+
   return (
     <Box
       component="header"
       sx={{
-        backgroundColor: 'neutral.900',
-        color: 'common.white',
+        backgroundColor: lightBar ? 'background.paper' : 'neutral.900',
+        color: lightBar ? 'text.primary' : 'common.white',
+        borderBottom: lightBar ? 1 : 0,
+        borderColor: 'divider',
         position: 'fixed',
         // Pushed down by the maintenance/impersonation banner when one is showing.
         // SAFE_AREA_TOP_OFFSET pads the notch when no banner covers it; banners fold
@@ -266,7 +270,7 @@ export const TopNav = (props) => {
               <Divider
                 orientation="vertical"
                 sx={{
-                  borderColor: 'neutral.500',
+                  borderColor: lightBar ? 'divider' : 'neutral.500',
                   height: 36,
                 }}
               />
@@ -279,18 +283,20 @@ export const TopNav = (props) => {
             mr: navCollapsed ? 1 : 0
           }}>
           {/* On phones the logo gives way to the tenant chip — the app's primary scoping
-              control earns the space a 24px decorative link was using. */}
+              control earns the space the wordmark was using. */}
           {!navCollapsed && (
             <Box
               component={NextLink}
               href={paths.index}
+              aria-label="Manage365 V2"
               sx={{
                 display: 'inline-flex',
-                height: 24,
-                width: 24,
+                alignItems: 'center',
+                height: 40,
+                flexShrink: 0,
               }}
             >
-              <Logo />
+              <Logo height={40} />
             </Box>
           )}
           {!navCollapsed && (

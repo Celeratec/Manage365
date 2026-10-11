@@ -39,7 +39,20 @@ const assertRelativeApiPath = (value) => {
   return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
 };
 // 503 is omitted: Craft sheds a saturated worker with 503 and asks the client to retry.
-const HTTP_STATUS_TO_NOT_RETRY = [302, 401, 403, 404, 429, 500, 502, 504];
+// A 4xx fails the same way on every attempt, except a timeout (408) or throttle (429).
+const isNoRetryStatus = (status) =>
+  status === 302 ||
+  status === 500 ||
+  status === 502 ||
+  status === 504 ||
+  (status >= 400 && status < 500 && status !== 408 && status !== 429);
+
+// A row the server answered with an error status is reported next to the others instead of
+// abandoning the rest of a bulk request; anything without a response (cancel, network) still throws.
+const bulkRowFailure = (error) => {
+  if (!error?.response) throw error;
+  return { Results: [{ resultText: getCippError(error), state: "error" }] };
+};
 
 const getRedirectLocation = (headers) => {
   if (!headers) {
@@ -75,7 +88,7 @@ const createApiRetryFn = ({ maxRetries, queryClient, dispatch, toast, getToastTi
       returnRetry = false;
     } else if (failureCount >= maxRetries) {
       returnRetry = false;
-    } else if (isAxiosError(error) && HTTP_STATUS_TO_NOT_RETRY.includes(error.response?.status ?? 0)) {
+    } else if (isAxiosError(error) && isNoRetryStatus(error.response?.status ?? 0)) {
       if (isAuthRedirectError(error)) {
         queryClient.invalidateQueries({ queryKey: ["authmecipp"] });
       }
@@ -166,16 +179,24 @@ export function ApiGetCall(props) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           const element = data[i];
-          const response = await axios.get(safeUrl, {
-            signal: signal,
-            params: { ...element, ...impersonationCacheParams() },
-            headers: await buildVersionedHeaders(),
-            timeout,
-            cippQueryKey: queryKey,
-          });
-          results.push(response.data);
-          if (onResult) {
-            onResult(response.data); // Emit each result as it arrives
+          try {
+            const response = await axios.get(safeUrl, {
+              signal: signal,
+              params: { ...element, ...impersonationCacheParams() },
+              headers: await buildVersionedHeaders(),
+              timeout,
+              cippQueryKey: queryKey,
+            });
+            results.push(response.data);
+            if (onResult) {
+              onResult(response.data);
+            }
+          } catch (error) {
+            const failed = bulkRowFailure(error);
+            results.push(failed);
+            if (onResult) {
+              onResult(failed, { failed: true });
+            }
           }
         }
         if (relatedQueryKeys) {
@@ -311,10 +332,18 @@ export function ApiPostCall({ relatedQueryKeys, onResult }) {
         const results = [];
         for (let i = 0; i < data.length; i++) {
           let element = data[i];
-          const response = await axios.post(safeUrl, element, requestConfig);
-          results.push(response.data);
-          if (onResult) {
-            onResult(response.data); // Emit each result as it arrives
+          try {
+            const response = await axios.post(safeUrl, element, requestConfig);
+            results.push(response.data);
+            if (onResult) {
+              onResult(response.data);
+            }
+          } catch (error) {
+            const failed = bulkRowFailure(error);
+            results.push(failed);
+            if (onResult) {
+              onResult(failed, { failed: true });
+            }
           }
         }
         return results;

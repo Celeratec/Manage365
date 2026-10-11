@@ -35,7 +35,13 @@ function Set-CIPPUser {
 
     #Edit the user
     try {
-        $UserPrincipalName = "$($UserObj.username)@$($UserObj.Domain ? $UserObj.Domain : $UserObj.primDomain.value)"
+        # Card edits post the existing sign-in address and no username. Building
+        # username@domain in that case would replace the address with "@".
+        $UserPrincipalName = if ($UserObj.username) {
+            "$($UserObj.username)@$($UserObj.Domain ? $UserObj.Domain : $UserObj.primDomain.value)"
+        } else {
+            $UserObj.userPrincipalName
+        }
         $normalizedOtherMails = @(
             @($UserObj.otherMails) | ForEach-Object {
                 if ($null -ne $_) {
@@ -53,7 +59,7 @@ function Set-CIPPUser {
             'displayName'       = $UserObj.displayName
             'department'        = $UserObj.department
             'mailNickname'      = $UserObj.username ? $UserObj.username : $UserObj.mailNickname
-            'userPrincipalName' = $UserPrincipalName
+            'userPrincipalName' = $(if ($UserObj.username) { $UserPrincipalName })
             'usageLocation'     = $UserObj.usageLocation.value ? $UserObj.usageLocation.value : $UserObj.usageLocation
             'jobTitle'          = $UserObj.jobTitle
             'mobilePhone'       = $UserObj.mobilePhone

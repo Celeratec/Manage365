@@ -991,7 +991,7 @@ function Invoke-HuduExtensionSync {
                         # Hash is calculated before the timestamp is added, otherwise every asset would be rewritten on every sync
                         $NewHash = Get-StringHash -String $UserBody
                         $UserAssetFields = @{
-                            microsoft_365 = "$UserBody<div>Last Updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</div>"
+                            microsoft_365 = "<div>Last Updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</div>$UserBody"
                             email_address = $user.userPrincipalName
                             licenses      = $userLicenses
                         }
@@ -1213,7 +1213,7 @@ function Invoke-HuduExtensionSync {
                     $DeviceIntuneDetailshtml = "<div><div>$DeviceLinksBlock<br /><div class=`"nasa__content`">$($DeviceOverviewBlock)$($DeviceHardwareBlock)$($DeviceEnrollmentBlock)$($DevicePolicyBlock)$($DeviceAppsBlock)$($DeviceGroupsBlock)</div></div>"
 
                     $DeviceAssetFields = @{
-                        microsoft_365 = "$DeviceIntuneDetailshtml<div>Last Updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</div>"
+                        microsoft_365 = "<div>Last Updated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')</div>$DeviceIntuneDetailshtml"
                     }
                     # Exclude the timestamp from the hash so unchanged assets are not rewritten on every sync.
                     $DeviceHashMaterial = $DeviceIntuneDetailshtml
@@ -1266,7 +1266,7 @@ function Invoke-HuduExtensionSync {
                                     $RetrieveLAPSPassword = $IsNewHuduDevice -or -not $ExistingLAPSCredentialPresent -or [string]::IsNullOrWhiteSpace($ExistingLAPSBackupDate) -or $ExistingLAPSBackupDate -ne $LAPSBackupDate
 
                                     if ($RetrieveLAPSPassword) {
-                                        $LAPSResult = Get-CIPPLapsPassword -Device $Device.azureADDeviceId -TenantFilter $TenantFilter -ErrorAction Stop
+                                        $LAPSResult = try { Get-CIPPLapsPassword -Device $Device.azureADDeviceId -TenantFilter $TenantFilter -ErrorAction Stop } catch [System.Management.Automation.ItemNotFoundException] { $null }
                                         if ($LAPSResult -isnot [string] -and $LAPSResult.state -eq 'success' -and -not [string]::IsNullOrWhiteSpace([string]$LAPSResult.accountName) -and -not [string]::IsNullOrWhiteSpace([string]$LAPSResult.copyField) -and -not [string]::IsNullOrWhiteSpace([string]$LAPSResult.backupDateTime)) {
                                             $LAPSAccount = ([string]$LAPSResult.accountName) -replace '^\.\\', ''
                                             $LAPSBackupDate = [string]$LAPSResult.backupDateTime
@@ -1274,7 +1274,7 @@ function Invoke-HuduExtensionSync {
                                             $DeviceAssetFields.laps_password = [string]$LAPSResult.copyField
                                             $CredentialFieldsChanged = $true
                                             $DeviceAssetFields.laps_backup_date = $LAPSBackupDate
-                                        } elseif ([string]$LAPSResult -like 'No LAPS password found*') {
+                                        } elseif ($null -eq $LAPSResult) {
                                             $LAPSAccount = ''
                                             $LAPSBackupDate = ''
                                             $DeviceAssetFields.laps_account = ''

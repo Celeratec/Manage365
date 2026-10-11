@@ -1078,6 +1078,11 @@ function Get-EndpointContract {
         $Code = $Match.Groups[1].Value
         if (-not $StatusCodes.Contains($Code)) { $StatusCodes.Add($Code) }
     }
+    if ($Definition.Extent.Text -match '\bGet-CippBulkStatusCode\b') {
+        foreach ($Code in 'OK', 'MultiStatus', 'InternalServerError') {
+            if (-not $StatusCodes.Contains($Code)) { $StatusCodes.Add($Code) }
+        }
+    }
 
     $Relative = [IO.Path]::GetRelativePath($RootPath, (Split-Path -Parent $Path))
     $Tag = if ($Relative -eq '.') { 'General' } else { ($Relative -split '[\\/]' -join ' > ') }
@@ -1213,6 +1218,7 @@ function Test-ArrayResponse {
 
 $StatusDescriptions = @{
     'OK'                  = 'Success'
+    'MultiStatus'         = 'Partial success - some items failed; per-item results are in the body'
     'Accepted'            = 'Accepted - work was queued and runs asynchronously'
     'BadRequest'          = 'Bad request - missing required field or invalid input'
     'Unauthorized'        = 'Unauthorized - invalid or missing bearer token'

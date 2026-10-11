@@ -30,7 +30,7 @@ Describe 'Invoke-GetCippAlerts update notice' {
 
     It 'names the scheduled restart time in the banner and the logbook when the container updates itself' {
         Mock Sync-CippContainerUpdateState { [pscustomobject]@{ AutoUpdate = 'true'; CheckInterval = '1h'; CheckTime = '23' } }
-        $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'CIPP API Out of Date' }
+        $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'Manage365 API Behind Upstream' }
         $Alert.Alert | Should -Match "scheduled restart time, 23:00 \(Europe/Amsterdam\)"
         Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Alert' -and $message -like "*scheduled restart time, 23:00 (Europe/Amsterdam)*" }
     }
@@ -43,7 +43,7 @@ Describe 'Invoke-GetCippAlerts update notice' {
             )) {
             $script:Settings = $Settings
             Mock Sync-CippContainerUpdateState { $script:Settings }
-            $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'CIPP API Out of Date' }
+            $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'Manage365 API Behind Upstream' }
             $Alert.Alert | Should -Match 'Please update to the latest version\.'
         }
     }
@@ -51,7 +51,7 @@ Describe 'Invoke-GetCippAlerts update notice' {
     It 'does not read the container schedule outside a container instance' {
         $env:CIPPNG = $null
         Mock Sync-CippContainerUpdateState { throw 'should not be called' }
-        $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'CIPP API Out of Date' }
+        $Alert = (Invoke-GetCippAlerts -Request $script:Request).Body | Where-Object { $_.title -eq 'Manage365 API Behind Upstream' }
         $Alert.Alert | Should -Match 'Please update to the latest version\.'
         Should -Invoke Sync-CippContainerUpdateState -Times 0
     }

@@ -29,7 +29,7 @@ function Invoke-DeleteTestReport {
         $Body = [PSCustomObject]@{
             Results = "Failed to delete report: $($ErrorMessage.NormalizedError)"
         }
-        $StatusCode = [HttpStatusCode]::BadRequest
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
 
     return ([HttpResponseContext]@{
