@@ -1,7 +1,8 @@
 import PropTypes from "prop-types";
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { orange } from "../theme/colors";
+
+const badgeMagenta = "#D10078";
 
 const logoSrc = {
   light: "/logo-light.png",
@@ -15,8 +16,8 @@ export const Logo = (props) => {
   const resolvedHeight = typeof height === "number" ? `${height}px` : height;
   const badgeSize =
     typeof height === "number"
-      ? Math.max(10, Math.round(height * 0.28))
-      : { xs: 11, md: 16 };
+      ? Math.max(9, Math.round(height * 0.2))
+      : { xs: 9, md: 12 };
 
   return (
     <Box
@@ -37,14 +38,15 @@ export const Logo = (props) => {
       <Box
         component="span"
         sx={{
-          px: 0.625,
-          borderRadius: "4px",
-          bgcolor: orange.main,
-          color: orange.contrastText,
+          px: 0.4,
+          borderRadius: "3px",
+          bgcolor: badgeMagenta,
+          color: "#fff",
           fontSize: badgeSize,
-          fontWeight: 800,
-          letterSpacing: "0.06em",
-          lineHeight: 1.6,
+          fontWeight: 700,
+          letterSpacing: "0.04em",
+          lineHeight: 1.3,
+          textDecoration: "none",
           flexShrink: 0,
         }}
       >

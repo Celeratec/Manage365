@@ -160,6 +160,9 @@ export const MobileNav = (props) => {
             alignItems: "center",
             height: 40,
             mb: 1.5,
+            color: "inherit",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "none" },
           }}
         >
           <Logo height={40} />
