@@ -120,4 +120,52 @@ Describe 'Set-CIPPMCPClientApp' {
         $Result = Set-CIPPMCPClientApp -AppId $script:AppId -Headers @{}
         $Result.Success | Should -BeTrue
     }
+
+    It 'drops a required permission whose app no longer has a service principal' {
+        Mock -CommandName New-GraphGetRequest -MockWith {
+            [PSCustomObject]@{
+                id                     = $script:AppObjectId
+                appId                  = $script:AppId
+                identifierUris         = @("api://$script:AppId")
+                web                    = [PSCustomObject]@{ redirectUris = @() }
+                spa                    = [PSCustomObject]@{ redirectUris = @() }
+                publicClient           = [PSCustomObject]@{ redirectUris = @() }
+                requiredResourceAccess = @(
+                    [PSCustomObject]@{
+                        resourceAppId  = 'gone-app'
+                        resourceAccess = @([PSCustomObject]@{ id = 'stale-scope'; type = 'Scope' })
+                    }
+                )
+            }
+        }
+        Mock -CommandName New-GraphGetRequest -ParameterFilter { $uri -like '*servicePrincipals(appId=''gone-app'')*' } -MockWith {
+            throw "Resource 'gone-app' does not exist or one of its queried reference-property objects are not present."
+        }
+
+        Set-CIPPMCPClientApp -AppId $script:AppId -Headers @{}
+
+        Should -Invoke -CommandName New-GraphPOSTRequest -ParameterFilter {
+            $type -eq 'PATCH' -and
+            $(
+                $Rra = @(($body | ConvertFrom-Json).requiredResourceAccess)
+                -not ($Rra.resourceAppId -contains 'gone-app')
+            )
+        }
+    }
+
+    It 'retries the client patch when Entra has not replicated the app yet' {
+        $script:PatchAttempts = 0
+        Mock -CommandName Start-Sleep -MockWith { }
+        Mock -CommandName New-GraphPOSTRequest -ParameterFilter { $type -eq 'PATCH' } -MockWith {
+            $script:PatchAttempts++
+            if ($script:PatchAttempts -eq 1) {
+                throw "Resource '697d8170-d31c-4ef6-9807-549583c72e21' does not exist or one of its queried reference-property objects are not present."
+            }
+        }
+
+        $Result = Set-CIPPMCPClientApp -AppId $script:AppId -Headers @{}
+
+        $Result.Success | Should -BeTrue
+        $script:PatchAttempts | Should -Be 2
+    }
 }

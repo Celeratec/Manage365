@@ -81,6 +81,24 @@ function Set-CIPPMCPClientApp {
     $GraphSeen = $false
     $ResourceSeen = $false
     foreach ($Resource2 in @($App.requiredResourceAccess)) {
+        $ResourceId = [string]$Resource2.resourceAppId
+        if ([string]::IsNullOrWhiteSpace($ResourceId)) { continue }
+        # A deleted app left in requiredResourceAccess makes the whole patch fail with
+        # "Resource '<id>' does not exist". Keep Graph and the MCP resource; drop the rest
+        # only when that app has no service principal in this tenant.
+        if ($ResourceId -ne $GraphResourceId -and $ResourceId -ne $ResourceAppId) {
+            $ResourceSp = $null
+            try {
+                $ResourceSp = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$ResourceId')?`$select=id" -NoAuthCheck $true -AsApp $true
+            } catch {
+                $MissingResource = $_.Exception.Message -match "does not exist or one of its queried reference-property objects are not present"
+                if (-not $MissingResource) { throw }
+            }
+            if (-not $ResourceSp.id) {
+                Write-LogMessage -headers $Headers -API 'ExecApiClient' -message "Skipping required permission for resource $ResourceId on MCP client $AppId because that app has no service principal in this tenant." -Sev 'Warning'
+                continue
+            }
+        }
         $Access = [System.Collections.Generic.List[object]]::new()
         foreach ($A in @($Resource2.resourceAccess)) { $Access.Add(@{ id = $A.id; type = $A.type }) }
         if ($Resource2.resourceAppId -eq $GraphResourceId) {
@@ -109,7 +127,21 @@ function Set-CIPPMCPClientApp {
     } | ConvertTo-Json -Depth 10 -Compress
 
     if ($PSCmdlet.ShouldProcess($AppId, 'Configure API client as MCP OAuth client')) {
-        $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/applications/$($App.id)" -type PATCH -body $PatchBody -NoAuthCheck $true -asapp $true
+        $NotReplicatedPattern = "does not exist or one of its queried reference-property objects are not present"
+        for ($Attempt = 1; $Attempt -le 5; $Attempt++) {
+            try {
+                $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/applications/$($App.id)" -type PATCH -body $PatchBody -NoAuthCheck $true -asapp $true
+                break
+            } catch {
+                $ErrMsg = $_.Exception.Message
+                if ($ErrMsg -match $NotReplicatedPattern -and $Attempt -lt 5) {
+                    Write-LogMessage -headers $Headers -API 'ExecApiClient' -message "MCP client ${AppId} patch is waiting for Entra to replicate the new app (attempt $Attempt of 5)." -Sev 'Info'
+                    Start-Sleep -Seconds 3
+                    continue
+                }
+                throw
+            }
+        }
         Write-LogMessage -headers $Headers -API 'ExecApiClient' -message "Configured API client $AppId as an MCP OAuth client (callbacks, public client flows, resource permissions) against resource $ResourceAppId." -Sev 'Info'
 
         # OIDC + offline_access on Graph are admin-consented tenant-wide (they can't be
