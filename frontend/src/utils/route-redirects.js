@@ -43,6 +43,19 @@ export const routeRedirects = {
     '/identity/administration/bec/case',
   '/identity/bec': '/identity/administration/bec',
   '/identity/bec/case': '/identity/administration/bec/case',
+  // JIT Admin and Role Templates moved into the JIT Admin tabbed layout.
+  '/identity/administration/jit-admin-templates':
+    '/identity/administration/jit-admin/templates',
+  '/identity/administration/jit-admin-templates/add':
+    '/identity/administration/jit-admin/templates/add',
+  '/identity/administration/jit-admin-templates/edit':
+    '/identity/administration/jit-admin/templates/edit',
+  '/identity/administration/jit-role-templates':
+    '/identity/administration/jit-admin/role-templates',
+  '/identity/administration/jit-role-templates/add':
+    '/identity/administration/jit-admin/role-templates/add',
+  '/identity/administration/jit-role-templates/edit':
+    '/identity/administration/jit-admin/role-templates/edit',
 }
 
 export const getRedirectTarget = (pathname) => {

@@ -82,8 +82,10 @@ function Add-CIPPGroupMember {
                         ($_.ExchangeIdentity ?? $_.Id) -eq $ExoResult.Operation.target
                     } | Select-Object -First 1
                     $Label = $Entry.Label ?? $ExoResult.Operation.target
-                    if ($ExoResult.Success) {
-                        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ExoResult.Operation.message -Sev 'Info'
+                    $AlreadyMember = $ExoResult.ErrorMessage -match 'already (a )?member|already exist'
+                    if ($ExoResult.Success -or $AlreadyMember) {
+                        $ExoMessage = if ($AlreadyMember) { "Member $Label is already in group $($GroupName)" } else { $ExoResult.Operation.message }
+                        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ExoMessage -Sev 'Info'
                         $SuccessfulMembers.Add($Label)
                     } else {
                         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to add member $Label to group $($GroupName): $($ExoResult.ErrorMessage)" -Sev 'Error'
@@ -106,12 +108,17 @@ function Add-CIPPGroupMember {
                 foreach ($Result in $AddResults) {
                     $Entry = $ValidMembers | Where-Object { $_.Id -eq $Result.id } | Select-Object -First 1
                     $Label = $Entry.Label ?? $Result.id
-                    if ($Result.status -lt 200 -or $Result.status -gt 299) {
-                        $ErrorText = Get-NormalizedError -message ($Result.body.error.message ?? "Request failed with status $($Result.status)") | Select-Object -First 1
+                    $GraphError = $Result.body.error.message
+                    $AlreadyMember = $GraphError -match 'already exist'
+                    if (($Result.status -ge 200 -and $Result.status -le 299) -or $AlreadyMember) {
+                        if ($AlreadyMember) {
+                            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Member $Label is already in group $($GroupName)" -Sev 'Info'
+                        }
+                        $SuccessfulMembers.Add($Label)
+                    } else {
+                        $ErrorText = Get-NormalizedError -message ($GraphError ?? "Request failed with status $($Result.status)") | Select-Object -First 1
                         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to add member $Label to group $($GroupName): $ErrorText" -Sev 'Error'
                         $FailedMembers.Add("$Label ($ErrorText)")
-                    } else {
-                        $SuccessfulMembers.Add($Label)
                     }
                 }
             }

@@ -104,7 +104,7 @@ function Invoke-ExecGraphExplorerPreset {
     } catch {
         $Success = $false
         $Message = $_.Exception.Message
-        $StatusCode = [HttpStatusCode]::BadRequest
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
 
     if ($Action -in @('Save', 'Delete', 'Copy')) {

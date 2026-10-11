@@ -16,9 +16,12 @@ export const CippFormTenantSelector = ({
   preselectedEnabled = false,
   removeOptions = [],
   includeGroups = false,
+  includeTenantDefaults = false,
+  // Deprecated alias for includeTenantDefaults.
   includeOffboardingDefaults = false,
   ...other
 }) => {
+  const includeDefaults = includeTenantDefaults || includeOffboardingDefaults;
   const validators = () => {
     if (required) {
       return {
@@ -39,8 +42,8 @@ export const CippFormTenantSelector = ({
       params.append("AllTenantSelector", "true");
     }
 
-    if (includeOffboardingDefaults) {
-      params.append("IncludeOffboardingDefaults", "true");
+    if (includeDefaults) {
+      params.append("IncludeTenantDefaults", "true");
     }
 
     return params.toString()
@@ -52,8 +55,8 @@ export const CippFormTenantSelector = ({
   const tenantList = ApiGetCall({
     url: buildApiUrl(),
     queryKey: allTenants
-      ? `ListTenants-FormAllTenantSelector${includeOffboardingDefaults ? "-WithOffboarding" : ""}`
-      : `ListTenants-FormnotAllTenants${includeOffboardingDefaults ? "-WithOffboarding" : ""}`,
+      ? `ListTenants-FormAllTenantSelector${includeDefaults ? "-WithDefaults" : ""}`
+      : `ListTenants-FormnotAllTenants${includeDefaults ? "-WithDefaults" : ""}`,
   });
 
   // Fetch tenant group list if includeGroups is true
@@ -77,8 +80,9 @@ export const CippFormTenantSelector = ({
               defaultDomainName: tenant.defaultDomainName,
               displayName: tenant.displayName,
               customerId: tenant.customerId,
-              ...(includeOffboardingDefaults && {
+              ...(includeDefaults && {
                 offboardingDefaults: tenant.offboardingDefaults,
+                vacationDefaults: tenant.vacationDefaults,
               }),
             },
           }))
@@ -95,7 +99,7 @@ export const CippFormTenantSelector = ({
 
       setOptions([...tenantData, ...groupData]);
     }
-  }, [tenantList.isSuccess, tenantGroupList.isSuccess, includeGroups, includeOffboardingDefaults]);
+  }, [tenantList.isSuccess, tenantGroupList.isSuccess, includeGroups, includeDefaults]);
 
   return (
     <CippFormComponent

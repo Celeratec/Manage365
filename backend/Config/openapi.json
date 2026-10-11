@@ -12106,6 +12106,91 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/EditTenantVacationDefaults": {
+      "post": {
+        "summary": "EditTenantVacationDefaults",
+        "operationId": "EditTenantVacationDefaults",
+        "tags": [
+          "Tenant > Administration > Tenant"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "customerId": {
+                    "type": "string",
+                    "description": "Interact with query parameters or the body of the request."
+                  },
+                  "defaultDomainName": {
+                    "type": "string"
+                  },
+                  "vacationDefaults": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the fields written into the storage table it reads. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
+                  "properties": {
+                    "ETag": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "PartitionKey": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "RowKey": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "Timestamp": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "Value": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Config.ReadWrite",
+        "x-cipp-any-tenant": true
+      }
+    },
     "/api/EditTransportRule": {
       "post": {
         "summary": "EditTransportRule",
@@ -14136,7 +14221,7 @@
                   },
                   "MCPAllowed": {
                     "type": "string",
-                    "description": "When this client is MCP-enabled it becomes one of the OAuth client apps that AI connectors sign in as. Several MCPAllowed clients may coexist (each with its own role/IP/redirects/CA); the dedicated CIPP-MCP app is the shared protected resource. Configure this client (callbacks, public client flows, resource permissions + consent) and ensure the resource app exists (Set-CIPPMCPClientApp -> New-CIPPMcpResourceApp)."
+                    "description": "When this client is MCP-enabled it becomes one of the OAuth client apps that AI connectors sign in as. Several MCPAllowed clients may coexist (each with its own redirects); the dedicated CIPP-MCP app is the shared protected resource. Configure this client (callbacks, public client flows, resource permissions + consent) and ensure the resource app exists (Set-CIPPMCPClientApp -> New-CIPPMcpResourceApp)."
                   },
                   "PublicRedirectUris": {
                     "type": "string"
@@ -28476,7 +28561,7 @@
         "tags": [
           "Tenant > Reports"
         ],
-        "description": "Manage MSP-global license price overrides used by the license optimization report.\nSetPrice upserts a per-SKU monthly price; RemovePrice deletes an override so the SKU falls\nback to the shipped MSRP estimate.",
+        "description": "Manage MSP-global license price overrides used by the license optimization report.\nSetPrice upserts a per-SKU monthly price; RemovePrice deletes an override so the SKU falls\nback to the shipped MSRP estimate. BulkImport validates or applies a pricing CSV batch.",
         "requestBody": {
           "required": true,
           "content": {
@@ -28487,10 +28572,11 @@
                   "Action": {
                     "type": "string",
                     "enum": [
+                      "BulkImport",
                       "RemovePrice",
                       "SetPrice"
                     ],
-                    "description": "SetPrice or RemovePrice"
+                    "description": "SetPrice, RemovePrice, or BulkImport"
                   },
                   "Currency": {
                     "type": "string",
@@ -28500,8 +28586,31 @@
                     "type": "number",
                     "description": "Monthly price per seat, in the given currency"
                   },
+                  "Mode": {
+                    "type": "string",
+                    "enum": [
+                      "Validate",
+                      "Apply"
+                    ],
+                    "description": "BulkImport validation or apply operation"
+                  },
                   "Product_Display_Name": {
                     "type": "string"
+                  },
+                  "Rows": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "Currency": { "type": "string" },
+                        "CurrentPrice": { "type": ["number", "null"] },
+                        "MonthlyPrice": { "type": ["number", "string", "null"] },
+                        "Product_Display_Name": { "type": "string" },
+                        "skuId": { "type": "string" },
+                        "skuPartNumber": { "type": "string" }
+                      },
+                      "required": ["Currency", "MonthlyPrice", "Product_Display_Name", "skuId", "skuPartNumber"]
+                    }
                   },
                   "skuId": {
                     "type": "string",
@@ -28538,6 +28647,9 @@
                       "type": "number",
                       "x-cipp-field-source": "storage"
                     },
+                    "Updated": { "type": "integer" },
+                    "Unchanged": { "type": "integer" },
+                    "Failed": { "type": "integer" },
                     "PartitionKey": {
                       "x-cipp-field-source": "storage"
                     },
@@ -33066,7 +33178,7 @@
         "tags": [
           "Identity > Administration > Users"
         ],
-        "description": "Accepts one { username, userid, siteUrl, destination, tenantFilter } object or an array of them (the Users table bulk action). Every user is attempted: a failure for one user (for example a shortcut that already exists) is reported in its place and does not stop the remaining users, so a bulk rollout never has to be re-run to find out where it got to. The response is one result per user plus a summary line, and only returns an error status when no user succeeded.",
+        "description": "Accepts one { username, userid, siteUrl, destination, optional shortcutName, tenantFilter } object or an array of them (the Users table bulk action). Every user is attempted: a failure for one user (for example a shortcut that already exists) is reported in its place and does not stop the remaining users, so a bulk rollout never has to be re-run to find out where it got to. The response is one result per user plus a summary line, and only returns an error status when no user succeeded.",
         "requestBody": {
           "required": false,
           "content": {
@@ -37701,6 +37813,86 @@
           }
         ],
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
+    "/api/ExecScheduleGroupMembershipVacation": {
+      "post": {
+        "summary": "Schedule group membership for a vacation period",
+        "operationId": "ExecScheduleGroupMembershipVacation",
+        "tags": [
+          "Identity > Administration > Users"
+        ],
+        "description": "Adds the selected users to each selected group at the start date and removes them again at the end date. Users who were already members of a group are left untouched.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endDate": {
+                    "type": "string",
+                    "description": "Unix timestamp for when the users are removed"
+                  },
+                  "Groups": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    },
+                    "description": "The groups to add the users to, as { value = group id; label = display name }"
+                  },
+                  "postExecution": {
+                    "type": "string"
+                  },
+                  "reference": {
+                    "type": "string"
+                  },
+                  "startDate": {
+                    "type": "string",
+                    "description": "Unix timestamp for when the users are added"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "Users": {
+                    "type": "string",
+                    "description": "The users going on vacation"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Identity.Group.ReadWrite"
       }
     },
     "/api/ExecScheduleMailboxVacation": {
@@ -66435,8 +66627,17 @@
         "tags": [
           "Tenant > Reports"
         ],
-        "description": "Lists Microsoft 365 service health issues for a tenant: the incidents and advisories Microsoft has posted about service outages, degradations and their status, impact, affected services and timeline. For AllTenants each issue is returned once with the tenants it affects (Tenants, TenantCount). Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
+        "description": "Lists Microsoft 365 service health issues for a tenant: the incidents and advisories Microsoft has posted about service outages, degradations and their status, impact, affected services and timeline. For AllTenants each issue is returned once with the tenants it affects (Tenants, TenantCount). Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants. Pass Open=true to return only unresolved issues.",
         "parameters": [
+          {
+            "name": "Open",
+            "in": "query",
+            "description": "Set to true to return only unresolved issues (open incidents and advisories). Resolved issues carry their full post history, so this keeps the dashboard payload small.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -71493,6 +71694,16 @@
           {
             "name": "IncludeOffboardingDefaults",
             "in": "query",
+            "description": "IncludeOffboardingDefaults is the pre-rename query parameter and still accepted.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "IncludeTenantDefaults",
+            "in": "query",
+            "description": "IncludeOffboardingDefaults is the pre-rename query parameter and still accepted.",
             "required": false,
             "schema": {
               "type": "string"
@@ -71597,6 +71808,16 @@
           {
             "name": "IncludeOffboardingDefaults",
             "in": "query",
+            "description": "IncludeOffboardingDefaults is the pre-rename query parameter and still accepted.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "IncludeTenantDefaults",
+            "in": "query",
+            "description": "IncludeOffboardingDefaults is the pre-rename query parameter and still accepted.",
             "required": false,
             "schema": {
               "type": "string"

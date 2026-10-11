@@ -62,7 +62,7 @@ function Invoke-ListRoles {
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         $GraphRequest = "Failed to list roles for tenant $TenantFilter. $($ErrorMessage.NormalizedError)"
-        $StatusCode = [HttpStatusCode]::BadRequest
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
 
     return [HttpResponseContext]@{

@@ -25,6 +25,17 @@ BeforeAll {
 }
 
 Describe 'Test-CIPPOffboardingRequest OOO' {
+    It 'accepts a user object that only has userPrincipalName' {
+        $Result = Test-CIPPOffboardingRequest -Body ([pscustomobject]@{
+                tenantFilter = 'contoso.com'
+                user         = @([pscustomobject]@{ userPrincipalName = 'pat@contoso.com' })
+                DisableSignIn = $true
+            })
+
+        $Result.IsValid | Should -BeTrue
+        $Result.Errors | Should -BeNullOrEmpty
+    }
+
     It 'accepts a real Out of Office message as the only action' {
         $Result = Test-CIPPOffboardingRequest -Body (New-ValidOffboardBody -Extra @{
                 OOO = '<p>No longer at %tenantname%.</p>'

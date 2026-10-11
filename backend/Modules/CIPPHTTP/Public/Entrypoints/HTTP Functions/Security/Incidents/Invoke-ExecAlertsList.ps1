@@ -118,7 +118,7 @@ function Invoke-ExecAlertsList {
         }
 
     } catch {
-        $StatusCode = [HttpStatusCode]::Forbidden
+        $StatusCode = [HttpStatusCode]::InternalServerError
         $body = $_.Exception.message
     }
     if (!$body) {

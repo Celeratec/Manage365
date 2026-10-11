@@ -40,7 +40,8 @@ function Test-CIPPOffboardingRequest {
     # itself (its string form is "@{...}", which would otherwise sneak past the UPN '@' check).
     $Users = @(
         $Body.user | ForEach-Object {
-            $UserValue = $_.value ?? $_
+            # Also accept { userPrincipalName = '<upn>' } from callers that do not send value.
+            $UserValue = $_.value ?? $_.userPrincipalName ?? $_
             if ($UserValue -is [string]) { $UserValue }
         } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     )

@@ -123,7 +123,7 @@ function Invoke-ListUserSettings {
         $Results = $UserSettings
     } catch {
         $Results = "Function Error: $($_.Exception.Message)"
-        $StatusCode = [HttpStatusCode]::BadRequest
+        $StatusCode = [HttpStatusCode]::InternalServerError
     }
     return ([HttpResponseContext]@{
             StatusCode = $StatusCode

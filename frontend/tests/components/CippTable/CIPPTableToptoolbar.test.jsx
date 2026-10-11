@@ -499,4 +499,34 @@ describe('CIPPTableToptoolbar bulk noConfirm customFunction', () => {
 
     await waitFor(() => expect(customFunction).toHaveBeenCalledTimes(2))
   })
+
+  it('switches a configured list between card view and table view', async () => {
+    localStorage.clear()
+    const user = userEvent.setup()
+    renderWithProviders(
+      <CippDataTable
+        title="Card toggle"
+        queryKey="StaticDataCardToggle"
+        data={rows}
+        simpleColumns={['displayName', 'mail', 'department']}
+        cardConfig={{ title: 'displayName' }}
+        maxHeightOffset="100px"
+      />
+    )
+
+    const cardToggle = await screen.findByRole('button', { name: 'card view' })
+    expect(cardToggle).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(screen.getByRole('button', { name: 'table view' }))
+    expect(await screen.findByRole('button', { name: 'table view' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+
+    await user.click(screen.getByRole('button', { name: 'card view' }))
+    expect(await screen.findByRole('button', { name: 'card view' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    )
+  })
 })

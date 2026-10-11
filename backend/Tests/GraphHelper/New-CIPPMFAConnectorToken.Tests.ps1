@@ -62,6 +62,49 @@ Describe 'New-CIPPMFAConnectorToken secret caching' {
         Should -Invoke New-GraphPostRequest -Times 1 -Exactly
         Should -Invoke Add-CIPPAzDataTableEntity -Times 1 -Exactly
     }
+
+    It 'surfaces the Entra error description when the token exchange keeps failing' {
+        Mock Get-CIPPAzDataTableEntity { $null }
+        Mock Start-Sleep {}
+        Mock Invoke-RestMethod {
+            $Record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('Response status code does not indicate success: 400 (Bad Request).'), 'Token', 'InvalidOperation', $null)
+            $Record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":"invalid_request","error_description":"AADSTS53003: Access has been blocked by Conditional Access policies."}')
+            throw $Record
+        }
+
+        { New-CIPPMFAConnectorToken -TenantFilter $script:TenantGuid } | Should -Throw -ExpectedMessage '*AADSTS53003*'
+        Should -Not -Invoke Add-CIPPAzDataTableEntity
+    }
+
+    It 'names the disabled app and the baseline for <Code>, without reprovisioning or retrying' -TestCases @(
+        @{ Code = 'AADSTS7000112'; Expected = 'The Azure Multi-Factor Auth Client app (981f26a1-7f43-403b-a875-f8b09b8cd720) is disabled in this tenant. Enable it with the ''Azure MFA push notification apps'' baseline standard, or in Entra under Enterprise applications.' }
+        @{ Code = 'AADSTS500014'; Expected = 'The Azure Multi-Factor Auth Connector app (1f5530b3-261a-47a9-b357-ded261e17918) is disabled in this tenant. Enable it with the ''Azure MFA push notification apps'' baseline standard, or in Entra under Enterprise applications.' }
+    ) {
+        param($Code, $Expected)
+        Mock Get-CIPPAzDataTableEntity { [pscustomobject]@{ SecretValue = 'CACHEDSECRET' } }
+        Mock Start-Sleep {}
+        Mock Invoke-RestMethod {
+            $Record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('400 (Bad Request).'), 'Token', 'InvalidOperation', $null)
+            $Record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new((@{ error = 'unauthorized_client'; error_description = "${Code}: Application is disabled. Trace ID: abc Correlation ID: def Timestamp: 2026-10-06 04:15:04Z" } | ConvertTo-Json))
+            throw $Record
+        }
+
+        { New-CIPPMFAConnectorToken -TenantFilter $script:TenantGuid } | Should -Throw -ExpectedMessage $Expected
+        Should -Invoke Invoke-RestMethod -Times 1 -Exactly
+        Should -Not -Invoke New-GraphPostRequest
+    }
+
+    It 'strips the Entra trace trailer from an unmapped error' {
+        Mock Get-CIPPAzDataTableEntity { $null }
+        Mock Start-Sleep {}
+        Mock Invoke-RestMethod {
+            $Record = [System.Management.Automation.ErrorRecord]::new([System.Exception]::new('400 (Bad Request).'), 'Token', 'InvalidOperation', $null)
+            $Record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":"invalid_request","error_description":"AADSTS53003: Access has been blocked by Conditional Access policies. Trace ID: abc\r\nCorrelation ID: def\r\nTimestamp: 2026-10-06 04:15:04Z"}')
+            throw $Record
+        }
+
+        { New-CIPPMFAConnectorToken -TenantFilter $script:TenantGuid } | Should -Throw -ExpectedMessage 'Failed to get a token for the Azure Multi-Factor Auth Client app: AADSTS53003: Access has been blocked by Conditional Access policies.'
+    }
 }
 
 Describe 'New-CIPPMFAConnectorToken Key Vault (production) storage path' {

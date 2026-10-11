@@ -18,7 +18,7 @@ Select an Entra ID group to assign to this role. This will automatically assign 
 {% step %}
 ### (Optional) JIT Role Template
 
-Select a [JIT Role Template](../../../../identity/administration/jit-role-templates/README.md) to restrict which Entra ID directory roles members of this role can grant when creating a JIT Admin. Members will also only see existing JIT Admins whose roles fall entirely within the template. Leave blank to apply no restriction from this role. A template on any other role a user holds still applies, because restrictions combine rather than cancel out.
+Select a [JIT Role Template](../../../../identity/administration/jit-admin/role-templates/README.md) to restrict which Entra ID directory roles members of this role can grant when creating a JIT Admin. Members will also only see existing JIT Admins whose roles fall entirely within the template. Leave blank to apply no restriction from this role. A template on any other role a user holds still applies, because restrictions combine rather than cancel out.
 {% endstep %}
 
 {% step %}

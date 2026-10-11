@@ -77,6 +77,11 @@ const Page = () => {
       value: [{ id: "Name", value: "OOO Vacation" }],
       type: "column",
     },
+    {
+      filterName: "Group Membership",
+      value: [{ id: "Name", value: "Group Membership Vacation" }],
+      type: "column",
+    },
   ];
 
   return (

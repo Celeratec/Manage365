@@ -114,8 +114,8 @@ describe('CippAuthShell', () => {
   it('renders the brand lockup and tagline, with no link in the panel', () => {
     renderWithTheme(<CippAuthShell title="Access Denied" />)
 
-    expect(screen.getByRole('img', { name: 'Manage365' })).toHaveAttribute('src', '/logo.png')
-    expect(screen.getByText('CyberDrain Improved Partner Portal')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Manage365' })).toHaveAttribute('src', '/logo-dark.png')
+    expect(screen.getByText('Microsoft 365 management')).toBeInTheDocument()
     // the panel must stay link-free: unauthenticated.js asserts no Login link
     // survives in the return-to-home case
     expect(screen.queryByRole('link')).not.toBeInTheDocument()

@@ -19,6 +19,8 @@ import {
   ListSubheader,
   Divider,
   IconButton,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
   Chip,
@@ -43,6 +45,8 @@ import {
   MoreVert as MoreVertIcon,
   Fullscreen as FullscreenIcon,
   ViewAgenda,
+  ViewModule as ViewModuleIcon,
+  TableRows as TableRowsIcon,
   Schedule as ScheduleIcon,
   SevereCold,
 } from '@mui/icons-material'
@@ -1235,6 +1239,44 @@ export const CIPPTableToptoolbar = React.memo(
               />
             </ModernSearchContainer>
 
+            {/* Manage365 card/table switch. Hidden when this table has no card config. */}
+            {cardConfigAvailable && onViewModeChange && !mdDown && (
+              <ToggleButtonGroup
+                value={viewMode}
+                exclusive
+                onChange={(event, newMode) => {
+                  if (newMode) onViewModeChange(newMode)
+                }}
+                size="small"
+                sx={{
+                  height: 40,
+                  flexShrink: 0,
+                  '& .MuiToggleButton-root': {
+                    px: 1.5,
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    '&.Mui-selected': {
+                      bgcolor: 'primary.main',
+                      color: 'primary.contrastText',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                    },
+                  },
+                }}
+              >
+                <ToggleButton value="cards" aria-label="card view">
+                  <Tooltip title="Card View">
+                    <ViewModuleIcon fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+                <ToggleButton value="table" aria-label="table view">
+                  <Tooltip title="Table View">
+                    <TableRowsIcon fontSize="small" />
+                  </Tooltip>
+                </ToggleButton>
+              </ToggleButtonGroup>
+            )}
+
             {/* Desktop Buttons - always render for measurement, hide when in compact mode */}
             {!mdDown && (
               <Box
@@ -1442,6 +1484,21 @@ export const CIPPTableToptoolbar = React.memo(
                     : 'Fullscreen'}
                 </ListItemText>
               </MenuItem>
+              {cardConfigAvailable && onViewModeChange && (
+                <MenuItem
+                  onClick={() => {
+                    onViewModeChange(viewMode === 'cards' ? 'table' : 'cards')
+                    setActionMenuAnchor(null)
+                  }}
+                >
+                  <ListItemIcon>
+                    {viewMode === 'cards' ? <TableRowsIcon /> : <ViewModuleIcon />}
+                  </ListItemIcon>
+                  <ListItemText>
+                    {viewMode === 'cards' ? 'Switch to Table View' : 'Switch to Card View'}
+                  </ListItemText>
+                </MenuItem>
+              )}
             </Menu>
 
             {/* Filters Menu */}

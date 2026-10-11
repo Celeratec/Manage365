@@ -154,14 +154,15 @@ export const MobileNav = (props) => {
           component={NextLink}
           href={paths.index}
           onClick={onClose}
+          aria-label="Manage365 V2"
           sx={{
             display: "inline-flex",
-            height: 24,
-            width: 24,
+            alignItems: "center",
+            height: 40,
             mb: 1.5,
           }}
         >
-          <Logo />
+          <Logo height={40} />
         </Box>
           <OutlinedInput
             fullWidth

@@ -198,7 +198,7 @@ Describe 'Add-CIPPGroupMember' {
             $Result | Should -Be 'Successfully added Nested SG to group Contoso Group.'
         }
 
-        It 'reports both the successes and the failures of a mixed batch without throwing' {
+        It 'counts a member who is already in the group as a success' {
             Mock -CommandName New-GraphBulkRequest -MockWith {
                 New-AddResponse -Results @(
                     @{ id = 'user-1'; status = 204 }
@@ -208,7 +208,7 @@ Describe 'Add-CIPPGroupMember' {
 
             $Result = Add-CIPPGroupMember -GroupType 'Security' -GroupId 'group-guid' -Member @('ok@contoso.com', 'bad@contoso.com') -TenantFilter 'contoso.com'
 
-            $Result | Should -Be 'Successfully added ok@contoso.com to group Contoso Group. Failed to add bad@contoso.com (One or more added object references already exist).'
+            $Result | Should -Be 'Successfully added ok@contoso.com, bad@contoso.com to group Contoso Group.'
         }
 
         It 'throws when every member of the batch failed' {

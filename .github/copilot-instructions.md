@@ -38,3 +38,17 @@ fix(graph): handle expired token on retry
 docs: update authentication model overview
 refactor(standards)!: rename remediation parameter
 ```
+
+## HTTP endpoint status codes
+
+Endpoints in `backend/Modules/CIPPHTTP` must return a status code that matches what happened. The full guide is
+`.github/agents/CIPP-Endpoint-Agent.md`.
+
+- `200` success, `400` invalid input or refused request, `404` named resource missing, `403` CIPP access check only,
+  `500` upstream (Graph/Exchange/SharePoint/Azure/table) or unexpected failure.
+- Multi-item endpoints: `$StatusCode = Get-CippBulkStatusCode -Total $Total -Failed $Failed` (200 / 207 / 500).
+- A `catch` never returns `[HttpStatusCode]::OK`. Use `$StatusCode = Get-CippErrorStatusCode -ErrorRecord $_`, which
+  maps `ArgumentException` to 400, `ItemNotFoundException` to 404 and anything else to 500.
+- Validate input before the `try`, as an `if` that returns `BadRequest`, so it can't be mistaken for an upstream failure.
+- Helpers throw `[System.ArgumentException]` / `[System.Management.Automation.ItemNotFoundException]` for input and
+  not-found errors, and return per-item `@{ resultText; state }` results rather than swallowing failures into strings.
