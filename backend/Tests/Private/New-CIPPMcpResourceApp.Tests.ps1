@@ -107,4 +107,20 @@ Describe 'New-CIPPMcpResourceApp' {
             $uri -eq 'https://graph.microsoft.com/v1.0/applications' -and $type -eq 'POST'
         }
     }
+
+    It 'retries the resource app patch when Entra has not replicated the new registration yet' {
+        $script:PatchAttempts = 0
+        Mock -CommandName Start-Sleep -MockWith { }
+        Mock -CommandName New-GraphPOSTRequest -ParameterFilter { $type -eq 'PATCH' -and $uri -like '*/applications/res-obj' } -MockWith {
+            $script:PatchAttempts++
+            if ($script:PatchAttempts -eq 1) {
+                throw "Resource '697d8170-d31c-4ef6-9807-549583c72e21' does not exist or one of its queried reference-property objects are not present."
+            }
+        }
+
+        $Result = New-CIPPMcpResourceApp -Headers @{}
+
+        $Result.AppId | Should -Be 'res-app'
+        $script:PatchAttempts | Should -Be 2
+    }
 }
