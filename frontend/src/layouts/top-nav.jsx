@@ -294,6 +294,9 @@ export const TopNav = (props) => {
                 alignItems: 'center',
                 height: 40,
                 flexShrink: 0,
+                color: 'inherit',
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'none' },
               }}
             >
               <Logo height={40} />
