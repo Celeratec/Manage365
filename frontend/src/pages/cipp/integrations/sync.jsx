@@ -14,18 +14,42 @@ import {
 } from '@heroicons/react/24/outline'
 import { getCippFormatting } from '../../../utils/get-cipp-formatting'
 
+const resultText = (results) => {
+  if (typeof results === "string") return results;
+  if (results == null || results === "") return "";
+  try {
+    return JSON.stringify(results);
+  } catch {
+    return "";
+  }
+};
+
+const syncRowsFrom = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.Results)) return payload.Results;
+  if (payload && typeof payload === "object" && (payload.Tenant || payload.SyncType || payload.RowKey)) {
+    return [payload];
+  }
+  return [];
+};
+
 const Page = () => {
+  // Separate from the table's infinite query. Sharing "ListExtensionSync" makes this
+  // observer read { pages, pageParams }, and .filter then throws.
   const syncData = ApiGetCall({
     url: "/api/ListExtensionSync",
-    queryKey: "ListExtensionSync",
+    queryKey: "ListExtensionSyncSummary",
   });
+  const syncRows = syncRowsFrom(syncData.data);
 
-  // Calculate stats from sync data
   const stats = {
-    total: syncData.data?.length || 0,
-    completed: syncData.data?.filter((item) => item.Results && !item.Results.includes("Error"))?.length || 0,
-    pending: syncData.data?.filter((item) => !item.Results)?.length || 0,
-    errors: syncData.data?.filter((item) => item.Results?.includes("Error"))?.length || 0,
+    total: syncRows.length,
+    completed: syncRows.filter((item) => {
+      const text = resultText(item?.Results);
+      return text && !text.includes("Error");
+    }).length,
+    pending: syncRows.filter((item) => !resultText(item?.Results)).length,
+    errors: syncRows.filter((item) => resultText(item?.Results).includes("Error")).length,
   };
 
   const infoBarData = [
@@ -127,7 +151,7 @@ const Page = () => {
       id: "Results",
       accessorKey: "Results",
       Cell: ({ row }) => {
-        const results = row.original.Results;
+        const results = resultText(row.original.Results);
         if (!results) {
           return (
             <Chip
