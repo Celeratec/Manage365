@@ -26,24 +26,8 @@ import { ApiGetCall } from "../api/ApiCall";
 import { CippApiDialog } from "../components/CippComponents/CippApiDialog";
 import { useReleaseNotes } from "../contexts/release-notes-context";
 import { useQueryClient } from "@tanstack/react-query";
-import { usePathname } from "next/navigation";
 import { Divider } from "@mui/material";
-import { getHelpLinks, clearCippCache } from "../utils/help-links";
-
-const HELP_LINK_HOSTS = new Set(["github.com", "discord.gg", "docs.cipp.app"]);
-
-const trustedHelpHref = (href) => {
-  let url;
-  try {
-    url = new URL(href);
-  } catch {
-    return null;
-  }
-  if (url.protocol !== "https:" || !HELP_LINK_HOSTS.has(url.hostname)) {
-    return null;
-  }
-  return url.href;
-};
+import { clearCippCache } from "../utils/help-links";
 
 export const AccountPopover = (props) => {
   const {
@@ -55,7 +39,6 @@ export const AccountPopover = (props) => {
     ...other
   } = props;
   const router = useRouter();
-  const pathname = usePathname();
   const mdDown = useMediaQuery((theme) => theme.breakpoints.down("md"));
   const navCollapsed = useIsMobileLayout();
   const popover = usePopover();
@@ -250,35 +233,23 @@ export const AccountPopover = (props) => {
               </ListItemIcon>
               <ListItemText primary="View release notes" />
             </ListItemButton>
-            {/* Mobile home for the help SpeedDial's destinations — its FAB corner belongs
-                to page actions there (the SpeedDial hides itself at the same threshold). */}
+            {/* On a narrow layout the ? button is hidden, so License and Clear Cache live here. */}
             {navCollapsed && (
               <>
                 <Divider sx={{ my: 0.5 }} />
-                {getHelpLinks(pathname ?? "").map((link) => {
-                  const href = trustedHelpHref(link.href);
-                  if (!href) return null;
-                  return (
-                  <ListItemButton
-                    key={link.id}
-                    component="a"
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => popover.handleClose()}
-                  >
-                    <ListItemIcon>
-                      <SvgIcon fontSize="small">
-                        <CippIcons.LifebuoyIcon />
-                      </SvgIcon>
-                    </ListItemIcon>
-                    <ListItemText primary={link.name} />
-                    <SvgIcon sx={{ fontSize: 16, color: "text.secondary" }}>
-                      <CippIcons.ArrowTopRightOnSquareIcon />
+                <ListItemButton
+                  onClick={() => {
+                    popover.handleClose();
+                    router.push("/license");
+                  }}
+                >
+                  <ListItemIcon>
+                    <SvgIcon fontSize="small">
+                      <CippIcons.Gavel />
                     </SvgIcon>
-                  </ListItemButton>
-                  );
-                })}
+                  </ListItemIcon>
+                  <ListItemText primary="License" />
+                </ListItemButton>
                 <ListItemButton
                   onClick={() => {
                     popover.handleClose();

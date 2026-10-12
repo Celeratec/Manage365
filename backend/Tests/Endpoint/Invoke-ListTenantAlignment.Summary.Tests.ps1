@@ -26,6 +26,23 @@ BeforeAll {
     function Get-CIPPAzDataTableEntity { [CmdletBinding()] param($Table, $Filter, $Property) @() }
     function Get-Tenants { [CmdletBinding()] param($TenantFilter, [switch]$IncludeErrors, [switch]$IncludeAll) }
     function Write-LogMessage { [CmdletBinding()] param($API, $tenant, $message, $sev, $LogData) }
+    # Pass-through unless a test sets RestrictTo. The real filter lives in CIPPCore and reads
+    # the request's allowed-tenant scope; this stub stands in for that scope.
+    function Select-CippAllowedTenantData {
+        param(
+            [Parameter(ValueFromPipeline = $true)]
+            $InputObject,
+            [string[]]$TenantProperty = @('Tenant', 'TenantId'),
+            [switch]$AllowPartner
+        )
+        process {
+            foreach ($Item in @($InputObject)) {
+                if ($null -eq $Item) { continue }
+                if ($script:RestrictTo -and $script:RestrictTo -notcontains [string]$Item.TenantFilter) { continue }
+                $Item
+            }
+        }
+    }
     function Get-CippException { [CmdletBinding()] param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
 
     . $FunctionPath
@@ -54,6 +71,7 @@ BeforeAll {
 
 Describe 'Invoke-ListTenantAlignment summary mode' {
     BeforeEach {
+        $script:RestrictTo = $null
         Mock -CommandName Get-CIPPTenantAlignment -MockWith { $script:Alignment }
         Mock -CommandName Get-Tenants -MockWith { $script:Tenants }
         Mock -CommandName Write-LogMessage -MockWith { }
@@ -106,6 +124,21 @@ Describe 'Invoke-ListTenantAlignment summary mode' {
 
         @($Result.Body).Count | Should -Be 4
         @($Result.Body)[0].tenantFilter | Should -BeExactly 'alpha.onmicrosoft.com'
+    }
+
+    It 'limits the summary and the row list to the caller''s tenants' {
+        $script:RestrictTo = @('alpha.onmicrosoft.com')
+
+        $Summary = (Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{ summary = $true }) -TriggerMetadata @{}).Body
+        $Summary.ScoredTenantCount | Should -Be 1
+        $Summary.Average | Should -Be 95
+        $Summary.PendingDeviations | Should -Be 5
+        $Summary.Lowest[0].Tenant | Should -BeExactly 'alpha.onmicrosoft.com'
+        $Summary.Lowest[0].Name | Should -BeExactly 'Alpha'
+
+        $Rows = Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{}) -TriggerMetadata @{}
+        @($Rows.Body).Count | Should -Be 2
+        @($Rows.Body).tenantFilter | Should -BeExactly @('alpha.onmicrosoft.com', 'alpha.onmicrosoft.com')
     }
 
     It 'handles an estate with no alignment data' {

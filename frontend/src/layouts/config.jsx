@@ -87,44 +87,9 @@ export const nativeMenuItems = [
                 permissions: [
                   "Identity.Group.*",
                 ],
+                scope: "global",
               },
             ],
-          },
-          {
-            title: 'Users',
-            path: '/identity/administration/users',
-            permissions: [
-              'Identity.User.*',
-            ],
-          },
-          {
-            title: 'Guest Users',
-            path: '/identity/administration/guest-users',
-            permissions: [
-              'Identity.User.*',
-            ],
-          },
-          {
-            title: 'Risky Users',
-            path: '/identity/administration/risky-users',
-            permissions: [
-              'Identity.User.*',
-            ],
-          },
-          {
-            title: 'Groups',
-            path: '/identity/administration/groups',
-            permissions: [
-              'Identity.Group.*',
-            ],
-          },
-          {
-            title: 'Group Templates',
-            path: '/identity/administration/group-templates',
-            permissions: [
-              'Identity.Group.*',
-            ],
-            scope: 'global',
           },
           {
             title: 'Devices',
@@ -170,22 +135,8 @@ export const nativeMenuItems = [
             ],
           },
           {
-            title: 'JIT Admin',
-            path: '/identity/administration/jit-admin',
-            permissions: [
-              'Identity.Role.*',
-            ],
-          },
-          {
             title: 'Vacation Mode',
             path: '/identity/administration/vacation-mode',
-            permissions: [
-              'Identity.User.*',
-            ],
-          },
-          {
-            title: 'Offboarding Wizard',
-            path: '/identity/administration/offboarding-wizard',
             permissions: [
               'Identity.User.*',
             ],
@@ -357,27 +308,6 @@ export const nativeMenuItems = [
               "Security.Ediscovery.*",
             ],
           },
-          {
-            title: 'Vulnerability Report',
-            path: '/security/reports/cve-report',
-            permissions: [
-              'Security.Defender.*',
-            ],
-          },
-        ],
-      },
-      {
-        title: "Device Compliance",
-        path: "/security/reports/list-device-compliance",
-        permissions: [
-          "Tenant.DeviceCompliance.*",
-        ],
-      },
-      {
-        title: "MDE Onboarding",
-        path: "/security/reports/mde-onboarding",
-        permissions: [
-          "Security.Defender.*",
         ],
       },
       {
@@ -623,6 +553,13 @@ export const nativeMenuItems = [
           {
             title: 'Add Autopilot Device',
             path: '/endpoint/autopilot/add-device',
+            permissions: [
+              'Endpoint.Autopilot.*',
+            ],
+          },
+          {
+            title: 'Profiles',
+            path: '/endpoint/autopilot/list-profiles',
             permissions: [
               'Endpoint.Autopilot.*',
             ],
@@ -895,27 +832,6 @@ export const nativeMenuItems = [
             ],
           },
           {
-            title: 'Mailboxes',
-            path: '/email/administration/mailboxes',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Deleted Mailboxes',
-            path: '/email/administration/deleted-mailboxes',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Mailbox Rules',
-            path: '/email/administration/mailbox-rules',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
             title: 'Contacts',
             path: '/email/administration/contacts',
             permissions: [
@@ -1001,6 +917,7 @@ export const nativeMenuItems = [
                 permissions: [
                   "Exchange.TransportRule.*",
                 ],
+                scope: "global",
               },
             ],
           },
@@ -1023,38 +940,9 @@ export const nativeMenuItems = [
                 permissions: [
                   "Exchange.Connector.*",
                 ],
+                scope: "global",
               },
             ],
-          },
-          {
-            title: 'Transport Rules',
-            path: '/email/transport/list-rules',
-            permissions: [
-              'Exchange.TransportRule.*',
-            ],
-          },
-          {
-            title: 'Transport Templates',
-            path: '/email/transport/list-templates',
-            permissions: [
-              'Exchange.TransportRule.*',
-            ],
-            scope: 'global',
-          },
-          {
-            title: 'Connectors',
-            path: '/email/transport/list-connectors',
-            permissions: [
-              'Exchange.Connector.*',
-            ],
-          },
-          {
-            title: 'Connector Templates',
-            path: '/email/transport/list-connector-templates',
-            permissions: [
-              'Exchange.Connector.*',
-            ],
-            scope: 'global',
           },
         ],
       },
@@ -1084,6 +972,7 @@ export const nativeMenuItems = [
                 permissions: [
                   "Exchange.SpamFilter.*",
                 ],
+                scope: "global",
               },
             ],
           },
@@ -1106,6 +995,7 @@ export const nativeMenuItems = [
                 permissions: [
                   "Exchange.ConnectionFilter.*",
                 ],
+                scope: "global",
               },
             ],
           },
@@ -1136,52 +1026,6 @@ export const nativeMenuItems = [
             path: "/security/safelinks/safelinks-template",
             permissions: [
               "Security.SafeLinksPolicy.*",
-            ],
-          },
-        ],
-      },
-      {
-        title: 'Spamfilter',
-        permissions: [
-          'Exchange.SpamFilter.*',
-          'Exchange.ConnectionFilter.*',
-        ],
-        items: [
-          {
-            title: 'Spamfilter',
-            path: '/email/spamfilter/list-spamfilter',
-            permissions: [
-              'Exchange.SpamFilter.*',
-            ],
-          },
-          {
-            title: 'Spamfilter Templates',
-            path: '/email/spamfilter/list-templates',
-            permissions: [
-              'Exchange.SpamFilter.*',
-            ],
-            scope: 'global',
-          },
-          {
-            title: 'Connection Filter',
-            path: '/email/spamfilter/list-connectionfilter',
-            permissions: [
-              'Exchange.ConnectionFilter.*',
-            ],
-          },
-          {
-            title: 'Connection Filter Templates',
-            path: '/email/spamfilter/list-connectionfilter-templates',
-            permissions: [
-              'Exchange.ConnectionFilter.*',
-            ],
-            scope: 'global',
-          },
-          {
-            title: 'Quarantine Policies',
-            path: '/email/spamfilter/list-quarantine-policies',
-            permissions: [
-              'Exchange.SpamFilter.*',
             ],
           },
         ],
@@ -1320,79 +1164,9 @@ export const nativeMenuItems = [
             ],
           },
           {
-            title: 'Mailbox Statistics',
-            path: '/email/reports/mailbox-statistics',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Mailbox Activity',
-            path: '/email/reports/mailbox-activity',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Mailbox Client Access Settings',
-            path: '/email/reports/mailbox-cas-settings',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Mailbox Permissions',
-            path: '/email/reports/mailbox-permissions',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Calendar Permissions',
-            path: '/email/reports/calendar-permissions',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Mailbox Forwarding',
-            path: '/email/reports/mailbox-forwarding',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'Anti-Phishing Filters',
-            path: '/email/reports/antiphishing-filters',
-            permissions: [
-              'Exchange.SpamFilter.*',
-            ],
-          },
-          {
-            title: 'Malware Filters',
-            path: '/email/reports/malware-filters',
-            permissions: [
-              'Exchange.SpamFilter.*',
-            ],
-          },
-          {
-            title: 'Safe Attachments Filters',
-            path: '/email/reports/safeattachments-filters',
-            permissions: [
-              'Exchange.SafeLinks.*',
-            ],
-          },
-          {
             title: 'Shared Mailbox with Enabled Account',
             path: '/email/reports/SharedMailboxEnabledAccount',
             docsPath: 'email/reports/sharedmailboxenabledaccount',
-            permissions: [
-              'Exchange.Mailbox.*',
-            ],
-          },
-          {
-            title: 'ActiveSync Devices',
-            path: '/email/reports/activesync-devices',
             permissions: [
               'Exchange.Mailbox.*',
             ],
@@ -1576,55 +1350,6 @@ export const nativeMenuItems = [
         ],
       },
       {
-        title: 'OneDrive',
-        path: '/teams-share/onedrive',
-        permissions: [
-          'Sharepoint.Site.*',
-        ],
-      },
-      {
-        title: 'SharePoint',
-        path: '/teams-share/sharepoint',
-        permissions: [
-          'Sharepoint.Admin.*',
-        ],
-      },
-      {
-        title: 'SharePoint Templates',
-        path: '/teams-share/sharepoint-templates',
-        permissions: [
-          'Sharepoint.Admin.*',
-        ],
-      },
-      {
-        title: 'Deleted Sites',
-        path: '/teams-share/deleted-sites',
-        permissions: [
-          'Sharepoint.Admin.*',
-        ],
-      },
-      {
-        title: 'Sharing Report',
-        path: '/teams-share/sharing-report',
-        permissions: [
-          'Sharepoint.Site.*',
-        ],
-      },
-      {
-        title: 'Permissions Report',
-        path: '/teams-share/permissions-report',
-        permissions: [
-          'Sharepoint.Site.*',
-        ],
-      },
-      {
-        title: 'External Users',
-        path: '/teams-share/external-users',
-        permissions: [
-          'Sharepoint.Site.*',
-        ],
-      },
-      {
         title: 'Teams',
         permissions: [
           'Teams.Group.*',
@@ -1685,273 +1410,6 @@ export const nativeMenuItems = [
                   "Teams.Voice.*",
                 ],
               },
-            ],
-          },
-          {
-            title: 'Business Voice',
-            path: '/teams-share/teams/business-voice',
-            permissions: [
-              'Teams.Voice.*',
-            ],
-          },
-        ],
-      },
-    ],
-  },
-  {
-    title: "Endpoint Management",
-    type: "header",
-    icon: (
-      <SvgIcon>
-        <CippIcons.Laptop />
-      </SvgIcon>
-    ),
-    permissions: [
-      "Endpoint.Application.*",
-      "Endpoint.Autopilot.*",
-      "Endpoint.MEM.*",
-      "Endpoint.Device.*",
-      "Endpoint.Device.Read",
-    ],
-    items: [
-      {
-        title: "Applications",
-        permissions: [
-          "Endpoint.Application.*",
-        ],
-        items: [
-          {
-            title: "Application List",
-            path: "/endpoint/applications/list",
-            permissions: [
-              "Endpoint.Application.*",
-            ],
-          },
-          {
-            title: "Application Queue",
-            path: "/endpoint/applications/queue",
-            permissions: [
-              "Endpoint.Application.*",
-            ],
-          },
-          {
-            title: "Application Templates",
-            path: "/endpoint/applications/templates",
-            docsPath: "endpoint/applications/application-templates",
-            permissions: [
-              "Endpoint.Application.*",
-            ],
-            scope: "global",
-          },
-        ],
-      },
-      {
-        title: "Autopilot",
-        permissions: [
-          "Endpoint.Autopilot.*",
-        ],
-        items: [
-          {
-            title: "Autopilot Devices",
-            path: "/endpoint/autopilot/list-devices",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-          {
-            title: "Add Autopilot Device",
-            path: "/endpoint/autopilot/add-device",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-          {
-            title: "Profiles",
-            path: "/endpoint/autopilot/list-profiles",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-          {
-            title: "Status Pages",
-            path: "/endpoint/autopilot/list-status-pages",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-          {
-            title: "Enrollment Profiles",
-            path: "/endpoint/autopilot/enrollment-profiles",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-        ],
-      },
-      {
-        title: "Device Management",
-        permissions: [
-          "Endpoint.MEM.*",
-          "Endpoint.Device.*",
-        ],
-        items: [
-          {
-            title: "Managed Devices",
-            path: "/endpoint/MEM/devices",
-            docsPath: "endpoint/mem/devices",
-            permissions: [
-              "Endpoint.Device.*",
-            ],
-          },
-          {
-            title: "BitLocker Key Search",
-            path: "/endpoint/MEM/bitlocker-search",
-            docsPath: "endpoint/mem/bitlocker-search",
-            permissions: [
-              "Endpoint.Device.*",
-            ],
-          },
-          {
-            title: "Policies",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-            items: [
-              {
-                title: "Configuration Policies",
-                path: "/endpoint/MEM/list-policies",
-                docsPath: "endpoint/mem/list-policies",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-              {
-                title: "Compliance Policies",
-                path: "/endpoint/MEM/list-compliance-policies",
-                docsPath: "endpoint/mem/list-compliance-policies",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-              {
-                title: "App Policies",
-                path: "/endpoint/MEM/list-appprotection-policies",
-                docsPath: "endpoint/mem/list-appprotection-policies",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-              {
-                title: "Policy Templates",
-                path: "/endpoint/MEM/list-templates",
-                docsPath: "endpoint/mem/list-templates",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-              {
-                title: "Compare Policies",
-                path: "/endpoint/MEM/compare-policies",
-                docsPath: "tools/intune-tools/compare-policies",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-                scope: "global",
-              },
-            ],
-          },
-          {
-            title: "Reusable Settings",
-            path: "/endpoint/MEM/reusable-settings",
-            docsPath: "endpoint/mem/reusable-settings",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-          },
-          {
-            title: "Reusable Settings Templates",
-            path: "/endpoint/MEM/reusable-settings-templates",
-            docsPath: "endpoint/mem/reusable-settings-templates",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-          },
-          {
-            title: "Assignment Filters",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-            items: [
-              {
-                title: "Assignment Filters",
-                path: "/endpoint/MEM/assignment-filters",
-                docsPath: "endpoint/mem/assignment-filters",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-              {
-                title: "Filter Templates",
-                path: "/endpoint/MEM/assignment-filter-templates",
-                docsPath: "endpoint/mem/assignment-filter-templates",
-                permissions: [
-                  "Endpoint.MEM.*",
-                ],
-              },
-            ],
-          },
-          {
-            title: "Scripts",
-            path: "/endpoint/MEM/list-scripts",
-            docsPath: "endpoint/mem/list-scripts",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-          },
-          {
-            title: "MAA Requests",
-            path: "/endpoint/MEM/approval-requests",
-            docsPath: "endpoint/mem/approval-requests",
-            permissions: [
-              "Endpoint.MEM.*",
-            ],
-          },
-        ],
-      },
-      {
-        title: "Reports",
-        permissions: [
-          "Endpoint.Device.*",
-          "Endpoint.Autopilot.*",
-          "Endpoint.MEM.*",
-        ],
-        items: [
-          {
-            title: "Analytics Device Score",
-            path: "/endpoint/reports/analyticsdevicescore",
-            permissions: [
-              "Endpoint.Device.*",
-            ],
-          },
-          {
-            title: "Work From Anywhere",
-            path: "/endpoint/reports/workfromanywhere",
-            permissions: [
-              "Endpoint.Device.*",
-            ],
-          },
-          {
-            title: "Autopilot Deployments",
-            path: "/endpoint/reports/autopilot-deployment",
-            permissions: [
-              "Endpoint.Autopilot.*",
-            ],
-          },
-          {
-            title: "Discovered Apps",
-            path: "/endpoint/reports/detected-apps",
-            permissions: [
-              "Endpoint.MEM.*",
             ],
           },
         ],
@@ -2054,6 +1512,7 @@ export const nativeMenuItems = [
                 permissions: [
                   "Tenant.Administration.*",
                 ],
+                scope: "global",
               },
               {
                 title: "Manage Tenant",
@@ -2077,6 +1536,7 @@ export const nativeMenuItems = [
                 permissions: [
                   "Tenant.Alert.*",
                 ],
+                scope: "global",
               },
               {
                 title: "Audit Logs",
@@ -2110,47 +1570,10 @@ export const nativeMenuItems = [
             ],
           },
           {
-            title: 'Tenants',
-            path: '/tenant/administration/tenants',
-            permissions: [
-              'Tenant.Administration.*',
-            ],
-            scope: 'global',
-          },
-          {
-            title: 'Alert Configuration',
-            path: '/tenant/administration/alert-configuration',
-            permissions: [
-              'Tenant.Alert.*',
-            ],
-            scope: 'global',
-          },
-          {
-            title: 'Audit Logs',
-            path: '/tenant/administration/audit-logs',
-            permissions: [
-              'Identity.AuditLog.*',
-            ],
-          },
-          {
-            title: 'Applications',
-            path: '/tenant/administration/applications/enterprise-apps',
-            permissions: [
-              'Tenant.Application.*',
-            ],
-          },
-          {
             title: 'Secure Score',
             path: '/tenant/administration/securescore',
             permissions: [
               'Tenant.Administration.*',
-            ],
-          },
-          {
-            title: 'App Consent Requests',
-            path: '/tenant/administration/app-consent-requests',
-            permissions: [
-              'Tenant.Application.*',
             ],
           },
           {
@@ -2214,6 +1637,7 @@ export const nativeMenuItems = [
             permissions: [
               "Tenant.Standards.*",
             ],
+            scope: "global",
           },
           {
             title: "Baselines",
@@ -2229,6 +1653,7 @@ export const nativeMenuItems = [
             permissions: [
               "Tenant.BestPracticeAnalyser.*",
             ],
+            scope: "global",
           },
           {
             title: "Domains Analyser",
@@ -2236,48 +1661,16 @@ export const nativeMenuItems = [
             permissions: [
               "Tenant.DomainAnalyser.*",
             ],
+            scope: "global",
           },
         ],
       },
-      // Flag-gated swap: the Baselines feature flag lists this path in its Pages
-      // (hidden while the flag is off) and the classic Standards/Drift paths in
-      // HidesPages (hidden while it is on). Do not turn the flag on.
-      {
-        title: 'Baselines',
-        path: '/tenant/baselines',
-        permissions: [
-          'Tenant.Baselines.*',
-        ],
-        scope: 'global',
-      },
+      // The Baselines flag hides /tenant/standards/alignment while it is on, and hides
+      // /tenant/baselines while it is off. Both entries live in this group.
       {
         title: 'Security Simulations',
         path: '/tenant/security-simulator',
         permissions: ['Tenant.SecuritySimulations.*'],
-      },
-      {
-        title: 'Domains Analyser',
-        path: '/tenant/standards/domains-analyser',
-        permissions: [
-          'Tenant.DomainAnalyser.*',
-        ],
-        scope: 'global',
-      },
-      {
-        title: 'Standards & Drift',
-        path: '/tenant/standards/alignment',
-        permissions: [
-          'Tenant.Standards.*',
-        ],
-        scope: 'global',
-      },
-      {
-        title: 'Best Practice Analyser',
-        path: '/tenant/standards/bpa-report',
-        permissions: [
-          'Tenant.BestPracticeAnalyser.*',
-        ],
-        scope: 'global',
       },
       {
         title: 'Conditional Access',
@@ -2352,13 +1745,6 @@ export const nativeMenuItems = [
               'Tenant.Reports.*',
             ],
           },
-        ],
-      },
-      {
-        title: 'Manage Tenant',
-        path: '/tenant/manage/edit',
-        permissions: [
-          'Tenant.Administration.*',
         ],
       },
     ],

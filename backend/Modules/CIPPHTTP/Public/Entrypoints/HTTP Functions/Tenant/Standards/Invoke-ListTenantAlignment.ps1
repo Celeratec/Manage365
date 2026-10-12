@@ -6,6 +6,7 @@ function Invoke-ListTenantAlignment {
         Tenant.Standards.Read
     .DESCRIPTION
         Lists tenant alignment data showing how well tenants conform to their assigned standards templates.
+        A caller restricted to specific tenants only receives those tenants, including the summary.
 
         Pass summary=true for the estate roll-up only: per-tenant averages collapsed into score
         buckets, the overall average, the lowest-scoring tenants and the pending-deviation totals.
@@ -22,8 +23,9 @@ function Invoke-ListTenantAlignment {
     # Granular flattens to one row per standard; it is a detail view and never a summary source.
     if ($Summary) { $Granular = $false }
     try {
-        # Use the new Get-CIPPTenantAlignment function to get alignment data
-        $AlignmentData = Get-CIPPTenantAlignment
+        # The table holds every tenant. Narrow it before the summary or the row list is built,
+        # so a role allowed one tenant cannot see the rest of the estate.
+        $AlignmentData = @(Get-CIPPTenantAlignment | Select-CippAllowedTenantData -TenantProperty 'TenantFilter')
 
         # Build a GUID -> displayName lookup from the templates table for all template types
         $TemplateLookup = @{}
