@@ -1531,7 +1531,7 @@ const Page = () => {
                   <Stack spacing={3}>
                     {/* Email Configuration Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <AlternateEmail color="primary" />
+                      <CippIcons.AlternateEmail color="primary" />
                       <Typography variant="h6">Email Configuration</Typography>
                     </Stack>
                     <CippBannerListCard
@@ -1544,7 +1544,7 @@ const Page = () => {
 
                     {/* Permissions Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <Security color="primary" />
+                      <CippIcons.Security color="primary" />
                       <Typography variant="h6">Permissions</Typography>
                     </Stack>
                     <CippBannerListCard
@@ -1572,7 +1572,7 @@ const Page = () => {
 
                     {/* Rules & Filters Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <Rule color="primary" />
+                      <CippIcons.Rule color="primary" />
                       <Typography variant="h6">Rules & Filters</Typography>
                     </Stack>
                     <CippBannerListCard
@@ -1590,7 +1590,7 @@ const Page = () => {
 
                     {/* Mailbox Settings Section */}
                     <Stack direction="row" alignItems="center" spacing={1}>
-                      <Settings color="primary" />
+                      <CippIcons.Settings color="primary" />
                       <Typography variant="h6">Mailbox Settings</Typography>
                     </Stack>
                     <CippExchangeSettingsForm

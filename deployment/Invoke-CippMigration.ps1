@@ -27,7 +27,7 @@
 
 .PARAMETER ContainerImage
     Container image for Manage365. Defaults to the Celeratec image
-    (ghcr.io/celeratec/manage365:v6.1.7), not the upstream CyberDrain image.
+    (ghcr.io/celeratec/manage365:v6.1.8), not the upstream CyberDrain image.
 
 .PARAMETER TestOnly
     Validate the ARM template and detect resources without making any changes.
@@ -59,7 +59,7 @@ param (
 
     [string]$CippUrl = '',
 
-    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.7',
+    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.8',
 
     [switch]$TestOnly,
 
