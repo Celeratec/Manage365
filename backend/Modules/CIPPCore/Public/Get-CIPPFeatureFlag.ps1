@@ -12,6 +12,8 @@ function Get-CIPPFeatureFlag {
         default. A row that was auto-seeded by an older release (no LastModified, so never toggled
         by a user) is re-seeded once when a condition is introduced, so a new release can change
         the default for installs that never chose. A user toggle (LastModified set) always wins.
+        On a CIPP-NG container, SuperAdminNG is forced on so the Users and container pages match
+        the nav. The stored row is left as-is.
     .PARAMETER Id
         The ID of the feature flag to retrieve. If not specified, returns all feature flags.
     .FUNCTIONALITY
@@ -71,6 +73,13 @@ function Get-CIPPFeatureFlag {
                 Add-CIPPAzDataTableEntity @Table -Entity $Entity -Force
             } else {
                 $Enabled = $TableFlag.Enabled
+            }
+
+            # ListFeatureFlags already turns these pages on for CIPP-NG containers, so the
+            # nav shows Manage365 Users. The request gate reads this function, not that
+            # list, and was still returning 503 from the stored "off" default.
+            if ($env:CIPPNG -eq 'true' -and $FeatureFlag.Id -eq 'SuperAdminNG') {
+                $Enabled = $true
             }
 
             [PSCustomObject]@{
