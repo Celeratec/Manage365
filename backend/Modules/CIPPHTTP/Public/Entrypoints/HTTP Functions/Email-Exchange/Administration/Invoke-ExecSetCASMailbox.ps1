@@ -13,6 +13,9 @@ function Invoke-ExecSetCASMailbox {
 
     $TenantFilter = $Request.Body.tenantFilter
     $Identity = $Request.Body.Identity
+    if ([string]::IsNullOrWhiteSpace([string]$Identity)) {
+        $Identity = $Request.Body.user ?? $Request.Body.User
+    }
     $DisplayName = $Request.Body.DisplayName ?? $Identity
 
     # The CAS protocols we allow toggling. Note SmtpClientAuthenticationDisabled is inverted:
@@ -28,11 +31,54 @@ function Invoke-ExecSetCASMailbox {
         'SmtpClientAuthenticationDisabled'
     )
 
+    # The Exchange card and user actions send a short name plus enable, for example
+    # protocol=ActiveSync and enable=true. The mailbox CAS report sends the Set-CASMailbox
+    # parameter names directly. Both shapes are applied below.
+    $ShortNames = @{
+        ActiveSync = 'ActiveSyncEnabled'
+        IMAP       = 'IMAPEnabled'
+        POP        = 'POPEnabled'
+        EWS        = 'EWSEnabled'
+        MAPI       = 'MAPIEnabled'
+        OWA        = 'OWAEnabled'
+        ECP        = 'ECPEnabled'
+        SMTP       = 'SmtpClientAuthenticationDisabled'
+    }
+
     # Build the cmdlet parameters from any valid protocol values supplied in the body.
     $CmdParams = @{ Identity = $Identity }
     foreach ($Protocol in $ValidProtocols) {
         if ($null -ne $Request.Body.$Protocol) {
             $CmdParams[$Protocol] = [System.Convert]::ToBoolean($Request.Body.$Protocol)
+        }
+    }
+
+    $EnableRaw = $Request.Body.enable
+    if ($null -ne $EnableRaw -and $EnableRaw -isnot [string] -and $null -ne $EnableRaw.value) {
+        $EnableRaw = $EnableRaw.value
+    }
+    if ($null -ne $EnableRaw) {
+        $Enable = [System.Convert]::ToBoolean($EnableRaw)
+        $Requested = @()
+        foreach ($Source in @($Request.Body.protocol, $Request.Body.protocols)) {
+            if ($null -eq $Source) { continue }
+            foreach ($Item in @($Source)) {
+                if ($null -eq $Item) { continue }
+                $Text = $Item
+                if ($Item -isnot [string] -and $null -ne $Item.value) { $Text = $Item.value }
+                foreach ($Part in ([string]$Text -split ',')) {
+                    $Clean = $Part.Trim().TrimStart('!')
+                    if ($Clean) { $Requested += $Clean }
+                }
+            }
+        }
+        foreach ($Name in $Requested) {
+            $ParamName = $ShortNames[$Name]
+            if (-not $ParamName -and $ValidProtocols -contains $Name) { $ParamName = $Name }
+            if (-not $ParamName -or $CmdParams.ContainsKey($ParamName)) { continue }
+            $Flag = $Enable
+            if ($ParamName -eq 'SmtpClientAuthenticationDisabled') { $Flag = -not $Enable }
+            $CmdParams[$ParamName] = $Flag
         }
     }
 
