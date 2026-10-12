@@ -56,6 +56,11 @@ const getSiteTypeInfo = (template) => {
     "Team Site": { icon: <FolderShared />, color: "secondary", label: "Classic Site" },
     "STS": { icon: <FolderShared />, color: "secondary", label: "Classic Site" },
   };
+  for (const [key, value] of Object.entries(templateMap)) {
+    if (template?.includes(key)) return value;
+  }
+  return { icon: <Language />, color: "default", label: template || "Site" };
+};
 
 const percentOf = (part, whole) => {
   const p = Number(part)
@@ -98,12 +103,6 @@ const VERSION_CLEANUP_LABELS = {
 }
 // Order in which the fields are shown.
 const VERSION_CLEANUP_FIELDS = Object.keys(VERSION_CLEANUP_LABELS)
-
-  for (const [key, value] of Object.entries(templateMap)) {
-    if (template?.includes(key)) return value;
-  }
-  return { icon: <Language />, color: "default", label: template || "Site" };
-};
 
 // Helper to calculate storage percentage
 const getStoragePercentage = (used, allocated) => {

@@ -11,8 +11,6 @@ import { store } from '../store'
 import { createTheme } from '../theme'
 import { createEmotionCache } from '../utils/create-emotion-cache'
 import '../libs/nprogress'
-import 'driver.js/dist/driver.css'
-import '../styles/tutorial-overrides.css'
 import { PrivateRoute } from '../components/PrivateRoute'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSystemPrefersDark } from '../hooks/use-system-prefers-dark'
@@ -46,16 +44,11 @@ import {
 import TimeAgo from 'javascript-time-ago'
 import en from 'javascript-time-ago/locale/en.json'
 import CippSpeedDial from '../components/CippComponents/CippSpeedDial'
-import { getHelpLinks, clearCippCache } from '../utils/help-links'
-import { Chip, SvgIcon } from '@mui/material'
-import React, { useEffect, useState, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+import { clearCippCache } from '../utils/help-links'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/router'
 import { persistQueryClient } from '@tanstack/react-query-persist-client'
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister'
-import { TutorialProvider } from '../contexts/tutorial-context'
-import CippTutorialDialog from '../components/CippComponents/CippTutorialDialog'
-import CippSupportBundleDialog from '../components/CippComponents/CippSupportBundleDialog'
 
 const ReactQueryDevtoolsProduction = React.lazy(() =>
   import('@tanstack/react-query-devtools/build/modern/production.js').then((d) => ({
@@ -80,12 +73,8 @@ const App = (props) => {
     document.getElementById('cipp-color-init')?.remove()
   }, [])
 
-  const pathname = usePathname()
   const route = useRouter()
   const [dateLocale, setDateLocale] = useState(enUS)
-  const [tutorialDialogOpen, setTutorialDialogOpen] = useState(false)
-  const [supportBundleOpen, setSupportBundleOpen] = useState(false)
-  const [supportRecording, setSupportRecording] = useState(false)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -192,15 +181,6 @@ const App = (props) => {
     }
   }, [])
 
-  // Link/cache destinations are shared with AccountPopover's mobile help section — see
-  // utils/help-links.js. Only the icons and SpeedDial-specific actions live here.
-  const helpLinkIcons = {
-    'bug-report': <CippIcons.BugReport />,
-    'feature-request': <CippIcons.Feedback />,
-    discord: <img src="/discord-mark-blue.svg" alt="Discord" style={{ width: 24, height: 24 }} />,
-    documentation: <CippIcons.AutoStories />,
-  }
-
   const speedDialActions = [
     {
       id: 'clearCache',
@@ -214,45 +194,6 @@ const App = (props) => {
       name: 'License',
       href: '/license',
       onClick: () => route.push('/license'),
-    },
-    {
-      id: 'supportBundle',
-      icon: <CippIcons.SupportAgent />,
-      name: 'Generate Support File',
-      onClick: () => setSupportBundleOpen(true),
-    },
-    ...getHelpLinks(pathname).map((link) => ({
-      ...link,
-      icon: helpLinkIcons[link.id],
-      onClick: () => {
-        const fixedDestinations = {
-          'bug-report': 'https://github.com/CyberDrain/CIPP/issues/new?template=bug.yml',
-          'feature-request': 'https://github.com/CyberDrain/CIPP/issues/new?template=feature.yml',
-          discord: 'https://discord.gg/cyberdrain',
-        }
-        const docsPrefix = 'https://docs.cipp.app/user-documentation'
-        const destination = fixedDestinations[link.id]
-        const docsHref =
-          link.id === 'documentation' &&
-          typeof link.href === 'string' &&
-          link.href.startsWith(docsPrefix) &&
-          !link.href.startsWith(`${docsPrefix}//`)
-            ? link.href
-            : null
-        const href = destination || docsHref
-        if (!href) return
-        const anchor = document.createElement('a')
-        anchor.target = '_blank'
-        anchor.rel = 'noopener noreferrer'
-        anchor.href = href
-        anchor.click()
-      },
-    })),
-    {
-      id: 'tutorials',
-      icon: <CippIcons.School />,
-      name: 'Tutorials',
-      onClick: () => setTutorialDialogOpen(true),
     },
   ]
 
@@ -286,41 +227,11 @@ const App = (props) => {
                           <CssBaseline />
                           <ErrorBoundary FallbackComponent={Error500}>
                             <PrivateRoute>
-                              <TutorialProvider>
-                                <ReleaseNotesProvider>
-                                  {getLayout(<Component {...pageProps} />)}
-                                </ReleaseNotesProvider>
-                                <CippTutorialDialog
-                                  open={tutorialDialogOpen}
-                                  onClose={() => setTutorialDialogOpen(false)}
-                                />
-                                <CippSupportBundleDialog
-                                  open={supportBundleOpen}
-                                  onClose={() => setSupportBundleOpen(false)}
-                                  onRecordingChange={setSupportRecording}
-                                />
-                              </TutorialProvider>
+                              <ReleaseNotesProvider>
+                                {getLayout(<Component {...pageProps} />)}
+                              </ReleaseNotesProvider>
                             </PrivateRoute>
                           </ErrorBoundary>
-                          {supportRecording && !supportBundleOpen && (
-                            <Chip
-                              icon={<CippIcons.FiberManualRecord />}
-                              label="Recording — click to stop"
-                              color="error"
-                              onClick={() => setSupportBundleOpen(true)}
-                              sx={{
-                                position: 'fixed',
-                                bottom: 20,
-                                // Pinned left of the speed dial FAB (46px wide + 12px gap),
-                                // which itself shifts left when devtools is enabled.
-                                right:
-                                  (settings.isInitialized && settings?.showDevtools === true
-                                    ? 60
-                                    : 12) + 58,
-                                zIndex: (muiTheme) => muiTheme.zIndex.speedDial,
-                              }}
-                            />
-                          )}
                           <CippSpeedDial
                             actions={speedDialActions}
                             icon={<CippIcons.Help />}

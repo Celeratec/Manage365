@@ -1,8 +1,6 @@
 import { nativeMenuItems } from "../layouts/config";
 
-// Help/support destinations shared by CippSpeedDial (desktop FAB) and AccountPopover
-// (mobile, where the FAB corner belongs to page actions). One definition so the two
-// surfaces can't drift.
+// Community and documentation destinations. The ? menu does not show these.
 
 // The docs tree doesn't mirror the nav hierarchy 1:1, so nav items that need a different
 // docs location carry a `docsPath` in config.js. Built lazily and cached since config.js
