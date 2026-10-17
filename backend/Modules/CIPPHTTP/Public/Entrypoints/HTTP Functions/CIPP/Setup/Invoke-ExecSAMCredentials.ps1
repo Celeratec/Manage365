@@ -78,7 +78,8 @@ function Invoke-ExecSAMCredentials {
 
                 $PartnerToken = @{ updated = & $GetSecretUpdated 'RefreshToken' }
                 try {
-                    $null = Get-GraphToken -ReturnRefresh $true -ErrorAction Stop
+                    # Bypass the shared cache so a stale cached failure cannot masquerade as a dead token.
+                    $null = Get-GraphToken -ReturnRefresh $true -SkipCache $true -ErrorAction Stop
                     $PartnerToken.state = 'valid'
                 } catch {
                     $PartnerToken.state = 'error'
@@ -94,7 +95,7 @@ function Invoke-ExecSAMCredentials {
                         updated           = & $GetSecretUpdated $Tenant.customerId
                     }
                     try {
-                        $null = Get-GraphToken -ReturnRefresh $true -TenantId $Tenant.customerId -ErrorAction Stop
+                        $null = Get-GraphToken -ReturnRefresh $true -TenantId $Tenant.customerId -SkipCache $true -ErrorAction Stop
                         $Entry.state = 'valid'
                     } catch {
                         $Entry.state = 'error'
@@ -249,6 +250,18 @@ function Invoke-ExecSAMCredentials {
             }
         }
 
+        'ClearTokenCache' {
+            try {
+                $Removed = Clear-CippTokenCache
+                Write-LogMessage -API $APIName -headers $Headers -tenant 'Global' -message "Manual token cache clear: invalidated $Removed cached token entries." -sev Info
+                $Body = @{ Results = @{ message = "Cleared $Removed cached token entries. Every worker fetches fresh tokens on its next call."; severity = 'success' } }
+            } catch {
+                $ErrorMessage = Get-CippException -Exception $_
+                $StatusCode = [HttpStatusCode]::InternalServerError
+                $Body = @{ Results = "Failed to clear the token cache: $($ErrorMessage.NormalizedError)" }
+            }
+        }
+
         'RunTokenUpdate' {
             # Inline, the same way the timers page's Run Now invokes a timer command.
             try {
@@ -265,7 +278,7 @@ function Invoke-ExecSAMCredentials {
 
         default {
             $StatusCode = [HttpStatusCode]::BadRequest
-            $Body = @{ Results = "Unknown action: $Action. Use 'Status', 'RotateSecret', 'RevokeCredential', 'FlagCredential', 'UnflagCredential' or 'RunTokenUpdate'." }
+            $Body = @{ Results = "Unknown action: $Action. Use 'Status', 'RotateSecret', 'RevokeCredential', 'FlagCredential', 'UnflagCredential', 'ClearTokenCache' or 'RunTokenUpdate'." }
         }
     }
 

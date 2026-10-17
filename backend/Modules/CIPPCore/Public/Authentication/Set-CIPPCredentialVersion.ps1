@@ -6,8 +6,9 @@ function Set-CIPPCredentialVersion {
         Get-GraphToken only reloads credentials when the AppCache ApplicationId differs from its
         runspace environment. A secret rotation, refresh token update or auth-mode change keeps the
         same ApplicationId, so other runspaces would keep stale credentials until they restart.
-        Writes a new CredentialVersion to the AppCache row (preserving its other columns) and adopts
-        it in this runspace so the caller itself does not reload.
+        Writes a new CredentialVersion to the AppCache row (preserving its other columns), adopts it
+        in this runspace so the caller itself does not reload, and drops the shared token cache so
+        no worker keeps serving tokens or cached failures minted under the previous credentials.
     .FUNCTIONALITY
         Internal
     #>
@@ -26,5 +27,6 @@ function Set-CIPPCredentialVersion {
     if ($null -ne $AppCache.SecretKeyId) { $Entity.SecretKeyId = [string]$AppCache.SecretKeyId }
     $null = Add-CIPPAzDataTableEntity @ConfigTable -Entity $Entity -Force
     $env:CIPPCredentialVersion = $Version
+    $null = Clear-CippTokenCache
     return $Version
 }

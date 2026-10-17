@@ -108,6 +108,17 @@ Describe 'Get-GraphToken certificate-exclusive gating' {
             -not $Body.ContainsKey('client_assertion')
         }
     }
+    It 'holds an invalid-client-secret failure for about a minute, not the 30 minutes other admin errors get' {
+        Mock Get-CIPPAzDataTableEntity { param($Context, $Filter, $Property) if ($Filter -like "*Tenants*" -and $Filter -notlike "*directTenant*") { [pscustomobject]@{ RowKey = 't'; LastGraphError = ''; LastGraphTokenError = '' } } }
+        Mock Invoke-CIPPRestMethod { throw 'invalid_client:AADSTS7000215: Invalid client secret provided.' }
+        $Key = [CIPP.CIPPTokenCache]::BuildKey($env:TenantID, 'https://graph.microsoft.com/.default', $false, $env:ApplicationID, 'refresh_token')
+
+        { Get-GraphToken } | Should -Throw '*AADSTS7000215*'
+
+        $Failure = [CIPP.CIPPTokenCache]::Lookup("$Key|failed", 0)
+        $Failure.Found | Should -BeTrue
+        ($Failure.ExpiresOnUnix - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) | Should -BeLessOrEqual 60
+    }
 }
 
 Describe 'Get-GraphToken stale SAM certificate self-heal' {

@@ -250,4 +250,24 @@ describe('CippSAMCredentials', () => {
       expect.objectContaining({ url: '/api/ExecSAMCredentials', data: expect.objectContaining({ Action: 'RotateSecret' }) })
     )
   })
+
+  it('keeps its content mounted while the status refetches so open dialogs survive', () => {
+    api.get = getResult({ isSuccess: true, isFetching: true, data: { Results: statusResults() } })
+    renderWithProviders(<CippSAMCredentials />)
+    expect(screen.getByText('Application ID')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Manage credentials' })).toBeInTheDocument()
+  })
+
+  it('offers Clear token cache behind a confirmation that posts ClearTokenCache', async () => {
+    const user = userEvent.setup()
+    seedStatus(statusResults())
+    renderWithProviders(<CippSAMCredentials />)
+    await openActions(user)
+    await user.click(screen.getByRole('menuitem', { name: /Clear token cache/ }))
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm' }))
+    expect(api.post.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ url: '/api/ExecSAMCredentials', data: expect.objectContaining({ Action: 'ClearTokenCache' }) })
+    )
+  })
 })

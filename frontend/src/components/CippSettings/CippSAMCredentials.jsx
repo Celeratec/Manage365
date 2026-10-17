@@ -220,6 +220,13 @@ export const CippSAMCredentials = () => {
       url: "/api/ExecSAMCertificate",
       data: { Action: "!Renew" },
     },
+    clearTokenCache: {
+      title: "Clear token cache",
+      confirmText:
+        "Drop every cached Graph and Exchange token, including cached failures? Each worker fetches a fresh token on its next call. Use this after rotating or re-authenticating if token errors persist.",
+      url: "/api/ExecSAMCredentials",
+      data: { Action: "!ClearTokenCache" },
+    },
     runTokenUpdate: {
       title: "Run token update",
       confirmText:
@@ -262,6 +269,12 @@ export const CippSAMCredentials = () => {
           </ListItemIcon>
           <ListItemText primary="Renew certificate" />
         </MenuItem>
+        <MenuItem onClick={() => openAction(samActions.clearTokenCache)}>
+          <ListItemIcon>
+            <CippIcons.Delete fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Clear token cache" />
+        </MenuItem>
         <MenuItem onClick={() => openAction(samActions.runTokenUpdate)}>
           <ListItemIcon>
             <CippIcons.PlayArrow fontSize="small" />
@@ -287,7 +300,6 @@ export const CippSAMCredentials = () => {
   return (
     <CippButtonCard
       title="CIPP-SAM application"
-      isFetching={samStatus.isFetching}
       cardActions={
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           {!samStatus.isLoading && <Chip label={overall.label} color={overall.color} size="small" />}
