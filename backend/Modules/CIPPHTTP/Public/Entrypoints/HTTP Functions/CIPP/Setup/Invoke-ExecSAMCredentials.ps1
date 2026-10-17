@@ -61,7 +61,8 @@ function Invoke-ExecSAMCredentials {
                 if (-not $HasSecret) {
                     $StoredSecret = @{ state = 'none'; message = 'No client secret is stored.' }
                 } else {
-                    $Probe = Test-CIPPSAMSecret
+                    # Include the refresh grant: that is the hot path, and Entra activates it later than client_credentials.
+                    $Probe = Test-CIPPSAMSecret -IncludeRefreshGrant
                     $SecretState = switch ($Probe.reason) { 'ready' { 'valid' } 'propagating' { 'propagating' } 'notConfigured' { 'notConfigured' } default { 'error' } }
                     $StoredSecret = @{ state = $SecretState; message = $Probe.message }
                 }

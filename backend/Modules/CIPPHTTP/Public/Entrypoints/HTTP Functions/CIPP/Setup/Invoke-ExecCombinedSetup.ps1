@@ -68,8 +68,8 @@ function Invoke-ExecCombinedSetup {
                         $null = Clear-CippTokenCache
                         Write-LogMessage -headers $Request.Headers -API ($Request.Params.CIPPEndpoint ?? 'CombinedSetup') -tenant 'Global' -message "Manual change: CIPP-SAM authentication switched to the client secret$(if ($Minted) { ' (a new secret was created for this)' })." -Sev 'Alert'
                         $Results.add($(if ($Minted) { 'Created a new client secret and disabled certificate authentication. CIPP now uses the client secret.' } else { 'Disabled certificate authentication. CIPP will use the client secret again.' }))
-                    } elseif ($Minted -and $Probe.reason -eq 'propagating') {
-                        $Results.add('Created a new client secret, but Microsoft has not finished activating it. Certificate authentication stays on for now - disable it again in a few minutes.')
+                    } elseif ($Probe.reason -eq 'propagating') {
+                        $Results.add($(if ($Minted) { 'Created a new client secret, but Microsoft has not finished activating it. Certificate authentication stays on for now - disable it again in a few minutes.' } else { 'The client secret was rotated recently and Microsoft has not finished activating it. Certificate authentication stays on for now - disable it again in a few minutes.' }))
                     } else {
                         $Results.add("Certificate authentication cannot be disabled: the stored client secret does not work ($($Probe.message)). Rotate the secret from the Credentials page first.")
                     }

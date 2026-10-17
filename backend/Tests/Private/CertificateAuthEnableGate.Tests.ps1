@@ -143,4 +143,17 @@ Describe 'Certificate auth enable gate' {
         Should -Invoke Update-CIPPSAMSecret -Times 0 -Exactly
         Should -Invoke Set-CIPPFeatureFlag -Times 1 -Exactly -ParameterFilter { $Enabled -eq $false }
     }
+
+    It 'keeps certificate auth on while an existing, recently rotated secret is still propagating, without telling the user to rotate again' {
+        $env:ApplicationSecret = 'real-secret-value'
+        $env:CertificateAuthMode = 'True'
+        Mock Test-CIPPSAMSecret { @{ ready = $false; reason = 'propagating'; message = 'AADSTS7000215' } }
+
+        $Response = Invoke-ExecCombinedSetup -Request ([pscustomobject]@{ Body = [pscustomobject]@{ certificateAuth = $false }; Headers = @{}; Params = @{ CIPPEndpoint = 'ExecCombinedSetup' } }) -TriggerMetadata $null
+
+        Should -Invoke Update-CIPPSAMSecret -Times 0 -Exactly
+        Should -Invoke Set-CIPPFeatureFlag -Times 0 -Exactly
+        ($Response.Body -join ' ') | Should -BeLike '*rotated recently*disable it again in a few minutes*'
+        ($Response.Body -join ' ') | Should -Not -BeLike '*Rotate the secret from the Credentials page*'
+    }
 }
