@@ -268,8 +268,8 @@
           "Property": { "value": "List:Operation", "label": "Operation" },
           "Operator": { "value": "EQ", "label": "Equals to" },
           "Input": {
-            "value": "Remove Member from a role.",
-            "label": "Remove Member from a role."
+            "value": "Remove member from role.",
+            "label": "Remove member from role."
           }
         }
       ]
