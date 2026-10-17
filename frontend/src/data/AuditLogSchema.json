@@ -19,7 +19,8 @@
     "CIPPIPDetected": "String",
     "CIPPUserId": "String",
     "CIPPUserKey": "String",
-    "CIPPUsername": "String"
+    "CIPPUsername": "String",
+    "CIPPActor": "String"
   },
   "Audit.Exchange": {
     "Id": "Combination GUID",
@@ -105,6 +106,10 @@
     {
       "value": "add member to role.",
       "label": "added member to role"
+    },
+    {
+      "value": "add eligible member to role.",
+      "label": "made a user eligible for a role in PIM"
     },
     {
       "value": "add partner to company.",
