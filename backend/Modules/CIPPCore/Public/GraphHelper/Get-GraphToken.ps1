@@ -83,6 +83,12 @@ function Get-GraphToken {
                 } -Force
             }
         }
+        # Same ApplicationId but rotated secret, new refresh token or changed auth mode: writers bump
+        # CredentialVersion (Set-CIPPCredentialVersion) and every other runspace reloads here.
+        if ($AppCache.CredentialVersion -and $env:CIPPCredentialVersion -ne $AppCache.CredentialVersion) {
+            $CIPPAuth = Get-CIPPAuthentication
+            $env:CIPPCredentialVersion = [string]$AppCache.CredentialVersion
+        }
         $refreshToken = $env:RefreshToken
         #Get list of tenants that have 'directTenant' set to true
         #get directtenants directly from table, avoid get-tenants due to performance issues
