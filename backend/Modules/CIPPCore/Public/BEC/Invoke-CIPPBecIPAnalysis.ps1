@@ -76,7 +76,9 @@ function Invoke-CIPPBecIPAnalysis {
     $BaselineResult = if ($Baseline) {
         New-CIPPBecCollectorResult -Data $Baseline -Count ([int]$Baseline.Successful)
     } else {
-        try { Get-CIPPBecSignInBaseline -TenantFilter $TenantFilter -UserId $UserId -StartDate $BaselineStart -EndDate $WindowStart } catch {
+        # the sign-in log keeps a P1/P2 tenant's sign-ins for the 30 days of its longest window, so a baseline before that comes from the audit log
+        $PastSignInLog = $WindowStart.ToUniversalTime() -le [datetime]::UtcNow.AddDays(1 - [int]($Heuristics.window.premiumDays ?? 30))
+        try { Get-CIPPBecSignInBaseline -TenantFilter $TenantFilter -UserId $UserId -UserPrincipalName $UserPrincipalName -StartDate $BaselineStart -EndDate $WindowStart -FromAuditLog:$PastSignInLog } catch {
             New-CIPPBecCollectorResult -Data $null -Error "Sign-in baseline failed: $((Get-NormalizedError -message $_.Exception.Message))"
         }
     }
@@ -122,7 +124,7 @@ function Invoke-CIPPBecIPAnalysis {
     $PeerError = $null
     if ($ToLookUp.Count -gt 0) {
         try {
-            $Found = Get-CIPPBecIPPeers -TenantFilter $TenantFilter -UserId $UserId -IPs $ToLookUp -StartDate $BaselineStart -WindowStart $WindowStart
+            $Found = Get-CIPPBecIPPeers -TenantFilter $TenantFilter -UserId $UserId -UserPrincipalName $UserPrincipalName -IPs $ToLookUp -StartDate $BaselineStart -WindowStart $WindowStart
             foreach ($Key in $Found.Keys) { $Peers[$Key] = $Found[$Key] }
             $Failed = @($Found.Values | Where-Object { $_.Error })
             if ($Failed.Count -gt 0) { $PeerError = "$($Failed.Count) address lookup(s) failed: $($Failed[0].Error)" }
@@ -132,7 +134,10 @@ function Invoke-CIPPBecIPAnalysis {
     }
     if ($SampleColleagues) {
         try {
-            $Colleagues = @(Get-CIPPBecColleagueSample -TenantFilter $TenantFilter -ExcludeUserId $UserId -StartDate $WindowStart -Count ([int]($Heuristics.baseline.colleagueSample ?? 8)))
+            Write-Information 'BEC IP analysis: colleague sample'
+            # who signed in recently is all the sample needs; a tenant-wide search past 7 days lands in Graph's 504s
+            $SampleFrom = if ($WindowStart.ToUniversalTime() -gt [datetime]::UtcNow.AddDays(-7)) { $WindowStart } else { [datetime]::UtcNow.AddDays(-7) }
+            $Colleagues = @(Get-CIPPBecColleagueSample -TenantFilter $TenantFilter -ExcludeUserId $UserId -StartDate $SampleFrom -Count ([int]($Heuristics.baseline.colleagueSample ?? 8)))
             if ($Colleagues.Count -gt 0) {
                 $Sampled = Get-CIPPBecCorrelatedUserPeers -TenantFilter $TenantFilter -UserIds $Colleagues -IPs @($Preliminary.IP) -StartDate $BaselineStart -WindowStart $WindowStart
                 foreach ($Key in $Sampled.Keys) {
