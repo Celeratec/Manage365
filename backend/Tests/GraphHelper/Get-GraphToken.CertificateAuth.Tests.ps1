@@ -108,17 +108,6 @@ Describe 'Get-GraphToken certificate-exclusive gating' {
             -not $Body.ContainsKey('client_assertion')
         }
     }
-    It 'holds an invalid-client-secret failure for about a minute, not the 30 minutes other admin errors get' {
-        Mock Get-CIPPAzDataTableEntity { param($Context, $Filter, $Property) if ($Filter -like "*Tenants*" -and $Filter -notlike "*directTenant*") { [pscustomobject]@{ RowKey = 't'; LastGraphError = ''; LastGraphTokenError = '' } } }
-        Mock Invoke-CIPPRestMethod { throw 'invalid_client:AADSTS7000215: Invalid client secret provided.' }
-        $Key = [CIPP.CIPPTokenCache]::BuildKey($env:TenantID, 'https://graph.microsoft.com/.default', $false, $env:ApplicationID, 'refresh_token')
-
-        { Get-GraphToken } | Should -Throw '*AADSTS7000215*'
-
-        $Failure = [CIPP.CIPPTokenCache]::Lookup("$Key|failed", 0)
-        $Failure.Found | Should -BeTrue
-        ($Failure.ExpiresOnUnix - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) | Should -BeLessOrEqual 60
-    }
 }
 
 Describe 'Get-GraphToken stale SAM certificate self-heal' {
@@ -201,5 +190,32 @@ Describe 'Get-GraphToken stale SAM certificate self-heal' {
         $null = Get-GraphToken -AsApp $true
 
         Should -Invoke Get-CIPPAuthentication -Times 0 -Exactly
+    }
+}
+
+Describe 'Get-GraphToken shared failure cache' {
+    BeforeAll {
+        $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+        if (-not ('CIPP.CIPPTokenCache' -as [type])) {
+            Add-Type -Path (Join-Path $RepoRoot 'Shared/CIPPSharp/bin/CIPPSharp.dll')
+        }
+    }
+
+    It 'holds an invalid-client-secret failure for about a minute, not the 30 minutes other admin errors get' {
+        $env:ApplicationID = 'sam-app-id'
+        $env:ApplicationSecret = 'sam-secret'
+        $env:TenantID = '11111111-2222-3333-4444-555555555555'
+        $env:RefreshToken = 'sam-refresh-token'
+        $env:SetFromProfile = 'true'
+        $env:CertificateAuthMode = $null
+        Mock Get-CIPPAzDataTableEntity { param($Context, $Filter, $Property) if ($Filter -like "*Tenants*" -and $Filter -notlike "*directTenant*") { [pscustomobject]@{ RowKey = 't'; LastGraphError = ''; LastGraphTokenError = '' } } }
+        Mock Invoke-CIPPRestMethod { throw 'invalid_client:AADSTS7000215: Invalid client secret provided.' }
+        $Key = [CIPP.CIPPTokenCache]::BuildKey($env:TenantID, 'https://graph.microsoft.com/.default', $false, $env:ApplicationID, 'refresh_token')
+
+        { Get-GraphToken } | Should -Throw '*AADSTS7000215*'
+
+        $Failure = [CIPP.CIPPTokenCache]::Lookup("$Key|failed", 0)
+        $Failure.Found | Should -BeTrue
+        ($Failure.ExpiresOnUnix - [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) | Should -BeLessOrEqual 60
     }
 }
