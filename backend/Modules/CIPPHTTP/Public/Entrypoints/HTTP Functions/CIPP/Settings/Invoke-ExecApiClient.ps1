@@ -10,6 +10,7 @@ function Invoke-ExecApiClient {
 
     $Table = Get-CippTable -tablename 'ApiClients'
     $Action = $Request.Query.Action ?? $Request.Body.Action
+    $StatusCode = [HttpStatusCode]::OK
 
     switch ($Action) {
         'List' {
@@ -538,7 +539,7 @@ function Invoke-ExecApiClient {
     }
 
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = $Body
         })
 }
