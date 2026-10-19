@@ -61,6 +61,8 @@ export const CippStorageCleanupDrawer = ({
 
   const [tab, setTab] = useState(0)
   const [activeSiteUrl, setActiveSiteUrl] = useState('')
+  const [recycleJobId, setRecycleJobId] = useState(null)
+  const [recycleJobActive, setRecycleJobActive] = useState(false)
   const versionDialog = useDialog()
   const recycleDialog = useDialog()
   const jobStatusApi = ApiPostCall({})
@@ -115,6 +117,26 @@ export const CippStorageCleanupDrawer = ({
     queryKey: `CleanupRecycle-${tenantFilter}-${siteUrl}`,
     waiting: open && canReadRecycle && !!tenantFilter && !!siteUrl,
   })
+
+  const recycleJobApi = ApiGetCall({
+    url: '/api/ListEmptySiteRecycleBinStatus',
+    data: { tenantFilter, queueId: recycleJobId, SiteUrl: siteUrl },
+    queryKey: `CleanupRecycleJob-${recycleJobId}`,
+    waiting: open && !!recycleJobId,
+    refetchInterval: recycleJobActive ? 4000 : false,
+  })
+
+  useEffect(() => {
+    const status = recycleJobApi.data?.Status
+    if (!status) return
+    if (status === 'Running' || status === 'Queued') {
+      setRecycleJobActive(true)
+      return
+    }
+    setRecycleJobActive(false)
+    recycleApi.refetch?.()
+    compositionApi.refetch?.()
+  }, [recycleJobApi.data])
 
   const libraries = useMemo(() => {
     const rows = Array.isArray(librariesApi.data?.Results) ? librariesApi.data.Results : []
@@ -319,13 +341,22 @@ export const CippStorageCleanupDrawer = ({
                   color="warning"
                   startIcon={<DeleteSweep />}
                   onClick={recycleDialog.handleOpen}
-                  disabled={!recycle?.totalBytes}
+                  disabled={recycleJobActive || !recycle || recycle.itemCount === undefined || (Number(recycle.itemCount) === 0 && !recycle.capped)}
                 >
                   Empty recycle bin
                 </Button>
               ) : (
                 <Alert severity="info">You need Recycle Bin write permission to empty.</Alert>
               )}
+              {recycleJobApi.data?.Results ? (
+                <Alert severity={recycleJobApi.data.emptied ? 'success' : recycleJobActive ? 'info' : 'warning'}>
+                  {recycleJobApi.data.Results}
+                  {recycleJobApi.data.deletedCount != null
+                    ? ` Deleted ${Number(recycleJobApi.data.deletedCount).toLocaleString()} items.`
+                    : ''}
+                  {recycleJobActive ? <LinearProgress sx={{ mt: 1 }} /> : null}
+                </Alert>
+              ) : null}
             </Stack>
           )}
 
@@ -398,7 +429,11 @@ export const CippStorageCleanupDrawer = ({
             Stage: optionValue(formData.Stage) || 'Both',
           }),
           multiPost: false,
-          onSuccess: () => {
+          onSuccess: (result) => {
+            if (result?.Queued && result?.QueueId) {
+              setRecycleJobId(result.QueueId)
+              setRecycleJobActive(true)
+            }
             recycleApi.refetch?.()
             compositionApi.refetch?.()
           },

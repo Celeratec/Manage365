@@ -38,7 +38,6 @@ import {
   libraryRecyclePathSeed,
   projectRecycleBinTree,
   expandRecycleRestoreRows,
-  RECYCLE_BIN_CAP,
 } from '../../../utils/sharepoint-recycle-bin-tree'
 import { useSharePointBrowserRecents } from '../../../hooks/use-sharepoint-browser-recents'
 
@@ -403,8 +402,9 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
       recycleStage,
       recycleView,
       siteWebUrl: openedSite?.webUrl,
+      serverCapped: typeof recycleApi.data?.capped === 'boolean' ? recycleApi.data.capped : undefined,
     })
-  }, [inRecycle, rawRecycleResults, recyclePath, recycleStage, recycleView, openedSite?.webUrl])
+  }, [inRecycle, rawRecycleResults, recyclePath, recycleStage, recycleView, openedSite?.webUrl, recycleApi.data?.capped])
 
   const items = inRecycle ? recycleProjection.items : browseItems
 
@@ -800,11 +800,10 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
     ) : null
 
   const infoMessage = inRecycle
-    ? recycleProjection.capped ||
-      (Array.isArray(rawRecycleResults) && rawRecycleResults.length >= RECYCLE_BIN_CAP)
-      ? `Showing up to ${RECYCLE_BIN_CAP} newest deleted items (API cap). ${
+    ? recycleProjection.capped
+      ? `Showing ${recycleApi.data?.scannedItems ?? (Array.isArray(rawRecycleResults) ? rawRecycleResults.length : 0)} deleted items. More items remain in this site recycle bin. ${
           recycleView === 'list'
-            ? 'List view shows every item under this location.'
+            ? 'List view shows every loaded item under this location.'
             : 'Folder view groups by path.'
         }`
       : recycleView === 'list'
