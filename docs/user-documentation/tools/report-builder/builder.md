@@ -36,6 +36,7 @@ The delivery options behave differently:
 * **Email** sends the report body as the message, to the address configured in [notifications.md](../../cipp/settings/notifications.md "mention"). The report is attached as a PDF, followed by any database blocks marked for attachment. An attachment that would take the email over Microsoft's 4 MB limit is uploaded to storage instead and listed in the email as a download link, kept for the period set under [Report Attachment Retention](../../cipp/settings/README.md#report-attachment-retention). If the upload fails, the attachment is left off.
 * **PSA** raises a ticket with the report body as its content. Raw data is not attached.
 * **Webhook** posts a JSON payload of the task metadata and results.
+* **Push (notify me)** sends a notification to the devices you registered under [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention"). It tells you when each run has finished. Only you receive it, and the schedule is only saved with it once you have registered at least one device.
 
 What the schedule generates depends on **Always use the latest saved version of this template**. With it on, the schedule points at the saved template, so every run picks the template up as it stands at that moment and later edits are applied automatically. Anything you have changed in the builder but not yet saved to the template is not included, so save before you schedule.
 

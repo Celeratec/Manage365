@@ -102,7 +102,7 @@ Below roughly 900px, tables are presented as a list of cards rather than as a ta
 
 Most tables include an **Actions** column pinned to the right of the table. Clicking the ellipsis in a row opens the actions available for that row.
 
-Ticking the checkboxes at the left of one or more rows shows a count of the selected rows in the toolbar along with a **Bulk Actions** button, which applies a single action to every row you have selected. Only actions that support bulk operation appear in this menu. Where an action only applies to certain rows, the selection is narrowed automatically to the eligible ones.
+Ticking the checkboxes at the left of one or more rows shows a count of the selected rows in the toolbar along with a **Bulk Actions** button, which applies a single action to every row you have selected. Only actions that support bulk operation appear in this menu. Where an action only applies to certain rows, the selection is narrowed automatically to the eligible ones. Where an action is sent one row at a time, a row that fails is reported with its error alongside the rows that succeeded, and the remaining rows are still processed.
 
 The selection checkbox column is pinned to the left and the actions column to the right, so both stay visible as you scroll horizontally. The column headers remain fixed as you scroll vertically.
 

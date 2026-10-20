@@ -77,11 +77,13 @@ SOC is the default for a new instance. Selecting **No cover image** produces a c
 | Format           | JPG or PNG.                                                                                                                                                                |
 | Maximum size     | 5MB.                                                                                                                                                                       |
 | Ideal dimensions | Around 1240x1754px, which is A4 portrait at roughly 150dpi, or a similar portrait aspect ratio.                                                                            |
-| Subject matter   | Soft or dark imagery works best, because the image is displayed full bleed at around 50% opacity behind the cover text. Busy or bright images make the title hard to read. |
+| Subject matter   | Soft or dark imagery works best, because the image is displayed full bleed, faded to around 50% opacity by default, behind the cover text. Busy or bright images make the title hard to read. |
 
 Each uploaded cover has a **Name this cover** field beneath its tile, limited to 64 characters. The name is saved when you leave the field, and is how the cover is listed when you choose a background for an Infographic block in the [builder.md](../../tools/report-builder/builder.md "mention"). An unnamed cover is listed by its position instead.
 
 Uploaded covers can be removed with the delete icon on their tile. Deleting the cover that is currently selected falls back to **No cover image** rather than to a stock cover.
+
+**Fade cover image** (on by default) draws the cover at around 50% opacity so the cover text stays readable. Switch it off to print a designed cover page at full strength, for example one that already carries your own artwork and colours.
 
 ## Cover Preview
 

@@ -212,6 +212,7 @@ function Invoke-ExecSharePointTemplate {
                     break
                 }
                 $Body = @(Get-CIPPAsyncDeployment -JobId $JobId)
+                Add-CIPPRealtimeWatch -JobId $JobId
             } catch {
                 $Body = @{ Results = "Failed to get deployment status: $($_.Exception.Message)" }
                 $StatusCode = [HttpStatusCode]::InternalServerError

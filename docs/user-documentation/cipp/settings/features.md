@@ -9,11 +9,11 @@ To change a flag, open the actions menu on its row and choose **Enable Feature**
 | Feature                | Status      | Description                                                                                                                                                      |
 | ---------------------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | MCP Server             | Beta        | Model Context Protocol (MCP) server endpoint that exposes CIPP's read-only API surface as tools for AI clients. Disabled by default; enable to allow MCP access. |
-| Baselines              | Beta        | The baseline engine that replaces classic Standards and Drift. Enabling it shows the [Baselines](../../tenant/baselines/README.md) pages, hides the classic Standards and Drift pages, and stops their scheduled runs, so the two never run side by side. Enabled by default on installs that have no classic Standards templates; disabled by default everywhere else. |
+| Baselines              | Opt-in      | The baseline engine that replaces classic Standards and Drift. Enabling it shows the [Baselines](../../tenant/baselines/README.md) pages, hides the classic Standards and Drift pages, and stops their scheduled runs, so the two never run side by side. Enabled by default on installs that have no classic Standards templates; disabled by default everywhere else. |
 | Security Simulations   | Beta        | Plays realistic attacks against a tenant to show what an attacker would experience today and which controls close each gap. Enabling it shows the [Security Simulations](../../tenant/security-simulator/README.md) pages. Enabled by default on installs that have no classic Standards templates; disabled by default everywhere else. |
 
 {% hint style="info" %}
-A default only applies until you change the flag yourself. If your install has never created a classic Standards template, Baselines and Security Simulations are switched on for you, because there is nothing for Baselines to replace. An install that already has Standards templates keeps them until you enable Baselines yourself. Either way, your own choice on this page is kept across upgrades.
+A default only applies until you change the flag yourself. If your install has no classic Standards templates when the flag is first set up, Baselines and Security Simulations are switched on for you, because there is nothing for Baselines to replace. An install that already has Standards templates keeps them until you enable Baselines yourself. Either way, your own choice on this page is kept across upgrades.
 {% endhint %}
 
 {% hint style="info" %}

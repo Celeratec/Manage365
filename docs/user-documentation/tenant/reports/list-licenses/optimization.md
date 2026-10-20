@@ -4,6 +4,8 @@ The License Optimization tab looks at how a tenant's licences are actually used 
 
 Every money figure is calculated from the monthly per-seat prices on the [pricing.md](pricing.md "mention") tab, in the currency chosen under **Analysis Settings**. A licence with no price in that currency cannot be costed, so it is left out of the plan-change suggestions and adds nothing to the savings figures.
 
+Licences on the [licenses.md](../../../cipp/settings/licenses.md "mention") excluded list are left out of the analysis, as are licences the tenant holds only on trial subscriptions, since trial seats cost nothing. Trial licences still appear on the licences page.
+
 ## Action Buttons
 
 ### Client Report

@@ -55,6 +55,13 @@ function New-CippCoreRequest {
     if ($DisabledEndpoint) {
         Write-Information "Endpoint $($Request.Params.CIPPEndpoint) is disabled via feature flag: $($DisabledEndpoint.Name)"
         $HttpTotalStopwatch.Stop()
+        if ($Request.Params.CIPPEndpoint -eq 'ExecMcp') {
+            return ([HttpResponseContext]@{
+                    StatusCode = [HttpStatusCode]::ServiceUnavailable
+                    Headers    = @{ 'Content-Type' = 'application/json' }
+                    Body       = (@{ jsonrpc = '2.0'; id = $null; error = @{ code = -32001; message = 'The MCP Server feature is disabled on this CIPP instance. Enable it in CIPP > Application Settings > Features.' } } | ConvertTo-Json -Compress)
+                })
+        }
         return ([HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::ServiceUnavailable
                 Body       = "This feature has been disabled: $($DisabledEndpoint.Description)"
@@ -104,6 +111,7 @@ function New-CippCoreRequest {
                 if ($script:CippAccessUserContext) {
                     Write-Information "Access: $($script:CippAccessUserContext.User) [$($script:CippAccessUserContext.Roles -join ', ')] -> $($Request.Params.CIPPEndpoint)"
                 }
+                $script:CippRealtimeUser = $Request.Headers.'x-ms-client-principal-name'
             } catch {
                 $DeniedUser = if ($script:CippAccessUserContext) { " for user $($script:CippAccessUserContext.User) [$($script:CippAccessUserContext.Roles -join ', ')]" } else { '' }
                 Write-Information "Access denied for $FunctionName$($DeniedUser) : $($_.Exception.Message)"
@@ -142,7 +150,7 @@ function New-CippCoreRequest {
 
             try {
                 Write-Debug "Access: $Access"
-                Write-LogMessage -headers $Headers -API $Request.Params.CIPPEndpoint -message 'Accessed this API' -Sev 'Debug'
+                Write-LogMessage -headers $Request.Headers -API $Request.Params.CIPPEndpoint -message 'Accessed this API' -Sev 'Debug'
                 if ($Access) {
                     # Prepare telemetry metadata for HTTP API call
                     $metadata = @{

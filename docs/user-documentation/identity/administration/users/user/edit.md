@@ -81,7 +81,7 @@ Any directory attributes added under [user-settings.md](../../../../shared-featu
 | Schedule this user edit                | Defers the edit to a chosen date instead of applying it immediately, which suits changes tied to a start date or a departure. |
 | Scheduled edit date                    | The date the edit should run.                                                                                                 |
 | Send results to Webhook / E-mail / PSA | Delivers the outcome of the scheduled edit to the notification channels configured for the tenant.                            |
-| Push notification to my devices        | Sends the outcome as a push notification to the devices you registered under User Preferences.                                |
+| Push notification to my devices        | Sends the outcome of the scheduled edit as a push notification to the devices you registered under [user-settings.md](../../../../shared-features/menu-bar/user-settings.md "mention"). Only you receive it, and it needs at least one device registered there. |
 | HaloPSA Ticket                         | An existing HaloPSA ticket to add the results to as a note, instead of raising a new ticket. Only shown once **Send results to PSA** is on and the HaloPSA integration is enabled. |
 | Reference                              | Free text added to the notification title so the task can be recognised later.                                                |
 

@@ -129,7 +129,12 @@ Function Invoke-ExecExtensionMapping {
           $Result = 'AutoMapping Request has been queued. Exact name matches will appear first and matches on device names and serials will take longer. Please check the CIPP Logbook and refresh the page once complete.'
           Write-LogMessage -API $APIName -tenant 'Global' -headers $Headers -message $Result -Sev 'Info'
         }
-
+        'HaloPSA' {
+          $Result = Invoke-HaloAutoMap -CIPPMapping $Table
+        }
+        'Hudu' {
+          $Result = Invoke-HuduAutoMap -CIPPMapping $Table
+        }
       }
     }
     $StatusCode = [HttpStatusCode]::OK

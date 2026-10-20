@@ -13,16 +13,16 @@ function Invoke-CippTestCIS_2_1_8 {
             return
         }
 
-        $Failing = $Results | Where-Object { [string]::IsNullOrWhiteSpace($_.ActualSPFRecord) -or $_.ActualSPFRecord -notmatch 'v=spf1' }
+        $Failing = $Results.Where({ [string]::IsNullOrWhiteSpace($_.ActualSPFRecord) -or $_.ActualSPFRecord -notmatch 'v=spf1' })
 
         if (-not $Failing -or $Failing.Count -eq 0) {
             $Status = 'Passed'
-            $Result = "All $($Results.Count) domain(s) have an SPF record published."
+            $Result = [System.Text.StringBuilder]::new("All $($Results.Count) domain(s) have an SPF record published.")
         } else {
             $Status = 'Failed'
-            $Result = "$($Failing.Count) of $($Results.Count) domain(s) are missing a valid SPF record:`n`n| Domain | SPF Record |`n| :----- | :--------- |`n"
-            foreach ($D in ($Failing | Select-Object -First 25)) {
-                $Result += "| $($D.Domain) | $($D.ActualSPFRecord) |`n"
+            $Result = [System.Text.StringBuilder]::new("$($Failing.Count) of $($Results.Count) domain(s) are missing a valid SPF record:`n`n| Domain | SPF Record |`n| :----- | :--------- |`n")
+            foreach ($D in $Failing.Where({ $true }, 'First', 25)) {
+                $null = $Result.Append("| $($D.Domain) | $($D.ActualSPFRecord) |`n")
             }
         }
 

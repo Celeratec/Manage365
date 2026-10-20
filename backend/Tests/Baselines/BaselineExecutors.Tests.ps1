@@ -13,7 +13,7 @@
 
 BeforeAll {
     $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
-    $Baselines = Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines'
+    $Baselines = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public'
 
     # Parameter binding is case-insensitive, so one casing per name covers every call site.
     function New-GraphPostRequest { param($tenantid, $uri, $Type, $Body, $AsApp, $ContentType, $AddedHeaders) }
@@ -23,10 +23,11 @@ BeforeAll {
     function Write-LogMessage { param($API, $tenant, $message, $Sev, $LogData) }
     function Set-CIPPDBCacheUsers { param($TenantFilter) }
 
-    . (Join-Path $Baselines 'Invoke-CIPPBaselineGraphRequest.ps1')
-    . (Join-Path $Baselines 'Invoke-CIPPBaselineExoRequest.ps1')
-    . (Join-Path $Baselines 'Invoke-CIPPBaselineDeviceRegistrationPolicy.ps1')
-    . (Join-Path $Baselines 'Invoke-CIPPBaselineGraphBulkSweep.ps1')
+    . (Join-Path $Baselines 'Helpers/Get-CIPPBaselineCommand.ps1')
+    . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineGraphRequest.ps1')
+    . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineExoRequest.ps1')
+    . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineDeviceRegistrationPolicy.ps1')
+    . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineGraphBulkSweep.ps1')
 
     # $batch answers one response per request, keyed by the id the caller supplied.
     function New-BulkSuccess { param($Requests) @($Requests | ForEach-Object { [PSCustomObject]@{ id = $_.id; status = 204 } }) }
@@ -418,8 +419,8 @@ Describe 'Number variable rendering' {
 
 Describe 'Invoke-CIPPBaselineExoBulkSweep' {
     BeforeAll {
-        . (Join-Path $Baselines 'Invoke-CIPPBaselineExoBulkSweep.ps1')
-        function New-ExoBulkRequest { param($tenantid, $cmdletArray, $useSystemMailbox, $Anchor, $NoAuthCheck, $Select, $ReturnWithCommand, [switch]$Compliance, [switch]$AsApp) }
+        . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineExoBulkSweep.ps1')
+        function New-ExoBulkRequest { param($tenantid, $cmdletArray, $useSystemMailbox, $Anchor, $NoAuthCheck, $Select, $ReturnWithCommand, [int]$MaxConcurrency = 1, [switch]$Compliance, [switch]$AsApp) }
         function Set-CIPPDBCacheMailboxes { param($TenantFilter, $Types) }
     }
     BeforeEach {
@@ -446,6 +447,20 @@ Describe 'Invoke-CIPPBaselineExoBulkSweep' {
         $Spec = @{ writes = @(@{ cmdlet = 'Set-Mailbox'; params = @{ Identity = '%id%' } }) } | ConvertTo-Spec
         Invoke-CIPPBaselineExoBulkSweep -Remediate $Spec -TenantFilter $script:Tenant -Current $Current
         Should -Invoke New-ExoBulkRequest -Times 1 -ParameterFilter { @($cmdletArray)[0].OperationGuid -eq 'a@contoso.com' }
+    }
+
+    It 'fans out 16 batches at once unless the write group sets its own concurrency' {
+        $Current = @{ targets = @(@{ id = 'a@contoso.com' }) } | ConvertTo-Spec
+        $Spec = @{ writes = @(@{ cmdlet = 'Set-Mailbox'; params = @{ Identity = '%id%' } }) } | ConvertTo-Spec
+        Invoke-CIPPBaselineExoBulkSweep -Remediate $Spec -TenantFilter $script:Tenant -Current $Current
+        Should -Invoke New-ExoBulkRequest -Times 1 -Exactly -ParameterFilter { $MaxConcurrency -eq 16 }
+    }
+
+    It 'passes the write group concurrency through to the bulk request' {
+        $Current = @{ targets = @(@{ id = 'a@contoso.com' }) } | ConvertTo-Spec
+        $Spec = @{ writes = @(@{ cmdlet = 'Set-Mailbox'; concurrency = 8; params = @{ Identity = '%id%' } }) } | ConvertTo-Spec
+        Invoke-CIPPBaselineExoBulkSweep -Remediate $Spec -TenantFilter $script:Tenant -Current $Current
+        Should -Invoke New-ExoBulkRequest -Times 1 -Exactly -ParameterFilter { $MaxConcurrency -eq 8 }
     }
 
     It 'does nothing when there is nothing to sweep' {
@@ -497,7 +512,7 @@ Describe 'Invoke-CIPPBaselineQuarantineRequestAlert' {
     # The 'Allow extra addresses' switch decides whether the write preserves recipients it did
     # not add. Getting this wrong silently deletes somebody's notification address.
     BeforeAll {
-        . (Join-Path $Baselines 'Invoke-CIPPBaselineQuarantineRequestAlert.ps1')
+        . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineQuarantineRequestAlert.ps1')
         $script:AlertName = 'CIPP User requested to release a quarantined message'
     }
     BeforeEach {

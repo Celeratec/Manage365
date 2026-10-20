@@ -121,6 +121,7 @@ const Page = () => {
     allowToggle: true,
     defaultCached: false,
     allowAllTenantSync: true,
+    serverPagination: true,
   });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -826,6 +827,7 @@ const Page = () => {
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
         apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         actions={actions}
         offCanvas={offCanvas}

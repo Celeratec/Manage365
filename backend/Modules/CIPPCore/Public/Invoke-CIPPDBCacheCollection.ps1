@@ -60,7 +60,6 @@ function Invoke-CIPPDBCacheCollection {
             'AuthorizationPolicy'
             'AuthenticationMethodsPolicy'
             'SecurityDefaults'
-            'DeviceSettings'
             'DirectoryRecommendations'
             'CrossTenantAccessPolicy'
             'DefaultAppManagementPolicy'
@@ -123,6 +122,7 @@ function Invoke-CIPPDBCacheCollection {
             'ExoHostedContentFilterRule'
             'ExoGlobalQuarantinePolicy'
             'ExoOMEConfiguration'
+            'ExoIRMConfiguration'
             'ExoMailboxPlans'
             'ExoRetentionPolicyTags'
             'ExoRetentionPolicies'
@@ -187,10 +187,7 @@ function Invoke-CIPPDBCacheCollection {
         )
         SharePoint         = @(
             'SPOTenant'
-            'SPOSites'
-            'SPOTenantSyncClientRestriction'
             'SharePointAdminSettings'
-            'SharePointSiteUsage'
             'SharePointUsageReport'
             'SiteActivity'
             'OneDriveUsage'

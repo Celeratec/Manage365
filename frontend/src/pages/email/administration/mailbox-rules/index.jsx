@@ -22,6 +22,7 @@ const Page = () => {
     syncData: { Types: "Rules" },
     allowToggle: false,
     defaultCached: true,
+    serverPagination: true,
   });
 
   const simpleColumns = [
@@ -118,6 +119,7 @@ const Page = () => {
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
         apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         simpleColumns={simpleColumns}
         offCanvas={offCanvas}

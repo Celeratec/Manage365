@@ -68,6 +68,8 @@ Each stage has its own tab. Stage 1 always applies to every assigned tenant, so 
 
 A chip next to the stage name shows how many tenants are currently sitting in that stage.
 
+Stages after Stage 1 can be reordered with the up and down arrows beside the stage name. A stage keeps its name, standards and graduation conditions when it moves, and the stage numbers are renumbered to match. Stage 1 never moves and nothing can be moved above it, so the up arrow is greyed out on Stage 2 and the down arrow on the last stage.
+
 ### Graduation Conditions
 
 Add as many conditions as you need. With more than one, a **Condition Logic** field appears and sets whether all of them must match or any one of them is enough. A stage with no conditions can only be advanced into by hand, from the Alignment page.
@@ -77,14 +79,14 @@ Add as many conditions as you need. With more than one, a **Condition Logic** fi
 | Time in previous stage                        | The tenant has spent a given number of days or weeks in the stage before this one.                                                 |
 | Tenant variable                               | A custom variable on the tenant matches the value you give, compared with equals, not equals, starts with, or does not start with. |
 | Is in tenant group                            | The tenant belongs to the tenant group you choose.                                                                                 |
-| All previous stage items applied successfully | Every standard from the earlier stages reports as compliant for the tenant.                                                        |
+| All previous stage items applied successfully | Every standard from the earlier stages is compliant or accepted for the tenant. A standard the tenant is not licensed for does not hold the tenant back. |
 | Manual approval by an operator                | The tenant waits until an operator advances it from the [Alignment](alignment.md) page.                                            |
 
 ### Standards In This Stage
 
 **Add Standards** opens the catalogue, where standards can be searched by name, description, or benchmark tag, and narrowed by category, impact, the source that recommends them, and compliance tags. The results can be sorted, and shown as cards or as a list.
 
-Each standard added to the stage expands to show its own settings, along with its impact, the Secure Score points it is worth, the benchmarks that recommend it, and the licences a tenant needs before it counts towards scoring. Standards that support it can be added more than once, so the same standard can be configured differently within one stage.
+Each standard added to the stage expands to show its own settings, along with its impact, the Secure Score points it is worth, the benchmarks that recommend it, and the licences a tenant needs before it counts towards scoring. Standards that support it can be added more than once, so the same standard can be configured differently within one stage. Those standards carry a plus button on their row, with the tooltip **Add another** followed by the standard's name, which adds a further copy to the stage and opens it straight away so you can set it up.
 
 Three settings are common to every standard.
 
@@ -92,7 +94,7 @@ Three settings are common to every standard.
 | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Automatically fix this when the setting drifts | Corrects the setting back to its expected value on every run. Left off, the deviation is only reported.                                                                                                                                                     |
 | Alert on new deviation                         | Raises an alert when the setting starts to deviate. No further alert is sent while it stays in **Drift**, however often the check runs. You are alerted again only after the setting is compliant or the deviation is accepted, and it then deviates again. |
-| Alert when remediated                          | Raises an alert whenever automatic fixing corrects the setting.                                                                                                                                                                                             |
+| Alert when remediated                          | Raises an alert when automatic fixing corrects a setting that was not compliant. A setting that is reapplied on every run while already compliant raises no further alert.                                                                                                                                                                                             |
 
 **Set all standards to** applies any one of those settings across every standard in the stage at once.
 

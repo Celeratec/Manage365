@@ -101,6 +101,10 @@ A table at the foot of the page lists every template library already set up, acr
 | Executed Time | When the library last ran.                                                           |
 | Results       | What the last run reported.                                                          |
 
-Libraries are edited and removed from [README.md](scheduler/README.md "mention"), not from this page.
+## Table Actions
+
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Delete Library</td><td>Stops the library syncing after you confirm. Templates the library has already imported stay in CIPP and are not imported again; delete those separately from the Conditional Access or Intune template pages if you no longer need them. Greyed out unless you have write access to the scheduler.</td><td>true</td></tr></tbody></table>
+
+To change how a library runs rather than remove it, use [README.md](scheduler/README.md "mention"). Community repository libraries appear there with the tenant filter set to All Tenants.
 
 {% include "../../../.gitbook/includes/feature-request.md" %}

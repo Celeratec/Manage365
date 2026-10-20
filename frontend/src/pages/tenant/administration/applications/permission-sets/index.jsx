@@ -73,7 +73,6 @@ const Page = () => {
       apiUrl={apiUrl}
       queryKey="ExecAppPermissionTemplate"
       simpleColumns={simpleColumns}
-      tableProps={{ keyField: "TemplateId" }}
       actions={actions}
       offCanvas={offCanvas}
       cardButton={

@@ -4,7 +4,7 @@ The Logbook records every action CIPP performs, whether triggered by a technicia
 
 Opening the Logbook needs the `CIPP.Logs` permission. The built-in roles all carry it, but the sign-in permission on its own does not, so a custom role must be granted it explicitly.
 
-By default the table shows entries for the current day only, newest first. Results are also scoped to the tenant currently selected in CIPP, and to the tenants your role gives you access to. Entries CIPP records against itself rather than a customer are always included.
+By default the table shows entries for the current day only, newest first, across every tenant your role gives you access to. To narrow it to the tenant selected in CIPP, turn on **Only show logs for** in the filters. Entries CIPP records against itself rather than a customer are always included.
 
 ## Using the Logbook for Troubleshooting
 
@@ -20,16 +20,23 @@ Expanding the **Logbook Filters** section at the top of the page reveals the opt
 
 | Field              | Description                                                                                                                                                                                                       |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search messages    | Finds entries whose message contains the text, across every page of results rather than only the rows already loaded. |
+| Today · 2d · 7d · 30d | Quick ranges ending today. **2d** is yesterday and today. Choosing one clears any dates you picked. |
 | Select Start Date  | The first day to retrieve entries for. Leave both dates empty to show the current day.                                                                                                                            |
 | Select End Date    | The last day to retrieve entries for. Requires a start date, and must fall on or after it.                                                                                                                        |
 | Filter by Username | Restricts results to entries recorded against a particular user.                                                                                                                                                  |
 | Filter by Severity | Restricts results to one or more severity levels. Several can be selected at once.                                                                                                                                |
 | Filter by API      | Restricts results to entries from particular APIs, matching the **API** column. Type the API names to filter on. Several can be added, and entries from any of them are shown. Part of a name is enough to match. |
+| Filter by IP address | Restricts results to entries from an IP address. Part of an address is enough to match. |
+| Filter by App ID   | Restricts results to actions made by a particular API client or integration, matching the **AppId** column. |
+| Only show logs for | Restricts results to the tenant currently selected in CIPP. Unavailable while All Tenants is selected.                                                                                                            |
 
 | Button        | Description                                                              |
 | ------------- | ------------------------------------------------------------------------ |
 | Apply Filters | Runs the query with the chosen filters and collapses the filter section. |
 | Clear Filters | Resets every field and returns the table to the current day.             |
+
+Applied filters are kept in the page address, so a filtered view can be bookmarked or shared, and opening that link shows the same results.
 
 {% hint style="info" %}
 Log entries are partitioned by date, and the day boundary follows your CIPP instance rather than your own location. The filter panel shows how far your local time is offset, which is worth checking when an entry you expect near midnight appears on the neighbouring day.

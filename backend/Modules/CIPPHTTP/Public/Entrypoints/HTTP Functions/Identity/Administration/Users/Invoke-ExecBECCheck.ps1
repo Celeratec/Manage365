@@ -38,6 +38,10 @@ function Invoke-ExecBECCheck {
                 # A single phase can use the full task timeout, so a quiet poll must not fail the run.
                 $Progress = try { @(Get-CIPPAsyncDeployment -JobId $Run.CaseId) | Select-Object -First 1 } catch { $null }
 
+                if ($Run.Status -in @('Waiting', 'Running')) {
+                    Add-CIPPRealtimeWatch -JobId $Run.CaseId
+                }
+
                 $Summary = @{
                     CaseId      = $Run.CaseId
                     Status      = $Run.Status

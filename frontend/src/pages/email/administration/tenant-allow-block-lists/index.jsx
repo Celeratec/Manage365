@@ -20,6 +20,7 @@ const Page = () => {
     // remove reads as the action having failed.
     defaultCached: false,
     allowAllTenantSync: true,
+    serverPagination: true,
   });
 
   const actions = [
@@ -57,6 +58,8 @@ const Page = () => {
       <CippTablePage
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         actions={actions}
         simpleColumns={simpleColumns}

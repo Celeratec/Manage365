@@ -8,7 +8,6 @@ function Invoke-ExecTestRun {
     param($Request, $TriggerMetadata)
 
     $APIName = $TriggerMetadata.FunctionName
-    Write-LogMessage -user $request.headers.'x-ms-client-principal' -API $APINAME -message 'Accessed this API' -Sev 'Debug'
 
     try {
         $TenantFilter = $Request.Query.tenantFilter ?? $Request.Body.tenantFilter
@@ -19,7 +18,11 @@ function Invoke-ExecTestRun {
             'tests' {
                 Write-LogMessage -API $APIName -tenant $TenantFilter -message "Starting tests-only run for tenant: $TenantFilter" -sev Info
                 $InstanceId = Start-CIPPDBTestsRun -TenantFilter $TenantFilter -Force
-                $ResultMessage = "Successfully started test run for $TenantFilter"
+                $ResultMessage = if ("$($InstanceId.InstanceId)" -like '*-Skipped') {
+                    "A test run for $TenantFilter is already running, so this request was skipped"
+                } else {
+                    "Successfully started test run for $TenantFilter"
+                }
             }
             'cache' {
                 Write-LogMessage -API $APIName -tenant $TenantFilter -message "Starting cache-only collection for tenant: $TenantFilter" -sev Info

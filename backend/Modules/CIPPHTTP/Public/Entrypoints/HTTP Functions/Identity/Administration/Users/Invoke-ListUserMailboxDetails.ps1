@@ -340,6 +340,7 @@ function Invoke-ListUserMailboxDetails {
             HiddenFromAddressListsEnabled,
             ExternalDirectoryObjectId,
             IsDirSynced,
+            IsExchangeCloudManaged,
             MessageCopyForSendOnBehalfEnabled,
             MessageCopyForSentAsEnabled,
             LitigationHoldEnabled,

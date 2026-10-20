@@ -28,9 +28,9 @@ The page has three tabs, and each needs a single tenant selected:
 
 A scenario is an attack told as a sequence of steps. Each step is checked against the tenant in one of three ways:
 
-* **Standards** are judged from the tenant's baseline alignment. A standard that is not in any baseline is checked directly against the tenant instead.
-* **Alerts** are judged from the audit log alerts set up for the tenant in [alert-configuration](../administration/alert-configuration/ "mention").
-* **Sign-ins** are evaluated live through Microsoft's Conditional Access What If API, as an account from the tenant. Nothing actually signs in.
+* **Standards** are checked directly against the tenant, using the secure setting the scenario defines for each one. The setting a baseline chooses does not count as protection, so a baseline that weakens a standard does not make the step look safe. A standard that needs tenant-specific settings is judged from the tenant's baseline alignment instead, and reads **Needs configuration** until a baseline supplies them.
+* **Alerts** are judged from the audit log alerts set up for the tenant in [alert-configuration](../administration/alert-configuration/ "mention"). An alert only counts as detecting an attack while the unified audit log is on for the tenant.
+* **Sign-ins** are evaluated live through Microsoft's Conditional Access What If API, as an account from the tenant. Nothing actually signs in. An authentication strength counts as plain multifactor authentication unless every method it allows is phishing-resistant, so it does not stop attacks that need phishing-resistant authentication to block them.
 
 The scenarios run alongside the nightly tests, so the list shows the last known result without you doing anything.
 
@@ -48,6 +48,7 @@ Scenarios are grouped by category. Scenarios that have never run sit under **Not
 | Outcome                | Meaning                                                                                                             |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Prevented              | A control in the tenant stops the attack.                                                                           |
+| Detected               | No control can block the action, and an alert set up for the tenant fires when it happens.                          |
 | Alerted, not prevented | The attack succeeds, but an alert set up for the tenant would fire.                                                 |
 | Not prevented          | The attack succeeds and nothing detects it.                                                                         |
 | Not licensed           | The tenant lacks a licence the scenario depends on.                                                                 |
@@ -67,13 +68,14 @@ Click a scenario to open it. The top of the detail shows the account the sign-in
 | Verdict                                      | Meaning                                                          |
 | -------------------------------------------- | ---------------------------------------------------------------- |
 | Blocked at "_step_"                          | The named step stops the attack.                                 |
+| Detected: nothing can block this, and an alert fires when it happens | The action cannot be blocked by any control, and an alert detects it. |
 | The attack succeeds, but an alert would fire | Nothing stops the attack, but an alert detects it.               |
 | The attack succeeds, undetected              | Nothing stops or detects the attack.                             |
 | The sign-in could not be evaluated           | The sign-in step could not be run, so the outcome is incomplete. |
 
 Below the verdict is a timeline of the attack steps. Steps after the one that stops the attack are faded and marked not reached. Each step reports whether it is protected, partly protected, or unprotected, and lists the checks behind it:
 
-* each standard involved, and whether it is aligned, drifted, or not in a baseline
+* each standard involved, and whether it is in its secure state, or is drifted, not configured, an accepted deviation, or needs configuration
 * each audit log operation, and whether an alert watches it
 * for a sign-in step, any gap the sign-in exposed, and **Show the policies evaluated**, which lists every Conditional Access policy the evaluation considered and its result
 

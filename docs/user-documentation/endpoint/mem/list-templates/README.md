@@ -6,6 +6,14 @@ Lists the Intune policy templates saved in CIPP, which are the templates the **D
 
 <details>
 
+<summary>Create New Template</summary>
+
+Opens [add.md](add.md "mention"), where you build a Settings Catalog template from scratch by searching for the settings you want.
+
+</details>
+
+<details>
+
 <summary>Browse Catalog</summary>
 
 Opens a drawer for adding templates to CIPP, with two sources to choose between.
@@ -47,6 +55,6 @@ Packages are viewed, renamed and deleted from [template-packages.md](../../../to
 
 ## Table Actions
 
-<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Template</td><td>Opens the template for editing in <a data-mention href="edit.md">edit.md</a>. Only offered for templates that are not synced to a community repository.</td><td>false</td></tr><tr><td>Edit Template Name and Description</td><td>Changes the template's name and description. Applying this disconnects the template from the community repository it came from, so it will no longer receive updates.</td><td>true</td></tr><tr><td>Clone Template</td><td>Creates a copy of the template in CIPP. The copy is not linked to a community repository, so it can be edited freely.</td><td>true</td></tr><tr><td>Add to package</td><td>Tags the template with a package name, so that standards templates referencing that package pick it up. Pick an existing package from the dropdown, or type a new package name.</td><td>true</td></tr><tr><td>Remove from package</td><td>Removes the package tag from the template.</td><td>true</td></tr><tr><td>Save to GitHub</td><td>Uploads the template to one of your GitHub repositories, prompting for the repository and a commit message. Only repositories you have write access to are offered. Hidden unless the GitHub integration is enabled.</td><td>true</td></tr><tr><td>Delete Template</td><td>Deletes the template from CIPP. Policies already deployed from it are unaffected.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
+<table><thead><tr><th>Action</th><th>Description</th><th data-type="checkbox">Bulk Action Available</th></tr></thead><tbody><tr><td>Edit Template</td><td>Opens the template for editing in <a data-mention href="edit.md">edit.md</a>. Only offered for templates that are not synced to a community repository.</td><td>false</td></tr><tr><td>Validate Template</td><td>Checks the template for problems that would stop it deploying, and lists every problem found. Nothing is saved or deployed. Optionally pick a tenant to also check the template's replacement variables and whether the tenant offers each setting.</td><td>true</td></tr><tr><td>Edit Template Name and Description</td><td>Changes the template's name and description. Applying this disconnects the template from the community repository it came from, so it will no longer receive updates.</td><td>true</td></tr><tr><td>Clone Template</td><td>Creates a copy of the template in CIPP. The copy is not linked to a community repository, so it can be edited freely.</td><td>true</td></tr><tr><td>Add to package</td><td>Tags the template with a package name, so that standards templates referencing that package pick it up. Pick an existing package from the dropdown, or type a new package name.</td><td>true</td></tr><tr><td>Remove from package</td><td>Removes the package tag from the template.</td><td>true</td></tr><tr><td>Save to GitHub</td><td>Uploads the template to one of your GitHub repositories, prompting for the repository and a commit message. Only repositories you have write access to are offered. Hidden unless the GitHub integration is enabled.</td><td>true</td></tr><tr><td>Delete Template</td><td>Deletes the template from CIPP. Policies already deployed from it are unaffected.</td><td>true</td></tr><tr><td>More Info</td><td>Opens the Extended Info flyout with the full details for the selected row.</td><td>false</td></tr></tbody></table>
 
 {% include "../../../../../.gitbook/includes/feature-request.md" %}

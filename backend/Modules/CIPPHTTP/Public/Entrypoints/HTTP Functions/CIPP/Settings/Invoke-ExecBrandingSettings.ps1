@@ -326,6 +326,11 @@ Function Invoke-ExecBrandingSettings {
                     $Updated = $true
                 }
 
+                if (-not $ErrorMessage -and $Request.Body.PSObject.Properties.Name -contains 'coverFade') {
+                    $BrandingConfig | Add-Member -MemberType NoteProperty -Name 'coverFade' -Value ([bool]$Request.Body.coverFade) -Force
+                    $Updated = $true
+                }
+
                 if (-not $ErrorMessage -and $Request.Body.PSObject.Properties.Name -contains 'coverStock') {
                     $CoverStock = $Request.Body.coverStock
                     if ($AllowedCoverStock -contains $CoverStock) {
@@ -560,6 +565,23 @@ Function Invoke-ExecBrandingSettings {
                     break
                 }
 
+                $PresetRoles = '{}'
+                if ($Request.Body.roleColours) {
+                    $PresetRoles = if ($Request.Body.roleColours -is [string]) { "$($Request.Body.roleColours)" } else { ConvertTo-Json -InputObject $Request.Body.roleColours -Depth 5 -Compress }
+                    $ParsedPresetRoles = try { ConvertFrom-Json -InputObject $PresetRoles -ErrorAction Stop } catch { $null }
+                    if ($ParsedPresetRoles -isnot [pscustomobject]) {
+                        $StatusCode = [HttpStatusCode]::BadRequest
+                        'Error: roleColours must be an object mapping colour roles to hex values.'
+                        break
+                    }
+                    $InvalidRole = $ParsedPresetRoles.PSObject.Properties.Where({ "$($_.Value)" -ne '' -and "$($_.Value)" -notmatch '^#[0-9A-Fa-f]{6}$' }, 'First')[0]
+                    if ($InvalidRole) {
+                        $StatusCode = [HttpStatusCode]::BadRequest
+                        "Error: Invalid color format for $($InvalidRole.Name). Please use hex format (e.g., #006666)"
+                        break
+                    }
+                }
+
                 $PresetId = if ($Request.Body.id) { "$($Request.Body.id)" } else { (New-Guid).Guid }
 
                 Add-CIPPAzDataTableEntity @Table -Force -Entity @{
@@ -577,7 +599,9 @@ Function Invoke-ExecBrandingSettings {
                     showPageNumbers  = [bool]$Request.Body.showPageNumbers
                     watermarkText    = $PresetWatermark
                     watermarkEnabled = [bool]$Request.Body.watermarkEnabled
+                    coverFade        = $Request.Body.coverFade -ne $false
                     tenantLabel      = $PresetTenantLabel
+                    roleColours      = $PresetRoles
                 } | Out-Null
 
                 Write-LogMessage -API $APIName -tenant 'Global' -headers $Request.Headers -message "Saved branding preset '$PresetName'" -Sev 'Info'

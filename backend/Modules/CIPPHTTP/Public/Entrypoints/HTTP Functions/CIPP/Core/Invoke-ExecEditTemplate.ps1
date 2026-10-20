@@ -30,8 +30,18 @@ function Invoke-ExecEditTemplate {
             } else {
                 $NewGuid = $GUID
             }
-            if ($Request.Body.parsedRAWJson) {
-                $RawJSON = ConvertTo-Json -Compress -Depth 100 -InputObject $Request.Body.parsedRAWJson
+            $PayloadChanged = [bool]$Request.Body.parsedRAWJson
+            if ($PayloadChanged) {
+                # Not every type requires @odata.type, so losing it is only definitely wrong when the
+                # stored policy had one. Set-CIPPIntuneTemplate validates the rest.
+                $Incoming = $Request.Body.parsedRAWJson
+                $Stored = $TemplateData.RAWJson | ConvertFrom-Json -Depth 100 -ErrorAction SilentlyContinue
+
+                if ($Stored.'@odata.type' -and -not $Incoming.'@odata.type') {
+                    throw [System.ArgumentException]::new("The submitted policy is missing its '@odata.type' and was not saved, because it would no longer deploy.")
+                }
+
+                $RawJSON = ConvertTo-Json -Compress -Depth 100 -InputObject $Incoming
             } else {
                 $RawJSON = $TemplateData.RAWJson
             }
@@ -54,13 +64,14 @@ function Invoke-ExecEditTemplate {
             }
 
             $IntuneTemplate = @{
-                GUID         = $NewGuid
-                RawJson      = $RawJSON
-                DisplayName  = $DisplayName
-                Description  = $Request.Body.description ?? $TemplateData.Description
-                templateType = $TemplateType
-                Package      = $Template.Package
-                Headers      = $Request.Headers
+                GUID           = $NewGuid
+                RawJson        = $RawJSON
+                DisplayName    = $DisplayName
+                Description    = $Request.Body.description ?? $TemplateData.Description
+                templateType   = $TemplateType
+                Package        = $Template.Package
+                Headers        = $Request.Headers
+                PayloadChanged = $PayloadChanged
             }
             Set-CIPPIntuneTemplate @IntuneTemplate
         } else {
@@ -79,7 +90,7 @@ function Invoke-ExecEditTemplate {
     } catch {
         Write-LogMessage -headers $Request.Headers -API $APINAME -tenant 'Global' -message "Failed to edit template: $($_.Exception.Message)" -Sev 'Error'
         $body = [pscustomobject]@{'Results' = "Editing template failed: $($_.Exception.Message)" }
-        $StatusCode = [HttpStatusCode]::InternalServerError
+        $StatusCode = Get-CippErrorStatusCode -ErrorRecord $_
     }
 
 

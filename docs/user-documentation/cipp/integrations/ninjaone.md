@@ -110,7 +110,7 @@ The **Tenant Mapping** tab pairs each CIPP tenant with a NinjaOne organisation. 
 Saving on the **Tenant Mapping** and **Field Mapping** tabs requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
 {% endhint %}
 
-To map manually, choose a tenant, choose the NinjaOne organisation under **Select NinjaOne Company**, and select the add button. **Automap Companies** matches automatically. Mappings are only written when you select **Submit**.
+To map manually, choose a tenant, choose the NinjaOne organisation under **Select NinjaOne Company**, and select the add button. **Automap Companies** matches automatically. Manual mappings are only written when you select **Submit**.
 
 | Column          | Description                                                    |
 | --------------- | -------------------------------------------------------------- |
@@ -122,9 +122,15 @@ To map manually, choose a tenant, choose the NinjaOne organisation under **Selec
 Each row also offers two actions: **Sync Now** queues an on-demand synchronisation for that tenant only, without waiting for the next scheduled run, and **Delete Mapping** removes the mapping.
 
 {% hint style="info" %}
-Automapping works in two passes. It first matches tenants whose display name is identical to a NinjaOne organisation name. Any tenant left over is then matched on hardware: CIPP compares Intune devices against NinjaOne devices by serial number and then by device name, and maps the tenant to whichever organisation owns the matching devices. Devices with duplicate or placeholder serial numbers are ignored.
+Automapping works in two passes. It first matches tenants whose display name is identical to a NinjaOne organisation name. Any tenant left over is then matched on hardware: CIPP compares the tenant's Intune devices against NinjaOne devices by serial number and then by device name, and maps the tenant to whichever organisation owns the most matching devices. The Intune devices come from CIPP's cached device data, so a tenant whose devices have not been cached yet can only match by name. Serial numbers or device names found in more than one organisation, placeholder serials, ties, and organisations that are already mapped are skipped.
 
-The second pass runs in the background and can take some time on a large estate. Refresh the page to pick up new matches, and check the CIPP logbook to see when it finishes. Tenants that are already mapped are never re-matched.
+Both passes run in the background and save their mappings immediately. Refresh the page to pick up new matches, and check the Logbook, which records a line for each mapping created. Tenants that are already mapped are never re-matched.
+
+**Automap Companies** also suggests looser name matches that ignore case, punctuation and legal suffixes such as Ltd or LLC. Those appear in the table but are only saved when you select **Submit**.
+{% endhint %}
+
+{% hint style="info" %}
+While the integration is enabled, CIPP also runs the name pass automatically every two hours, just before scheduling the NinjaOne synchronisation, so newly added tenants whose names match are mapped and synchronised without visiting this page. Hardware matching downloads every device in NinjaOne, so it only runs when you select **Automap Companies**.
 {% endhint %}
 
 ## Field Mapping
@@ -142,6 +148,8 @@ If a previously mapped NinjaOne field is deleted or its API permission is change
 A full synchronisation runs once every 24 hours for every mapped tenant. CIPP assigns each installation its own slot in the day rather than running everything at midnight, and tenants whose previous run did not complete are automatically picked up on a later pass.
 
 Synchronisation can also be triggered on demand. **Force Sync** on this page queues every mapped tenant, and the **Sync Now** row action on the **Tenant Mapping** table queues a single tenant on its own. NinjaOne runs its own synchronisation rather than using the scheduled integration tasks, so mapped tenants do not appear on the [integration-sync.md](integration-sync.md "mention") page.
+
+Before the daily run, a catch-up pass, or **Force Sync** queues any tenants, CIPP checks that it can sign in to NinjaOne with the saved credentials. If it cannot, no tenants are queued and the logbook records that the NinjaOne API check failed. Select **Test** to confirm the credentials.
 
 Intune device compliance is handled separately. CIPP subscribes to Graph change notifications for device compliance, so the Intune Device Compliance Status and Intune Non-Compliant Settings fields update within minutes of a change in Microsoft 365 rather than waiting for the daily run. This requires at least one of those two fields to be mapped.
 

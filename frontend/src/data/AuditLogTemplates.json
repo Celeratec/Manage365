@@ -581,6 +581,11 @@
           "Property": { "value": "String", "label": "UserId" },
           "Operator": { "value": "like", "label": "Like" },
           "Input": { "value": "ServicePrincipal_*" }
+        },
+        {
+          "Property": { "value": "String", "label": "CIPPActor" },
+          "Operator": { "value": "notlike", "label": "Not like" },
+          "Input": { "value": "*MS-PIM*" }
         }
       ]
     }

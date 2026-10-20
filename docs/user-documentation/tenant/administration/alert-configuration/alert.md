@@ -88,7 +88,7 @@ For a **Scripted CIPP Alert**, this is how the alert is delivered:
 * Webhook - Delivers a JSON payload to the webhook configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * PSA - Delivers a formatted payload to the PSA configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * Email - Delivers an HTML-formatted table to the email address provided in [notifications.md](../../../cipp/settings/notifications.md "mention").
-* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert.
+* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert. The option is only offered once you have registered at least one device there; until then, the helper text under the field says where to enrol, and afterwards it says how many devices will be notified.
 
 For an **Audit Log Alert**, this is what CIPP does when a matching log entry arrives, and it can include remediation as well as notification:
 
@@ -149,6 +149,10 @@ You can review the available alerts embedded below or navigate to [https://resou
 
 {% hint style="info" %}
 The **Alert on Huntress or CIPP Rogue Apps detected** alert checks tenants against both the public Huntress RogueApps feed and a list curated by CIPP, so it can report applications that do not appear on the Huntress website. See [rogue-apps.md](rogue-apps.md "mention") for how the list is built and which applications the CIPP list contains.
+{% endhint %}
+
+{% hint style="info" %}
+The **Alert on presence of specific app ids** alert reports any service principal in the tenant whose application id is on the list you configure. It comes pre-filled with the ConnectWise Cloud Management application ids named in the ConnectWise breach disclosure, and you can add or remove any application (client) id. Pair it with **Alert on newly added service principal credentials**, which reports every secret or certificate added to a service principal in the last six days by default, so a credential planted on a vendor's multi-tenant app is caught even when the app itself is expected.
 {% endhint %}
 
 {% hint style="warning" %}

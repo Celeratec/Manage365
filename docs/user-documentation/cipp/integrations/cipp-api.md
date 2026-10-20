@@ -75,13 +75,17 @@ For full authentication examples, usage patterns, and endpoint information, see 
 The CIPP MCP allows you to add CIPP to any AI you use and immediately talk to it in natural language. For example, you can ask "List all tenants with unassigned licences" or "list all users for tenant MySpecialTenant.com". To set up the MCP, follow these instructions:
 
 {% hint style="warning" %}
+**Self-hosted instances must be on the new infrastructure.** The MCP is only available on CIPP's new infrastructure. If you self-host CIPP on the legacy Function App infrastructure, you cannot use it until you migrate. For the steps, see [migrating-to-the-new-infrastructure.md](../../../setup/maintaining-cipp/migrating-to-the-new-infrastructure.md "mention").
+{% endhint %}
+
+{% hint style="warning" %}
 **Connected the MCP before version 11?** Version 11 changed how the MCP signs in, so existing connections stop working and CIPP has to be added to your AI again. Select **Actions → Save to Azure** on the API Clients tab so CIPP creates the new **CIPP-MCP** resource app, then remove CIPP from your AI and add it back using the **Connector URL** shown for your client on the **MCP** tab of the CIPP-API integration.
 
 If the MCP tab reports that setup is blocked, an app registration left over from the previous setup is still using the MCP address. Delete it in Entra, remove it from **API Clients** if it is listed there, and select **Save to Azure** again.
 {% endhint %}
 
 {% hint style="info" %}
-**No client ID or secret needed.** CIPP publishes its OAuth details at a standard discovery address, so supported AI clients configure themselves from the MCP URL alone. Going forward, MCP is only supported on CIPP's latest infrastructure.
+**No client ID or secret needed.** CIPP publishes its OAuth details at a standard discovery address, so supported AI clients configure themselves from the MCP URL alone.
 {% endhint %}
 
 {% stepper %}

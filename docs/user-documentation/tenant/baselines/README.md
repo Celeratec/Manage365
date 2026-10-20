@@ -29,6 +29,12 @@ The card carries two buttons.
 | Create your first baseline   | Opens the [baseline editor](template.md) on a new, empty baseline.                       |
 | Browse the community catalog | Opens the list of [Baselines](templates.md), where ready-made baselines can be imported. |
 
+## Filtering by Baseline
+
+Use the **Baseline** and **Stage** selectors at the top of the page to see how a single baseline, or one stage of it, is doing. The scores, charts and tables then count only the tenants assigned to that baseline and the standards it has rolled out to each of them; picking a stage narrows this to that stage's standards for tenants that have reached it. Standards shared with another baseline are scored once per tenant, so they count toward every baseline that includes them. Trend history is kept for the whole fleet only, so the trend chart is hidden while a filter is applied.
+
+The Alignment tab's Standard View has the same **Baseline** and **Stage** selectors, and the Open Deviations and License Missing tiles keep the selected filter when you click through to it.
+
 ## Score Bar
 
 Four tiles across the top of the page summarise the whole fleet.

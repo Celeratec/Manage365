@@ -677,6 +677,7 @@
         "type": "switch",
         "name": "Hudu.IncludeLAPS",
         "label": "Sync Windows LAPS passwords to Hudu",
+        "helperText": "Individual tenants can be excluded from password data on the Tenant Mapping tab.",
         "condition": {
           "field": "Hudu.Enabled",
           "compareType": "is",
@@ -688,6 +689,7 @@
         "type": "switch",
         "name": "Hudu.IncludeBitLocker",
         "label": "Sync BitLocker recovery keys to Hudu",
+        "helperText": "Individual tenants can be excluded from password data on the Tenant Mapping tab.",
         "condition": {
           "field": "Hudu.Enabled",
           "compareType": "is",
@@ -798,6 +800,7 @@
     ],
     "mappingRequired": true,
     "fieldMapping": true,
+    "autoMapSyncApi": true,
     "showSyncButton": true
   },
   {

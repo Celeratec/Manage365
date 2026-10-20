@@ -10,7 +10,7 @@ Saved prices remain after you refresh the page. Each currency has its own prices
 
 <summary>Currency</summary>
 
-Select the currency you want to view or edit. Changing currency does not convert prices: a licence with a USD price may have no GBP price. The list includes currencies with estimated or saved prices. CIPP remembers your choice in this browser and uses it on the Optimization tab too.
+Select the currency you want to view or edit. Changing currency does not convert prices: a licence with a USD price may have no GBP price. The list includes currencies with estimated or saved prices. Estimates for South African rand (ZAR) are converted from the USD list price at a fixed exchange rate, so set your own prices there if you need invoice accuracy. CIPP remembers your choice in this browser and uses it on the Optimization tab too.
 
 </details>
 

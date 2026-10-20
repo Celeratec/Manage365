@@ -16,9 +16,20 @@ function Invoke-CippTestCopilotReady003 {
 
     try {
         $ActivationData = Get-CIPPTestData -TenantFilter $Tenant -Type 'OfficeActivations'
-        $AllUsers = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        # Filter Users cache to those with an active M365 Apps (desktop) license plan.
+        # assignedPlans entries with service 'MicrosoftOffice' and capabilityStatus 'Enabled'
+        # indicate the user holds a license that includes M365 desktop applications.
+        $UsersSeen = $false
+        $LicensedUsers = [System.Collections.Generic.List[object]]::new()
+        Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'userPrincipalName', 'displayName', 'accountEnabled', 'assignedPlans' -Stream | ForEach-Object {
+            $UsersSeen = $true
+            if ($_.userPrincipalName -and $_.accountEnabled -eq $true -and $_.assignedPlans.Where({ $_.service -eq 'MicrosoftOffice' -and $_.capabilityStatus -eq 'Enabled' }, 'First').Count) {
+                $LicensedUsers.Add([pscustomobject]@{ userPrincipalName = $_.userPrincipalName; displayName = $_.displayName })
+            }
+        }
 
-        if (-not $ActivationData -and -not $AllUsers) {
+        if (-not $ActivationData -and -not $UsersSeen) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady003' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No Office activation or user data found in database. Data collection may not yet have run for this tenant.' -Risk 'High' -Name 'Users have M365 desktop apps activated' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
             return
         }
@@ -26,18 +37,10 @@ function Invoke-CippTestCopilotReady003 {
         # Build a lookup of activation data keyed by UPN for fast cross-referencing
         $ActivationLookup = @{}
         if ($ActivationData) {
-            foreach ($Entry in ($ActivationData | Where-Object { $_.userPrincipalName -and $_.userPrincipalName -ne '' })) {
+            foreach ($Entry in ($ActivationData.Where({ $_.userPrincipalName -and $_.userPrincipalName -ne '' }))) {
                 $ActivationLookup[$Entry.userPrincipalName.ToLower()] = $Entry
             }
         }
-
-        # Filter Users cache to those with an active M365 Apps (desktop) license plan.
-        # assignedPlans entries with service 'MicrosoftOffice' and capabilityStatus 'Enabled'
-        # indicate the user holds a license that includes M365 desktop applications.
-        $LicensedUsers = @($AllUsers | Where-Object {
-            $_.userPrincipalName -and $_.accountEnabled -eq $true -and
-            ($_.assignedPlans | Where-Object { $_.service -eq 'MicrosoftOffice' -and $_.capabilityStatus -eq 'Enabled' })
-        })
 
         if ($LicensedUsers.Count -eq 0) {
             Add-CippTestResult -TenantFilter $Tenant -TestId 'CopilotReady003' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No users with an active M365 Apps license were found. Desktop activation check is not applicable.' -Risk 'High' -Name 'Users have M365 desktop apps activated' -UserImpact 'High' -ImplementationEffort 'Medium' -Category 'Copilot Readiness'
@@ -80,15 +83,15 @@ function Invoke-CippTestCopilotReady003 {
 
         if ($DesktopPercent -ge $DesktopThresholdPercent) {
             $Status = 'Passed'
-            $Result = "**$DesktopCount of $TotalUsers licensed users ($DesktopPercent%)** have Microsoft 365 Apps activated on a desktop platform (Windows or Mac) — above the $DesktopThresholdPercent% threshold.`n`n"
-            $Result += "These users can access Copilot features in desktop Word, Excel, PowerPoint, and Outlook."
+            $Result = [System.Text.StringBuilder]::new("**$DesktopCount of $TotalUsers licensed users ($DesktopPercent%)** have Microsoft 365 Apps activated on a desktop platform (Windows or Mac) — above the $DesktopThresholdPercent% threshold.`n`n")
+            $null = $Result.Append("These users can access Copilot features in desktop Word, Excel, PowerPoint, and Outlook.")
         } else {
             $Status = 'Failed'
-            $Result = "Only **$DesktopCount of $TotalUsers licensed users ($DesktopPercent%)** have Microsoft 365 Apps activated on a desktop platform — below the $DesktopThresholdPercent% threshold.`n`n"
-            $Result += "Copilot in Word, Excel, PowerPoint, and Outlook requires the M365 desktop application. "
-            $Result += "Users with only web or mobile activations, or who have never activated at all, cannot use Copilot's in-document features.`n`n"
+            $Result = [System.Text.StringBuilder]::new("Only **$DesktopCount of $TotalUsers licensed users ($DesktopPercent%)** have Microsoft 365 Apps activated on a desktop platform — below the $DesktopThresholdPercent% threshold.`n`n")
+            $null = $Result.Append("Copilot in Word, Excel, PowerPoint, and Outlook requires the M365 desktop application. ")
+            $null = $Result.Append("Users with only web or mobile activations, or who have never activated at all, cannot use Copilot's in-document features.`n`n")
             if ($NoDesktopUsers.Count -gt 0 -and $NoDesktopUsers.Count -le 20) {
-                $Result += "**Users without desktop activation:**`n"
+                $null = $Result.Append("**Users without desktop activation:**`n")
                 foreach ($User in $NoDesktopUsers) {
                     if ($User.neverActivated) {
                         $PlatformStr = ' (never activated)'
@@ -97,13 +100,13 @@ function Invoke-CippTestCopilotReady003 {
                         if ([int]($User.android ?? 0) -gt 0 -or [int]($User.ios ?? 0) -gt 0) { $Platforms += 'Mobile' }
                         $PlatformStr = if ($Platforms) { " ($(($Platforms -join ', ')) only)" } else { ' (no activations)' }
                     }
-                    $Result += "- $($User.displayName) ($($User.userPrincipalName))$PlatformStr`n"
+                    $null = $Result.Append("- $($User.displayName) ($($User.userPrincipalName))$PlatformStr`n")
                 }
             } elseif ($NoDesktopUsers.Count -gt 20) {
-                $NeverActivated = @($NoDesktopUsers | Where-Object { $_.neverActivated }).Count
-                $Result += "**$($NoDesktopUsers.Count) users** have no desktop M365 Apps activation"
-                if ($NeverActivated -gt 0) { $Result += " ($NeverActivated have never activated on any platform)" }
-                $Result += ".`n"
+                $NeverActivated = $NoDesktopUsers.Where({ $_.neverActivated }).Count
+                $null = $Result.Append("**$($NoDesktopUsers.Count) users** have no desktop M365 Apps activation")
+                if ($NeverActivated -gt 0) { $null = $Result.Append(" ($NeverActivated have never activated on any platform)") }
+                $null = $Result.Append(".`n")
             }
         }
 

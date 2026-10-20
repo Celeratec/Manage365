@@ -5,7 +5,6 @@ import {
   Accordion,
   Button,
   Chip,
-  IconButton,
   ListItemIcon,
   ListItemText,
   Menu,
@@ -22,6 +21,7 @@ import { ApiGetCall } from "../../api/ApiCall";
 import { CippApiDialog } from "../CippComponents/CippApiDialog";
 import { CippTableDialog } from "../CippComponents/CippTableDialog";
 import { CippCopyToClipBoard } from "../CippComponents/CippCopyToClipboard";
+import { CippQueryRefreshButton } from "../CippComponents/CippQueryRefreshButton";
 import { useDialog } from "../../hooks/use-dialog";
 
 export const overallLabels = {
@@ -209,7 +209,7 @@ export const CippSAMCredentials = () => {
     rotateSecret: {
       title: "Rotate client secret",
       confirmText:
-        "Create a new client secret for CIPP-SAM and switch to it straight away? Microsoft can take several minutes to activate a new secret, so token requests may fail with AADSTS7000215 until it has replicated. The previous secret stays on the app until it expires.",
+        "Create a new client secret for CIPP-SAM and switch to it straight away? Microsoft can take several minutes to activate a new secret, sometimes 10 to 15, so token requests may fail with AADSTS7000215 until it has replicated. The previous secret stays on the app until it expires.",
       url: "/api/ExecSAMCredentials",
       data: { Action: "!RotateSecret" },
     },
@@ -303,13 +303,11 @@ export const CippSAMCredentials = () => {
       cardActions={
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           {!samStatus.isLoading && <Chip label={overall.label} color={overall.color} size="small" />}
-          <Tooltip title="Refresh">
-            <span>
-              <IconButton size="small" aria-label="Refresh" onClick={() => samStatus.refetch()} disabled={samStatus.isFetching}>
-                <CippIcons.Refresh fontSize="small" />
-              </IconButton>
-            </span>
-          </Tooltip>
+          <CippQueryRefreshButton
+            queryKeys={["SAMCredentialsStatus"]}
+            isFetching={samStatus.isFetching}
+            tooltip="Re-check the credentials and tokens"
+          />
         </Stack>
       }
       CardButton={cardButtons}

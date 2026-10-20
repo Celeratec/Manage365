@@ -35,12 +35,14 @@ function Add-CIPPDbItem {
         # single-invocation cleanup below does. Omit for the default: a new id per call.
         [string]$RunId,
 
+        [string]$TableName = 'CippReportingDB',
+
         [ValidateRange(0, 60)]
         [int]$SkewMarginMinutes = 5
     )
 
     begin {
-        $Table = Get-CippTable -tablename 'CippReportingDB'
+        $Table = Get-CippTable -tablename $TableName
         $BatchSize = 100
         $Batch = [System.Collections.Generic.List[hashtable]]::new($BatchSize)
         # Track batch duplicates separately from the full authoritative run used for cleanup.
@@ -66,40 +68,6 @@ function Add-CIPPDbItem {
         $ShapeSampled = 0
         $ShapeSampleSize = 10
         $ShapeMaxFields = 300
-        $TypeOf = {
-            param($Value)
-            if ($null -eq $Value) { return 'null' }
-            if ($Value -is [bool]) { return 'boolean' }
-            if ($Value -is [datetime] -or $Value -is [DateTimeOffset]) { return 'date' }
-            if ($Value -is [string]) { return $(if ($Value -match '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}') { 'date' } else { 'string' }) }
-            if ($Value.GetType().IsPrimitive -or $Value -is [decimal]) { return 'number' }
-            if ($Value -is [System.Collections.IDictionary] -or $Value -is [System.Management.Automation.PSCustomObject]) { return 'object' }
-            if ($Value -is [System.Collections.IEnumerable]) { return 'array' }
-            'string'
-        }
-        $PropertiesOf = {
-            param($Value)
-            if ($Value -is [System.Collections.IDictionary]) { foreach ($Key in $Value.Keys) { @{ Name = "$Key"; Value = $Value[$Key] } } }
-            elseif ($Value -is [System.Management.Automation.PSCustomObject]) { foreach ($Property in $Value.PSObject.Properties) { @{ Name = $Property.Name; Value = $Property.Value } } }
-        }
-        $NoteField = {
-            param([string]$Name, $Value)
-            if ($ShapeFields.Count -ge $ShapeMaxFields -and -not $ShapeFields.Contains($Name)) { return }
-            $Kind = & $TypeOf $Value
-            if (-not $ShapeFields.Contains($Name) -or $ShapeFields[$Name] -eq 'null') { $ShapeFields[$Name] = $Kind }
-            $Kind
-        }
-        $NoteShape = {
-            param($Item)
-            foreach ($Property in @(& $PropertiesOf $Item)) {
-                $Kind = & $NoteField $Property.Name $Property.Value
-                # one level in: an object's own fields, or the fields of an array's first object
-                $Inner = if ($Kind -eq 'object') { $Property.Value } elseif ($Kind -eq 'array') { @($Property.Value | Select-Object -First 1)[0] }
-                if ($null -ne $Inner -and (& $TypeOf $Inner) -eq 'object') {
-                    foreach ($Child in @(& $PropertiesOf $Inner)) { $null = & $NoteField "$($Property.Name).$($Child.Name)" $Child.Value }
-                }
-            }
-        }
 
         # Cache regex instances so each row pays only the match cost, not regex compilation.
         # Two passes preserve the original semantics: path/wildcard chars → '_', control chars → stripped.
@@ -133,10 +101,9 @@ function Add-CIPPDbItem {
                 # Piping a list into ConvertTo-Json unrolls it, so lists keep the old path
                 $Data = if ($HasToJson -and $Item -isnot [System.Collections.IList]) { [CIPP.CippJson]::ToJson($Item, 100) }
                 if ($null -eq $Data) { $Data = [string]($Item | ConvertTo-Json -Depth 100 -Compress) }
-                # Counted here: an increment inside $NoteShape ('&', child scope) would never land.
                 if ($ShapeSampled -lt $ShapeSampleSize) {
                     $ShapeSampled++
-                    & $NoteShape $Item
+                    [CIPP.CippDbShape]::Note($ShapeFields, $Item, $ShapeMaxFields)
                 }
                 $Batch.Add(@{
                         PartitionKey = $TenantFilter
@@ -185,24 +152,23 @@ function Add-CIPPDbItem {
                 $Filter += " and Timestamp lt datetime'{0}'" -f $RunStartUtc.UtcDateTime.ToString('yyyy-MM-ddTHH:mm:ss.fffffffZ')
             }
 
-            # Project all row-level split markers (OriginalEntityId, PartIndex, PartCount) so split
-            # entities reassemble; a subset makes the module drop them. Reassembly is what keeps this
-            # sound - each logical row carries its RunId. Raw rows (no markers) would be wrong: part
-            # rows lack RunId and would look like foreign-run orphans.
-            $Existing = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, ETag, OriginalEntityId, RunId, PartIndex, PartCount
+            # Raw physical rows (no split markers projected), deleted with plain batches: a part-aware
+            # delete looks up each orphan's part rows one query at a time, which on a large legacy
+            # backlog never reached its first delete inside the task limit. A split entity's RunId sits
+            # on one of its rows, so rows are grouped under their root key ('<key>-partN' -> '<key>')
+            # and a group is live if any row carries this run's id. A real key ending in -partN can only
+            # be kept by mistake, never deleted.
+            $Existing = Get-CIPPAzDataTableEntity @Table -Filter $Filter -Property PartitionKey, RowKey, RunId
             if ($Existing) {
-                $Orphans = foreach ($Row in @($Existing)) {
-                    if ($Row.RowKey -eq "$Type-Count") { continue }
-
-                    # Identity is the authority: a row written by this run always carries this
-                    # run's id, no matter how long the run took, how the clocks drift, or what
-                    # the query returned. Anything else - an earlier run's row, or a legacy row
-                    # with no RunId at all - is an orphan by definition of an authoritative
-                    # full-set write.
-                    if ([string]$Row.RunId -ne $RunId) { $Row }
+                $LiveRoots = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+                foreach ($Row in @($Existing)) {
+                    if ([string]$Row.RunId -eq $RunId) { $null = $LiveRoots.Add(($Row.RowKey -replace '-part\d+$')) }
                 }
-                if ($Orphans) {
-                    $null = Remove-CIPPAzDataTableEntity @Table -Entity @($Orphans) -Force
+                $Orphans = @(foreach ($Row in @($Existing)) {
+                        if ($Row.RowKey -ne "$Type-Count" -and -not $LiveRoots.Contains(($Row.RowKey -replace '-part\d+$'))) { $Row }
+                    })
+                if ($Orphans.Count) {
+                    $null = Remove-AzDataTableEntity @Table -Entity $Orphans -Force
                 }
             }
         }
@@ -213,12 +179,12 @@ function Add-CIPPDbItem {
             # sampled no rows (a count-only call after the rows went in separately), so a shape
             # already recorded is kept rather than wiped.
             $ExistingCount = $null
-            if ($Append.IsPresent -or $ShapeFields.Count -eq 0) {
+            if ($Append.IsPresent -or $ShapeFields.PSBase.Count -eq 0) {
                 $Filter = "PartitionKey eq '{0}' and RowKey eq '{1}-Count'" -f $TenantFilter, $Type
                 $ExistingCount = Get-CIPPAzDataTableEntity @Table -Filter $Filter
             }
             if ($Append.IsPresent -and $ExistingCount.DataCount) { $NewCount += [int]$ExistingCount.DataCount }
-            if (($Append.IsPresent -or $ShapeFields.Count -eq 0) -and $ExistingCount.Shape) {
+            if (($Append.IsPresent -or $ShapeFields.PSBase.Count -eq 0) -and $ExistingCount.Shape) {
                 try {
                     foreach ($Known in @((ConvertFrom-Json -InputObject "$($ExistingCount.Shape)").fields)) {
                         if ($Known.name -and -not $ShapeFields.Contains([string]$Known.name)) { $ShapeFields[[string]$Known.name] = [string]$Known.type }
@@ -226,7 +192,7 @@ function Add-CIPPDbItem {
                 } catch { Write-Verbose "Unreadable shape on $Type-Count; recording afresh." }
             }
             $ShapeJson = ConvertTo-Json -InputObject @{
-                fields    = @(foreach ($Name in $ShapeFields.Keys) { @{ name = $Name; type = $ShapeFields[$Name] } })
+                fields    = @(foreach ($Name in $ShapeFields.PSBase.Keys) { @{ name = $Name; type = $ShapeFields[$Name] } })
                 sampledAt = (Get-Date).ToUniversalTime().ToString('o')
             } -Depth 5 -Compress
             $null = Add-CIPPAzDataTableEntity @Table -Entity @{

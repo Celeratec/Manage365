@@ -22,7 +22,7 @@ Do not aim for 10 out of 10. Use the findings to decide which gaps are worth clo
 
 A grid of the kinds of identity the policies target against the controls they should be subject to. The header counts the tenant's policies by state: enforced, report-only, and disabled. Hover a cell to see the policies behind it.
 
-Personas come from how each policy targets identities, not from its name:
+Personas come from how each policy targets identities, not from its name. A policy that targets all users counts towards Admins unless it excludes a privileged role. Excluding a role that is not privileged, such as the directory synchronisation role, does not take admins out of it.
 
 | Persona             | Controls expected                                                                                                                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

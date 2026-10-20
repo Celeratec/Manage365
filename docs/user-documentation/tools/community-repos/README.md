@@ -47,6 +47,8 @@ Opens the **Add Template Source** dialog, which registers an existing GitHub rep
 | GitHub repository URL or owner/repo | The repository to add. Either format is accepted, so a pasted GitHub URL works as well as `owner/repo`.                                                                                                                |
 | Template Types                      | The kinds of template the repository contains, used to decide which catalogues its templates appear in. Repositories that follow CIPP's folder naming are detected automatically, so this can be left empty for those. |
 
+If GitHub cannot find the repository, the add is refused with a message naming it, and no card is created. Check the owner and repository spelling. A private repository needs the GitHub integration configured with access to it.
+
 </details>
 
 ## Source Cards

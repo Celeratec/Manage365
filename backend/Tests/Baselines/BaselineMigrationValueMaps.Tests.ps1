@@ -65,6 +65,20 @@ Describe 'Invoke-CIPPBaselineMigration value maps' {
         }
     }
 
+    Context 'MessageEncryption' {
+        # The classic saved 'donotchange' and the strings 'true'/'false'; V3 prunes blank and grades real booleans.
+        It "migrates donotchange to blank and the 'true'/'false' strings to booleans" {
+            $Result = Invoke-Migration @{ MessageEncryption = @{ action = @('warn'); standards = @{ MessageEncryption = @{ EnablePdfEncryption = @{ label = 'Enable'; value = 'true' }; DecryptAttachmentForEncryptOnly = 'false'; SimplifiedClientAccessDoNotForwardDisabled = 'donotchange'; TransportDecryptionSetting = @{ label = 'Do not change'; value = 'donotchange' } } } } }
+            $Variables = ($Result.Configs | Where-Object standard -EQ 'MessageEncryption').variables
+            $Variables.EnablePdfEncryption | Should -BeOfType [bool]
+            $Variables.EnablePdfEncryption | Should -BeTrue
+            $Variables.DecryptAttachmentForEncryptOnly | Should -BeOfType [bool]
+            $Variables.DecryptAttachmentForEncryptOnly | Should -BeFalse
+            "$($Variables.SimplifiedClientAccessDoNotForwardDisabled)" | Should -BeExactly ''
+            "$($Variables.TransportDecryptionSetting)" | Should -BeExactly ''
+        }
+    }
+
     Context 'DefaultSharingLink' {
         It 'translates the V2 enum names to the SPO numerics the definition compares against' {
             $Internal = Invoke-Migration @{ DefaultSharingLink = @{ action = @('warn'); standards = @{ DefaultSharingLink = @{ SharingLinkType = @{ label = 'Internal - Only people in your organization'; value = 'Internal' } } } } }
@@ -115,6 +129,25 @@ Describe 'Invoke-CIPPBaselineMigration value maps' {
             @(($Reusable.Configs | Where-Object standard -EQ 'ReusableSettingsTemplate').variables.reusableSettingsTemplate) | Should -Be @('r-1', 'r-2')
             ($SafeLinks.Configs | Where-Object standard -EQ 'SafeLinksTemplatePolicy').variables.safeLinksTemplate | Should -BeExactly 's-1'
             @($Reusable.Report.warnings) + @($SafeLinks.Report.warnings) | Where-Object { $_ -match 'does not map' } | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'AppDeploy' {
+        It 'fans a V2 template-mode multi-select out to one instance per App Approval template' {
+            $Result = Invoke-Migration @{ AppDeploy = @{ action = @('warn'); standards = @{ AppDeploy = @{ mode = @{ label = 'Template'; value = 'template' }; templateIds = @(@{ label = 'App A'; value = 'tpl-a' }, @{ label = 'App B'; value = 'tpl-b' }) } } } }
+            $Configs = @($Result.Configs | Where-Object standard -EQ 'AppDeploy')
+            $Configs.Count | Should -Be 2
+            @($Configs.variables.templateIds) | Should -Be @('tpl-a', 'tpl-b')
+            @($Configs.instance | Select-Object -Unique).Count | Should -Be 2
+            $Configs | ForEach-Object { $_.variables.mode | Should -BeExactly 'template' }
+        }
+
+        It 'keeps a V2 copy-permissions entry as one instance with its app ids' {
+            $Result = Invoke-Migration @{ AppDeploy = @{ action = @('warn'); standards = @{ AppDeploy = @{ mode = 'copy'; appids = 'id-1, id-2' } } } }
+            $Configs = @($Result.Configs | Where-Object standard -EQ 'AppDeploy')
+            $Configs.Count | Should -Be 1
+            $Configs[0].variables.appids | Should -BeExactly 'id-1, id-2'
+            $Configs[0].instance | Should -Match '^AppDeploy#m[0-9a-f]{8}$'
         }
     }
 }

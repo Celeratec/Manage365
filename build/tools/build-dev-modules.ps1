@@ -16,7 +16,7 @@
 param(
     [string]   $SourceModules = "$PSScriptRoot\..\..\backend\Modules",
     [string]   $OutputModules = "$PSScriptRoot\..\.devmodules",
-    [string[]] $Modules       = @('CIPPCore','CIPPHTTP','CIPPStandards','CIPPDB','CIPPAlerts','CIPPActivityTriggers','CippExtensions', 'CIPPTests'),
+    [string[]] $Modules       = @('CIPPCore','CIPPHTTP','CIPPStandards','CIPPDB','CIPPAlerts','CIPPBaselines','CIPPActivityTriggers','CippExtensions','CIPPPwPush', 'CIPPTests'),
     # Skip the openapi.json regeneration (the slowest step). The watcher passes this so a
     # CIPPHTTP edit's container restart is not blocked on the spec, then regenerates it in
     # the background itself. The initial build leaves it off so the spec is present at startup.

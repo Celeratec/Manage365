@@ -147,7 +147,7 @@ function Invoke-ExecSAMCredentials {
                 $null = Clear-CippTokenCache
                 $Body = @{
                     Results = @{
-                        message  = "Created a new client secret (keyId $($Rotated.KeyId), expires $($Rotated.EndDateTime)). Microsoft can take a few minutes to activate it; token requests may fail with AADSTS7000215 until then."
+                        message  = "Created a new client secret (keyId $($Rotated.KeyId), expires $($Rotated.EndDateTime)). Microsoft can take several minutes to activate it, sometimes 10 to 15; token requests may fail with AADSTS7000215 until then."
                         severity = 'success'
                     }
                 }

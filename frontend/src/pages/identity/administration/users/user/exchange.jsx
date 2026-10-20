@@ -28,6 +28,7 @@ import CippAliasDialog from '../../../../../components/CippComponents/CippAliasD
 import CippMailboxPermissionsDialog from '../../../../../components/CippComponents/CippMailboxPermissionsDialog'
 import CippCalendarPermissionsDialog from '../../../../../components/CippComponents/CippCalendarPermissionsDialog'
 import CippContactPermissionsDialog from '../../../../../components/CippComponents/CippContactPermissionsDialog'
+import { buildCustomAttributeRows } from '../../../../../components/CippComponents/CippMailboxCustomAttributeRows'
 
 const permissionOptionGroupOrder = {
   "System Users": 0,
@@ -410,6 +411,9 @@ const Page = () => {
         formControl.setValue("forwarding.ForwardInternal", "");
         formControl.setValue("forwarding.ForwardExternal", "");
       }
+
+      const mailbox = [].concat(currentSettings.Mailbox || [])[0]
+      formControl.setValue('attributeRows', buildCustomAttributeRows(mailbox))
     }
   }, [userRequest.isSuccess, userRequest.dataUpdatedAt, formControl]);
 
@@ -1463,6 +1467,7 @@ const Page = () => {
       subtitle={subtitle}
       actions={CippExchangeActions()}
       actionsData={userRequest.data?.[0]?.MailboxActionsData}
+      queryKeys={[`Mailbox-${userId}`]}
       isFetching={graphUserRequest.isLoading}
     >
       {userRequest.isError && (
