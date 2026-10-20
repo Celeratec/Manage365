@@ -21,7 +21,7 @@ on:
       image_tag:
         description: Image tag. Manage365 release, not the upstream baseline.
         required: true
-        default: v6.1.14
+        default: v6.1.15
 
 env:
   REGISTRY: ghcr.io
