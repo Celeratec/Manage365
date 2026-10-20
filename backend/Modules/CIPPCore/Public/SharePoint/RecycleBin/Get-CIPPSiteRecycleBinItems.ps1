@@ -10,7 +10,9 @@ function Get-CIPPSiteRecycleBinItems {
 
         REST named form used here (the same form PnP posts):
           site/GetRecycleBinItems(rowLimit, isAscending=false, itemState, orderBy=3, pagingInfo)
-        orderBy 3 is DeletedDate. itemState 1 is the first stage and 2 is the second stage.
+        The first page omits pagingInfo. An empty string is not a valid search position and
+        SharePoint throws ArgumentOutOfRangeException. orderBy 3 is DeletedDate. itemState 1
+        is the first stage and 2 is the second stage.
         The next page token is the collection PagingInfo value. When that is missing on a full
         page, the last item id is tried once; if that does not advance, the scan is marked capped.
     #>
@@ -100,6 +102,8 @@ function Get-CIPPSiteRecycleBinItems {
             $Guard++
             $Uri = if ($Paging -match '^https?://') {
                 $Paging
+            } elseif ([string]::IsNullOrWhiteSpace($Paging)) {
+                "$BaseUri/site/GetRecycleBinItems(rowLimit=$RowLimit,isAscending=false,itemState=$State,orderBy=3)"
             } else {
                 $Literal = ConvertTo-CippRecycleODataLiteral -Value $Paging
                 "$BaseUri/site/GetRecycleBinItems(rowLimit=$RowLimit,isAscending=false,itemState=$State,orderBy=3,pagingInfo='$Literal')"
