@@ -11,7 +11,7 @@
   "parameters": {
     "containerImage": {
       "type": "string",
-      "defaultValue": "DOCKER|ghcr.io/celeratec/manage365:v6.1.15",
+      "defaultValue": "DOCKER|ghcr.io/celeratec/manage365:v6.1.16",
       "metadata": {
         "description": "Container image for the cipp web app."
       }

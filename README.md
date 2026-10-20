@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.15) &nbsp;·&nbsp; CIPP baseline <strong>11.0.2</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.16) &nbsp;·&nbsp; CIPP baseline <strong>11.0.2</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.15** on CIPP baseline **11.0.2**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.16** on CIPP baseline **11.0.2**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -40,6 +40,10 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 | Local: SWA CLI + Azurite + multiple function hosts | `build/docker-compose-all.yml` (Azurite + Craft on :5196) |
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+
+## Release 6.1.16 (October 2026)
+
+The queued recycle-bin empty status reads Craft with `GetRun` and `GetRuns`. The previous call used `GetRunStatus`, which the running Craft bridge does not have, so the status page failed before it could report progress. CIPP baseline stays **11.0.2**.
 
 ## Release 6.1.15 (October 2026)
 
@@ -737,7 +741,7 @@ Manage365 tracks **two** version numbers:
 After each upstream intake, bump both and redeploy:
 
 ```powershell
-./Tools/Update-Version.ps1 -UpstreamVersion 11.0.2 -Manage365Version 6.1.15
+./Tools/Update-Version.ps1 -UpstreamVersion 11.0.2 -Manage365Version 6.1.16
 ```
 
 Then **build the container image with `APP_VERSION=<upstream baseline>` and deploy it** to the App Service container. Until redeployed, the settings page may still show old versions.
