@@ -13,7 +13,7 @@
 param baseName string = 'CIPP'
 
 @description('Container image for the cipp web app.')
-param containerImage string = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.11'
+param containerImage string = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.12'
 
 @description('Location for the web app and storage account.')
 param location string = resourceGroup().location
