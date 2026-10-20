@@ -338,6 +338,8 @@ Describe 'Invoke-ListSiteRecycleBinSummary' {
         $Response.Body.Results.capped | Should -BeFalse
         $Response.Body.Results.scannedItems | Should -Be 501
         @($script:GetUris | Where-Object { $_ -match 'itemState=1' }).Count | Should -BeGreaterThan 1
+        $script:GetUris[0] | Should -Not -Match 'pagingInfo'
+        @($script:GetUris | Where-Object { $_ -match 'pagingInfo=' }).Count | Should -BeGreaterThan 0
     }
 
     It 'sets capped when the scan stops before the bin is exhausted' {
