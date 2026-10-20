@@ -151,6 +151,10 @@ You can review the available alerts embedded below or navigate to [https://resou
 The **Alert on Huntress or CIPP Rogue Apps detected** alert checks tenants against both the public Huntress RogueApps feed and a list curated by CIPP, so it can report applications that do not appear on the Huntress website. See [rogue-apps.md](rogue-apps.md "mention") for how the list is built and which applications the CIPP list contains.
 {% endhint %}
 
+{% hint style="info" %}
+The **Alert on presence of specific app ids** alert reports any service principal in the tenant whose application id is on the list you configure. It comes pre-filled with the ConnectWise Cloud Management application ids named in the ConnectWise breach disclosure, and you can add or remove any application (client) id. Pair it with **Alert on newly added service principal credentials**, which reports every secret or certificate added to a service principal in the last six days by default, so a credential planted on a vendor's multi-tenant app is caught even when the app itself is expected.
+{% endhint %}
+
 {% hint style="warning" %}
 The **Alert on OneDrive accounts with over-long paths** alert reads from a cache that CIPP does not refresh on a schedule, unlike most alert data. Run **Refresh CIPPDB Cache** for the **OneDrive Long Paths** cache type on the tenant from [tenants.md](../../../cipp/settings/tenants.md "mention") before relying on this alert, and again whenever you want it to reflect current data. It stores each affected user's UPN and a count of long paths only, never file or folder names.
 {% endhint %}
