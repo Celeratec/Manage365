@@ -62,14 +62,9 @@ BeforeAll {
     . (Join-Path $SharePointDir 'Invoke-ListSiteRecycleBinSummary.ps1')
     . (Join-Path $SharePointDir 'Invoke-ListEmptySiteRecycleBinStatus.ps1')
 
-    function global:New-GraphGetRequest {
-        param(
-            $uri, $tenantid, $scope, $AsApp, $extraHeaders,
-            [switch]$UseCertificate,
-            [bool]$noPagination,
-            [switch]$SkipValueExtraction
-        )
-        $script:GetUris.Add([string]$uri)
+    function script:Read-MockRecycleBinPage {
+        param([string]$uri)
+        $script:GetUris.Add($uri)
         if ($uri -notmatch 'GetRecycleBinItems') { throw "Unexpected recycle uri: $uri" }
         $State = 1
         $Row = 200
@@ -100,6 +95,16 @@ BeforeAll {
         }
     }
 
+    function global:New-GraphGetRequest {
+        param(
+            $uri, $tenantid, $scope, $AsApp, $extraHeaders,
+            [switch]$UseCertificate,
+            [bool]$noPagination,
+            [switch]$SkipValueExtraction
+        )
+        throw "GetRecycleBinItems must be posted, not read with GET: $uri"
+    }
+
     function global:New-GraphPostRequest {
         param(
             $uri, $tenantid, $scope, $type, $body, $contentType, $AddedHeaders,
@@ -108,6 +113,10 @@ BeforeAll {
         )
         $script:PostUris.Add([string]$uri)
         $script:GraphPostCalls++
+        if ($uri -match 'GetRecycleBinItems') {
+            if ($type -ne 'POST') { throw "GetRecycleBinItems type was '$type'" }
+            return Read-MockRecycleBinPage -uri ([string]$uri)
+        }
         if ($uri -match 'deleteAll|web/RecycleBin') { throw "Refusing no-op recycle endpoint: $uri" }
         $Parsed = $body | ConvertFrom-Json
         $Ids = @($Parsed.ids)
@@ -238,7 +247,8 @@ Describe 'Invoke-ExecEmptySiteRecycleBin' {
         $Response.Body.QueueId | Should -Be 'queue-1'
         $Response.Body.Results | Should -Not -Match 'Emptied'
         $script:QueuedCmdlet | Should -Be 'Start-CIPPEmptySiteRecycleBin'
-        $script:GraphPostCalls | Should -Be 0
+        @($script:PostUris | Where-Object { $_ -match 'DeleteByIds' }).Count | Should -Be 0
+        @($script:PostUris | Where-Object { $_ -match 'GetRecycleBinItems' }).Count | Should -BeGreaterThan 0
     }
 }
 
