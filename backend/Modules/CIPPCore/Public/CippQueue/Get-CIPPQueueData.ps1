@@ -5,40 +5,18 @@ function Get-CIPPQueueData {
     $Reference = $Request.Query.Reference ?? $Reference
 
     if ($env:CIPPNG -eq 'true') {
-        $json = [Craft.Services.QueueStatusBridge]::GetRunStatus($Reference, $QueueId)
-        $Entries = @($json | ConvertFrom-Json)
-
-        # One logical operation can span several orchestrator runs carrying the same QueueId
-        # suffix: activities re-queue continuation runs (timebox and throttle resumes) and
-        # dispatch child orchestrations. A caller asking after one queue needs the roll-up of
-        # the whole chain, not whichever run the bridge listed first - above all, a progress
-        # tracker must keep polling while ANY chained run is still active, where reading just
-        # the original run reports Completed the moment its own tasks finish.
-        if (($QueueId -or $Reference) -and $Entries.Count -gt 1) {
-            $Terminal = @('Completed', 'Failed', 'Completed (with errors)', 'Not found')
-            $TotalTasks = 0; $CompletedTasks = 0; $RunningTasks = 0; $FailedTasks = 0
-            $AnyActive = $false; $AnyFailed = $false
-            $AllTasks = [System.Collections.Generic.List[object]]::new()
-            foreach ($Entry in $Entries) {
-                $TotalTasks += [int]($Entry.TotalTasks ?? 0)
-                $CompletedTasks += [int]($Entry.CompletedTasks ?? 0)
-                $RunningTasks += [int]($Entry.RunningTasks ?? 0)
-                $FailedTasks += [int]($Entry.FailedTasks ?? 0)
-                if ([string]$Entry.Status -notin $Terminal) { $AnyActive = $true }
-                if ([string]$Entry.Status -in @('Failed', 'Completed (with errors)') -or [int]($Entry.FailedTasks ?? 0) -gt 0) { $AnyFailed = $true }
-                foreach ($Task in @($Entry.Tasks)) { $AllTasks.Add($Task) }
-            }
-            $Rollup = $Entries[0].PSObject.Copy()
-            $Rollup.TotalTasks = [Math]::Max($TotalTasks, 1)
-            $Rollup.CompletedTasks = $CompletedTasks
-            $Rollup.RunningTasks = $RunningTasks
-            $Rollup.FailedTasks = $FailedTasks
-            $Rollup.PercentComplete = [math]::Round((($CompletedTasks / [Math]::Max($TotalTasks, 1)) * 100), 1)
-            $Rollup.Tasks = @($AllTasks)
-            $Rollup.Status = if ($AnyActive) { 'Running' } elseif ($AnyFailed) { 'Completed (with errors)' } else { 'Completed' }
-            return $Rollup
+        # Craft rolls a queue's chained runs into one status. GetRunStatus is not on the bridge;
+        # the methods are GetRun (one lookup) and GetRuns (the recent list).
+        $Lookup = if ($QueueId) { $QueueId } else { $Reference }
+        if ($Lookup) {
+            $Json = [Craft.Services.QueueStatusBridge]::GetRun($Lookup)
+            if ([string]::IsNullOrWhiteSpace($Json) -or $Json -eq 'null') { return @() }
+            return ConvertFrom-CIPPCraftRunStatus -Run ($Json | ConvertFrom-Json)
         }
-        return $Entries
+        $Runs = @([Craft.Services.QueueStatusBridge]::GetRuns($null) | ConvertFrom-Json)
+        return @(foreach ($Run in $Runs) {
+                if ($Run) { ConvertFrom-CIPPCraftRunStatus -Run $Run }
+            })
     }
 
     $CippQueue = Get-CippTable -TableName 'CippQueue'
