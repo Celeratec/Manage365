@@ -82,11 +82,13 @@ Every authentication method registered against the account, other than the passw
 | Email                                  | The address used for verification.                                                                                                      |
 | Windows Hello for Business             | The name of the registration.                                                                                                           |
 | Platform credential                    | The name, or the platform where no name is set.                                                                                         |
-| Temporary Access Pass                  | Nothing further, as Graph returns no identifying detail.                                                                                |
+| Temporary Access Pass                  | When the pass expires, or expired. See below for the status it shows.                                                                  |
 | QR code                                | Nothing further, as Graph returns only the identifier and last used date.                                                               |
 | External provider                      | The name of the registration.                                                                                                           |
 
 A method type CIPP does not yet recognise still appears, labelled with the type name Graph returned.
+
+A Temporary Access Pass shows whether it can still be used. The status reads **Active** while the pass is usable, and otherwise gives the reason it is not: **Expired**, **Not yet valid**, **Already used**, or **Disabled by policy**. The expanded view adds when the pass is valid from, when it expires, its lifetime in minutes, and whether it is one-time use.
 
 Two markers can appear on a method:
 

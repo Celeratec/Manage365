@@ -42,6 +42,8 @@ function Get-GraphToken {
                 [CIPP.CIPPTokenCache]::Remove($SharedTokenCacheKey)
             }
         }
+        $CachedFailure = [CIPP.CIPPTokenCache]::Lookup("$SharedTokenCacheKey|failed", 0)
+        if ($CachedFailure.Found) { throw "Could not get token: $($CachedFailure.TokenPayloadJson)" }
     }
 
     # ── Slow path: need a new token — do table lookups + token acquisition ──
@@ -63,6 +65,12 @@ function Get-GraphToken {
                 } catch {
                     [CIPP.CIPPTokenCache]::Remove($SharedTokenCacheKey)
                 }
+            }
+            $CachedFailure = [CIPP.CIPPTokenCache]::Lookup("$SharedTokenCacheKey|failed", 0)
+            if ($CachedFailure.Found) {
+                [CIPP.CIPPTokenCache]::ReleaseLock($SharedTokenCacheKey)
+                $LockAcquired = $false
+                throw "Could not get token: $($CachedFailure.TokenPayloadJson)"
             }
         }
     }

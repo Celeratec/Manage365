@@ -47,10 +47,11 @@ services:
       - "127.0.0.1:10002:10002"
     environment:
       - AZURITE_ACCOUNTS=devstoreaccount1:Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==
-      - NODE_OPTIONS=--max-old-space-size=8192 --require /azurite-table-partition.js
+      - NODE_OPTIONS=--max-old-space-size=8192 --require /azurite-table-partition.js --require /azurite-perf.js
     volumes:
       - cipp-ng_azurite-data:/workspace
       - ./tools/azurite-table-partition.js:/azurite-table-partition.js:ro
+      - ./tools/azurite-perf.js:/azurite-perf.js:ro
       - ./tools/azurite-prestart.js:/azurite-prestart.js:ro
     networks:
       - cipp-network

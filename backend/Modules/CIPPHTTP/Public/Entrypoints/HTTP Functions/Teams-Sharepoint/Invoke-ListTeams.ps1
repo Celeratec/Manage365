@@ -9,6 +9,29 @@ Function Invoke-ListTeams {
     param($Request, $TriggerMetadata)
     # Interact with query parameters or the body of the request.
     $TenantFilter = $Request.Query.TenantFilter
+    # Cached reads, including AllTenants, page through the report. A single tenant still uses the live list below.
+    $UseReportDB = $Request.Query.UseReportDB -eq $true
+    if ($request.query.type -eq 'List' -and ($TenantFilter -eq 'AllTenants' -or $UseReportDB)) {
+        try {
+            if ($Request.Query.manualPagination -eq $true) {
+                $PageSize = $Request.Query.PageSize -as [int]
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::OK
+                        Body       = Get-CIPPReportPage -TenantFilter $TenantFilter -Type 'Teams' -PageSize $PageSize -ContinuationToken $Request.Query.nextLink -Report { param($Tenant) Get-CIPPTeamsReport -TenantFilter $Tenant -ErrorAction Stop }
+                    })
+            }
+            $GraphRequest = Get-CIPPTeamsReport -TenantFilter $TenantFilter -ErrorAction Stop
+            $StatusCode = [HttpStatusCode]::OK
+        } catch {
+            $StatusCode = [HttpStatusCode]::InternalServerError
+            $GraphRequest = $_.Exception.Message
+        }
+        return ([HttpResponseContext]@{
+                StatusCode = $StatusCode
+                Body       = @($GraphRequest)
+            })
+    }
+
     if ($request.query.type -eq 'List') {
         $Groups = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$select=id,displayName,description,visibility,mailNickname" -tenantid $TenantFilter | Sort-Object -Property displayName
 

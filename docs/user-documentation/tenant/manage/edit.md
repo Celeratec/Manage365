@@ -1,6 +1,6 @@
 # Edit Tenant
 
-This page shows the details CIPP holds for the currently selected tenant, along with the tenant-specific settings you can change: its alias and group membership, its offboarding defaults, and its custom variables.
+This page shows the details CIPP holds for the currently selected tenant, along with the tenant-specific settings you can change: its alias and group membership, its offboarding defaults, its vacation defaults, and its custom variables.
 
 {% hint style="info" %}
 A specific tenant must be selected. With All Tenants selected, the page prompts you to choose a tenant instead.
@@ -65,6 +65,17 @@ The tenant's saved defaults are applied in full, so an empty Out of Office messa
 Under **Send results to**, choose where the outcome of an offboarding run is reported: Webhook, E-mail, or PSA.
 
 To clear the defaults for this tenant, use **Reset All to Off** and then **Save Changes**. Offboarding then falls back to the user-level defaults.
+
+## Tenant Vacation Defaults
+
+These settings pre-fill the [add-vacation-schedule.md](../../identity/administration/vacation-mode/add-vacation-schedule.md "mention") wizard for this tenant. They set the starting position only, so each option can still be changed for an individual vacation. Select **Save Changes** to store them.
+
+| Setting                                            | Description                                                                                                                                    |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Conditional Access policies to exempt              | The Conditional Access policies the wizard starts with selected for exclusion. Read from this tenant, with a refresh option on the list.       |
+| Create temporary travel policy by default          | Starts the wizard with the temporary travel policy switched on.                                                                                |
+| Add users' usage location to the travel destinations | Starts the wizard with each user's usage location added to the travel destinations, so they can still sign in from home.                      |
+| Exclude users from location-based alerts by default | Starts the wizard with the location-based audit log alert exclusion switched on.                                                              |
 
 ## Custom Variables
 

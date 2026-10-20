@@ -1,34 +1,31 @@
 import {
-  Alert,
   Box,
   Button,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Typography,
   useMediaQuery,
-  useTheme,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import { Stack } from "@mui/system";
-import { WarningAmber, PersonAdd } from "@mui/icons-material";
-import { CippApiResults } from "./CippApiResults";
-import { ApiGetCall, ApiPostCall } from "../../api/ApiCall";
-import React, { useEffect, useState, useRef } from "react";
-import { useRouter } from "next/router";
-import { getSafeInternalRoute, openSafeExternalUrl } from "../../utils/safe-navigation";
-import { isDangerAction } from "../../utils/action-categories";
-import { useForm, useFormState } from "react-hook-form";
-import { useSettings } from "../../hooks/use-settings";
-import CippFormComponent from "./CippFormComponent";
-import { CippFormCondition } from "./CippFormCondition";
-import { getNestedValue as getRowPath, getRowTenant } from "../../utils/resolve-row-templates";
+} from '@mui/material'
+import { Stack } from '@mui/system'
+import { CippApiResults } from './CippApiResults'
+import { ApiGetCall, ApiPostCall } from '../../api/ApiCall'
+import React, { useEffect, useState, useRef } from 'react'
+import { useRouter } from 'next/router'
+import { useForm, useFormState } from 'react-hook-form'
+import { useSettings } from '../../hooks/use-settings'
+import CippFormComponent from './CippFormComponent'
+import { CippFormCondition } from './CippFormCondition'
+import {
+  getNestedValue as getRowPath,
+  getRowTenant,
+  withRowTenant,
+} from '../../utils/resolve-row-templates'
 import {
   extractCsvColumnValues,
   mergeCsvFormFields,
   normalizeAutoCompleteValues,
-} from "../../utils/csv-field-values";
+} from '../../utils/csv-field-values'
 
 export const CippApiDialog = (props) => {
   const {
@@ -40,67 +37,69 @@ export const CippApiDialog = (props) => {
     relatedQueryKeys,
     dialogAfterEffect,
     allowResubmit = false,
-    allowAddAnother = false,
-    addAnotherLabel = "Add Another",
     children,
     defaultvalues,
-    onActionSuccess,
+    // Optional. Supplying a form lets the caller watch and drive the dialog's fields while it is
+    // open - the custom variables page uses it to default a variable's type from how the same name
+    // is typed elsewhere. Omitted, the dialog owns its form exactly as before.
+    formHook: externalFormHook,
     ...other
-  } = props;
-  const router = useRouter();
-  const linkOpenedRef = useRef(false);
-  const [addedFieldData, setAddedFieldData] = useState({});
-  const [partialResults, setPartialResults] = useState([]);
-  const [isFormSubmitted, setIsFormSubmitted] = useState(false);
-  const mdDown = useMediaQuery((theme) => theme.breakpoints.down("md"));
+  } = props
+  const router = useRouter()
+  const linkOpenedRef = useRef(false)
+  const [addedFieldData, setAddedFieldData] = useState({})
+  const [partialResults, setPartialResults] = useState([])
+  const [isFormSubmitted, setIsFormSubmitted] = useState(false)
+  const mdDown = useMediaQuery((theme) => theme.breakpoints.down('md'))
 
   if (mdDown) {
-    other.fullScreen = true;
+    other.fullScreen = true
   }
 
-  const formHook = useForm({
-    defaultValues: typeof defaultvalues === "function" ? defaultvalues(row) : defaultvalues || {},
-    mode: "onChange", // Enable real-time validation
-  });
+  const internalFormHook = useForm({
+    defaultValues: typeof defaultvalues === 'function' ? defaultvalues(row) : defaultvalues || {},
+    mode: 'onChange', // Enable real-time validation
+  })
+  const formHook = externalFormHook ?? internalFormHook
 
   // Get form state for validation
-  const { isValid } = useFormState({ control: formHook.control });
+  const { isValid } = useFormState({ control: formHook.control })
 
   useEffect(() => {
     if (createDialog.open) {
-      setIsFormSubmitted(false);
-      formHook.reset(typeof defaultvalues === "function" ? defaultvalues(row) : defaultvalues || {});
+      setIsFormSubmitted(false)
+      formHook.reset(typeof defaultvalues === 'function' ? defaultvalues(row) : defaultvalues || {})
     }
-  }, [createDialog.open, defaultvalues]);
+  }, [createDialog.open, defaultvalues])
 
   const [getRequestInfo, setGetRequestInfo] = useState({
-    url: "",
+    url: '',
     waiting: false,
-    queryKey: "",
+    queryKey: '',
     relatedQueryKeys: relatedQueryKeys ?? api.relatedQueryKeys ?? title,
     bulkRequest: api.multiPost === false,
     onResult: (result) => setPartialResults((prev) => [...prev, result]),
-  });
+  })
 
   const actionPostRequest = ApiPostCall({
     urlFromData: true,
     relatedQueryKeys: relatedQueryKeys ?? api.relatedQueryKeys ?? title,
     bulkRequest: api.multiPost === false,
     onResult: (result, meta) => {
-      setPartialResults((prev) => [...prev, result]);
-      if (!meta?.failed) api?.onSuccess?.(result);
+      setPartialResults((prev) => [...prev, result])
+      if (!meta?.failed) api?.onSuccess?.(result)
     },
-  });
+  })
 
   const actionGetRequest = ApiGetCall({
     ...getRequestInfo,
     relatedQueryKeys: relatedQueryKeys ?? api.relatedQueryKeys ?? title,
     bulkRequest: api.multiPost === false,
     onResult: (result, meta) => {
-      setPartialResults((prev) => [...prev, result]);
-      if (!meta?.failed) api?.onSuccess?.(result);
+      setPartialResults((prev) => [...prev, result])
+      if (!meta?.failed) api?.onSuccess?.(result)
     },
-  });
+  })
 
   // Whenever the dialog is (re)opened, discard any results from a previous run
   // so a freshly created window never shows stale output from an earlier action.
@@ -108,48 +107,48 @@ export const CippApiDialog = (props) => {
   // stays mounted, so clear both alongside the streamed partial results.
   useEffect(() => {
     if (createDialog.open) {
-      setPartialResults([]);
-      actionPostRequest.reset();
-      setGetRequestInfo((prev) => ({ ...prev, waiting: false, queryKey: "" }));
+      setPartialResults([])
+      actionPostRequest.reset()
+      setGetRequestInfo((prev) => ({ ...prev, waiting: false, queryKey: '' }))
     }
-  }, [createDialog.open]);
+  }, [createDialog.open])
 
   const processActionData = (dataObject, row, replacementBehaviour) => {
-    if (typeof api?.dataFunction === "function") return api.dataFunction(row, dataObject);
+    if (typeof api?.dataFunction === 'function') return api.dataFunction(row, dataObject)
 
-    let newData = {};
+    let newData = {}
     if (api?.postEntireRow) {
-      return row;
+      return row
     }
 
     if (!dataObject) {
-      return dataObject;
+      return dataObject
     }
 
     Object.keys(dataObject).forEach((key) => {
-      const value = dataObject[key];
+      const value = dataObject[key]
 
-      if (typeof value === "string" && value.startsWith("!")) {
-        newData[key] = value.slice(1);
-      } else if (typeof value === "string") {
-        const nested = getRowPath(row, value);
-        newData[key] = nested !== undefined ? nested : value;
-      } else if (typeof value === "boolean") {
-        newData[key] = value;
-      } else if (typeof value === "object" && value !== null) {
-        const processedValue = processActionData(value, row, replacementBehaviour);
-        if (replacementBehaviour !== "removeNulls" || Object.keys(processedValue).length > 0) {
-          newData[key] = processedValue;
+      if (typeof value === 'string' && value.startsWith('!')) {
+        newData[key] = value.slice(1)
+      } else if (typeof value === 'string') {
+        const nested = getRowPath(row, value)
+        newData[key] = nested !== undefined ? nested : value
+      } else if (typeof value === 'boolean') {
+        newData[key] = value
+      } else if (typeof value === 'object' && value !== null) {
+        const processedValue = processActionData(value, row, replacementBehaviour)
+        if (replacementBehaviour !== 'removeNulls' || Object.keys(processedValue).length > 0) {
+          newData[key] = processedValue
         }
-      } else if (replacementBehaviour !== "removeNulls") {
-        newData[key] = value;
+      } else if (replacementBehaviour !== 'removeNulls') {
+        newData[key] = value
       }
-    });
+    })
 
-    return newData;
-  };
+    return newData
+  }
 
-  const tenantFilter = useSettings().currentTenant;
+  const tenantFilter = useSettings().currentTenant
 
   const handleActionClick = (row, action, rawFormData) => {
     setIsFormSubmitted(true)
@@ -162,18 +161,18 @@ export const CippApiDialog = (props) => {
       finalData = api.customDataformatter(row, action, resolvedFormData)
       isBulkRequest = Array.isArray(finalData)
     } else {
-      if (action.multiPost === undefined) action.multiPost = false;
+      if (action.multiPost === undefined) action.multiPost = false
 
       if (api.customFunction) {
-        action.customFunction(row, action, resolvedFormData);
-        createDialog.handleClose();
-        return;
+        action.customFunction(row, action, resolvedFormData)
+        createDialog.handleClose()
+        return
       }
 
-      const processedActionData = processActionData(action.data, row, action.replacementBehaviour);
+      const processedActionData = processActionData(action.data, row, action.replacementBehaviour)
 
       if (!processedActionData || Object.keys(processedActionData).length === 0) {
-        console.warn("No data to process for action:", action);
+        console.warn('No data to process for action:', action)
       } else {
         // MULTI ROW CASES
         if (Array.isArray(row)) {
@@ -182,35 +181,34 @@ export const CippApiDialog = (props) => {
               tenantFilter: getRowTenant(singleRow, tenantFilter),
               ...resolvedFormData,
               ...addedFieldData,
-            };
-            const itemData = { ...commonData };
+            }
+            const itemData = { ...commonData }
             Object.keys(processedActionData).forEach((key) => {
-              const mapped = processedActionData[key];
-              const rowValue = typeof mapped === "string" ? getRowPath(singleRow, mapped) : undefined;
-              itemData[key] = rowValue !== undefined ? rowValue : mapped;
-            });
-            return itemData;
-          });
+              const mapped = processedActionData[key]
+              const rowValue =
+                typeof mapped === 'string' ? getRowPath(singleRow, mapped) : undefined
+              itemData[key] = rowValue !== undefined ? rowValue : mapped
+            })
+            return itemData
+          })
 
           const payload = {
             url: action.url,
             bulkRequest: !action.multiPost,
             data: arrayData,
-          };
+          }
 
-          if (action.type === "POST") {
-            actionPostRequest.mutate(payload, {
-              onSuccess: (response) => onActionSuccess?.(response),
-            });
-          } else if (action.type === "GET") {
+          if (action.type === 'POST') {
+            actionPostRequest.mutate(payload)
+          } else if (action.type === 'GET') {
             setGetRequestInfo({
               ...payload,
               waiting: true,
               queryKey: Date.now(),
-            });
+            })
           }
 
-          return;
+          return
         }
       }
 
@@ -219,100 +217,84 @@ export const CippApiDialog = (props) => {
         tenantFilter: getRowTenant(row, tenantFilter),
         ...resolvedFormData,
         ...addedFieldData,
-      };
+      }
 
       finalData = {
         ...commonData,
         ...processedActionData,
-      };
+      }
     }
 
-    if (action.type === "POST") {
-      actionPostRequest.mutate(
-        {
-          url: action.url,
-          bulkRequest: isBulkRequest,
-          data: finalData,
-        },
-        { onSuccess: (response) => onActionSuccess?.(response) }
-      );
-    } else if (action.type === "GET") {
+    if (action.type === 'POST') {
+      actionPostRequest.mutate({
+        url: action.url,
+        bulkRequest: isBulkRequest,
+        data: finalData,
+      })
+    } else if (action.type === 'GET') {
       setGetRequestInfo({
         url: action.url,
         waiting: true,
         queryKey: Date.now(),
         bulkRequest: isBulkRequest,
         data: finalData,
-      });
+      })
     }
-  };
+  }
 
   useEffect(() => {
     if (dialogAfterEffect && (actionPostRequest.isSuccess || actionGetRequest.isSuccess)) {
-      dialogAfterEffect(actionPostRequest.data?.data || actionGetRequest.data);
+      dialogAfterEffect(actionPostRequest.data?.data || actionGetRequest.data)
     }
-  }, [actionPostRequest.isSuccess, actionGetRequest.isSuccess]);
+  }, [actionPostRequest.isSuccess, actionGetRequest.isSuccess])
 
-  const onSubmit = (data) => handleActionClick(row, api, data);
-  const selectedType = api.type === "POST" ? actionPostRequest : actionGetRequest;
+  const onSubmit = (data) => handleActionClick(row, api, data)
+  const selectedType = api.type === 'POST' ? actionPostRequest : actionGetRequest
 
   useEffect(() => {
     if (api?.setDefaultValues && createDialog.open) {
       fields.forEach((field) => {
-        const targetName = field.name.replace(/\[(\w+)\]/g, ".$1");
+        const targetName = field.name.replace(/\[(\w+)\]/g, '.$1')
         const val = targetName
-          .split(".")
-          .reduce((acc, key) => (acc != null ? acc[key] : undefined), row);
+          .split('.')
+          .reduce((acc, key) => (acc != null ? acc[key] : undefined), row)
         if (
-          (typeof val === "string" && field.type === "textField") ||
-          (typeof val === "boolean" && field.type === "switch")
+          (typeof val === 'string' && field.type === 'textField') ||
+          (typeof val === 'boolean' && field.type === 'switch')
         ) {
-          formHook.setValue(targetName, val);
-        } else if (Array.isArray(val) && field.type === "autoComplete") {
+          formHook.setValue(targetName, val)
+        } else if (Array.isArray(val) && field.type === 'autoComplete') {
           const values = val
             .map((el) =>
               el?.label && el?.value
                 ? el
-                : typeof el === "string" || typeof el === "number"
+                : typeof el === 'string' || typeof el === 'number'
                   ? { label: el, value: el }
-                  : null,
+                  : null
             )
-            .filter(Boolean);
-          formHook.setValue(targetName, values);
-        } else if (field.type === "autoComplete" && val) {
+            .filter(Boolean)
+          formHook.setValue(targetName, values)
+        } else if (field.type === 'autoComplete' && val) {
           formHook.setValue(
             targetName,
-            typeof val === "string"
+            typeof val === 'string'
               ? { label: val, value: val }
               : val.label && val.value
                 ? val
-                : undefined,
-          );
+                : undefined
+          )
         }
-      });
+      })
     }
-  }, [createDialog.open, api?.setDefaultValues]);
+  }, [createDialog.open, api?.setDefaultValues])
 
-  const escapeHtml = (text) => {
-    if (typeof text !== "string") return text;
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#39;");
-  };
-
+  // Values land in React text nodes, which escape on render; pre-escaping shows &amp; to the user.
   const getRawNestedValue = (obj, path) => {
     return path
-      .split(".")
-      .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
-  };
-
-  const getNestedValue = (obj, path) => {
-    const value = getRawNestedValue(obj, path);
-    return typeof value === "string" ? escapeHtml(value) : value;
-  };
+      .split('.')
+      .reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj)
+  }
+  const getNestedValue = getRawNestedValue
 
   // Handle link actions - opens the link when dialog opens, using ref to prevent duplicates
   useEffect(() => {
@@ -323,92 +305,86 @@ export const CippApiDialog = (props) => {
       Object.keys(row).length > 0 &&
       !linkOpenedRef.current
     ) {
-      linkOpenedRef.current = true;
-      const placeholder = /\[([^\]]+)\]/g;
-      const hasValue = (value) => value !== undefined && value !== null && value !== "";
-      if (api.link.startsWith("/") && !api?.external) {
+      linkOpenedRef.current = true
+      const placeholder = /\[([^\]]+)\]/g
+      const hasValue = (value) => value !== undefined && value !== null && value !== ''
+      if (api.link.startsWith('/') && !api?.external) {
+        // Internal routes only ever substitute ids and query values, so encode them: the row
+        // is tenant data and must not be able to inject path segments or a second origin.
         const internalLink = api.link.replace(placeholder, (_, key) => {
-          const value = getRawNestedValue(row, key);
-          return hasValue(value) ? encodeURIComponent(String(value)) : `[${key}]`;
-        });
-        const safeRoute = getSafeInternalRoute(internalLink);
-        if (safeRoute) {
-          router.push(safeRoute, undefined, { shallow: true });
-        } else {
-          console.warn(`Refusing to navigate to unsafe or unresolved link: ${internalLink}`);
-        }
+          const value = getRawNestedValue(row, key)
+          return hasValue(value) ? encodeURIComponent(String(value)) : `[${key}]`
+        })
+        router.push(withRowTenant(internalLink, row, tenantFilter), undefined, { shallow: true })
       } else {
+        // External links may substitute a whole URL (e.g. [webUrl]) and are left as-is.
         const externalLink = api.link.replace(placeholder, (_, key) => {
-          const value = getRawNestedValue(row, key);
-          return hasValue(value) ? value : `[${key}]`;
-        });
-        openSafeExternalUrl(externalLink, api.target || "_blank");
+          const value = getRawNestedValue(row, key)
+          return hasValue(value) ? value : `[${key}]`
+        })
+        window.open(externalLink, api.target || '_blank')
       }
-      createDialog.handleClose();
+      createDialog.handleClose()
     }
-  }, [api.link, createDialog.open, row, router]);
+  }, [api.link, createDialog.open, row, router])
 
   // Reset the ref when dialog closes so the same link can be opened again
   useEffect(() => {
     if (!createDialog.open) {
-      linkOpenedRef.current = false;
+      linkOpenedRef.current = false
     }
-  }, [createDialog.open]);
+  }, [createDialog.open])
 
   useEffect(() => {
     if (api.noConfirm && !api.link) {
-      formHook.handleSubmit(onSubmit)();
-      createDialog.handleClose();
+      formHook.handleSubmit(onSubmit)()
+      createDialog.handleClose()
     }
-  }, [api.noConfirm, api.link]);
+  }, [api.noConfirm, api.link])
 
   const handleClose = () => {
-    createDialog.handleClose();
-    setPartialResults([]);
-  };
+    createDialog.handleClose()
+    setPartialResults([])
+  }
 
-  let confirmText;
-  if (typeof api?.confirmText === "string") {
+  let confirmText
+  if (typeof api?.confirmText === 'string') {
     if (!Array.isArray(row)) {
       confirmText = api.confirmText.replace(
         /\[([^\]]+)\]/g,
-        (_, key) => getNestedValue(row, key) || `[${key}]`,
-      );
+        (_, key) => getNestedValue(row, key) || `[${key}]`
+      )
     } else if (row.length > 1) {
-      confirmText = api.confirmText.replace(/\[([^\]]+)\]/g, `the ${row.length} selected rows`);
+      confirmText = api.confirmText.replace(/\[([^\]]+)\]/g, `the ${row.length} selected rows`)
     } else if (row.length === 1) {
       confirmText = api.confirmText.replace(
         /\[([^\]]+)\]/g,
-        (_, key) => getNestedValue(row[0], key) || `[${key}]`,
-      );
+        (_, key) => getNestedValue(row[0], key) || `[${key}]`
+      )
     }
   } else {
     const replaceTextInElement = (element) => {
-      if (!element) return element;
-      if (typeof element === "string") {
+      if (!element) return element
+      if (typeof element === 'string') {
         if (Array.isArray(row)) {
           return row.length > 1
             ? element.replace(/\[([^\]]+)\]/g, `the ${row.length} selected rows`)
             : element.replace(
                 /\[([^\]]+)\]/g,
-                (_, key) => getNestedValue(row[0], key) || `[${key}]`,
+                (_, key) => getNestedValue(row[0], key) || `[${key}]`
               );
         }
         return element.replace(/\[([^\]]+)\]/g, (_, key) => getNestedValue(row, key) || `[${key}]`);
       }
       if (React.isValidElement(element)) {
-        const newChildren = React.Children.map(element.props.children, replaceTextInElement);
-        return React.cloneElement(element, {}, newChildren);
+        const newChildren = React.Children.map(element.props.children, replaceTextInElement)
+        return React.cloneElement(element, {}, newChildren)
       }
-      return element;
-    };
-    confirmText = replaceTextInElement(api?.confirmText);
+      return element
+    }
+    confirmText = replaceTextInElement(api?.confirmText)
   }
 
-  const theme = useTheme();
-  // Destructive actions are marked with category "danger" and/or colour
-  // "danger"/"error" depending on the page, so accept any of them here
-  const isDanger = isDangerAction(api);
   // Optional typed confirmation: api.confirmPhrase is a string (with [field] interpolation from
   // the row) or a function of the row / selected rows returning the phrase, or null/'' to skip.
   // While set, the Confirm button stays disabled until the user types the phrase exactly.
@@ -433,55 +409,16 @@ export const CippApiDialog = (props) => {
   return (
     <>
       {!api?.link && (
-        <Dialog
-          fullWidth
-          maxWidth="sm"
-          onClose={handleClose}
-          open={createDialog.open}
-          disableRestoreFocus
-          {...other}
-          PaperProps={{
-            ...other?.PaperProps,
-            sx: {
-              ...other?.PaperProps?.sx,
-              ...(isDanger && {
-                border: `2px solid ${theme.palette.error.main}`,
-                boxShadow: `0 0 24px ${alpha(theme.palette.error.main, 0.25)}`,
-              }),
-            },
-          }}
-        >
+        <Dialog fullWidth maxWidth="sm" onClose={handleClose} open={createDialog.open} {...other}>
           <form onSubmit={formHook.handleSubmit(onSubmit)}>
-            <DialogTitle
-              sx={
-                isDanger
-                  ? {
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      bgcolor: alpha(theme.palette.error.main, 0.08),
-                      color: theme.palette.error.main,
-                      borderBottom: `1px solid ${alpha(theme.palette.error.main, 0.2)}`,
-                    }
-                  : undefined
-              }
-            >
-              {isDanger && <WarningAmber sx={{ fontSize: 28 }} />}
-              {title}
-            </DialogTitle>
-            <DialogContent sx={{ pt: isDanger ? 2.5 : undefined }}>
-              {isDanger ? (
-                <Alert severity="error" variant="outlined" icon={false} sx={{ mt: 1 }}>
-                  <Typography variant="body2">{confirmText}</Typography>
-                </Alert>
-              ) : (
-                <Stack spacing={2}>{confirmText}</Stack>
-              )}
+            <DialogTitle>{title}</DialogTitle>
+            <DialogContent>
+              <Stack spacing={2}>{confirmText}</Stack>
             </DialogContent>
             <DialogContent>
               <Stack spacing={2}>
                 {children ? (
-                  typeof children === "function" ? (
+                  typeof children === 'function' ? (
                     children({
                       formHook,
                       row,
@@ -492,55 +429,62 @@ export const CippApiDialog = (props) => {
                 ) : (
                   <>
                     {fields?.map((fieldProps, i) => {
-                      const { condition, component, csvColumn, ...rest } = fieldProps;
+                      const { condition, component, csvColumn, ...rest } = fieldProps
 
-                      if (csvColumn && rest.type === "autoComplete") {
-                        const csvFieldName = `${rest.name}__csv`;
-                        const origValidate = rest.validators?.validate;
+                      if (csvColumn && rest.type === 'autoComplete') {
+                        const csvFieldName = `${rest.name}__csv`
+                        const origValidate = rest.validators?.validate
                         rest.validators = {
                           ...rest.validators,
                           validate: (value, formValues) => {
-                            const hasAC = normalizeAutoCompleteValues(value).length > 0;
-                            const csvRows = formValues[csvFieldName];
-                            const csvValues = extractCsvColumnValues(csvRows, csvColumn);
-                            const hasCsvValues = csvValues.length > 0;
-                            const hasCsvRows = Array.isArray(csvRows) && csvRows.length > 0;
+                            const hasAC = normalizeAutoCompleteValues(value).length > 0
+                            const csvRows = formValues[csvFieldName]
+                            const csvValues = extractCsvColumnValues(csvRows, csvColumn)
+                            const hasCsvValues = csvValues.length > 0
+                            const hasCsvRows =
+                              Array.isArray(csvRows) && csvRows.length > 0
 
                             if (hasAC || hasCsvValues) {
-                              if (typeof origValidate === "function" && hasAC) {
-                                return origValidate(value, formValues);
+                              if (typeof origValidate === 'function' && hasAC) {
+                                return origValidate(value, formValues)
                               }
-                              return true;
+                              return true
                             }
                             if (hasCsvRows) {
-                              return `CSV must include a ${csvColumn} column with at least one value`;
+                              return `CSV must include a ${csvColumn} column with at least one value`
                             }
-                            return `Select at least one option or upload a CSV with a ${csvColumn} column`;
+                            return `Select at least one option or upload a CSV with a ${csvColumn} column`
                           },
                           deps: [csvFieldName],
-                        };
+                        }
                       }
 
                       if (rest.api) {
-                        let nextApi = rest.api;
-                        if (nextApi.processFieldData && nextApi.data && row && !Array.isArray(row)) {
-                          const processedData = processActionData(nextApi.data, row);
+                        let nextApi = rest.api
+                        if (
+                          nextApi.processFieldData &&
+                          nextApi.data &&
+                          row &&
+                          !Array.isArray(row)
+                        ) {
+                          const processedData = processActionData(nextApi.data, row)
                           nextApi = {
                             ...nextApi,
                             data: processedData,
                             queryKey:
-                              nextApi.queryKey ?? `${nextApi.url}-${JSON.stringify(processedData)}`,
-                          };
+                              nextApi.queryKey ??
+                              `${nextApi.url}-${JSON.stringify(processedData)}`,
+                          }
                         }
                         if (nextApi.tenantFilter === undefined && nextApi.url) {
                           nextApi = {
                             ...nextApi,
                             tenantFilter: getRowTenant(row, tenantFilter),
-                          };
+                          }
                         }
-                        rest.api = nextApi;
+                        rest.api = nextApi
                       }
-                      const FieldComponent = component ?? CippFormComponent;
+                      const FieldComponent = component ?? CippFormComponent
                       const fieldElement = (
                         <FieldComponent
                           formControl={formHook}
@@ -549,7 +493,7 @@ export const CippApiDialog = (props) => {
                           row={row}
                           {...rest}
                         />
-                      );
+                      )
 
                       const csvElement = csvColumn ? (
                         <Box sx={{ mt: 1 }}>
@@ -560,10 +504,10 @@ export const CippApiDialog = (props) => {
                             formControl={formHook}
                           />
                         </Box>
-                      ) : null;
+                      ) : null
 
                       return (
-                        <Box key={i} sx={{ width: "100%" }}>
+                        <Box key={i} sx={{ width: '100%' }}>
                           {condition ? (
                             <CippFormCondition {...condition} formControl={formHook}>
                               {fieldElement}
@@ -576,7 +520,7 @@ export const CippApiDialog = (props) => {
                             </>
                           )}
                         </Box>
-                      );
+                      )
                     })}
                   </>
                 )}
@@ -601,39 +545,21 @@ export const CippApiDialog = (props) => {
             <DialogContent>
               <CippApiResults apiObject={{ ...selectedType, data: partialResults }} />
             </DialogContent>
-            <DialogActions
-              sx={isDanger ? { borderTop: `1px solid ${alpha(theme.palette.error.main, 0.2)}` } : undefined}
-            >
+            <DialogActions>
               <Button color="inherit" onClick={handleClose}>
                 Close
               </Button>
-              {allowAddAnother && isFormSubmitted && (
-                <Button
-                  variant="contained"
-                  startIcon={<PersonAdd />}
-                  onClick={() => {
-                    setIsFormSubmitted(false);
-                    setPartialResults([]);
-                    formHook.reset(
-                      typeof defaultvalues === "function" ? defaultvalues(row) : defaultvalues || {},
-                    );
-                  }}
-                >
-                  {addAnotherLabel}
-                </Button>
-              )}
               <Button
                 variant="contained"
-                color={isDanger ? "error" : "primary"}
                 type="submit"
-                disabled={!isValid || (isFormSubmitted && !allowResubmit && !allowAddAnother)}
+                disabled={!isValid || (isFormSubmitted && !allowResubmit)}
               >
-                {isFormSubmitted && allowResubmit ? "Reconfirm" : "Confirm"}
+                {isFormSubmitted && allowResubmit ? 'Reconfirm' : 'Confirm'}
               </Button>
             </DialogActions>
           </form>
         </Dialog>
       )}
     </>
-  );
-};
+  )
+}

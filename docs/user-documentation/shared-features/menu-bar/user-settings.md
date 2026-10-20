@@ -79,7 +79,7 @@ Push needs at least one device registered here. Until you have one, the post exe
 
 | Control                | Description                                                                                                                                                                                                                                                                                       |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Enable on this device  | Asks the browser for notification permission and registers this device. Greyed out, with the reason shown when you hover over it, if the browser does not support push notifications, if notifications are blocked for CIPP in the browser settings, if you are impersonating a role, or if push notifications are not ready on the instance yet. On iOS it is only available once CIPP has been added to the Home Screen and opened from there. |
+| Enable on this device  | Asks the browser for notification permission and registers this device. Greyed out, with the reason shown when you hover over it, if the browser does not support push notifications, if notifications are blocked for CIPP in the browser settings, if you are impersonating a role, or if push notifications are not ready on the instance yet. On iOS it is only available once CIPP has been added to the Home Screen and opened from there. While the browser's permission prompt is open a message tells you CIPP is waiting for it, and if you dismiss or refuse the prompt an error says notification permission was not granted and that you need to allow notifications for the site in your browser settings. |
 | Send test notification | Sends a test notification to every device you have registered, after you confirm.                                                                                                                                                                                                                 |
 | Remove device          | A row action that stops notifications to that device, after you confirm. A device can be removed from any browser; the registration is deleted, not the browser's permission.                                                                                                                   |
 
@@ -92,6 +92,8 @@ A device the browser has silently dropped, for example after the site data was c
 Chooses which Microsoft portal shortcuts appear in the tenant information flyout. All are enabled by default; switch off any you do not use to shorten the list.
 
 The available portals are M365, Exchange, Entra, Teams, Azure, Intune, SharePoint, Security, Purview, Power Platform, and Power BI. The **Manage Tenant** entry is always shown and cannot be switched off. See [tenant-select.md](tenant-select.md "mention").
+
+**Preselect my account (login_hint)** is switched off by default. Turn it on and the Microsoft portal links in the tenant selector and on the dashboard open with the account you signed in to CIPP with preselected, instead of whichever account the browser or device last used.
 
 ## Developer Options
 

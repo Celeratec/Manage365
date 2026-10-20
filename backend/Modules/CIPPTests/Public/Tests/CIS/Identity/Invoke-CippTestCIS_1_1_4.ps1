@@ -8,16 +8,6 @@ function Invoke-CippTestCIS_1_1_4 {
     try {
         $Roles = Get-CippDbRole -TenantFilter $Tenant -IncludePrivilegedRoles
         $RoleAssignmentScheduleInstances = Get-CIPPTestData -TenantFilter $Tenant -Type 'RoleAssignmentScheduleInstances'
-        $Users = Get-CIPPTestData -TenantFilter $Tenant -Type 'Users'
-
-        if ($null -eq $Roles -or $null -eq $Users) {
-            Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_1_4' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'Required cache (Roles or Users) not found. Please refresh the cache for this tenant.' -Risk 'Medium' -Name 'Administrative accounts use licenses with a reduced application footprint' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged Access'
-            return
-        }
-
-        # SkuPartNumbers that are acceptable for admin accounts: Entra ID P1/P2 only
-        $AcceptableSkus = @('AAD_PREMIUM', 'AAD_PREMIUM_P2', 'EMS', 'EMSPREMIUM')
-
         $PrivilegedRoleIds = [System.Collections.Generic.HashSet[string]]::new()
         $PrivilegedUserIds = [System.Collections.Generic.HashSet[string]]::new()
 
@@ -40,17 +30,30 @@ function Invoke-CippTestCIS_1_1_4 {
             }
         }
 
-        $PrivilegedUsers = $Users | Where-Object { $PrivilegedUserIds.Contains($_.id) }
-
-        $LicensedAdmins = $PrivilegedUsers | Where-Object {
-            $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
+        # Plans are streamed: kept for every licensed user they are too large to cache
+        $UsersSeen = $false
+        $PrivilegedUsers = [System.Collections.Generic.List[object]]::new()
+        if ($null -ne $Roles) {
+            Get-CIPPTestData -TenantFilter $Tenant -Type 'Users' -Fields 'id', 'userPrincipalName', 'assignedLicenses', 'assignedPlans' -Stream | ForEach-Object {
+                $UsersSeen = $true
+                if ($PrivilegedUserIds.Contains($_.id)) { $PrivilegedUsers.Add($_) }
+            }
         }
 
-        $NonCompliant = $LicensedAdmins | Where-Object {
-            $skus = ($_.assignedPlans | ForEach-Object { $_.servicePlanId }) -join ','
-            $hasProductivity = $_.assignedPlans | Where-Object { $_.service -in @('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI') -and $_.capabilityStatus -eq 'Enabled' }
-            [bool]$hasProductivity
+        if ($null -eq $Roles -or -not $UsersSeen) {
+            Add-CippTestResult -TenantFilter $Tenant -TestId 'CIS_1_1_4' -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'Required cache (Roles or Users) not found. Please refresh the cache for this tenant.' -Risk 'Medium' -Name 'Administrative accounts use licenses with a reduced application footprint' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged Access'
+            return
         }
+
+        $LicensedAdmins = $PrivilegedUsers.Where({
+                $_.assignedLicenses -and $_.assignedLicenses.Count -gt 0
+            })
+
+        $ProductivityServices = [System.Collections.Generic.HashSet[string]]::new([string[]]@('exchange', 'SharePoint', 'MicrosoftCommunicationsOnline', 'TeamspaceAPI'))
+        $NonCompliant = $LicensedAdmins.Where({
+                $hasProductivity = $_.assignedPlans.Where({ $ProductivityServices.Contains($_.service) -and $_.capabilityStatus -eq 'Enabled' }, 'First', 1)
+                [bool]$hasProductivity.Count
+            })
 
         if (-not $LicensedAdmins) {
             $Status = 'Passed'

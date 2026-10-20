@@ -327,6 +327,7 @@ const AlertWizard = () => {
           PsaTicketPriority: toPsaPriorityValue(
             alert.RawAlert.PsaTicketPriority
           ),
+          AlertReNotify: alert.RawAlert.AlertReNotify === true,
         }
         if (usedCommand?.requiresInput && alert.RawAlert.Parameters) {
           try {
@@ -682,6 +683,7 @@ const AlertWizard = () => {
         values.PsaTicketStrategy?.value ?? values.PsaTicketStrategy ?? '',
       PsaTicketPriority:
         values.PsaTicketPriority?.value ?? values.PsaTicketPriority ?? '',
+      AlertReNotify: values.AlertReNotify === true,
     }
     apiRequest.mutate(
       { url: '/api/AddScriptedAlert', data: postObject },
@@ -1228,15 +1230,12 @@ const AlertWizard = () => {
                             <Grid size={{ xs: 12, md: 6 }}>
                               <CippFormComponent
                                 type="autoComplete"
-                                validators={{ required: true }}
+                                validators={{ required: 'This field is required' }}
                                 multiple={false}
                                 creatable={false}
                                 name="command"
                                 formControl={formControl}
                                 label="What alerting script should run"
-                                validation={{
-                                  required: 'This field is required',
-                                }}
                                 options={alertList.map((cmd) => ({
                                   value: cmd,
                                   label: cmd.label,
@@ -1442,6 +1441,15 @@ const AlertWizard = () => {
                               </CippFormCondition>
                             )}
 
+                            <Grid size={12}>
+                              <CippFormComponent
+                                type="switch"
+                                name="AlertReNotify"
+                                label="Notify on every run while the alert is still active"
+                                formControl={formControl}
+                                helperText="Off: you are notified once when an item first appears or comes back. On: still-active items are sent again on every run. Snoozed items stay silent."
+                              />
+                            </Grid>
                             <Grid size={12}>
                               <CippFormComponent
                                 type="textField"

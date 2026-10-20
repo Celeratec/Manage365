@@ -19,8 +19,8 @@ User and device information is written to a rich text field named **Microsoft 36
 | Hudu API Key                                                                    | The API key generated in Hudu. Stored securely and masked once saved. Enable **Password Access** on the key when synchronising LAPS passwords or BitLocker recovery keys.                         |
 | Create missing users in Hudu                                                    | Creates an asset for any Microsoft 365 user without a matching record in the mapped user layout. Without this, CIPP only updates users that already exist in Hudu.                                |
 | Create missing devices in Hudu                                                  | Creates an asset for any Intune device without a matching record in the mapped device layout.                                                                                                     |
-| Sync Windows LAPS passwords to Hudu                                             | Adds the LAPS account, password and backup date to matching Windows device assets in the mapped device layout.                                                                                    |
-| Sync BitLocker recovery keys to Hudu                                             | Adds paired key ID and recovery-key fields for each BitLocker OS, fixed data, removable data or unknown drive to matching Windows device assets.                                                  |
+| Sync Windows LAPS passwords to Hudu                                             | Adds the LAPS account, password and backup date to matching Windows device assets in the mapped device layout. Individual tenants can be excluded on the **Tenant Mapping** tab.                                                                                    |
+| Sync BitLocker recovery keys to Hudu                                             | Adds paired key ID and recovery-key fields for each BitLocker OS, fixed data, removable data or unknown drive to matching Windows device assets. Individual tenants can be excluded on the **Tenant Mapping** tab.                                                  |
 | Exclude device serials (comma separated)                                        | Additional serial numbers to skip when matching and creating devices. A set of common placeholder serials is always excluded regardless of this setting.                                          |
 | Import domains from M365                                                        | Creates a Hudu website record for each domain in the tenant that does not already exist.                                                                                                          |
 | Monitor domains in Hudu                                                         | Enables DNS, SSL and WHOIS monitoring on the website records created by the previous setting. Without it, records are created paused with monitoring disabled.                                    |
@@ -111,10 +111,20 @@ To map manually, choose a tenant, choose the matching entry under **Select Hudu 
 | --------------- | ----------------------------------------------------- |
 | IntegrationName | The name of the Hudu company the tenant is mapped to. |
 | Tenant          | The display name of the mapped Microsoft 365 tenant.  |
+| SyncPasswords   | Whether LAPS passwords and BitLocker recovery keys are synchronised for this tenant. Shown as true by default, including for mappings created before the column existed. |
 | TenantDomain    | The default domain name of the mapped tenant.         |
 | TenantId        | The tenant's Microsoft customer ID.                   |
 
-Individual mappings can be removed with the **Delete Mapping** row action.
+Each row also offers these actions:
+
+| Action | Description |
+| --- | --- |
+| Sync Now | Queues an on-demand synchronisation for that tenant only, without waiting for the next scheduled run. |
+| Exclude password data (LAPS/BitLocker) | Stops LAPS and BitLocker data being synchronised for this tenant. Greyed out once **SyncPasswords** is false. |
+| Include password data | Resumes LAPS and BitLocker synchronisation for this tenant. Greyed out while **SyncPasswords** is true. |
+| Delete Mapping | Removes the mapping. |
+
+The exclude and include actions change the table only, so select **Submit** to save the change. The **Sync Windows LAPS passwords** and **Sync BitLocker recovery keys** settings must still be on for password data to be synchronised at all. On the next synchronisation of an excluded tenant, CIPP clears any LAPS and BitLocker values previously written to that tenant's device assets in Hudu.
 
 {% hint style="info" %}
 Automapping first follows the HaloPSA integration: when a tenant is mapped to a Halo client in CIPP and a Hudu company is synced from that same Halo client, the tenant is mapped to that company. A tenant with no Halo match falls back to a Hudu company whose name exactly matches the tenant's display name. Archived companies are ignored, existing mappings are never overwritten, and these mappings are saved immediately and scheduled for synchronisation.

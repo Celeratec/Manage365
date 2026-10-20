@@ -114,8 +114,11 @@ Write-Host 'Transforming data...' -ForegroundColor Yellow
 
 $collection = $allSettings | Sort-Object -Property id | ForEach-Object {
     $rawOptions = $_.PSObject.Properties['options']?.Value
-    $options = if ($rawOptions -and $rawOptions.Count -gt 0) {
-        $rawOptions | ForEach-Object {
+    # Assigned inside the branch: an if-statement's output is enumerated, so a one-option array would
+    # be written out as a bare object.
+    $options = $null
+    if ($rawOptions -and $rawOptions.Count -gt 0) {
+        $options = @($rawOptions | ForEach-Object {
             [PSCustomObject]@{
                 id           = $_.PSObject.Properties['itemId']?.Value
                 displayName  = $_.PSObject.Properties['displayName']?.Value
@@ -125,9 +128,7 @@ $collection = $allSettings | Sort-Object -Property id | ForEach-Object {
                 dependentOn  = $_.PSObject.Properties['dependentOn']?.Value
                 dependedOnBy = $_.PSObject.Properties['dependedOnBy']?.Value
             }
-        }
-    } else {
-        $null
+        })
     }
 
     # The name is denormalised so the common case - showing a heading - needs nothing but the
@@ -170,7 +171,18 @@ Write-Host "Settings with a category name: $Categorised of $($collection.Count)"
 # Write output files
 # ---------------------------------------------------------------------------
 $json = $collection |
-    Select-Object id, displayName, description, helpText, infoUrls, categoryId, categoryName, @{ n = 'options'; e = { $_.options | Select-Object id, displayName, description, helpText } }, minimumCount, maximumCount |
+    Select-Object id, displayName, description, helpText, infoUrls, categoryId, categoryName, @{ n = 'options'; e = {
+            if ($_.options) {
+                , @(foreach ($Option in $_.options) {
+                        $Slim = [ordered]@{ id = $Option.id; displayName = $Option.displayName; description = $Option.description; helpText = $Option.helpText }
+                        # Only where present: validation needs them, and every worker parses this file.
+                        $Required = @(@($Option.dependedOnBy).Where({ $_.required }).ForEach({ $_.dependedOnBy }))
+                        if ($Required.Count -gt 0) { $Slim.requiredChildIds = $Required }
+                        [pscustomobject]$Slim
+                    })
+            }
+        }
+    }, minimumCount, maximumCount |
     ConvertTo-Json -Depth 5 -Compress
 $fullJsonPath = Join-Path ([System.IO.Path]::GetTempPath()) 'intuneCollection.full.json'
 $collection | ConvertTo-Json -Depth 15 -Compress | Set-Content -Path $fullJsonPath -Encoding utf8NoBOM

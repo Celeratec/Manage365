@@ -54,6 +54,7 @@ const Page = () => {
     syncTitle: "Sync Teams Report",
     allowToggle: true,
     defaultCached: false,
+    serverPagination: true,
   });
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -513,6 +514,8 @@ const Page = () => {
       <CippTablePage
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         actions={actions}
         offCanvas={offCanvas}

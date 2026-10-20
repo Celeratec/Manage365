@@ -22,6 +22,7 @@ const Page = () => {
     allowToggle: false,
     defaultCached: true,
     cacheColumns: ["lastRefreshedDateTime"],
+    serverPagination: true,
   });
 
   const actions = [
@@ -264,6 +265,8 @@ const Page = () => {
       <CippTablePage
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         actions={actions}
         offCanvas={offCanvas}

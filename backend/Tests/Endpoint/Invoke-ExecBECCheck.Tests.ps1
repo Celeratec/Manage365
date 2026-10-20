@@ -13,6 +13,7 @@ BeforeAll {
     function Get-CIPPAsyncDeployment { param($JobId) }
     function Set-CIPPAsyncDeploymentStatus { param($JobId, $Name, $Status, $Logs) }
     function Set-CIPPAsyncDeploymentStep { param($JobId, $Name, $StepIndex, $StepStatus, $Message) }
+    function Add-CIPPRealtimeWatch { param($JobId, [switch]$Run) }
     function Write-LogMessage { param($message, $tenant, $API, $tenantId, $headers, $user, $sev, $LogData) }
     function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = $Exception.Exception.Message } }
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/BEC/Get-CIPPBecRunSteps.ps1')
@@ -41,6 +42,7 @@ Describe 'Invoke-ExecBECCheck' {
         Mock Get-CIPPAsyncDeployment { @() }
         Mock Set-CIPPAsyncDeploymentStatus { }
         Mock Set-CIPPAsyncDeploymentStep { }
+        Mock Add-CIPPRealtimeWatch { }
         Mock Write-LogMessage { }
     }
 
@@ -87,8 +89,8 @@ Describe 'Invoke-ExecBECCheck' {
             $Response.Body.GUID | Should -Be 'BEC-20260820120000-new001'
             $Response.Body.Status | Should -Be 'Waiting'
             Should -Invoke Set-CIPPBecReport -Times 1 -ParameterFilter { $Replace.IsPresent -and $Properties.Status -eq 'Waiting' -and $Properties.UserId -eq 'u1' -and $Properties.RequestedBy -eq 'tech@msp.com' -and $CaseId -eq 'BEC-20260820120000-new001' }
-            Should -Invoke New-CIPPAsyncDeployment -Times 1 -ParameterFilter { $JobId -eq 'BEC-20260820120000-new001' -and $Names -contains 'user@contoso.com' -and @($StepTitles).Count -eq 14 -and $Source -eq 'BEC' }
-            Should -Invoke Start-CIPPOrchestrator -Times 1 -ParameterFilter { $InputObject.Sequential -and @($InputObject.Batch).Count -eq 14 -and $InputObject.Batch[0].FunctionName -eq 'BECRun' -and $InputObject.Batch[0].Step -eq 'AuditLog' -and $InputObject.Batch[0].CaseId -eq 'BEC-20260820120000-new001' -and $InputObject.Batch[0].UserID -eq 'u1' -and $InputObject.Batch[0].RequestedFromIP -eq '2001:db8::77' }
+            Should -Invoke New-CIPPAsyncDeployment -Times 1 -ParameterFilter { $JobId -eq 'BEC-20260820120000-new001' -and $Names -contains 'user@contoso.com' -and @($StepTitles).Count -eq 15 -and $Source -eq 'BEC' }
+            Should -Invoke Start-CIPPOrchestrator -Times 1 -ParameterFilter { $InputObject.Sequential -and @($InputObject.Batch).Count -eq 15 -and $InputObject.Batch[0].FunctionName -eq 'BECRun' -and $InputObject.Batch[0].Step -eq 'AuditLog' -and $InputObject.Batch[0].CaseId -eq 'BEC-20260820120000-new001' -and $InputObject.Batch[0].UserID -eq 'u1' -and $InputObject.Batch[0].RequestedFromIP -eq '2001:db8::77' }
             Should -Invoke Set-CIPPBecReport -Times 1 -ParameterFilter { $Properties.RequestedFromIP -eq '2001:db8::77' } -Because "the requester's first x-forwarded-for hop, without port or brackets, is recorded as the technician's address"
         }
 
@@ -114,7 +116,8 @@ Describe 'Invoke-ExecBECCheck' {
             $Response.Body.Progress.Steps[1].Status | Should -Be 'running'
             Should -Invoke Get-CIPPBecReport -Times 1 -ParameterFilter { $CaseId -eq 'BEC-w' -and $IncludeResults.IsPresent }
             Should -Invoke Get-CIPPAsyncDeployment -Times 1 -ParameterFilter { $JobId -eq 'BEC-w' }
-            Should -Invoke Set-CIPPBecReport -Times 0 -Because 'a running investigation is not marked abandoned while a phase is quiet'
+            Should -Invoke Set-CIPPBecReport -Times 0
+            Should -Invoke Add-CIPPRealtimeWatch -Times 1 -Exactly -ParameterFilter { $JobId -eq 'BEC-w' } -Because 'the reader follows the case live from here instead of polling'
         }
 
         It 'returns containment already run against the case while it is still running' {

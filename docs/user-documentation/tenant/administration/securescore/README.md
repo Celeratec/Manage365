@@ -62,7 +62,7 @@ Each card covers one recommendation and carries the following, where Microsoft s
 | Action        | Description                                                                                                                                                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Change Status | Records how the recommendation has been handled, choosing a resolution type and a reason. Unavailable, and shown greyed out, for Microsoft Defender controls.                                                                       |
-| Remediate     | Opens the Microsoft portal page for the recommendation in a new tab. Where a CIPP standard covers the recommendation, it opens standards instead.                                                                                   |
+| Remediate     | Opens the Microsoft portal page for the recommendation in a new tab. Where a CIPP standard covers the recommendation, it opens that standard on the Baselines page, or on the standards list where Baselines is turned off. |
 | Updates       | Lists the status changes recorded against the recommendation, showing the state set, who it was assigned to, the reason given, who made the change and when. Only shown where changes exist, with the number of them on the button. |
 
 ### Resolution types

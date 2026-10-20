@@ -6,7 +6,7 @@
 
 ### What to do after installation?
 
-{% @storylane/embed subdomain="app" url="https://app.storylane.io/share/njewz3soejo5" linkValue="njewz3soejo5" %}
+{% @storylane/embed subdomain="app" url="https://app.storylane.io/share/x4eyqzl9cgch" linkValue="x4eyqzl9cgch" %}
 
 ### Using the Intune Catalog
 

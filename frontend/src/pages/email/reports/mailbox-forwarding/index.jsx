@@ -14,6 +14,7 @@ const Page = () => {
     syncTitle: "Sync Mailbox Cache",
     allowToggle: false,
     defaultCached: true,
+    serverPagination: true,
   });
 
   const columns = [
@@ -48,6 +49,7 @@ const Page = () => {
           apiUrl={reportDB.resolvedApiUrl}
           queryKey={reportDB.resolvedQueryKey}
           apiData={reportDB.resolvedApiData}
+          apiDataKey={reportDB.apiDataKey}
           simpleColumns={columns}
           filters={filters}
           dataSourceControls={reportDB.controls}

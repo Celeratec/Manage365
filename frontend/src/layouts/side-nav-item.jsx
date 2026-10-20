@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import NextLink from "next/link";
 import PropTypes from "prop-types";
 import ChevronRightIcon from "@heroicons/react/24/outline/ChevronRightIcon";
@@ -30,10 +30,28 @@ export const SideNavItem = (props) => {
 
   const isGlobal = scope === "global";
   const [hovered, setHovered] = useState(false);
+  const itemRef = useRef(null);
   const { bookmarks, setBookmarks } = useUserBookmarks();
   const settings = useSettings();
   const compactNav = settings.compactNav ?? false;
   const isBookmarked = bookmarks.some((bookmark) => bookmark.path === path);
+  // "nearest" would park it under the sticky sponsor footer, so center it when it's out of view
+  useEffect(() => {
+    if (!active) return;
+    const timer = setTimeout(() => {
+      const el = itemRef.current;
+      const paper = el?.closest(".MuiDrawer-paper");
+      if (!paper || !el.scrollIntoView) return;
+      const item = el.getBoundingClientRect();
+      const view = paper.getBoundingClientRect();
+      const footer = paper.querySelector("[data-side-nav-footer]");
+      const visibleBottom = footer ? footer.getBoundingClientRect().top : view.bottom;
+      if (item.top < view.top || item.bottom > visibleBottom) {
+        el.scrollIntoView({ block: "center" });
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [active]);
 
   const handleToggle = useCallback(() => {
     if (onToggle) {
@@ -160,7 +178,7 @@ export const SideNavItem = (props) => {
     : {};
 
   return (
-    <li>
+    <li ref={itemRef}>
       <Stack
         direction="row"
         onMouseEnter={() => setHovered(true)}

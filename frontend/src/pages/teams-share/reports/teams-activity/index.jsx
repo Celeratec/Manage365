@@ -103,10 +103,13 @@ const Page = () => {
     syncTitle: "Sync Teams Activity Report",
     allowToggle: true,
     defaultCached: false,
+    serverPagination: true,
   });
 
   const anonymized = useReportAnonymized({
     url: reportDB.resolvedApiUrl,
+    data: reportDB.resolvedApiData,
+    dataKey: reportDB.apiDataKey,
     queryKey: reportDB.resolvedQueryKey,
     fields: ["UPN"],
   });
@@ -535,6 +538,8 @@ const Page = () => {
       <CippTablePage
         title={pageTitle}
         apiUrl={reportDB.resolvedApiUrl}
+        apiData={reportDB.resolvedApiData}
+        apiDataKey={reportDB.apiDataKey}
         queryKey={reportDB.resolvedQueryKey}
         tableFilter={<CippAnonymizedReportAlert show={anonymized} />}
         offCanvas={offCanvas}

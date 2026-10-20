@@ -216,7 +216,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
     hideCondition: (row) => row.operatingSystem !== 'macOS',
     confirmText: 'Are you sure you want to retrieve the local admin password for [deviceName]?',
   },
-{
+  {
     label: 'Rotate Local Admin Password',
     category: "security",
     type: 'POST',

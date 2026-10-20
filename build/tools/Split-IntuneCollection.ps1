@@ -23,8 +23,8 @@
 
     It also writes _index\<platform>.json: a small per-platform search index the template
     authoring picker loads, since a hash-addressed bundle cannot answer "which settings exist".
-    Settings that only ever appear beneath a parent are left out of the index, because Intune
-    rejects them on their own.
+    Settings that only ever appear beneath a parent carry parentId, because Intune
+    rejects them on their own: the picker adds them through their top-level setting.
 
 .PARAMETER CollectionPath
     Source catalog, with the construction fields Update-IntuneCollection.ps1 collects.
@@ -74,7 +74,7 @@ $Hashes = @{}
 $Written = 0
 $Skipped = 0
 $IndexByPlatform = @{}
-$ChildIds = [System.Collections.Generic.HashSet[string]]::new()
+$ParentOf = [System.Collections.Generic.Dictionary[string, string]]::new()
 
 function Get-JsonString($Element, [string]$Name) {
     $Value = [System.Text.Json.JsonElement]::new()
@@ -123,12 +123,12 @@ try {
         $Written++
 
         # Search index. Child relationships are only recorded on the parent (childIds, and each
-        # option's dependedOnBy), so they are collected here and the children filtered out below.
-        foreach ($Child in (Get-JsonArray $Element 'childIds')) { $null = $ChildIds.Add($Child.GetString()) }
+        # option's dependedOnBy), so each child's parent is collected here for the index below.
+        foreach ($Child in (Get-JsonArray $Element 'childIds')) { $null = $ParentOf.TryAdd($Child.GetString(), $Id) }
         foreach ($Option in (Get-JsonArray $Element 'options')) {
             foreach ($Dependent in (Get-JsonArray $Option 'dependedOnBy')) {
                 $Referenced = Get-JsonString $Dependent 'dependedOnBy'
-                if ($Referenced) { $null = $ChildIds.Add($Referenced) }
+                if ($Referenced) { $null = $ParentOf.TryAdd($Referenced, $Id) }
             }
         }
 
@@ -148,6 +148,7 @@ try {
             displayName  = Get-JsonString $Element 'displayName'
             description  = $Description
             categoryName = Get-JsonString $Element 'categoryName'
+            categoryId   = Get-JsonString $Element 'categoryId'
             technologies = Get-JsonString $Applicability 'technologies'
         }
         $Platform = Get-JsonString $Applicability 'platform'
@@ -172,7 +173,21 @@ try {
 $IndexPath = Join-Path $OutputPath '_index'
 $null = New-Item -ItemType Directory -Path $IndexPath -Force
 foreach ($Platform in $IndexByPlatform.Keys) {
-    $Rows = $IndexByPlatform[$Platform].Where({ -not $ChildIds.Contains($_.id) }) | Sort-Object displayName
+    $Indexed = [System.Collections.Generic.HashSet[string]]::new([string[]]$IndexByPlatform[$Platform].id)
+    # A child is listed with its parent so the picker can add it through the top-level setting it
+    # sits under; one whose chain leaves this platform's index cannot be added and is left out.
+    $Rows = foreach ($Entry in $IndexByPlatform[$Platform]) {
+        $Current = $Entry.id
+        $Depth = 0
+        while ($ParentOf.ContainsKey($Current) -and $Indexed.Contains($ParentOf[$Current]) -and $Depth -lt 8) {
+            $Current = $ParentOf[$Current]
+            $Depth++
+        }
+        if ($ParentOf.ContainsKey($Current)) { continue }
+        if ($Depth -gt 0) { $Entry | Add-Member -Force -NotePropertyName parentId -NotePropertyValue $ParentOf[$Entry.id] }
+        $Entry
+    }
+    $Rows = $Rows | Sort-Object displayName
     [System.IO.File]::WriteAllText(
         (Join-Path $IndexPath ('{0}.json' -f $Platform.ToLowerInvariant())),
         (ConvertTo-Json -InputObject @($Rows) -Depth 3 -Compress),

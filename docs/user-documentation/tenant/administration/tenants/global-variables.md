@@ -28,10 +28,14 @@ A List lets one variable carry a different number of values per tenant, for exam
 
 The following variables will be automatically replaced by CIPP:
 
+* `%deviceadminsid%`
+* `%globaladminsid%`
 * `%initialdomain%`
 * `%tenantfilter%`
 * `%tenantid%`
 * `%tenantname%`
+
+`%globaladminsid%` and `%deviceadminsid%` resolve to the tenant's own Global Administrator and Microsoft Entra Joined Device Local Administrator role SIDs, which differ from tenant to tenant. They are read from the tenant's synchronised directory roles, so a deployment that uses one fails for a tenant whose roles have not been synchronised yet.
 
 ## Reserved Variables
 

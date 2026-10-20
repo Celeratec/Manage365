@@ -90,7 +90,7 @@ While a run is in progress a tracker appears next to the view toggle, showing it
 
 Selecting a row opens the **Standard Details** flyout. It lists every baseline configuring the standard for this tenant and marks which one is effective, as the most specific assignment wins, and shows whether each one fixes drift automatically and whether it raises alerts.
 
-Below that, the expected and current configurations are compared property by property, with each deviating property marked. An individual property can be accepted on its own, which tolerates only that value and still raises a deviation if anything else changes. Where the standard detects policies that no baseline covers, the offending policy can be opened and read in full, and can be denied and queued for deletion. The flyout also carries any manual task instructions, and the most recent runs for the standard, each of which can be expanded to show exactly what was expected and what was found.
+Below that, the expected and current configurations are compared property by property, with each deviating property marked. An individual property can be accepted on its own, which tolerates only that value and still raises a deviation if anything else changes. Where the standard detects policies that no baseline covers, the offending policy can be opened and read in full, and can be denied and queued for deletion. The flyout also carries any manual task instructions, and the most recent runs for the standard, each of which can be expanded to show exactly what was expected and what was found. **View Logs** beside **Last Run**, and on each recent run, opens the log entries for that run.
 
 ### Table Actions
 
@@ -103,6 +103,8 @@ Unlike **Remediate** in classic Standards, neither Remediate Now nor Deny & Fix 
 ## Standard View
 
 One row per standard, aggregated across every tenant it applies to.
+
+The **Baseline** and **Stage** selectors above the table narrow the view to one baseline, and optionally one of its stages. **Stage** is greyed out until a baseline is chosen. The counts then cover only the standards that baseline has rolled out. Standards shared with another baseline are scored once per tenant, so they count toward every baseline that includes them. The [Fleet Overview](README.md "mention") tiles open this view with their filter already applied.
 
 ### Filters
 

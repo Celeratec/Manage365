@@ -91,3 +91,14 @@ churn; these patterns do.
   members: once anything has enumerated `Properties`, the reserved `pstypenames` sits among the instance members).
 - A Pester test whose code under test uses a `[CIPP.*]` type must `Add-Type` `Shared/CIPPSharp/bin/CIPPSharp.dll` in
   `BeforeAll`; helpers that fall back when the type is missing otherwise pass while testing the wrong path.
+
+## Helper functions
+
+Every function is one more place a contributor has to look, so a new one has to earn its place.
+
+- Write logic that has one caller inline where it is used. Add a function only when it has two or more real callers, or
+  it is a generic building block like the Graph, Exchange, table and tenant helpers in `CIPPCore/Public/GraphHelper`.
+- Don't wrap a single call to an existing function (a new function whose body is one `Start-CIPPOrchestrator` call):
+  call the existing function directly.
+- Don't declare functions inside functions. Put the branch inline, or compute the input first and classify it once.
+- Search for an existing helper before writing one, and extend it rather than adding a near-copy.

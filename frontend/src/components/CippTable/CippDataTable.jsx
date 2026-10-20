@@ -2237,7 +2237,12 @@ export const CippDataTable = (props) => {
 
   const getRequestData = ApiGetCallWithPagination({
     url: api.url,
-    data: { ...api.data },
+    data: {
+      // AllTenants Graph cache reads are served in bounded pages; a page can still opt out with manualPagination: false.
+      ...(api.url === '/api/ListGraphRequest' &&
+        api.data?.tenantFilter === 'AllTenants' && { manualPagination: true }),
+      ...api.data,
+    },
     queryKey: effectiveQueryKey,
     waiting: waitingBool,
     ...graphFilterData,
