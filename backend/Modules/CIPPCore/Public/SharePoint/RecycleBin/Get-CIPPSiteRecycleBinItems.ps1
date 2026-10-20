@@ -8,13 +8,12 @@ function Get-CIPPSiteRecycleBinItems {
         not return @odata.nextLink, so $top paging stops at the first page and reports a full
         bin as complete.
 
-        REST named form used here (the same form PnP posts):
-          site/GetRecycleBinItems(rowLimit, isAscending=false, itemState, orderBy=3, pagingInfo)
-        The first page omits pagingInfo. An empty string is not a valid search position and
-        SharePoint throws ArgumentOutOfRangeException. orderBy 3 is DeletedDate. itemState 1
-        is the first stage and 2 is the second stage.
-        The next page token is the collection PagingInfo value. When that is missing on a full
-        page, the last item id is tried once; if that does not advance, the scan is marked capped.
+        CSOM argument order, which SharePoint binds by position:
+          site/GetRecycleBinItems(pagingInfo, rowLimit, isAscending, orderBy, itemState)
+        pagingInfo is the search position. The first page sends null. An empty string, and a
+        bare item id, are both ArgumentOutOfRangeException on searchPosition. Later pages send
+        the form id, title, and searchValue. orderBy 0 is the default (Title). itemState 1 is
+        the first stage and 2 is the second stage.
     #>
     [CmdletBinding()]
     param(
@@ -49,9 +48,18 @@ function Get-CIPPSiteRecycleBinItems {
     function ConvertTo-CippRecycleODataLiteral {
         param([string]$Value)
         $Safe = if ([string]::IsNullOrEmpty($Value)) { '' } else { $Value }
-        $Safe = $Safe -replace "'", "''"
-        $Safe = $Safe -replace ' ', '%20' -replace '&', '%26' -replace '#', '%23' -replace '\?', '%3F'
-        return $Safe
+        return [uri]::EscapeDataString($Safe)
+    }
+
+    function New-CippRecyclePagingInfo {
+        param($Item)
+        $Id = [string]$Item.Id
+        $Title = [string]$Item.Title
+        if ([string]::IsNullOrWhiteSpace($Title)) { $Title = [string]$Item.LeafName }
+        $EncodedId = [uri]::EscapeDataString($Id)
+        $EncodedTitle = [uri]::EscapeDataString($Title)
+        # orderBy=0 sorts by Title, so the search position value is the title.
+        "id=$EncodedId&title=$EncodedTitle&searchValue=$EncodedTitle"
     }
 
     function Read-CippRecycleBinPage {
@@ -103,10 +111,10 @@ function Get-CIPPSiteRecycleBinItems {
             $Uri = if ($Paging -match '^https?://') {
                 $Paging
             } elseif ([string]::IsNullOrWhiteSpace($Paging)) {
-                "$BaseUri/site/GetRecycleBinItems(rowLimit=$RowLimit,isAscending=false,itemState=$State,orderBy=3)"
+                "$BaseUri/site/GetRecycleBinItems(pagingInfo=null,rowLimit=$RowLimit,isAscending=false,orderBy=0,itemState=$State)"
             } else {
                 $Literal = ConvertTo-CippRecycleODataLiteral -Value $Paging
-                "$BaseUri/site/GetRecycleBinItems(rowLimit=$RowLimit,isAscending=false,itemState=$State,orderBy=3,pagingInfo='$Literal')"
+                "$BaseUri/site/GetRecycleBinItems(pagingInfo='$Literal',rowLimit=$RowLimit,isAscending=false,orderBy=0,itemState=$State)"
             }
 
             $Raw = New-GraphPostRequest -uri $Uri -tenantid $TenantFilter -scope $Scope -type POST -body '{}' -contentType 'application/json;odata=nometadata' -AddedHeaders $JsonAccept -UseCertificate -AsApp $true
@@ -136,10 +144,10 @@ function Get-CIPPSiteRecycleBinItems {
 
             $Next = [string]$Parsed.PagingInfo
             $PageWasFull = $Items.Count -ge $RowLimit
-            if ([string]::IsNullOrWhiteSpace($Next) -and $PageWasFull -and $Collected.Count -lt $MaxItems) {
-                $LastId = [string]$Items[-1].Id
-                if (-not [string]::IsNullOrWhiteSpace($LastId) -and $LastId -ne $Paging) {
-                    $Next = $LastId
+            if ($PageWasFull -and $Collected.Count -lt $MaxItems -and ($Next -notmatch '(^|&)id=')) {
+                $Built = New-CippRecyclePagingInfo -Item $Items[-1]
+                if (-not [string]::IsNullOrWhiteSpace($Built) -and $Built -ne $Paging) {
+                    $Next = $Built
                 }
             }
 

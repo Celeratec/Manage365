@@ -71,7 +71,12 @@ BeforeAll {
         $Paging = ''
         if ($uri -match 'itemState=(\d+)') { $State = [int]$Matches[1] }
         if ($uri -match 'rowLimit=(\d+)') { $Row = [int]$Matches[1] }
-        if ($uri -match "pagingInfo='([^']*)'") { $Paging = $Matches[1] }
+        if ($uri -match "pagingInfo=null") { $Paging = '' }
+        elseif ($uri -match "pagingInfo='([^']*)'") {
+            $Raw = [uri]::UnescapeDataString($Matches[1])
+            if ($Raw -match '(?:^|&)id=([^&]*)') { $Paging = [uri]::UnescapeDataString($Matches[1]) }
+            else { $Paging = $Raw }
+        }
 
         $All = @($script:Bin | Where-Object { [int]$_.ItemState -eq $State })
         $Start = 0
@@ -338,8 +343,10 @@ Describe 'Invoke-ListSiteRecycleBinSummary' {
         $Response.Body.Results.capped | Should -BeFalse
         $Response.Body.Results.scannedItems | Should -Be 501
         @($script:GetUris | Where-Object { $_ -match 'itemState=1' }).Count | Should -BeGreaterThan 1
-        $script:GetUris[0] | Should -Not -Match 'pagingInfo'
-        @($script:GetUris | Where-Object { $_ -match 'pagingInfo=' }).Count | Should -BeGreaterThan 0
+        $script:GetUris[0] | Should -Match 'pagingInfo=null'
+        $script:GetUris[0] | Should -Match 'orderBy=0'
+        $script:GetUris[0] | Should -Not -Match "pagingInfo='"
+        @($script:GetUris | Where-Object { $_ -match 'pagingInfo=' -and $_ -notmatch 'pagingInfo=null' }).Count | Should -BeGreaterThan 0
     }
 
     It 'sets capped when the scan stops before the bin is exhausted' {
