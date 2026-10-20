@@ -26,6 +26,7 @@ BeforeAll {
     }
     function Write-LogMessage { param($Headers, $API, $tenant, $message, $sev, $LogData) $script:Logs += $message }
     function Get-CippException { param($Exception) [PSCustomObject]@{ NormalizedError = $Exception.Message } }
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CippBulkStatusCode.ps1')
 
     function script:New-RecycleItem {
         param([string]$Id, [int]$State, [int64]$Size = 1)

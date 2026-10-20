@@ -40,6 +40,7 @@ These settings pre-select the offboarding options used when a user in this tenan
 | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | Convert to Shared Mailbox                     | Converts the leaver's mailbox to a shared mailbox so colleagues can be granted access to it.                             |
 | Remove from all groups                        | Removes the user from every group they are a member of.                                                                  |
+| Remove group ownership                        | Removes the user as owner of every group they own. The replacement owner is chosen in the wizard itself.                 |
 | Hide from Global Address List                 | Hides the mailbox so it no longer appears in address lists.                                                              |
 | Remove Licenses                               | Removes all licences assigned to the user.                                                                               |
 | Cancel all calendar invites                   | Cancels meetings the user organised so attendees are not left with orphaned invitations.                                 |
@@ -82,7 +83,7 @@ Use **Add Variable** to create one. The name picker offers variables already def
 | Row Key       | The variable name, used in templates as `%variablename%`.                                                                                                                                                             |
 | Value         | The value substituted into templates for this tenant.                                                                                                                                                                 |
 | Scope         | Where the value comes from. Tenant is a variable defined only on this tenant, Global is inherited from the global list, and Overridden is a tenant value replacing a global one of the same name.                     |
-| Variable Type | How the value is written into a template. String is the default and reproduces the original behaviour. Integer, Boolean and JSON are written as raw JSON values, so a numeric setting receives 300 rather than "300". |
+| Variable Type | How the value is written into a template. String is the default and reproduces the original behaviour. Integer, Boolean and JSON are written as raw JSON values, so a numeric setting receives 300 rather than "300". List is entered one value per line and expands into one entry per value where it is used in a list, such as a Conditional Access policy's exclusions. See [global-variables.md](../administration/tenants/global-variables.md "mention"). |
 | Description   | The optional note recorded against the variable.                                                                                                                                                                      |
 
 ### Table Actions

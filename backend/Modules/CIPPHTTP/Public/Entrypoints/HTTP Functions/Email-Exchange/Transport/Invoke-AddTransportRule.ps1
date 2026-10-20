@@ -10,7 +10,6 @@ function Invoke-AddTransportRule {
 
     $APIName = $Request.Params.CIPPEndpoint
     $ExecutingUser = $Request.Headers
-    Write-LogMessage -Headers $ExecutingUser -API $APINAME -message 'Accessed this API' -Sev 'Debug'
 
     $RequestParams = $Request.Body.PowerShellCommand | ConvertFrom-Json | Select-Object -Property * -ExcludeProperty GUID, HasSenderOverride, ExceptIfHasSenderOverride, ExceptIfMessageContainsDataClassifications, MessageContainsDataClassifications
 
@@ -29,16 +28,22 @@ function Invoke-AddTransportRule {
 
     $Failed = 0
     $Result = foreach ($tenantFilter in $tenants) {
-        $Existing = New-ExoRequest -ErrorAction SilentlyContinue -tenantid $tenantFilter -cmdlet 'Get-TransportRule' -useSystemMailbox $true | Where-Object -Property Identity -EQ $RequestParams.name
+        $TenantParams = Resolve-CIPPTransportRuleTemplate -Template $RequestParams -TenantFilter $tenantFilter
+        $Existing = New-ExoRequest -ErrorAction SilentlyContinue -tenantid $tenantFilter -cmdlet 'Get-TransportRule' -useSystemMailbox $true | Where-Object -Property Identity -EQ $TenantParams.name
         try {
             if ($Existing) {
                 Write-Host 'Found existing'
-                $RequestParams | Add-Member -NotePropertyValue $Existing.Identity -NotePropertyName Identity -Force
-                $null = New-ExoRequest -tenantid $tenantFilter -cmdlet 'Set-TransportRule' -cmdParams ($RequestParams | Select-Object -Property * -ExcludeProperty UseLegacyRegex) -useSystemMailbox $true
+                $TenantParams | Add-Member -NotePropertyValue $Existing.Identity -NotePropertyName Identity -Force
+                # Set-TransportRule rejects Enabled; state changes go through Enable-/Disable-TransportRule.
+                $null = New-ExoRequest -tenantid $tenantFilter -cmdlet 'Set-TransportRule' -cmdParams ($TenantParams | Select-Object -Property * -ExcludeProperty UseLegacyRegex, Enabled) -useSystemMailbox $true
+                if ($null -ne $TenantParams.Enabled) {
+                    $StateCmdlet = if ("$($TenantParams.Enabled)" -in @('True', 'Enabled')) { 'Enable-TransportRule' } else { 'Disable-TransportRule' }
+                    $null = New-ExoRequest -tenantid $tenantFilter -cmdlet $StateCmdlet -cmdParams @{ Identity = $Existing.Identity } -useSystemMailbox $true
+                }
                 "Successfully set transport rule for $tenantFilter."
             } else {
                 Write-Host 'Creating new'
-                $null = New-ExoRequest -tenantid $tenantFilter -cmdlet 'New-TransportRule' -cmdParams $RequestParams -useSystemMailbox $true
+                $null = New-ExoRequest -tenantid $tenantFilter -cmdlet 'New-TransportRule' -cmdParams $TenantParams -useSystemMailbox $true
                 "Successfully created transport rule for $tenantFilter."
             }
 

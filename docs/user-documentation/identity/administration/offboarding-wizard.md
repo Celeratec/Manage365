@@ -51,6 +51,7 @@ The options are pre-filled from your saved offboarding defaults each time the te
 | Wipe Mobile Devices (account data only) | Wipes only the Exchange account data (mail, contacts, calendar) from each mobile device registered on the mailbox, without removing the device itself or its personal data. Delivered the next time the device connects to Exchange, and needs a modern ActiveSync client; an older device fails the wipe rather than falling back to a full device wipe. |
 | Remove all Mobile Devices          | Removes the mobile devices registered against the mailbox.                                                      |
 | Remove from all groups             | Removes the user from every group they belong to.                                                               |
+| Remove group ownership             | Removes the user as owner of every group they own, including distribution lists. When this is on, a **New group owner** field appears: that person is added as owner of each of those groups first, and only then is the user removed. Without a new owner, a group the user is the only owner of cannot be released and is reported as failed. |
 | Remove Licenses                    | Strips every licence from the account.                                                                          |
 | Revoke all sessions                | Invalidates the account's tokens so every device has to sign in again.                                          |
 | Disable Sign in                    | Blocks the account from signing in.                                                                             |
@@ -102,7 +103,7 @@ Selecting **Delete user** greys out the mailbox access, forwarding and out of of
 | Schedule this offboarding  | Defers the job to a chosen date instead of running it immediately, and reveals the settings below.                        |
 | Scheduled Offboarding Date | When the job should run.                                                                                                  |
 | Webhook, E-mail, PSA       | Which channels are notified when the job completes. Each has to be configured in CIPP's notification settings to deliver. |
-| Push notification to my devices | Sends a push notification to the browsers and installed apps you registered under [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention"). Only you receive it. |
+| Push notification to my devices | Sends a push notification to the browsers and installed apps you registered under [user-settings.md](../../shared-features/menu-bar/user-settings.md "mention"). Only you receive it. You need at least one device registered there first; without one, the offboarding is not queued and the results explain where to enrol. |
 | HaloPSA Ticket             | An existing HaloPSA ticket to add the results to as a note, instead of raising a new ticket. Only shown once PSA is selected and the HaloPSA integration is enabled. |
 | Reference                  | Free text added to the notification so the job can be recognised later.                                                   |
 

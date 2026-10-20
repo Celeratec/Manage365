@@ -87,7 +87,7 @@ Work through the remaining toggles to decide whether missing users and devices a
 {% step %}
 ### Save and test
 
-Select **Submit**, then select **Test**. A message confirming the connection and reporting your Hudu version means the URL and API key are correct.
+Select **Submit**, then select **Test**. A message confirming the connection and reporting your Hudu version means the URL and API key are correct. If the test fails, the message includes the error returned by Hudu.
 {% endstep %}
 
 {% step %}
@@ -105,7 +105,7 @@ The **Tenant Mapping** tab pairs each CIPP tenant with a Hudu company. Only mapp
 Saving on the **Tenant Mapping** and **Field Mapping** tabs requires a role with unrestricted tenant access, meaning **Allowed Tenants** left as `AllTenants` with nothing in **Blocked Tenants**. A role scoped to particular tenants or tenant groups can read the existing mappings but is refused when it selects **Submit** or **Automap Companies**. See [roles.md](../../../setup/setting-up-cipp/roles.md "mention").
 {% endhint %}
 
-To map manually, choose a tenant, choose the matching entry under **Select Hudu Company**, and select the add button. **Automap Companies** fills in matches automatically, and the refresh button reloads the company list from Hudu. Mappings are only written when you select **Submit**.
+To map manually, choose a tenant, choose the matching entry under **Select Hudu Company**, and select the add button. **Automap Companies** fills in matches automatically, and the refresh button reloads the company list from Hudu. Manual mappings are only written when you select **Submit**.
 
 | Column          | Description                                           |
 | --------------- | ----------------------------------------------------- |
@@ -117,7 +117,13 @@ To map manually, choose a tenant, choose the matching entry under **Select Hudu 
 Individual mappings can be removed with the **Delete Mapping** row action.
 
 {% hint style="info" %}
-Automapping compares the tenant's display name with the Hudu company name, ignoring case, punctuation and trailing legal suffixes such as Ltd, Limited, LLC, Inc, GmbH or BV. Where more than one company normalises to the same name the match is ambiguous and is left for you to map manually. Review the proposed matches before saving.
+Automapping first follows the HaloPSA integration: when a tenant is mapped to a Halo client in CIPP and a Hudu company is synced from that same Halo client, the tenant is mapped to that company. A tenant with no Halo match falls back to a Hudu company whose name exactly matches the tenant's display name. Archived companies are ignored, existing mappings are never overwritten, and these mappings are saved immediately and scheduled for synchronisation.
+
+**Automap Companies** also suggests looser name matches that ignore case, punctuation and trailing legal suffixes such as Ltd, Limited, LLC, Inc, GmbH or BV. Those appear in the table but are only saved when you select **Submit**, so review them first. Where more than one company matches, the tenant is skipped and left for you to map manually.
+{% endhint %}
+
+{% hint style="info" %}
+While the integration is enabled, CIPP also runs the HaloPSA and exact name matching automatically every two hours, so newly added tenants are mapped and synchronised without visiting this page. It runs straight after the HaloPSA automapping, so a tenant newly mapped to a Halo client can be carried through to its Hudu company in the same run. Each mapping it creates is written to the Logbook. The looser name suggestions are only made by **Automap Companies**.
 {% endhint %}
 
 {% hint style="warning" %}
@@ -142,6 +148,8 @@ CIPP adds the fields it needs to whichever layouts you map, so no preparation is
 ## What Gets Synchronised
 
 Once a tenant is mapped, CIPP schedules a daily synchronisation for it. Each run publishes a Magic Dash card on the Hudu company titled **Microsoft 365 -&#x20;**_**tenant name**_, showing the licensed user count and containing tenant detail, portal links and the assigned roles table. The roles table lists each role's active members and, for tenants using Privileged Identity Management, its eligible members in a separate column with their eligibility end date; expired eligibilities are left out. User and device assets are then created or updated in the mapped layouts, and domains are imported as website records where enabled.
+
+Each tenant's synchronisation first checks that CIPP can reach Hudu with the saved API key. If it cannot, that tenant's run stops straight away and the Hudu error is recorded in the logbook. Select **Test** to confirm the connection.
 
 Use **Reschedule next sync date** to push the next run to a specific date, which is the cleanest way to keep the initial full synchronisation out of business hours.
 

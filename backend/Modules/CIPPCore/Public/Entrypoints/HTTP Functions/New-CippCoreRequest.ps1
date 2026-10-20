@@ -104,6 +104,7 @@ function New-CippCoreRequest {
                 if ($script:CippAccessUserContext) {
                     Write-Information "Access: $($script:CippAccessUserContext.User) [$($script:CippAccessUserContext.Roles -join ', ')] -> $($Request.Params.CIPPEndpoint)"
                 }
+                $script:CippRealtimeUser = $Request.Headers.'x-ms-client-principal-name'
             } catch {
                 $DeniedUser = if ($script:CippAccessUserContext) { " for user $($script:CippAccessUserContext.User) [$($script:CippAccessUserContext.Roles -join ', ')]" } else { '' }
                 Write-Information "Access denied for $FunctionName$($DeniedUser) : $($_.Exception.Message)"
@@ -142,7 +143,7 @@ function New-CippCoreRequest {
 
             try {
                 Write-Debug "Access: $Access"
-                Write-LogMessage -headers $Headers -API $Request.Params.CIPPEndpoint -message 'Accessed this API' -Sev 'Debug'
+                Write-LogMessage -headers $Request.Headers -API $Request.Params.CIPPEndpoint -message 'Accessed this API' -Sev 'Debug'
                 if ($Access) {
                     # Prepare telemetry metadata for HTTP API call
                     $metadata = @{

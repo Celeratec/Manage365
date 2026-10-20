@@ -16,6 +16,8 @@ Function Invoke-EditRoomList {
     $RoomListObj = $Request.Body
     $GroupId = $RoomListObj.groupId
     $TenantId = $RoomListObj.tenantFilter
+    $Total = 0
+    $Failed = 0
 
     try {
         # Edit basic room list properties
@@ -36,6 +38,7 @@ Function Invoke-EditRoomList {
                 $SetRoomListParams.Name = $RoomListObj.mailNickname
             }
 
+            $Total++
             try {
                 $null = New-ExoRequest -tenantid $TenantId -cmdlet 'Set-DistributionGroup' -cmdParams $SetRoomListParams -useSystemMailbox $true
                 $Results.Add("Successfully updated room list properties for $($RoomListObj.displayName)")
@@ -49,6 +52,7 @@ Function Invoke-EditRoomList {
         # Add room members
         if ($RoomListObj.AddMember) {
             foreach ($Member in $RoomListObj.AddMember) {
+                $Total++
                 try {
                     $MemberEmail = if ($Member.value) { $Member.value } else { $Member }
                     $AddMemberParams = @{
@@ -70,6 +74,7 @@ Function Invoke-EditRoomList {
         # Remove room members
         if ($RoomListObj.RemoveMember) {
             foreach ($Member in $RoomListObj.RemoveMember) {
+                $Total++
                 try {
                     $MemberEmail = if ($Member.value) { $Member.value } else { $Member }
                     $RemoveMemberParams = @{
@@ -90,6 +95,7 @@ Function Invoke-EditRoomList {
 
         # Handle owners (ManagedBy property)
         if ($RoomListObj.AddOwner -or $RoomListObj.RemoveOwner) {
+            $Total++
             try {
                 # Get current owners
                 $CurrentGroup = New-ExoRequest -tenantid $TenantId -cmdlet 'Get-DistributionGroup' -cmdParams @{ Identity = $GroupId } -useSystemMailbox $true
@@ -141,6 +147,7 @@ Function Invoke-EditRoomList {
 
         # Handle external email settings
         if ($null -ne $RoomListObj.allowExternal) {
+            $Total++
             try {
                 $SetExternalParams = @{
                     Identity                           = $GroupId
@@ -161,14 +168,14 @@ Function Invoke-EditRoomList {
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message "Failed to update external email settings: $($_.Exception.Message)" -Sev 'Error'
             }
         }
-
+        $StatusCode = Get-CippBulkStatusCode -Total $Total -Failed $Failed
     } catch {
         $Results.Add("An error occurred while editing the room list: $((Get-CippException -Exception $_).NormalizedError)")
         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantId -message "Failed to edit room list: $($_.Exception.Message)" -Sev 'Error'
     }
 
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = @{'Results' = @($Results) }
         })
 }

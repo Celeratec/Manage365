@@ -25,6 +25,7 @@ Every row in the Tenant and Standard views carries a state.
 | Partially Accepted         | Individual properties of the setting have been accepted, but others still deviate.                                                                                            |
 | Denied - Remediate Pending | The deviation was denied, and the setting is corrected back to the baseline on the next run.                                                                                  |
 | Denied - Delete Pending    | The deviation was denied, and the offending policy is removed on the next run.                                                                                                |
+| Error                      | The last attempt to correct the setting failed, so it cannot be accepted or denied. The run logs explain why. A deviation already denied keeps its **Denied** state instead. |
 | Conflict                   | Two baselines configure the same standard at the same assignment level with different settings, so nothing is compared or corrected. Edit one of the baselines to resolve it. |
 | Skipped - No License       | The tenant is not licensed for the standard, so it is left out of scoring.                                                                                                    |
 | No Data                    | Nothing has been collected for the standard yet.                                                                                                                              |

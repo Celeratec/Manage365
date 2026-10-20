@@ -13,17 +13,17 @@ function Invoke-CippTestCIS_1_2_1 {
             return
         }
 
-        $PublicGroups = $Groups | Where-Object { $_.visibility -eq 'Public' -and ($_.groupTypes -contains 'Unified') }
+        $PublicGroups = $Groups.Where({ $_.visibility -eq 'Public' -and ($_.groupTypes -contains 'Unified') })
 
         if (-not $PublicGroups -or $PublicGroups.Count -eq 0) {
             $Status = 'Passed'
-            $Result = 'No public Microsoft 365 (Unified) groups found in the tenant.'
+            $Result = [System.Text.StringBuilder]::new('No public Microsoft 365 (Unified) groups found in the tenant.')
         } else {
             $Status = 'Failed'
-            $Result = "Found $($PublicGroups.Count) public Microsoft 365 group(s). Each public group's contents are visible to every user in the tenant — convert them to Private unless explicitly approved.`n`n"
-            $Result += "| Display Name | Mail |`n| :----------- | :--- |`n"
-            foreach ($G in ($PublicGroups | Select-Object -First 25)) {
-                $Result += "| $($G.displayName) | $($G.mail) |`n"
+            $Result = [System.Text.StringBuilder]::new("Found $($PublicGroups.Count) public Microsoft 365 group(s). Each public group's contents are visible to every user in the tenant — convert them to Private unless explicitly approved.`n`n")
+            $null = $Result.Append("| Display Name | Mail |`n| :----------- | :--- |`n")
+            foreach ($G in $PublicGroups.Where({ $true }, 'First', 25)) {
+                $null = $Result.Append("| $($G.displayName) | $($G.mail) |`n")
             }
         }
 

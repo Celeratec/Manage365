@@ -13,13 +13,13 @@ function Invoke-CippTestCIS_8_1_1 {
             return
         }
 
-        $Cfg = $Client | Select-Object -First 1
-        $Enabled = @()
-        if ($Cfg.AllowDropbox)     { $Enabled += 'Dropbox' }
-        if ($Cfg.AllowBox)         { $Enabled += 'Box' }
-        if ($Cfg.AllowGoogleDrive) { $Enabled += 'GoogleDrive' }
-        if ($Cfg.AllowShareFile)   { $Enabled += 'ShareFile' }
-        if ($Cfg.AllowEgnyte)      { $Enabled += 'Egnyte' }
+        $Cfg = @($Client)[0]
+        $Enabled = [System.Collections.Generic.List[string]]::new()
+        if ($Cfg.AllowDropbox)     { $Enabled.Add('Dropbox') }
+        if ($Cfg.AllowBox)         { $Enabled.Add('Box') }
+        if ($Cfg.AllowGoogleDrive) { $Enabled.Add('GoogleDrive') }
+        if ($Cfg.AllowShareFile)   { $Enabled.Add('ShareFile') }
+        if ($Cfg.AllowEgnyte)      { $Enabled.Add('Egnyte') }
 
         if ($Enabled.Count -eq 0) {
             $Status = 'Passed'

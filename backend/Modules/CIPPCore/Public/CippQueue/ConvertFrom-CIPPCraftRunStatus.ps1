@@ -1,14 +1,18 @@
 function ConvertFrom-CIPPCraftRunStatus {
     <#
     .SYNOPSIS
-        Shape a Craft run status as a CIPP queue entry.
+    Shape a Craft run status as a CIPP queue entry
+
     .DESCRIPTION
-        Craft reports runs through QueueStatusBridge.GetRun and GetRuns. Queue trackers and
-        ListEmptySiteRecycleBinStatus use the CippQueue shape, so this maps one onto the other.
+    Craft reports runs app-neutrally (QueueStatusBridge.GetRun/GetRuns, and the realtime frames). The queue
+    trackers and ListCippQueue use the CippQueue shape the table-backed queue produces, so this maps one to
+    the other. frontend/src/utils/craft-run.js does the same for live frames; keep the two in step.
+
     .PARAMETER Run
-        A run status as Craft returns it (ConvertFrom-Json of its camelCase JSON).
+    A run status as Craft returns it (ConvertFrom-Json of its camelCase JSON)
+
     .FUNCTIONALITY
-        Internal
+    Internal
     #>
     [CmdletBinding()]
     param(
@@ -31,19 +35,18 @@ function ConvertFrom-CIPPCraftRunStatus {
         CompletedTasks  = $Done
         RunningTasks    = [int]$Run.running
         FailedTasks     = [int]$Run.failed
+        # Midpoints round up, as the frontend's mapper does, so a polled and a pushed entry never differ
         PercentComplete = [math]::Round($Done / $Divisor * 100, 1, [MidpointRounding]::AwayFromZero)
         PercentFailed   = [math]::Round([int]$Run.failed / $Divisor * 100, 1, [MidpointRounding]::AwayFromZero)
         PercentRunning  = [math]::Round([int]$Run.running / $Divisor * 100, 1, [MidpointRounding]::AwayFromZero)
-        QueuedAhead     = [int]$Run.ahead
-        RunsAhead       = [int]$Run.runsAhead
-        Tasks           = @(foreach ($Task in @($Run.tasks)) {
-                if (-not $Task) { continue }
+        # Craft names a task by its job name; CIPP's are Function_Tenant and the tracker shows the tenant
+        Tasks           = @(foreach ($Task in $Run.tasks) {
                 [PSCustomObject]@{ Timestamp = $Task.at; Name = $Task.name -replace '^[^_]*_(?=.)', ''; Status = $Task.status }
             })
         Status          = switch ($Run.status) {
             'CompletedWithErrors' { 'Completed (with errors)' }
             'NotFound' { 'Not found' }
-            default { [string]$Run.status }
+            default { $Run.status }
         }
         Timestamp       = if ($Run.startedUtc) { $Run.startedUtc } else { (Get-Date).ToUniversalTime().ToString('o') }
     }

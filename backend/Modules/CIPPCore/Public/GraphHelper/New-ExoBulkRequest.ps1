@@ -29,7 +29,7 @@ function New-ExoBulkRequest {
         }
         $Token = Get-GraphToken -Tenantid $tenantid -scope "$Resource/.default" -AsApp:$AsApp.IsPresent
 
-        $Tenant = (Get-Tenants -IncludeErrors).Where({ $_.defaultDomainName -eq $tenantid -or $_.customerId -eq $tenantid })
+        $Tenant = Get-Tenants -IncludeErrors -TenantFilter $tenantid
         $Headers = @{
             Authorization             = $Token.Authorization
             Prefer                    = 'odata.maxpagesize = 1000;odata.continue-on-error'
@@ -61,9 +61,7 @@ function New-ExoBulkRequest {
             $ReturnedData = [System.Collections.Generic.List[object]]::new()
             $BatchPayloads = [System.Collections.Generic.List[object]]::new()
             foreach ($batch in $batches) {
-                $BatchBodyObj = @{
-                    requests = @()
-                }
+                $BatchRequests = [System.Collections.Generic.List[object]]::new()
                 foreach ($cmd in $batch) {
                     $cmdparams = $cmd.CmdletInput.Parameters
                     if ($cmdparams.Identity) { $Anchor = $cmdparams.Identity }
@@ -97,7 +95,7 @@ function New-ExoBulkRequest {
                         headers = $Headers.Clone()
                         id      = $RequestId
                     }
-                    $BatchBodyObj['requests'] = $BatchBodyObj['requests'] + $BatchRequest
+                    $BatchRequests.Add($BatchRequest)
 
                     # Map the Request ID to the Cmdlet Name and Operation GUID (if provided)
                     $IdToCmdletName[$RequestId] = $cmd.CmdletInput.CmdletName
@@ -106,6 +104,7 @@ function New-ExoBulkRequest {
                         $IdToOperationGuid[$RequestId] = $cmd.OperationGuid
                     }
                 }
+                $BatchBodyObj = @{ requests = $BatchRequests.ToArray() }
                 $BatchBodyJson = [CIPP.CippJson]::ToJson($BatchBodyObj, 10) ?? (ConvertTo-Json -InputObject $BatchBodyObj -Depth 10)
                 $BatchBodyJson = Get-CIPPTextReplacement -TenantFilter $tenantid -Text $BatchBodyJson
                 # Clone the headers as they stood for this batch's POST (X-AnchorMailbox/X-CmdletName are
@@ -141,7 +140,7 @@ function New-ExoBulkRequest {
                             continue
                         }
                         try {
-                            $Parsed = $ConcResult.Result.Content | ConvertFrom-Json
+                            $Parsed = [CIPP.CippJson]::ConvertFromResponse($ConcResult.Result)
                         } catch {
                             Write-Host "EXO bulk batch: could not parse response (HTTP $($ConcResult.StatusCode))"
                             continue

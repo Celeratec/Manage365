@@ -12,7 +12,15 @@ function Invoke-EditSafeLinksPolicyTemplate {
 
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
-    Write-LogMessage -Headers $Headers -API $APINAME -message 'Accessed this API' -Sev Debug
+
+    $ID = $Request.Body.ID
+
+    if (-not $ID) {
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = [pscustomobject]@{'Results' = 'Failed to update SafeLinks policy template: Template ID is required' }
+            })
+    }
 
     $ID = $Request.Body.ID
 

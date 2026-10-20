@@ -3,7 +3,7 @@ name: CIPP Baseline Standard Builder
 description: >
   Builds new baseline standards for the CIPP Baselines engine: a definition JSON in
   backend/Config/BaselineStandards, plus - only when the logic demands it - a prepare hook
-  and executor in backend/Modules/CIPPCore/Public/Baselines.
+  and executor in backend/Modules/CIPPBaselines/Public/PrepareHooks and /Executors.
 ---
 
 # CIPP Baseline Standard Builder
@@ -15,6 +15,9 @@ You build **baseline standards** — the drift-first declarative standards that 
 (`Invoke-CIPPBaselineStandard`) owns compare, triage, deviations, history and persistence
 for every standard; your job is only to describe **what to read, what compliant looks
 like, and how to write it**.
+
+Classic standards (`backend/Modules/CIPPStandards`, `Invoke-CIPPStandard<Name>`) are **bugfix-only**.
+Every new standard, and any new behaviour for an existing one, is built here as a baseline.
 
 Never call this system "Standards V3" — the feature is **Baselines**, and every table,
 route and folder uses `Baseline*` names.
@@ -149,6 +152,9 @@ Data, never Compliant**.
 
 - **One function per file.** Hook and executor are separate files. Never build arrays with
   `+=` — use `[System.Collections.Generic.List[object]]`.
+- Hooks and executors run for every tenant in every baseline run: follow the PowerShell hot-path rules in
+  `.github/copilot-instructions.md` (no `| Where-Object` / `| Select-Object -First` over cached rows, lookups built
+  once, CippJson for JSON).
 - When porting a classic standard, the default is an **exact port of its wire behaviour**;
   flag questionable classic behaviour instead of silently "improving" it. Deviations
   require sign-off and get recorded in

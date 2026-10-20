@@ -38,6 +38,7 @@ A label on the card indicates which defaults are currently in effect: **Using Te
 | --------------------------------------------- | ---------------------------------------------------------------------- |
 | Convert to Shared Mailbox                     | Converts the user's mailbox to a shared mailbox.                       |
 | Remove from all groups                        | Removes the user from every group they belong to.                      |
+| Remove group ownership                        | Removes the user as owner of every group they own. The replacement owner is chosen in the wizard itself. |
 | Hide from Global Address List                 | Hides the user's mailbox from the address list.                        |
 | Remove Licenses                               | Removes all licences assigned to the user.                             |
 | Cancel all calendar invites                   | Cancels the meetings the user has organised.                           |
@@ -65,15 +66,22 @@ A **Send results to** section chooses where the outcome of an offboarding is rep
 If a tenant has its own offboarding defaults saved, those replace your personal defaults entirely for that tenant, including when the tenant message field is empty.
 {% endhint %}
 
-## Push Notifications
+## Push Notification Devices
 
-Registers the browser or installed app you are using to receive push notifications from CIPP. Notifications are per person: a scheduled task, alert, offboarding or JIT admin grant with **Push (notify me)** selected notifies the devices registered by whoever created it, and nobody else. Each browser and each installed copy of the app counts as its own device.
+Lists the browsers and installed apps you have registered to receive push notifications from CIPP, and registers the one you are using now. Notifications are per person: a scheduled task, alert, offboarding or JIT admin grant with **Push (notify me)** selected notifies the devices registered by whoever created it, and nobody else. Each browser and each installed copy of the app counts as its own device.
 
-| Control                | Description                                                                                                                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Enable on this device  | Asks the browser for notification permission and registers this device. On iOS this is only available once CIPP has been added to the Home Screen and opened from there. Unavailable while impersonating a role. |
-| Remove                 | Stops notifications to that device. Removing a device from another browser is fine; the registration is deleted, not the browser's permission.                                                 |
-| Send test notification | Sends a test notification to every device you have registered.                                                                                                                                 |
+Push needs at least one device registered here. Until you have one, the post execution actions on the scheduler and the alert forms do not offer **Push (notify me)**, and their helper text points you to this card. Once a device is registered, the same helper text says how many devices will be notified. A scheduled task, alert, report schedule or offboarding that asks for Push without a registered device is not saved, and the message returned points back here.
+
+| Column      | Description                                                                                                                                              |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Device Name | The operating system and browser the device registered from, with **(app)** added for an installed copy of CIPP. The browser you are using now is marked **(this device)**. |
+| Created     | When the device was registered.                                                                                                                          |
+
+| Control                | Description                                                                                                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Enable on this device  | Asks the browser for notification permission and registers this device. Greyed out, with the reason shown when you hover over it, if the browser does not support push notifications, if notifications are blocked for CIPP in the browser settings, if you are impersonating a role, or if push notifications are not ready on the instance yet. On iOS it is only available once CIPP has been added to the Home Screen and opened from there. |
+| Send test notification | Sends a test notification to every device you have registered, after you confirm.                                                                                                                                                                                                                 |
+| Remove device          | A row action that stops notifications to that device, after you confirm. A device can be removed from any browser; the registration is deleted, not the browser's permission.                                                                                                                   |
 
 {% hint style="info" %}
 A device the browser has silently dropped, for example after the site data was cleared, is removed from the list automatically the next time a notification to it fails.

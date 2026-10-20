@@ -9,10 +9,10 @@ Function Invoke-ExecSetMailboxQuota {
     param($Request, $TriggerMetadata)
     try {
         $APIName = $Request.Params.CIPPEndpoint
-        Write-LogMessage -headers $Request.Headers -API $APINAME -message 'Accessed this API' -Sev 'Debug'
         $Username = $request.body.user
         $Tenantfilter = $request.body.tenantfilter
         $quota = $Request.body.quota
+        $StatusCode = [HttpStatusCode]::OK
         $Results = try {
             if ($Request.Body.ProhibitSendQuota) {
                 $quota = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-Mailbox' -cmdParams @{Identity = $Username; ProhibitSendQuota = $quota }
@@ -40,7 +40,7 @@ Function Invoke-ExecSetMailboxQuota {
     }
 
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = $Body
         })
 

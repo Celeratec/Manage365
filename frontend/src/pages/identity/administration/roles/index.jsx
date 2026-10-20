@@ -163,6 +163,7 @@ const Page = () => {
       'RoleDisplayName',
       'RoleDescription',
       'RoleDefinitionId',
+      'SID',
       'RoleIsBuiltIn',
       'IsPrivilegedRole',
       'MemberCount',

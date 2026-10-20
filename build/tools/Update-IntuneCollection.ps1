@@ -117,10 +117,13 @@ $collection = $allSettings | Sort-Object -Property id | ForEach-Object {
     $options = if ($rawOptions -and $rawOptions.Count -gt 0) {
         $rawOptions | ForEach-Object {
             [PSCustomObject]@{
-                id          = $_.PSObject.Properties['itemId']?.Value
-                displayName = $_.PSObject.Properties['displayName']?.Value
-                description = $_.PSObject.Properties['description']?.Value
-                helpText    = $_.PSObject.Properties['helpText']?.Value
+                id           = $_.PSObject.Properties['itemId']?.Value
+                displayName  = $_.PSObject.Properties['displayName']?.Value
+                description  = $_.PSObject.Properties['description']?.Value
+                helpText     = $_.PSObject.Properties['helpText']?.Value
+                optionValue  = $_.PSObject.Properties['optionValue']?.Value
+                dependentOn  = $_.PSObject.Properties['dependentOn']?.Value
+                dependedOnBy = $_.PSObject.Properties['dependedOnBy']?.Value
             }
         }
     } else {
@@ -142,6 +145,21 @@ $collection = $allSettings | Sort-Object -Property id | ForEach-Object {
         categoryId   = $CategoryId
         categoryName = $CategoryName
         options      = $options
+        minimumCount = $_.PSObject.Properties['minimumCount']?.Value
+        maximumCount = $_.PSObject.Properties['maximumCount']?.Value
+
+        # Construction fields: what the template picker needs to build a setting from nothing.
+        # Frontend bundles only - the backend file stays lean because every worker parses it.
+        '@odata.type'    = $_.PSObject.Properties['@odata.type']?.Value
+        valueDefinition  = $_.PSObject.Properties['valueDefinition']?.Value
+        defaultOptionId  = $_.PSObject.Properties['defaultOptionId']?.Value
+        applicability    = $_.PSObject.Properties['applicability']?.Value
+        settingUsage     = $_.PSObject.Properties['settingUsage']?.Value
+        visibility       = $_.PSObject.Properties['visibility']?.Value
+        rootDefinitionId = $_.PSObject.Properties['rootDefinitionId']?.Value
+        childIds         = $_.PSObject.Properties['childIds']?.Value
+        dependentOn      = $_.PSObject.Properties['dependentOn']?.Value
+        dependedOnBy     = $_.PSObject.Properties['dependedOnBy']?.Value
     }
 }
 
@@ -151,7 +169,11 @@ Write-Host "Settings with a category name: $Categorised of $($collection.Count)"
 # ---------------------------------------------------------------------------
 # Write output files
 # ---------------------------------------------------------------------------
-$json = $collection | ConvertTo-Json -Depth 5 -Compress
+$json = $collection |
+    Select-Object id, displayName, description, helpText, infoUrls, categoryId, categoryName, @{ n = 'options'; e = { $_.options | Select-Object id, displayName, description, helpText } }, minimumCount, maximumCount |
+    ConvertTo-Json -Depth 5 -Compress
+$fullJsonPath = Join-Path ([System.IO.Path]::GetTempPath()) 'intuneCollection.full.json'
+$collection | ConvertTo-Json -Depth 15 -Compress | Set-Content -Path $fullJsonPath -Encoding utf8NoBOM
 
 # Backend Config (used by Compare-CIPPIntuneObject.ps1 at runtime)
 $apiPath = Join-Path $PSScriptRoot '..\..\backend\Config\intuneCollection.json'
@@ -177,6 +199,7 @@ if ($categories.Count -gt 0) {
 # Frontend: 256 bucket bundles rather than the whole catalog. The UI fetches only the buckets a
 # policy references - see Split-IntuneCollection.ps1 for why, and for the naming.
 $splitScript = Join-Path $PSScriptRoot 'Split-IntuneCollection.ps1'
-& $splitScript -CollectionPath $apiPath
+& $splitScript -CollectionPath $fullJsonPath
+Remove-Item -LiteralPath $fullJsonPath
 
 Write-Host "`nDone. $($collection.Count) settings written to intuneCollection.json." -ForegroundColor Green

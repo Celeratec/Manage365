@@ -11,7 +11,26 @@ function Invoke-ExecCreateAppTemplate {
     param($Request, $TriggerMetadata)
 
     $APIName = $TriggerMetadata.FunctionName
-    Write-LogMessage -headers $Request.headers -API $APINAME -message 'Accessed this API' -Sev 'Debug'
+
+    $TenantFilter = $Request.Body.TenantFilter
+    $AppId = $Request.Body.AppId
+    $DisplayName = $Request.Body.DisplayName
+    $Type = $Request.Body.Type # 'servicePrincipal' or 'application'
+    $Overwrite = $Request.Body.Overwrite -eq $true
+
+    if ([string]::IsNullOrWhiteSpace($AppId)) {
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = (@{ Results = @(@{ resultText = 'Failed to create template: AppId is required'; state = 'error' }) } | ConvertTo-Json -Depth 10)
+            })
+    }
+
+    if ([string]::IsNullOrWhiteSpace($DisplayName)) {
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = (@{ Results = @(@{ resultText = 'Failed to create template: DisplayName is required'; state = 'error' }) } | ConvertTo-Json -Depth 10)
+            })
+    }
 
     $TenantFilter = $Request.Body.TenantFilter
     $AppId = $Request.Body.AppId

@@ -52,3 +52,42 @@ Endpoints in `backend/Modules/CIPPHTTP` must return a status code that matches w
 - Validate input before the `try`, as an `if` that returns `BadRequest`, so it can't be mistaken for an upstream failure.
 - Helpers throw `[System.ArgumentException]` / `[System.Management.Automation.ItemNotFoundException]` for input and
   not-found errors, and return per-item `@{ resultText; state }` results rather than swallowing failures into strings.
+
+## PowerShell hot paths
+
+Code that runs per row or per batch (cache collectors, `Push-*` activities, post-execution, report folds, alerts and
+in-app tests) runs for every tenant, and tenants with 50k users or 20k mailboxes are normal. The runtime will not fix
+churn; these patterns do.
+
+- Filter with `foreach` + `if` or `.Where({ })`, never `| Where-Object`. Build a lookup once (hashtable, `HashSet`,
+  `[CIPP.CippIndex]`, whose `.First($Key)` replaces `.Find($Key) | Select-Object -First 1`) instead of scanning inside a loop. `.Where()` returns a collection even for zero or one match;
+  `.github/agents/CIPP-Test-Agent.md` lists the cases where that differs from the pipeline result.
+- No `| Select-Object -First` on a hot path: it throws to stop the pipeline (`Get-Thing | Select-Object -First 1` stops
+  `Get-Thing` with an exception on every call). Use `$X.Where({ P }, 'First')[0]` or `@($X)[0]`; indexing an empty
+  collection also throws internally, so where it is usually empty use `foreach ($Item in $X) { $First = $Item; break }`.
+- Clamp range slices: `$X[$i..([Math]::Min($i + 19, $X.Count - 1))]`. An index past the end throws and is caught
+  internally, so `$X[$i..($i + 19)]` over 3 items costs 17 exceptions.
+- A per-call helper that every request, standard or test hits (tenant lookups, capabilities, tokens) must not re-read a
+  table and re-parse JSON each time: keep a short-lived per-tenant result (see `Get-CIPPTenantCapabilities`).
+- Never `+=`. Never `Select-Object` / `Sort-Object` / `Group-Object` over hashtables.
+- Never invoke a script block per row or per field (`& $Helper $Value`): each call builds a command processor and binds
+  parameters (Add-CIPPDbItem's shape sampling spent 400 MB per cache run this way). Inline the loop, or move the logic
+  into CIPPSharp when it is called per field.
+- On a dictionary whose keys come from data, use `$Dict.PSBase.Count` / `$Dict.PSBase.Keys`: PowerShell member access
+  prefers keys, so a field named `count` or `keys` silently replaces `.Count` / `.Keys`.
+- Serialise with `[CIPP.CippJson]::ToJson($X, $Depth)` and fall back to `ConvertTo-Json` when it returns `$null`. Parse
+  with `[CIPP.CippJson]::ConvertFromJson($Json)`, passing a field list when only some fields are read. Parse a
+  `CIPPRestClient` result with `[CIPP.CippJson]::ConvertFromResponse($Result)`: it reads the UTF-8 body bytes
+  (`$Result.ContentBytes`) without building `$Result.Content`, which is decoded only when something reads it. Test for a
+  body with `$Result.HasContent`, not `[string]::IsNullOrWhiteSpace($Result.Content)`.
+- Read an environment variable that may be unset with `[System.Environment]::GetEnvironmentVariable('Name')`: `$env:Name`
+  throws and catches an exception internally every time the variable is missing.
+- Don't `Add-Member -NotePropertyName` per row (it throws internally while binding its parameters):
+  `$Row.PSObject.Properties.Add([psnoteproperty]::new('Name', $Value))`. `Add-Member -Force` is `$P.Remove('Name')`
+  followed by that `Add` (the property moves to the end, as with `-Force`). Test for a property with
+  `$null -ne $Row.PSObject.Properties['Name']`, not `$Row.PSObject.Properties.Name -contains 'Name'` (a full walk).
+- Don't enumerate `.PSObject.Properties` / `.PSObject.Members` per row to read fields: it builds member sets and leaves
+  them attached to every row. In CIPPSharp C#, read a row's fields with `PSMembers.InstanceProperties` (it skips hidden
+  members: once anything has enumerated `Properties`, the reserved `pstypenames` sits among the instance members).
+- A Pester test whose code under test uses a `[CIPP.*]` type must `Add-Type` `Shared/CIPPSharp/bin/CIPPSharp.dll` in
+  `BeforeAll`; helpers that fall back when the type is missing otherwise pass while testing the wrong path.

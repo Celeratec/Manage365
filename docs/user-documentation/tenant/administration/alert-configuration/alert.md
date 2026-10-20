@@ -88,7 +88,7 @@ For a **Scripted CIPP Alert**, this is how the alert is delivered:
 * Webhook - Delivers a JSON payload to the webhook configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * PSA - Delivers a formatted payload to the PSA configured in [notifications.md](../../../cipp/settings/notifications.md "mention").
 * Email - Delivers an HTML-formatted table to the email address provided in [notifications.md](../../../cipp/settings/notifications.md "mention").
-* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert.
+* Push (notify me) - Sends a push notification to the devices you registered under [user-settings.md](../../../shared-features/menu-bar/user-settings.md "mention"). It reaches only the person who created the alert. The option is only offered once you have registered at least one device there; until then, the helper text under the field says where to enrol, and afterwards it says how many devices will be notified.
 
 For an **Audit Log Alert**, this is what CIPP does when a matching log entry arrives, and it can include remediation as well as notification:
 

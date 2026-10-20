@@ -810,6 +810,7 @@
                       "x-cipp-field-source": "storage"
                     },
                     "assignedTo": {
+                      "type": "string",
                       "x-cipp-field-source": "storage"
                     },
                     "description": {
@@ -828,9 +829,11 @@
                       "x-cipp-field-source": "storage"
                     },
                     "excludedTenants": {
+                      "type": "string",
                       "x-cipp-field-source": "storage"
                     },
                     "excludedTo": {
+                      "type": "string",
                       "x-cipp-field-source": "storage"
                     },
                     "LocalChanges": {
@@ -859,6 +862,7 @@
                       "x-cipp-field-source": "storage"
                     },
                     "Stages": {
+                      "type": "string",
                       "x-cipp-field-source": "storage"
                     },
                     "templateName": {
@@ -4414,7 +4418,30 @@
                     "type": "string"
                   },
                   "RawJSON": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {
+                      "@odata.context": {
+                        "type": "string",
+                        "description": ".../$metadata#deviceAppManagement/<collection>[/microsoft.graph.<type>]/$entity"
+                      },
+                      "@odata.type": {
+                        "type": "string"
+                      },
+                      "added": {
+                        "type": "string"
+                      },
+                      "settings": {
+                        "type": "string"
+                      },
+                      "templateReference": {
+                        "type": "object",
+                        "properties": {
+                          "templateId": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
                   },
                   "TemplateType": {
                     "type": "string"
@@ -4480,9 +4507,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -4491,7 +4515,11 @@
           }
         ],
         "x-cipp-role": "Endpoint.MEM.ReadWrite",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-reads-via": [
+          "Get-CIPPAppProtectionPolicyUrl",
+          "Test-CIPPIntuneTemplate"
+        ]
       }
     },
     "/api/AddJITAdminTemplate": {
@@ -5151,7 +5179,30 @@
                     "description": "Sent by the deploy drawer when a single tenant is selected and groups were picked by id. customGroup/excludeGroup still carry the display names for logging and as a fallback."
                   },
                   "RAWJson": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {
+                      "@odata.context": {
+                        "type": "string",
+                        "description": ".../$metadata#deviceAppManagement/<collection>[/microsoft.graph.<type>]/$entity"
+                      },
+                      "@odata.type": {
+                        "type": "string"
+                      },
+                      "added": {
+                        "type": "string"
+                      },
+                      "settings": {
+                        "type": "string"
+                      },
+                      "templateReference": {
+                        "type": "object",
+                        "properties": {
+                          "templateId": {
+                            "type": "string"
+                          }
+                        }
+                      }
+                    }
                   },
                   "replacemap": {
                     "type": "string"
@@ -5179,7 +5230,8 @@
                     "description": "The deploy drawer and wizard send the chosen row's GUID as TemplateList.value, not as TemplateID. Template display names are not unique - re-imports create same-named twins - so resolving by display name below can land on a different row than the one the user picked. The selected RowKey must win whenever the request carries one. String rather than Guid: built-in templates are stored with their filename as RowKey."
                   },
                   "TemplateType": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Per tenant, because the replacemap above rewrites the payload."
                   },
                   "tenantFilter": {
                     "$ref": "#/components/schemas/LabelValue"
@@ -5221,7 +5273,11 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.ReadWrite"
+        "x-cipp-role": "Endpoint.MEM.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CIPPAppProtectionPolicyUrl",
+          "Test-CIPPIntuneTemplate"
+        ]
       }
     },
     "/api/AddQuarantinePolicy": {
@@ -7187,14 +7243,17 @@
               }
             }
           },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -7487,6 +7546,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "GUID": {
+                    "type": "string",
+                    "description": "GUID overwrites that template, honoured only alongside PowerShellCommand: a posted rule row carries the rule's own Guid."
+                  },
                   "Name": {
                     "type": "string",
                     "description": "Posted from the row action; without a name the template lists blank and deploys with no parameters."
@@ -7520,11 +7583,17 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -8186,44 +8255,6 @@
           },
           "500": {
             "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Endpoint.Application.ReadWrite",
-        "x-cipp-any-tenant": true
-      }
-    },
-    "/api/BestPracticeAnalyser_List": {
-      "get": {
-        "summary": "BestPracticeAnalyser_List",
-        "operationId": "BestPracticeAnalyser_List",
-        "tags": [
-          "Tenant > Standards"
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
-                  }
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
           }
         },
         "security": [
@@ -9066,141 +9097,6 @@
           },
           "500": {
             "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Exchange.Contact.ReadWrite",
-        "x-cipp-any-tenant": true
-      }
-    },
-    "/api/EditCrossTenantPartner": {
-      "post": {
-        "summary": "EditCrossTenantPartner",
-        "operationId": "EditCrossTenantPartner",
-        "tags": [
-          "Tenant > CrossTenant"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "automaticUserConsentSettings": {
-                    "type": "string"
-                  },
-                  "b2bCollaborationInbound": {
-                    "type": "string"
-                  },
-                  "b2bCollaborationOutbound": {
-                    "type": "string"
-                  },
-                  "b2bDirectConnectInbound": {
-                    "type": "string"
-                  },
-                  "b2bDirectConnectOutbound": {
-                    "type": "string"
-                  },
-                  "inboundTrust": {
-                    "type": "string"
-                  },
-                  "partnerTenantId": {
-                    "type": "string"
-                  },
-                  "tenantFilter": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "partnerTenantId",
-                  "tenantFilter"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                  "properties": {
-                    "appServiceConnectInbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "automaticUserConsentSettings": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "b2bCollaborationInbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "b2bCollaborationOutbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "b2bDirectConnectInbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "b2bDirectConnectOutbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "inboundTrust": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "isInMultiTenantOrganization": {
-                      "type": "boolean",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "isServiceProvider": {
-                      "type": "boolean",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "m365CollaborationInbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "m365CollaborationOutbound": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "Results": {
-                      "x-cipp-field-source": "backend"
-                    },
-                    "tenantId": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "tenantRestrictions": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
           }
         },
         "security": [
@@ -10866,11 +10762,17 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -14472,7 +14374,10 @@
                       "value": {
                         "type": "string"
                       }
-                    }
+                    },
+                    "required": [
+                      "value"
+                    ]
                   },
                   "Enabled": {
                     "type": "string"
@@ -14728,6 +14633,12 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -17916,6 +17827,9 @@
                   "colour": {
                     "type": "string"
                   },
+                  "coverFade": {
+                    "type": "boolean"
+                  },
                   "coverFooterText": {
                     "type": "string"
                   },
@@ -18736,6 +18650,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -19571,11 +19488,20 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -23918,7 +23844,13 @@
                     "type": "string"
                   },
                   "parsedRAWJson": {
-                    "type": "string"
+                    "type": "object",
+                    "properties": {
+                      "@odata.type": {
+                        "type": "string"
+                      }
+                    },
+                    "description": "Not every type requires @odata.type, so losing it is only definitely wrong when the stored policy had one. Set-CIPPIntuneTemplate validates the rest."
                   },
                   "Type": {
                     "type": "string"
@@ -24988,6 +24920,8 @@
             "schema": {
               "type": "string",
               "enum": [
+                "HaloPSA",
+                "Hudu",
                 "NinjaOne"
               ]
             }
@@ -25303,6 +25237,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -29049,6 +28986,27 @@
                   "Action": {
                     "type": "string"
                   },
+                  "ApprovalTenants": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "label": {
+                          "type": "string",
+                          "description": "Tenants or tenant groups where approval applies; none selected means every tenant"
+                        },
+                        "type": {
+                          "type": "string",
+                          "description": "Tenants or tenant groups where approval applies; none selected means every tenant"
+                        },
+                        "value": {
+                          "type": "string",
+                          "description": "Tenants or tenant groups where approval applies; none selected means every tenant"
+                        }
+                      }
+                    },
+                    "description": "Tenants or tenant groups where approval applies; none selected means every tenant"
+                  },
                   "ApprovalTriggerRoles": {
                     "type": "array",
                     "items": {
@@ -31772,6 +31730,9 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -32231,6 +32192,9 @@
                 }
               }
             }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
           },
           "400": {
             "description": "Bad request - missing required field or invalid input"
@@ -32694,6 +32658,9 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -32702,6 +32669,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -35053,14 +35023,14 @@
               }
             }
           },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -40918,6 +40888,70 @@
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
+    "/api/ExecSetMailboxCustomAttributes": {
+      "post": {
+        "summary": "ExecSetMailboxCustomAttributes",
+        "operationId": "ExecSetMailboxCustomAttributes",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Identity": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Interact with the query or body of the request"
+                  },
+                  "userid": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
     "/api/ExecSetMailboxEmailSize": {
       "post": {
         "summary": "ExecSetMailboxEmailSize",
@@ -41007,25 +41041,7 @@
                     "description": "Interact with query parameters or the body of the request."
                   },
                   "user": {
-                    "type": "object",
-                    "properties": {
-                      "x-forwarded-for": {
-                        "type": "string"
-                      },
-                      "x-ms-client-principal": {
-                        "type": "string"
-                      },
-                      "x-ms-client-principal-idp": {
-                        "type": "string",
-                        "x-cipp-observed-values": [
-                          "aad",
-                          "azureStaticWebApps"
-                        ]
-                      },
-                      "x-ms-client-principal-name": {
-                        "type": "string"
-                      }
-                    }
+                    "type": "string"
                   }
                 },
                 "required": [
@@ -41061,10 +41077,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.ReadWrite",
-        "x-cipp-reads-via": [
-          "Write-LogMessage"
-        ]
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
     "/api/ExecSetMailboxQuota": {
@@ -41129,6 +41142,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -42218,98 +42234,6 @@
           },
           "400": {
             "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Sharepoint.Site.ReadWrite"
-      }
-    },
-    "/api/ExecSetSiteProperty": {
-      "post": {
-        "summary": "ExecSetSiteProperty",
-        "operationId": "ExecSetSiteProperty",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "AnonymousLinkExpirationInDays": {
-                    "type": "string",
-                    "description": "Anonymous link expiration (requires override flag)"
-                  },
-                  "DefaultLinkPermission": {
-                    "type": "string",
-                    "description": "Default Link Permission (0=None/tenant default, 1=View, 2=Edit)"
-                  },
-                  "DefaultSharingLinkType": {
-                    "type": "string",
-                    "description": "Default Sharing Link Type (0=None/tenant default, 1=Direct, 2=Internal, 3=AnonymousAccess)"
-                  },
-                  "DisplayName": {
-                    "type": "string"
-                  },
-                  "LockState": {
-                    "type": "string",
-                    "description": "Lock State"
-                  },
-                  "RestrictedAccessControl": {
-                    "type": "string",
-                    "description": "Restricted Access Control (requires SharePoint Advanced Management licensing)"
-                  },
-                  "SharingCapability": {
-                    "type": "string",
-                    "description": "Sharing Capability"
-                  },
-                  "SiteId": {
-                    "type": "string"
-                  },
-                  "StorageMaximumLevelGB": {
-                    "type": "number",
-                    "description": "Storage Quota (accepts GB, converts to MB for the API)"
-                  },
-                  "StorageWarningLevelGB": {
-                    "type": "number"
-                  },
-                  "tenantFilter": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "SiteId",
-                  "tenantFilter"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StandardResults"
-                }
-              }
-            }
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -44743,6 +44667,12 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -45070,6 +45000,7 @@
         "tags": [
           "Tenant > Tests"
         ],
+        "description": "Queues one or more tests for a tenant on the background workers and returns the QueueId to poll with ListCippQueue. Fresh results are in ListTests once the queue completes.",
         "requestBody": {
           "required": true,
           "content": {
@@ -45081,7 +45012,8 @@
                     "type": "string"
                   },
                   "testName": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "A test id (e.g. SecuritySimulation_MfaTampering), or an array of them to queue as one run."
                   }
                 },
                 "required": [
@@ -45098,6 +45030,7 @@
           {
             "name": "testName",
             "in": "query",
+            "description": "A test id (e.g. SecuritySimulation_MfaTampering), or an array of them to queue as one run.",
             "required": false,
             "schema": {
               "type": "string"
@@ -45135,6 +45068,9 @@
           },
           "404": {
             "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -46072,6 +46008,106 @@
           }
         ],
         "x-cipp-role": "CIPP.Core.ReadWrite"
+      }
+    },
+    "/api/ExecValidateIntuneTemplate": {
+      "post": {
+        "summary": "Check an Intune template for problems that would stop it deploying.",
+        "operationId": "ExecValidateIntuneTemplate",
+        "tags": [
+          "Endpoint > MEM"
+        ],
+        "description": "Runs the checks the store and deploy paths run and reports every finding. Nothing is written or\ndeployed. Validates a stored template by ID, or a payload supplied directly. Supplying a tenant\nadds checks for unresolved replacement variables and settings the tenant does not offer.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string",
+                    "description": "Template display name, used to resolve the name the policy would deploy under."
+                  },
+                  "ID": {
+                    "type": "string",
+                    "description": "GUID of a stored template to validate. Omit when supplying RAWJson directly."
+                  },
+                  "RAWJson": {
+                    "type": "string",
+                    "description": "Policy payload to validate as-is, instead of reading a stored template."
+                  },
+                  "TemplateType": {
+                    "type": "string",
+                    "description": "Template type, e.g. Catalog or deviceCompliancePolicies. Inferred from the payload if omitted."
+                  },
+                  "tenantFilter": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Tenant to run the tenant-specific checks against. Omit for static validation only."
+                  }
+                },
+                "required": [
+                  "RAWJson"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ID",
+            "in": "query",
+            "description": "GUID of a stored template to validate. Omit when supplying RAWJson directly.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Tenant to run the tenant-specific checks against. Omit for static validation only.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-any-tenant": true
       }
     },
     "/api/ExecValidateExternalDomain": {
@@ -49632,8 +49668,16 @@
         "tags": [
           "Tenant > Standards"
         ],
-        "description": "Baseline alignment data. With ?tenantFilter= returns the tenant payload (summary,\nresolved rows with history, stage states, deviation feed); with\n?tenantFilter=&history=true returns the flattened run-event history; with\n?byStandard=true returns the aggregate payload (fleet score, per-standard rollups,\ntenant summaries, trend, and the accepted/denied deviation list).",
+        "description": "Baseline alignment data. With ?tenantFilter= returns the tenant payload (summary,\nresolved rows with history, stage states, deviation feed); with\n?tenantFilter=&history=true returns the flattened run-event history; with\n?byStandard=true returns the aggregate payload (fleet score, per-standard rollups,\ntenant summaries, trend, and the accepted/denied deviation list). byStandard also\ntakes &baselineId=<GUID> to limit it to one baseline and &stage=<1-based stage number>\nto limit that further to one stage; filtered payloads carry a 'filter' object and a\ntrend of today's live point only.",
         "parameters": [
+          {
+            "name": "baselineId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "byStandard",
             "in": "query",
@@ -49648,6 +49692,14 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
             }
           },
           {
@@ -52437,7 +52489,7 @@
           {
             "name": "period",
             "in": "query",
-            "description": "Prefer D30 (Copilot reports v1). Some tenants are already on v2, which rejects D30 (as RL30) and wants D28 (RL28) instead. Get-CopilotReportPeriod falls back on that Graph error.",
+            "description": "D28 suits Copilot reports v2; Get-CIPPCopilotReport retries with D30 for tenants still on v1.",
             "required": false,
             "schema": {
               "type": "string"
@@ -62737,6 +62789,9 @@
                       "IsDirSynced": {
                         "x-cipp-field-source": "backend"
                       },
+                      "IsExchangeCloudManaged": {
+                        "x-cipp-field-source": "backend"
+                      },
                       "LicensedForLitigationHold": {
                         "x-cipp-field-source": "backend"
                       },
@@ -64950,127 +65005,6 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Administration.ReadWrite"
-      }
-    },
-    "/api/ListOneDriveFiles": {
-      "get": {
-        "summary": "ListOneDriveFiles",
-        "operationId": "ListOneDriveFiles",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "parameters": [
-          {
-            "name": "DriveId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "FolderId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SiteId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/tenantFilter"
-          },
-          {
-            "name": "UserId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
-                    "properties": {
-                      "childCount": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "createdBy": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "driveId": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "fileExtension": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "id": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "isFolder": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "lastModified": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "name": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "parentId": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "parentPath": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "sizeFormatted": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "sizeInBytes": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "type": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "webUrl": {
-                        "x-cipp-field-source": "backend"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
         "x-cipp-role": "Sharepoint.Site.Read"
       }
     },
@@ -65623,7 +65557,7 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "Derived from the columns the CIPP UI renders. The response may carry more; these are the ones known to exist.",
+                    "description": "Derived from the Microsoft Graph entity it queries, and the columns the CIPP UI renders. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
                     "properties": {
                       "ActiveCount": {
                         "x-cipp-field-source": "frontend"
@@ -65631,11 +65565,27 @@
                       "AssignmentType": {
                         "x-cipp-field-source": "frontend"
                       },
+                      "deletedDateTime": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "description": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
                       "EligibleCount": {
                         "x-cipp-field-source": "frontend"
                       },
                       "EndDateTime": {
                         "x-cipp-field-source": "frontend"
+                      },
+                      "id": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
                       },
                       "IsPrivilegedRole": {
                         "x-cipp-field-source": "frontend"
@@ -65663,6 +65613,10 @@
                       },
                       "RoleDisplayName": {
                         "x-cipp-field-source": "frontend"
+                      },
+                      "roleTemplateId": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
                       },
                       "Scope": {
                         "x-cipp-field-source": "frontend"
@@ -67477,7 +67431,7 @@
         "tags": [
           "CIPP > Scheduler"
         ],
-        "description": "Lists scheduled tasks in CIPP, filterable by tenant or task ID. Returns task name, command, schedule, and last execution status.",
+        "description": "Lists scheduled tasks in CIPP, filterable by tenant, task ID, task state, or reference. Returns task name, command, schedule, and last execution status.",
         "parameters": [
           {
             "name": "Id",
@@ -67490,6 +67444,15 @@
           {
             "name": "Name",
             "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Reference",
+            "in": "query",
+            "description": "Only tasks whose Reference contains this text, case-insensitive with no wildcards (e.g. '[ID:1528]').",
             "required": false,
             "schema": {
               "type": "string"
@@ -67510,6 +67473,15 @@
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "TaskState",
+            "in": "query",
+            "description": "Only tasks in these states, comma-separated (e.g. 'Planned' or 'Planned,Running').",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -68808,259 +68780,6 @@
         "x-cipp-role": "Sharepoint.Site.Read"
       }
     },
-    "/api/ListSharePointFolders": {
-      "get": {
-        "summary": "Lists folders inside a SharePoint document library for the Image Optimizer folder picker.",
-        "operationId": "ListSharePointFolders",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "description": "Accepts a SiteId and optional DriveId (document library). When DriveId is omitted the\ndefault document library for the site is used. Returns folder items with their id and\nlibrary-relative path so callers can scope a scan to a specific folder.",
-        "parameters": [
-          {
-            "name": "DriveId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SiteId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/tenantFilter"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "Derived from the Microsoft Graph entity it queries. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                    "properties": {
-                      "createdBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "createdDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "description": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "error": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "eTag": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "id": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "isPersonalSite": {
-                        "type": "boolean",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "name": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "parentReference": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "root": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "sharepointIds": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "siteCollection": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "webUrl": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Sharepoint.Site.Read"
-      }
-    },
-    "/api/ListSharePointImageCandidates": {
-      "get": {
-        "summary": "Audits a SharePoint document library for large JPG/JPEG files (read-only).",
-        "operationId": "ListSharePointImageCandidates",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "description": "Returns the SharePoint Image Optimizer result object in Audit mode. No files are\nmodified and no versions are deleted. Accepts parameters from either the query\nstring or the request body so it can be called as a GET (list) or POST.",
-        "parameters": [
-          {
-            "name": "DriveId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "FolderId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "FolderPath",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "IncludeSubfolders",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "LibraryName",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "MaxFiles",
-            "in": "query",
-            "description": "This endpoint scans synchronously inside the HTTP request, which is bound by the ~230s gateway limit. Cap the scan so a large library cannot run past that limit; callers wanting a full library audit should use the queued ExecSharePointImageOptimize.",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "MinimumFileSizeMB",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SiteId",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "SiteUrl",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/tenantFilter"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Sharepoint.Site.Read"
-      }
-    },
     "/api/ListSharePointPermissions": {
       "get": {
         "summary": "ListSharePointPermissions",
@@ -69145,6 +68864,9 @@
                         "x-cipp-field-source": "backend"
                       },
                       "Percentage": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Tenant": {
                         "x-cipp-field-source": "backend"
                       },
                       "TenantStorageMB": {
@@ -70191,109 +69913,6 @@
           },
           "500": {
             "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Sharepoint.Site.Read"
-      }
-    },
-    "/api/ListSiteLiveStorage": {
-      "get": {
-        "summary": "ListSiteLiveStorage",
-        "operationId": "ListSiteLiveStorage",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "parameters": [
-          {
-            "name": "SiteId",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/tenantFilter"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "type": "object",
-                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
-                    "properties": {
-                      "displayName": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "lastModifiedDateTime": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "lockState": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "Results": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "retrievedAt": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "sharingCapability": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "siteId": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageAllocatedInGigabytes": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageAllocatedInMB": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storagePercentage": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageUsedInGigabytes": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageUsedInMB": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageWarningInGigabytes": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "storageWarningInMB": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "template": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "url": {
-                        "x-cipp-field-source": "backend"
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
           }
         },
         "security": [
@@ -74452,6 +74071,9 @@
                         "x-cipp-field-source": "backend"
                       },
                       "IsDirSynced": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "IsExchangeCloudManaged": {
                         "x-cipp-field-source": "backend"
                       },
                       "LicensedForLitigationHold": {

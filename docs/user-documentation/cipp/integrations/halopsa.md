@@ -133,17 +133,23 @@ To add a mapping manually, choose a tenant and a Halo client, then select the ad
 Individual mappings can be removed with the **Delete Mapping** row action.
 
 {% hint style="info" %}
-Automapping for Halo PSA matches on the Microsoft tenant IDs that Halo stores against each client through its own Azure AD / Microsoft 365 integration, rather than guessing from company names. Existing mappings are never overwritten, and the mappings it creates are saved immediately, so there is no need to select **Submit** afterwards.
+Automapping for Halo PSA first matches on the Microsoft tenant IDs that Halo stores against each client through its own Azure AD / Microsoft 365 integration. A tenant with no tenant ID match falls back to a Halo client whose name exactly matches the tenant's display name. Existing mappings are never overwritten, and these mappings are saved immediately, so there is no need to select **Submit** afterwards.
 
-When it finishes, CIPP reports how many tenants were newly mapped and how many are now mapped in total. The same summary is written to the Logbook, along with a line for each mapping created, which is the place to look if a tenant you expected did not appear.
+**Automap Companies** also suggests looser name matches that ignore case, punctuation and legal suffixes such as Ltd or LLC. Those appear in the table but are only saved when you select **Submit**.
+
+When it finishes, CIPP reports how many tenants were newly mapped and how many are now mapped in total. The Logbook records a line for each mapping created, which is the place to look if a tenant you expected did not appear.
+{% endhint %}
+
+{% hint style="info" %}
+While the integration is enabled, CIPP also runs the tenant ID and exact name matching automatically every two hours, so newly added tenants are mapped without visiting this page. The looser name suggestions are only made by **Automap Companies**.
 {% endhint %}
 
 {% hint style="warning" %}
 Two situations leave a tenant unmapped.
 
-Where the same Microsoft tenant ID is recorded against more than one Halo client, CIPP cannot tell which is correct and skips that tenant. The competing clients are named in the Logbook, and the tenant can be mapped manually.
+Where the same Microsoft tenant ID is recorded against more than one Halo client, or more than one Halo client has the tenant's exact name, CIPP cannot tell which is correct and skips that tenant. The competing clients are named in the result shown after selecting **Automap Companies**, and the tenant can be mapped manually.
 
-Where Halo's Microsoft 365 integration has not been set up, no tenant IDs are available at all and automapping reports that there is nothing to match against. Map the tenants manually in that case.
+Where Halo's Microsoft 365 integration has not been set up, no tenant IDs are available and only exact name matches are made. Map any remaining tenants manually.
 {% endhint %}
 
 ## Testing the Integration

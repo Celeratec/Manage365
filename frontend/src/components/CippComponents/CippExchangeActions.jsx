@@ -1,8 +1,11 @@
-import { CippIcons } from "../../utils/icon-registry"
+﻿import { CippIcons } from "../../utils/icon-registry"
 import { useSettings } from "../../hooks/use-settings.js";
 import { useMemo } from "react";
 import { MfaVerifyForm } from "./CippMfaVerifyForm";
 import { CippSharedMailboxLicenseAlert } from "./CippSharedMailboxLicenseAlert";
+import CippMailboxCustomAttributeRows, {
+  canEditMailboxCustomAttributes,
+} from "./CippMailboxCustomAttributeRows";
 
 export const CippExchangeActions = () => {
   const tenant = useSettings().currentTenant;
@@ -26,9 +29,8 @@ export const CippExchangeActions = () => {
   );
 
   return [
-{
+    {
       label: "Bulk Add Mailbox Permissions",
-      category: "edit",
       type: "POST",
       url: "/api/ExecModifyMBPerms",
       icon: <CippIcons.PersonAdd />,
@@ -128,23 +130,20 @@ export const CippExchangeActions = () => {
       },
       color: "primary",
     },
-{
+    {
       label: "Edit permissions",
-      category: "view",
       link: "/identity/administration/users/user/exchange?userId=[ExternalDirectoryObjectId]",
       color: "info",
       icon: <CippIcons.Key />,
     },
-{
+    {
       label: "Research Compromised Account",
-      category: "view",
       link: "/identity/administration/bec/case?userId=[ExternalDirectoryObjectId]",
       color: "info",
       icon: <CippIcons.MagnifyingGlassIcon />,
     },
-{
+    {
       label: "Send MFA Push",
-      category: "security",
       type: "POST",
       url: "/api/ExecSendPush",
       data: {
@@ -154,9 +153,8 @@ export const CippExchangeActions = () => {
       confirmText: "Send an MFA request to [UPN]?",
       icon: <CippIcons.PhonelinkLock />,
     },
-{
+    {
       label: "Convert Mailbox",
-      category: "edit",
       type: "POST",
       icon: <CippIcons.Email />,
       url: "/api/ExecConvertMailbox",
@@ -180,9 +178,8 @@ export const CippExchangeActions = () => {
         "Pick the type of mailbox you want to convert [UPN] of mailbox type [recipientTypeDetails] to:",
       multiPost: false,
     },
-{
+    {
       label: "Enable Online Archive",
-      category: "manage",
       type: "POST",
       icon: <CippIcons.Archive />,
       url: "/api/ExecEnableArchive",
@@ -191,9 +188,8 @@ export const CippExchangeActions = () => {
       multiPost: false,
       condition: (row) => row.ArchiveGuid === "00000000-0000-0000-0000-000000000000",
     },
-{
+    {
       label: "Set Retention Policy",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetMailboxRetentionPolicies",
       icon: <CippIcons.MailLock />,
@@ -236,9 +232,8 @@ export const CippExchangeActions = () => {
       },
       color: "primary",
     },
-{
+    {
       label: "Enable Auto-Expanding Archive",
-      category: "manage",
       type: "POST",
       icon: <CippIcons.PostAdd />,
       url: "/api/ExecEnableAutoExpandingArchive",
@@ -248,7 +243,7 @@ export const CippExchangeActions = () => {
       multiPost: false,
       condition: (row) => row.ArchiveGuid !== "00000000-0000-0000-0000-000000000000",
     },
-{
+    {
       label: "Set Global Address List Visibility",
       type: "POST",
       url: "/api/ExecHideFromGAL",
@@ -271,9 +266,8 @@ export const CippExchangeActions = () => {
       confirmText:
         "Are you sure you want to set the global address list state for [UPN]? Changes can take up to 72 hours to take effect.",
     },
-{
+    {
       label: "Start Managed Folder Assistant",
-      category: "manage",
       type: "POST",
       url: "/api/ExecStartManagedFolderAssistant",
       icon: <CippIcons.PlayCircleIcon />,
@@ -283,9 +277,8 @@ export const CippExchangeActions = () => {
       },
       confirmText: "Are you sure you want to start the managed folder assistant for [UPN]?",
     },
-{
+    {
       label: "Delete Mailbox",
-      category: "danger",
       type: "POST",
       icon: <CippIcons.Delete />,
       url: "/api/RemoveUser",
@@ -293,9 +286,8 @@ export const CippExchangeActions = () => {
       confirmText: "Are you sure you want to delete [UPN]?",
       multiPost: false,
     },
-{
+    {
       label: "Set Copy Sent Items for Delegated Mailboxes",
-      category: "manage",
       type: "POST",
       icon: <CippIcons.MailOutlined />,
       condition: (row) =>
@@ -316,9 +308,8 @@ export const CippExchangeActions = () => {
       ],
       confirmText: "Are you sure you want to set Copy Sent Items for [UPN]?",
     },
-{
+    {
       label: "Set Litigation Hold",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetLitigationHold",
       data: { UPN: "UPN", Identity: "Id" },
@@ -339,9 +330,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Retention Hold",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetRetentionHold",
       data: { UPN: "UPN", Identity: "Id" },
@@ -355,9 +345,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Mailbox Locale",
-      category: "edit",
       type: "POST",
       url: "/api/ExecSetMailboxLocale",
       data: { user: "UPN", ProhibitSendQuota: true },
@@ -373,9 +362,43 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
+      label: "Set Custom Attributes",
+      type: "POST",
+      url: "/api/ExecSetMailboxCustomAttributes",
+      data: { userid: "UPN", Identity: "Id" },
+      confirmText:
+        "Set the selected custom attributes on [UPN]? Empty values clear that attribute; unlisted attributes are left unchanged.",
+      icon: <CippIcons.Edit />,
+      condition: (row) => canEditMailboxCustomAttributes(row),
+      fields: [
+        {
+          name: "attributeRows",
+          component: CippMailboxCustomAttributeRows,
+        },
+      ],
+      customDataformatter: (rows, action, formData) => {
+        const mailboxArray = (Array.isArray(rows) ? rows : [rows]).filter((mailbox) =>
+          canEditMailboxCustomAttributes(mailbox)
+        );
+        const attrs = {};
+        (formData.attributeRows || []).forEach((row) => {
+          const attrName = row?.attribute?.value ?? row?.attribute;
+          if (attrName) {
+            attrs[attrName] = row?.value ?? "";
+          }
+        });
+
+        return mailboxArray.map((mailbox) => ({
+          tenantFilter: mailbox.Tenant || mailbox.tenantFilter || tenant,
+          userid: mailbox.UPN || mailbox.UserPrincipalName,
+          Identity: mailbox.Id || mailbox.id,
+          ...attrs,
+        }));
+      },
+    },
+    {
       label: "Set Max Send/Receive Size",
-      category: "edit",
       type: "POST",
       url: "/api/ExecSetMailboxEmailSize",
       data: { UPN: "UPN", id: "ExternalDirectoryObjectId" },
@@ -396,9 +419,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Send Quota",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetMailboxQuota",
       data: { user: "UPN", ProhibitSendQuota: true },
@@ -414,9 +436,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Send and Receive Quota",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetMailboxQuota",
       data: {
@@ -435,9 +456,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Quota Warning Level",
-      category: "manage",
       type: "POST",
       url: "/api/ExecSetMailboxQuota",
       data: { user: "UPN", IssueWarningQuota: true },
@@ -453,9 +473,8 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-{
+    {
       label: "Set Calendar Processing",
-      category: "edit",
       type: "POST",
       url: "/api/ExecSetCalendarProcessing",
       data: { UPN: "UPN" },
@@ -557,7 +576,7 @@ export const CippExchangeActions = () => {
         },
       ],
     },
-];
+  ];
 };
 
 export default CippExchangeActions;

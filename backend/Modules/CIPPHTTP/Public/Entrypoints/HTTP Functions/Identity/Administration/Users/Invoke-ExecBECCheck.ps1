@@ -38,6 +38,38 @@ function Invoke-ExecBECCheck {
                 # A single phase can use the full task timeout, so a quiet poll must not fail the run.
                 $Progress = try { @(Get-CIPPAsyncDeployment -JobId $Run.CaseId) | Select-Object -First 1 } catch { $null }
 
+                if ($Run.Status -in @('Waiting', 'Running')) {
+                    Add-CIPPRealtimeWatch -JobId $Run.CaseId
+                    # last sign of life: the job row's last change, else when the run started or was requested
+                    $LastActivity = $null
+                    foreach ($Candidate in @($Progress.LastUpdate, $Run.StartedAt, $Run.RequestedAt)) {
+                        if ($null -eq $Candidate -or "$Candidate" -eq '') { continue }
+                        try {
+                            $LastActivity = if ($Candidate -is [DateTimeOffset]) { $Candidate.UtcDateTime } else { ([datetime]$Candidate).ToUniversalTime() }
+                            break
+                        } catch { $LastActivity = $null }
+                    }
+                    if ($LastActivity -and $LastActivity -lt (Get-Date).ToUniversalTime().AddMinutes(-$StaleMinutes)) {
+                        $StaleMessage = "No progress for more than $StaleMinutes minutes - the worker was restarted or the run was abandoned. Start a new run."
+                        try {
+                            $null = Set-CIPPBecReport -TenantFilter $TenantFilter -CaseId $Run.CaseId -Properties @{ Status = 'Error'; ErrorMessage = $StaleMessage; ExtractedAt = (Get-Date).ToUniversalTime().ToString('o') }
+                            if ($Progress) {
+                                $Steps = @($Progress.Steps)
+                                for ($i = 0; $i -lt $Steps.Count; $i++) {
+                                    if ($Steps[$i].Status -eq 'running') { Set-CIPPAsyncDeploymentStep -JobId $Run.CaseId -Name $Progress.Name -StepIndex $i -StepStatus 'failed' -Message $StaleMessage; break }
+                                }
+                                Set-CIPPAsyncDeploymentStatus -JobId $Run.CaseId -Name $Progress.Name -Status 'failed' -Logs $StaleMessage
+                                $Progress = try { @(Get-CIPPAsyncDeployment -JobId $Run.CaseId) | Select-Object -First 1 } catch { $Progress }
+                            }
+                            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "BEC run $($Run.CaseId) marked failed: $StaleMessage" -Sev 'Warning'
+                        } catch {
+                            Write-Information "BEC: could not mark the stale run $($Run.CaseId) failed: $($_.Exception.Message)"
+                        }
+                        $Run | Add-Member -NotePropertyName 'Status' -NotePropertyValue 'Error' -Force
+                        $Run | Add-Member -NotePropertyName 'ErrorMessage' -NotePropertyValue $StaleMessage -Force
+                    }
+                }
+
                 $Summary = @{
                     CaseId      = $Run.CaseId
                     Status      = $Run.Status

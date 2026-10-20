@@ -113,7 +113,8 @@ $frontendEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($
 # the optional CA mount in docker-compose-no-frontend.yml + build/.env, which Compose loads
 # on its own — no -f overlay needed here. The frontend runs on the host in this loop, so it
 # trusts Proxyman via the Windows certificate store, not a container mount.
-$dockerCommand = "try { ./tools/build-dev-modules.ps1; docker compose -f docker-compose-no-frontend.yml up --pull always --watch } catch { Write-Error `$_.Exception.Message } finally { Read-Host 'Press Enter to exit' }"
+# --pull always leaves the previous craft:dev/azurite image dangling on every update; drop them first.
+$dockerCommand = "try { ./tools/build-dev-modules.ps1; docker image prune -f; docker compose -f docker-compose-no-frontend.yml up --pull always --watch } catch { Write-Error `$_.Exception.Message } finally { Read-Host 'Press Enter to exit' }"
 $dockerEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($dockerCommand))
 $watcherCommand = 'try { ./tools/Watch-Cipp-Dev-Modules.ps1 -SkipInitialBuild } catch { Write-Error $_.Exception.Message } finally { Read-Host "Press Enter to exit" }'
 $watcherEncoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($watcherCommand))
