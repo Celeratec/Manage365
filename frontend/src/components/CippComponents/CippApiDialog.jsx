@@ -12,6 +12,7 @@ import { CippApiResults } from './CippApiResults'
 import { ApiGetCall, ApiPostCall } from '../../api/ApiCall'
 import React, { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/router'
+import { getSafeInternalRoute, openSafeExternalUrl } from '../../utils/safe-navigation'
 import { useForm, useFormState } from 'react-hook-form'
 import { useSettings } from '../../hooks/use-settings'
 import CippFormComponent from './CippFormComponent'
@@ -315,14 +316,17 @@ export const CippApiDialog = (props) => {
           const value = getRawNestedValue(row, key)
           return hasValue(value) ? encodeURIComponent(String(value)) : `[${key}]`
         })
-        router.push(withRowTenant(internalLink, row, tenantFilter), undefined, { shallow: true })
+        const safeRoute = getSafeInternalRoute(withRowTenant(internalLink, row, tenantFilter))
+        if (safeRoute) {
+          router.push(safeRoute, undefined, { shallow: true })
+        }
       } else {
-        // External links may substitute a whole URL (e.g. [webUrl]) and are left as-is.
+        // External links may substitute a whole URL (e.g. [webUrl]). Only http(s) opens.
         const externalLink = api.link.replace(placeholder, (_, key) => {
           const value = getRawNestedValue(row, key)
           return hasValue(value) ? value : `[${key}]`
         })
-        window.open(externalLink, api.target || '_blank')
+        openSafeExternalUrl(externalLink, api.target || '_blank')
       }
       createDialog.handleClose()
     }

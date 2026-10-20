@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.16) &nbsp;·&nbsp; CIPP baseline <strong>11.0.2</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.17) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.16** on CIPP baseline **11.0.2**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.17** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -40,6 +40,10 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 | Local: SWA CLI + Azurite + multiple function hosts | `build/docker-compose-all.yml` (Azurite + Craft on :5196) |
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+
+## Release 6.1.17 (October 2026)
+
+Selective absorb of CIPP **v11.1.0**, **v11.2.0**, and **v11.2.1**. AllTenants report reads page through the cache. CIPP-SAM credential refresh says a new secret can take 10 to 15 minutes. Action dialogs still open only http(s) links, and Teams phone assignment still adds a leading `+` when one is missing. Hudu, Halo, CIPPPwPush, the site recycle-bin reader, and the Manage365 nav stay. Baselines stay off. CIPP baseline is **11.2.1**.
 
 ## Release 6.1.16 (October 2026)
 
@@ -741,12 +745,12 @@ Manage365 tracks **two** version numbers:
 After each upstream intake, bump both and redeploy:
 
 ```powershell
-./Tools/Update-Version.ps1 -UpstreamVersion 11.0.2 -Manage365Version 6.1.16
+./Tools/Update-Version.ps1 -UpstreamVersion 11.2.1 -Manage365Version 6.1.17
 ```
 
 Then **build the container image with `APP_VERSION=<upstream baseline>` and deploy it** to the App Service container. Until redeployed, the settings page may still show old versions.
 
-Out-of-date toast notifications compare your deployed `version.json` / `version_latest.txt` against the [CyberDrain CIPP monorepo](https://github.com/CyberDrain/CIPP) releases. They clear once your deployed baseline matches upstream (currently **11.0.2**).
+Out-of-date toast notifications compare your deployed `version.json` / `version_latest.txt` against the [CyberDrain CIPP monorepo](https://github.com/CyberDrain/CIPP) releases. They clear once your deployed baseline matches upstream (currently **11.2.1**).
 
 ### GitHub "Sync fork" button
 

@@ -15,7 +15,10 @@ Function Invoke-ExecTeamsVoicePhoneNumberAssignment {
     $Headers = $Request.Headers
 
     $Identity = $Request.Body.input.value
-    $PhoneNumber = $Request.Body.PhoneNumber
+    $PhoneNumber = (($Request.Body.PhoneNumber -replace '^\s+', '') -replace '^ ', '')
+    if ($PhoneNumber -and $PhoneNumber -notmatch '^\+') {
+        $PhoneNumber = "+$PhoneNumber"
+    }
     $TenantFilter = $Request.Body.TenantFilter
     $BaseUri = 'https://graph.microsoft.com/v1.0/admin/teams/telephoneNumberManagement/numberAssignments'
 
