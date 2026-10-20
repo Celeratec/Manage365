@@ -3,12 +3,12 @@ function Get-CIPPSiteRecycleBinItems {
     .SYNOPSIS
         Page a SharePoint site collection recycle bin.
     .DESCRIPTION
-        Reads /_api/site/GetRecycleBinItems. SharePoint's site/RecycleBin list does not return
-        @odata.nextLink, so $top paging stops at the first page and reports a full bin as complete.
+        Reads /_api/site/GetRecycleBinItems. SharePoint rejects that method as a GET (400).
+        It is a POST, with the parameters in the URL. SharePoint's site/RecycleBin list does
+        not return @odata.nextLink, so $top paging stops at the first page and reports a full
+        bin as complete.
 
-        CSOM signature:
-          GetRecycleBinItems(pagingInfo, rowLimit, isAscending, orderBy, itemState)
-        REST named form used here:
+        REST named form used here (the same form PnP posts):
           site/GetRecycleBinItems(rowLimit, isAscending=false, itemState, orderBy=3, pagingInfo)
         orderBy 3 is DeletedDate. itemState 1 is the first stage and 2 is the second stage.
         The next page token is the collection PagingInfo value. When that is missing on a full
@@ -105,7 +105,7 @@ function Get-CIPPSiteRecycleBinItems {
                 "$BaseUri/site/GetRecycleBinItems(rowLimit=$RowLimit,isAscending=false,itemState=$State,orderBy=3,pagingInfo='$Literal')"
             }
 
-            $Raw = New-GraphGetRequest -uri $Uri -tenantid $TenantFilter -scope $Scope -extraHeaders $JsonAccept -UseCertificate -AsApp $true -noPagination $true -SkipValueExtraction
+            $Raw = New-GraphPostRequest -uri $Uri -tenantid $TenantFilter -scope $Scope -type POST -body '{}' -contentType 'application/json;odata=nometadata' -AddedHeaders $JsonAccept -UseCertificate -AsApp $true
             $Parsed = Read-CippRecycleBinPage -Page $Raw
             $Items = @($Parsed.Items)
             if ($Items.Count -eq 0) {
