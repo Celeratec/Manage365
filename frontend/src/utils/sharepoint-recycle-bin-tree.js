@@ -161,14 +161,15 @@ function attachRestoreSource(folder, item) {
  * @param {'all'|'first'|'second'} [options.recycleStage='all']
  * @param {'folders'|'list'} [options.recycleView='folders'] - folders = drill-in; list = flat leaves under path
  * @param {string} [options.siteWebUrl] - used to strip site prefix from DirName
+ * @param {boolean} [options.serverCapped] - explicit cap from the list endpoint; length is only a fallback
  * @returns {{ items: object[], capped: boolean, totalMatching: number }}
  */
 export function projectRecycleBinTree(
   results,
-  { recyclePath = [], recycleStage = 'all', recycleView = 'folders', siteWebUrl } = {}
+  { recyclePath = [], recycleStage = 'all', recycleView = 'folders', siteWebUrl, serverCapped } = {}
 ) {
   const list = Array.isArray(results) ? results : []
-  const capped = list.length >= RECYCLE_BIN_CAP
+  const capped = typeof serverCapped === 'boolean' ? serverCapped : list.length >= RECYCLE_BIN_CAP
   const staged = list.filter((item) => matchesStage(item, recycleStage))
   const depth = recyclePath.length
   const prefixKey = pathKey(recyclePath).toLowerCase()

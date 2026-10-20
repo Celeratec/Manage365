@@ -24233,7 +24233,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Permanently empty a site recycle bin (first stage, second stage, or both).\nItem ids are used only server-side; the response never includes file names.",
+        "description": "Permanently empty a site recycle bin (first stage, second stage, or both).\nItem ids are used only server-side; the response never includes file names.\nBins larger than a single HTTP window are queued. Poll ListEmptySiteRecycleBinStatus.",
         "requestBody": {
           "required": true,
           "content": {
@@ -24265,8 +24265,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  "$ref": "#/components/schemas/StandardResults"
                 }
               }
             }
@@ -56248,6 +56247,62 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ListEmptySiteRecycleBinStatus": {
+      "get": {
+        "summary": "Poll a queued site recycle bin empty job.",
+        "operationId": "ListEmptySiteRecycleBinStatus",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Companion to Invoke-ExecEmptySiteRecycleBin. Returns Queued or Running while the\nbackground worker is in progress, then the verified counts once it finishes.",
+        "parameters": [
+          {
+            "name": "queueId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.SiteRecycleBin.Read"
+      }
+    },
     "/api/ListEquipment": {
       "get": {
         "summary": "ListEquipment",
@@ -70436,8 +70491,16 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Lists the contents of a SharePoint site's recycle bin (first and second stage) via the\nSharePoint REST API with certificate authentication.",
+        "description": "Lists the contents of a SharePoint site's recycle bin (first and second stage) via the\nSharePoint REST API with certificate authentication. Pages with GetRecycleBinItems\nbecause site/RecycleBin does not return @odata.nextLink.",
         "parameters": [
+          {
+            "name": "MaxItems",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "SiteUrl",
             "in": "query",
@@ -70456,7 +70519,40 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StandardResults"
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "DeletedByName": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "DeletedDate": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "DirName": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Id": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "ItemState": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "ItemType": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "LeafName": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Size": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Title": {
+                        "x-cipp-field-source": "backend"
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -70489,7 +70585,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Aggregate recycle bin sizes for a site (counts + bytes by stage). Never returns\nitem titles, leaf names, or paths — storage-report privacy ceiling.",
+        "description": "Aggregate recycle bin sizes for a site (counts + bytes by stage). Never returns\nitem titles, leaf names, or paths — storage-report privacy ceiling.\nPages with GetRecycleBinItems and sets capped when the scan stops early.",
         "parameters": [
           {
             "name": "MaxItems",
