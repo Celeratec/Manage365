@@ -6,7 +6,7 @@ function Invoke-ExecJITAdmin {
         Identity.Role.ReadWrite
 
     .DESCRIPTION
-        Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user.
+        Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user. StartDate and EndDate are unix seconds. The window cannot end in the past and cannot exceed MaxRoleAssignmentDuration (Config/RoleAssignment.json, default P365D); a longer or past window is rejected with 400 and is not shortened. A configured JIT Admin MaxDuration, when set, can only be shorter than that ceiling.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -46,10 +46,58 @@ function Invoke-ExecJITAdmin {
 
     $TenantFilter = $Request.Body.tenantFilter.value ? $Request.Body.tenantFilter.value : $Request.Body.tenantFilter
 
+    $Results = [System.Collections.Generic.List[object]]::new()
+    try {
+        $StartUtc = [System.DateTimeOffset]::FromUnixTimeSeconds([int64]$Request.Body.StartDate).UtcDateTime
+        $EndUtc = [System.DateTimeOffset]::FromUnixTimeSeconds([int64]$Request.Body.EndDate).UtcDateTime
+    } catch {
+        $ErrorMessage = 'StartDate and EndDate must be unix timestamps.'
+        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev 'Error'
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{'Results' = @($ErrorMessage) }
+            })
+    }
+    if ($EndUtc -le [datetime]::UtcNow) {
+        $ErrorMessage = 'End date is in the past.'
+        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev 'Error'
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{'Results' = @($ErrorMessage) }
+            })
+    }
+    if ($EndUtc -le $StartUtc) {
+        $ErrorMessage = 'End date must be after the start date.'
+        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev 'Error'
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{'Results' = @($ErrorMessage) }
+            })
+    }
+    $RequestedDuration = $EndUtc - $StartUtc
+    try {
+        $AssignmentCeiling = Get-CIPPMaxRoleAssignmentDuration
+        $CeilingSpan = [System.Xml.XmlConvert]::ToTimeSpan($AssignmentCeiling)
+    } catch {
+        $ErrorMessage = "MaxRoleAssignmentDuration is not configured as a valid ISO 8601 duration: $($_.Exception.Message)"
+        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev 'Error'
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{'Results' = @($ErrorMessage) }
+            })
+    }
+    if ($RequestedDuration -gt $CeilingSpan) {
+        $RequestedDays = $RequestedDuration.TotalDays.ToString('0.00')
+        $ErrorMessage = "Requested JIT Admin duration ($RequestedDays days) exceeds the maximum allowed duration of $AssignmentCeiling."
+        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev 'Error'
+        return ([HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{'Results' = @($ErrorMessage) }
+            })
+    }
 
     $Start = ([System.DateTimeOffset]::FromUnixTimeSeconds($Request.Body.StartDate)).DateTime.ToLocalTime()
     $Expiration = ([System.DateTimeOffset]::FromUnixTimeSeconds($Request.Body.EndDate)).DateTime.ToLocalTime()
-    $Results = [System.Collections.Generic.List[object]]::new()
 
     # Check maximum duration setting
     try {
@@ -58,10 +106,7 @@ function Invoke-ExecJITAdmin {
         $JITAdminConfig = Get-CIPPAzDataTableEntity @ConfigTable -Filter $Filter
 
         if ($JITAdminConfig -and ![string]::IsNullOrWhiteSpace($JITAdminConfig.MaxDuration)) {
-            # Calculate the duration between start and expiration
-            $RequestedDuration = $Expiration - $Start
-
-            # Parse the max duration from ISO 8601 format
+            # Optional tighter cap from JIT Admin settings. The absolute ceiling was already applied.
             try {
                 $MaxDurationTimeSpan = [System.Xml.XmlConvert]::ToTimeSpan($JITAdminConfig.MaxDuration)
 
@@ -327,6 +372,23 @@ function Invoke-ExecJITAdmin {
         APIName           = $APIName
         ApprovalRequestId = $ApprovalRequestId
     }
+    $Caller = 'Unknown'
+    try {
+        $Caller = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String($Headers.'x-ms-client-principal')) | ConvertFrom-Json).userDetails
+    } catch {
+        Write-Information "Could not read the JIT Admin caller: $($_.Exception.Message)"
+    }
+    $RoleNames = @($Request.Body.AdminRoles | ForEach-Object { $_.label ?? $_.value } | Where-Object { $_ }) -join ', '
+    $AssignmentLog = @{
+        Tenant = [string]$TenantFilter
+        User   = [string]$Username
+        Role   = [string]$RoleNames
+        Start  = [string]$Request.Body.StartDate
+        End    = [string]$Request.Body.EndDate
+        Caller = [string]$Caller
+    }
+    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "JIT Admin assignment for $Username role(s) $RoleNames from $($StartUtc.ToString('o')) until $($EndUtc.ToString('o')) by $Caller" -Sev 'Info' -LogData $AssignmentLog
+
     $StartsLater = $Start -gt (Get-Date)
     # Always enable via the scheduler so PostExecution notifications fire on creation too
     $TaskBody = @{

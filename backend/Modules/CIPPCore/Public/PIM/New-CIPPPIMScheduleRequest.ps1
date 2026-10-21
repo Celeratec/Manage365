@@ -15,9 +15,10 @@ function New-CIPPPIMScheduleRequest {
         'noExpiration'; asking for it by any spelling throws. adminRemove is the one action that
         needs no schedule.
 
-        -MaxDuration caps the effective lifetime. Callers pass the tightest applicable limit
-        (role policy maximum, JIT maximum duration setting, the PIM ceiling) and the builder refuses
-        anything longer rather than clamping it, so the user sees why a request was rejected.
+        The lifetime cannot exceed MaxRoleAssignmentDuration (Config/RoleAssignment.json, default
+        P365D). -MaxDuration can only make that ceiling tighter. Anything longer is refused, never
+        shortened. A tenant PIM policy can still reject a request that fits this ceiling; that
+        error comes back from Graph unchanged.
 
     .PARAMETER Kind
         Eligibility -> roleEligibilityScheduleRequests; Assignment -> roleAssignmentScheduleRequests.
@@ -145,7 +146,12 @@ function New-CIPPPIMScheduleRequest {
         try {
             $DurationSpan = [System.Xml.XmlConvert]::ToTimeSpan($Duration)
         } catch {
-            throw [System.ArgumentException]::new("'$Duration' is not a valid ISO 8601 duration (expected a value such as PT8H, P1D, P6M or P1Y).")
+            # XmlConvert accepts years and months (P1Y = 365 days, P1M = 30 days) but not weeks.
+            if ($Duration -match '^P(\d+)W$') {
+                $DurationSpan = [timespan]::FromDays(7 * [int]$Matches[1])
+            } else {
+                throw [System.ArgumentException]::new("'$Duration' is not a valid ISO 8601 duration (expected a value such as PT8H, P1D, P6M or P1Y).")
+            }
         }
         if ($DurationSpan -le [timespan]::Zero) {
             throw [System.ArgumentException]::new("Duration '$Duration' must be greater than zero.")
@@ -174,17 +180,31 @@ function New-CIPPPIMScheduleRequest {
         $ExpirationType = 'afterDateTime'
     }
 
-    if (-not [string]::IsNullOrWhiteSpace($MaxDuration)) {
+    if ($ComputedEnd -le $NowUtc) {
+        throw [System.ArgumentException]::new("The requested end $($ComputedEnd.ToString('o')) is not in the future.")
+    }
+
+    $Ceiling = Get-CIPPMaxRoleAssignmentDuration
+    $CapList = [System.Collections.Generic.List[string]]::new()
+    $CapList.Add($Ceiling)
+    if (-not [string]::IsNullOrWhiteSpace($MaxDuration)) { $CapList.Add($MaxDuration) }
+    $AppliedCap = $null
+    $AppliedSpan = $null
+    foreach ($Cap in $CapList) {
         try {
-            $MaxSpan = [System.Xml.XmlConvert]::ToTimeSpan($MaxDuration)
+            $CapSpan = [System.Xml.XmlConvert]::ToTimeSpan($Cap)
         } catch {
-            throw "MaxDuration '$MaxDuration' is not a valid ISO 8601 duration."
+            throw "MaxDuration '$Cap' is not a valid ISO 8601 duration."
         }
-        if ($EffectiveSpan -gt $MaxSpan) {
-            $Requested = [math]::Round($EffectiveSpan.TotalHours, 2)
-            $Allowed = [math]::Round($MaxSpan.TotalHours, 2)
-            throw [System.ArgumentException]::new("Requested $Kind lifetime ($Requested hours) exceeds the maximum allowed ($MaxDuration = $Allowed hours). Shorten the request; CIPP does not extend limits.")
+        if ($null -eq $AppliedSpan -or $CapSpan -lt $AppliedSpan) {
+            $AppliedCap = $Cap
+            $AppliedSpan = $CapSpan
         }
+    }
+    if ($EffectiveSpan -gt $AppliedSpan) {
+        $Requested = [math]::Round($EffectiveSpan.TotalHours, 2)
+        $Allowed = [math]::Round($AppliedSpan.TotalHours, 2)
+        throw [System.ArgumentException]::new("Requested $Kind lifetime ($Requested hours) exceeds the maximum allowed ($AppliedCap = $Allowed hours). Shorten the request; CIPP does not extend limits.")
     }
 
     $Body.scheduleInfo = [ordered]@{

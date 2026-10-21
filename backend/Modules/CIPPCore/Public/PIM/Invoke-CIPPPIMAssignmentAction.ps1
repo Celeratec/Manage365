@@ -11,6 +11,9 @@ function Invoke-CIPPPIMAssignmentAction {
           ConvertToEligible  permanent/time-bound active -> eligible. Creates the eligibility, READS
                              IT BACK to confirm it exists, and only then removes the active
                              assignment. A principal never loses access without gaining eligibility.
+          GrantEligible      nothing (or a time-bound active) -> eligible, via adminAssign on
+                             roleEligibilityScheduleRequests. A permanent assignment is left for
+                             ConvertToEligible, which removes it only after eligibility exists.
           GrantActive        eligible (or nothing) -> time-bound active assignment (the JIT equivalent;
                              Entra removes it at the end date).
           Extend / Renew     push out the end of a time-bound active assignment or an eligibility.
@@ -18,8 +21,8 @@ function Invoke-CIPPPIMAssignmentAction {
 
         What it refuses, regardless of caller:
           - anything without an expiration (New-CIPPPIMScheduleRequest throws);
-          - a lifetime above the tightest cap: the role's PIM policy maximum, the JIT admin
-            MaxDuration setting (GrantActive/Extend/Renew of actives) and CIPP's P365D ceiling;
+          - a lifetime above MaxRoleAssignmentDuration (Config/RoleAssignment.json, default P365D).
+            A shorter tenant PIM policy is not applied here; Graph's own refusal is returned;
           - rows inherited through a group (MemberType 'Group') - the group's assignment is the
             real one;
           - the CIPP-SAM service principal's own assignments;
@@ -47,7 +50,7 @@ function Invoke-CIPPPIMAssignmentAction {
         [string]$TenantFilter,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('ConvertToEligible', 'GrantActive', 'Extend', 'Renew', 'Remove')]
+        [ValidateSet('ConvertToEligible', 'GrantEligible', 'GrantActive', 'Extend', 'Renew', 'Remove')]
         [string]$Action,
 
         [Parameter(Mandatory = $true)]
@@ -64,6 +67,8 @@ function Invoke-CIPPPIMAssignmentAction {
         [string]$Duration,
 
         [datetime]$EndDateTime,
+
+        [datetime]$StartDateTime,
 
         [string]$Justification,
 
@@ -130,35 +135,15 @@ function Invoke-CIPPPIMAssignmentAction {
         'None'
     }
 
-    function Get-MinimumDuration {
-        param([string[]]$Candidates)
-        $Best = $null
-        $BestSpan = $null
-        foreach ($Candidate in @($Candidates | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) {
-            try { $Span = [System.Xml.XmlConvert]::ToTimeSpan($Candidate) } catch { continue }
-            if ($null -eq $BestSpan -or $Span -lt $BestSpan) { $Best = $Candidate; $BestSpan = $Span }
+    $AssignmentCeiling = Get-CIPPMaxRoleAssignmentDuration
+    $Caller = 'Unknown'
+    if ($Headers -and $Headers.'x-ms-client-principal') {
+        try {
+            $Caller = ([System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String([string]$Headers.'x-ms-client-principal')) | ConvertFrom-Json).userDetails
+        } catch {
+            Write-Information "Could not read the caller from the client principal: $($_.Exception.Message)"
         }
-        return $Best
     }
-
-    $Policy = $null
-    try {
-        $Policy = Get-CIPPPIMRolePolicies -TenantFilter $TenantFilter -RoleDefinitionId $RoleDefinitionId | Select-Object -First 1
-    } catch {
-        Write-Information "Could not read the PIM policy for $RoleName in $TenantFilter`: $($_.Exception.Message)"
-    }
-
-    $JitMaxDuration = $null
-    try {
-        $ConfigTable = Get-CIPPTable -TableName Config
-        $JITAdminConfig = Get-CIPPAzDataTableEntity @ConfigTable -Filter "PartitionKey eq 'JITAdminSettings' and RowKey eq 'JITAdminSettings'"
-        if ($JITAdminConfig -and -not [string]::IsNullOrWhiteSpace($JITAdminConfig.MaxDuration)) { $JitMaxDuration = $JITAdminConfig.MaxDuration }
-    } catch {
-        Write-Information "Could not read the JIT admin maximum duration: $($_.Exception.Message)"
-    }
-
-    $EligibilityCap = Get-MinimumDuration @('P365D', $Policy.Settings.eligibilityMaxDuration)
-    $AssignmentCap = Get-MinimumDuration @('P365D', $Policy.Settings.activeAssignmentMaxDuration, $JitMaxDuration)
 
     function Test-LastGlobalAdmin {
         if ($RoleDefinitionId -ne $GlobalAdminTemplateId) { return }
@@ -173,7 +158,18 @@ function Invoke-CIPPPIMAssignmentAction {
     function Send-ScheduleRequest {
         param($Request)
         $Json = ConvertTo-Json -InputObject $Request.Body -Depth 10 -Compress
-        return New-GraphPOSTRequest -uri $Request.Uri -body $Json -tenantid $TenantFilter -AsApp $true
+        try {
+            return New-GraphPOSTRequest -uri $Request.Uri -body $Json -tenantid $TenantFilter -AsApp $true
+        } catch {
+            $GraphMessage = Get-CIPPGraphErrorMessage -ErrorRecord $_
+            if ($GraphMessage -match 'Expiration_Admin_|Expiration_EndUser_|policy rules failed|maximum duration|maximum allowed') {
+                throw [System.ArgumentException]::new($GraphMessage)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($GraphMessage)) {
+                throw $GraphMessage
+            }
+            throw
+        }
     }
 
     function Invoke-ActiveAssignmentRemoval {
@@ -207,21 +203,24 @@ function Invoke-CIPPPIMAssignmentAction {
 
     $DurationParams = @{}
     if (-not [string]::IsNullOrWhiteSpace($Duration)) { $DurationParams.Duration = $Duration }
-    if ($PSBoundParameters.ContainsKey('EndDateTime') -and $null -ne $EndDateTime) { $DurationParams.EndDateTime = $EndDateTime }
+    if ($PSBoundParameters.ContainsKey('EndDateTime') -and $EndDateTime -gt [datetime]::MinValue) { $DurationParams.EndDateTime = $EndDateTime }
+    if ($PSBoundParameters.ContainsKey('StartDateTime') -and $StartDateTime -gt [datetime]::MinValue) { $DurationParams.StartDateTime = $StartDateTime }
 
     if (-not $PSCmdlet.ShouldProcess("$PrincipalLabel / $RoleName in $TenantFilter", $Action)) { return }
 
     $After = $Before
     $ResultEnd = $null
+    $ResultStart = $null
+    $Request = $null
     switch ($Action) {
         'ConvertToEligible' {
             if (-not $ActiveRow) { throw [System.ArgumentException]::new("$PrincipalLabel has no active $RoleName assignment to convert.") }
             if ($PrincipalType -eq 'ServicePrincipal') { throw [System.ArgumentException]::new("$PrincipalLabel is a service principal; PIM eligibility is only supported for users and groups. Remove the assignment instead if it is not needed.") }
             Test-LastGlobalAdmin
 
-            if ($DurationParams.Count -eq 0) { $DurationParams.Duration = $EligibilityCap }
+            if ($DurationParams.Count -eq 0) { $DurationParams.Duration = $AssignmentCeiling }
             if (-not $EligibleRow) {
-                $Request = New-CIPPPIMScheduleRequest -Kind Eligibility -Action adminAssign -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification -MaxDuration $EligibilityCap @DurationParams
+                $Request = New-CIPPPIMScheduleRequest -Kind Eligibility -Action adminAssign -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification @DurationParams
                 try {
                     $null = Send-ScheduleRequest -Request $Request
                 } catch {
@@ -245,13 +244,27 @@ function Invoke-CIPPPIMAssignmentAction {
             $RemovalSeen = Invoke-ActiveAssignmentRemoval
             $After = "Eligible$(if ($ResultEnd) { " until $(& $FormatEnd $ResultEnd)" })"
             $ResultText = "Converted $PrincipalLabel on $RoleName from $Before to $After.$(if (-not $RemovalSeen) { ' The removal of the active assignment was accepted by Entra and is still propagating; refresh in a minute.' })"
+            if ($Request) { $ResultStart = $Request.StartDateTime }
+        }
+        'GrantEligible' {
+            if ($DurationParams.Count -eq 0) { throw [System.ArgumentException]::new('GrantEligible needs a Duration or EndDateTime.') }
+            if ($PrincipalType -eq 'ServicePrincipal') { throw [System.ArgumentException]::new("$PrincipalLabel is a service principal; PIM eligibility is only supported for users and groups.") }
+            if ($EligibleRow) { throw [System.ArgumentException]::new("$PrincipalLabel already holds an eligible $RoleName assignment.") }
+            if ($ActiveRow -and $ActiveRow.AssignmentType -eq 'Permanent') { throw [System.ArgumentException]::new("$PrincipalLabel holds $RoleName permanently. Convert it to eligible instead of granting a second eligibility.") }
+            $Request = New-CIPPPIMScheduleRequest -Kind Eligibility -Action adminAssign -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification @DurationParams
+            $null = Send-ScheduleRequest -Request $Request
+            $ResultEnd = $Request.EndDateTime
+            $ResultStart = $Request.StartDateTime
+            $After = "Eligible until $(& $FormatEnd $ResultEnd)"
+            $ResultText = "Granted $PrincipalLabel an eligible $RoleName assignment until $(& $FormatEnd $ResultEnd)."
         }
         'GrantActive' {
             if ($DurationParams.Count -eq 0) { throw [System.ArgumentException]::new('GrantActive needs a Duration or EndDateTime.') }
             if ($ActiveRow -and $ActiveRow.AssignmentType -eq 'Permanent') { throw [System.ArgumentException]::new("$PrincipalLabel already holds $RoleName permanently; convert it to eligible instead.") }
-            $Request = New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification -MaxDuration $AssignmentCap @DurationParams
+            $Request = New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification @DurationParams
             $null = Send-ScheduleRequest -Request $Request
             $ResultEnd = $Request.EndDateTime
+            $ResultStart = $Request.StartDateTime
             $After = "Active until $(& $FormatEnd $ResultEnd)"
             $ResultText = "Granted $PrincipalLabel a time-bound active $RoleName assignment until $(& $FormatEnd $ResultEnd)."
         }
@@ -260,11 +273,11 @@ function Invoke-CIPPPIMAssignmentAction {
             if ($TargetRow.AssignmentType -eq 'Permanent') { throw [System.ArgumentException]::new("A permanent assignment cannot be extended; convert it to eligible instead.") }
             if ($DurationParams.Count -eq 0) { throw [System.ArgumentException]::new("$Action needs a Duration or EndDateTime.") }
             $Kind = if ($TargetRow.AssignmentType -eq 'Eligible') { 'Eligibility' } else { 'Assignment' }
-            $Cap = if ($Kind -eq 'Eligibility') { $EligibilityCap } else { $AssignmentCap }
             $GraphAction = if ($Action -eq 'Extend') { 'adminExtend' } else { 'adminRenew' }
-            $Request = New-CIPPPIMScheduleRequest -Kind $Kind -Action $GraphAction -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification -MaxDuration $Cap @DurationParams
+            $Request = New-CIPPPIMScheduleRequest -Kind $Kind -Action $GraphAction -PrincipalId $PrincipalId -RoleDefinitionId $RoleDefinitionId -DirectoryScopeId $DirectoryScopeId -Justification $Justification @DurationParams
             $null = Send-ScheduleRequest -Request $Request
             $ResultEnd = $Request.EndDateTime
+            $ResultStart = $Request.StartDateTime
             $After = "$($TargetRow.AssignmentType) until $(& $FormatEnd $ResultEnd)"
             $ResultText = "$($Action)ed $PrincipalLabel's $($TargetRow.AssignmentType.ToLower()) $RoleName assignment until $(& $FormatEnd $ResultEnd)."
         }
@@ -293,8 +306,11 @@ function Invoke-CIPPPIMAssignmentAction {
         Before           = $Before
         After            = $After
         Justification    = $Justification
+        Start            = $ResultStart
+        End              = $ResultEnd
+        Caller           = $Caller
     }
-    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "$ResultText (before: $Before, after: $After)" -Sev 'Info' -LogData $LogData
+    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "$ResultText Tenant: $TenantFilter. User: $PrincipalLabel. Role: $RoleName. Start: $ResultStart. End: $ResultEnd. Caller: $Caller. (before: $Before, after: $After)" -Sev 'Info' -LogData $LogData
 
     return [PSCustomObject]@{
         resultText  = $ResultText

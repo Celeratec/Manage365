@@ -6,6 +6,7 @@
 
 BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/Get-CIPPMaxRoleAssignmentDuration.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/New-CIPPPIMScheduleRequest.ps1')
 
     $script:Common = @{
@@ -50,6 +51,14 @@ Describe 'New-CIPPPIMScheduleRequest' {
             { New-CIPPPIMScheduleRequest -Kind Eligibility -Action adminAssign -EndDateTime ([datetime]::UtcNow.AddDays(400)) -MaxDuration 'P365D' @script:Common } | Should -Throw '*exceeds the maximum allowed*'
         }
 
+        It 'rejects P366D against the default 365 day ceiling instead of truncating it' {
+            { New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -Duration 'P366D' @script:Common } | Should -Throw '*P365D*'
+        }
+
+        It 'rejects a duration that ends in the past' {
+            { New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -Duration 'PT1H' -StartDateTime ([datetime]::UtcNow.AddHours(-2)) @script:Common } | Should -Throw '*not in the future*'
+        }
+
         It 'throws on an invalid MaxDuration rather than ignoring the cap' {
             { New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -Duration 'PT1H' -MaxDuration 'forever' @script:Common } | Should -Throw '*MaxDuration*'
         }
@@ -86,6 +95,21 @@ Describe 'New-CIPPPIMScheduleRequest' {
         It 'accepts a year-long eligibility within the P365D cap' {
             $Request = New-CIPPPIMScheduleRequest -Kind Eligibility -Action adminAssign -Duration 'P1Y' -MaxDuration 'P365D' @script:Common
             $Request.Body.scheduleInfo.expiration.duration | Should -Be 'P1Y'
+        }
+
+        It 'accepts <Duration> and passes it through as afterDuration' -ForEach @(
+            @{ Duration = 'PT1H'; MinHours = 0.9; MaxHours = 1.1 }
+            @{ Duration = 'P30D'; MinHours = (30 * 24) - 1; MaxHours = (30 * 24) + 1 }
+            @{ Duration = 'P90D'; MinHours = (90 * 24) - 1; MaxHours = (90 * 24) + 1 }
+            @{ Duration = 'P180D'; MinHours = (180 * 24) - 1; MaxHours = (180 * 24) + 1 }
+            @{ Duration = 'P365D'; MinHours = (365 * 24) - 1; MaxHours = (365 * 24) + 1 }
+        ) {
+            $Request = New-CIPPPIMScheduleRequest -Kind Assignment -Action adminAssign -Duration $Duration @script:Common
+            $Request.Body.scheduleInfo.expiration.type | Should -Be 'afterDuration'
+            $Request.Body.scheduleInfo.expiration.duration | Should -Be $Duration
+            $Hours = ($Request.EndDateTime - [datetime]::UtcNow).TotalHours
+            $Hours | Should -BeGreaterThan $MinHours
+            $Hours | Should -BeLessThan $MaxHours
         }
 
         It 'uses the explicit scope and start when given' {
