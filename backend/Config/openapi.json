@@ -28777,7 +28777,7 @@
         "tags": [
           "Identity > Administration > Users"
         ],
-        "description": "Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user.",
+        "description": "Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user. StartDate and EndDate are unix seconds. The window cannot end in the past and cannot exceed MaxRoleAssignmentDuration (default P365D). A longer or past window is rejected with 400 and is not shortened. The scheduled removal uses the requested EndDate. A configured JIT Admin MaxDuration can only make the window shorter. Entra PIM policy can still refuse the underlying role assignment; that Graph error is returned.",
         "requestBody": {
           "required": true,
           "content": {
@@ -34646,7 +34646,7 @@
         "tags": [
           "Identity > Administration > Roles"
         ],
-        "description": "Converts a permanent assignment to eligible, grants a time-bound active assignment, extends or renews a time-bound assignment or eligibility, or removes an assignment. Every request must carry an expiration (a duration or an end date); permanent / no-expiration assignments are refused, as are changes to group-inherited rows, the CIPP-SAM application and the last active Global Administrator. Requires Entra ID P2.",
+        "description": "Converts a permanent assignment to eligible, grants an eligibility (GrantEligible), grants a time-bound active assignment, extends or renews a time-bound assignment or eligibility, or removes an assignment. Duration is any ISO 8601 value up to MaxRoleAssignmentDuration (default P365D), such as PT1H, P30D, P90D, P180D or P365D, or a StartDateTime and EndDateTime pair. Longer windows and end dates in the past are rejected with 400 and are not shortened. scheduleInfo.expiration is afterDuration or afterDateTime. Entra PIM policy rules Expiration_Admin_Assignment and Expiration_Admin_Eligibility can still refuse a long assignment; that Graph error is returned. Permanent assignments are refused. Requires Entra ID P2.",
         "requestBody": {
           "required": true,
           "content": {
@@ -34660,7 +34660,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "ConvertToEligible | GrantActive | Extend | Renew | Remove"
+                    "description": "ConvertToEligible | GrantEligible | GrantActive | Extend | Renew | Remove"
                   },
                   "AssignmentType": {
                     "allOf": [
@@ -34684,7 +34684,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "ISO 8601 lifetime such as PT4H or P1Y. Use either Duration or EndDateTime, not both."
+                    "description": "ISO 8601 lifetime such as PT1H, P30D, P90D, P180D or P365D, up to MaxRoleAssignmentDuration (default P365D). Use either Duration or EndDateTime, not both."
                   },
                   "EndDateTime": {
                     "allOf": [
@@ -34692,7 +34692,15 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "Absolute end (unix seconds or ISO 8601). Use either Duration or EndDateTime, not both."
+                    "description": "Absolute end (unix seconds or ISO 8601). Use either Duration or EndDateTime, not both. Must be in the future and within MaxRoleAssignmentDuration of the start."
+                  },
+                  "StartDateTime": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Optional start (unix seconds or ISO 8601). Defaults to now. Pair with EndDateTime for an explicit window."
                   },
                   "Justification": {
                     "type": "string",

@@ -16,11 +16,13 @@ BeforeAll {
     function Add-CIPPAzDataTableEntity { param($TableName, $Entity, [switch]$Force) }
     function Update-AzDataTableEntity { param($TableName, $Entity) }
     function Send-CIPPJITAdminApprovalNotification { param($ApprovalRequest, $Status, $Note, $Results) }
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/Get-CIPPMaxRoleAssignmentDuration.ps1')
     . (Get-ChildItem -Path (Join-Path $RepoRoot 'Modules') -Recurse -Filter 'Invoke-ExecJITAdmin.ps1' | Select-Object -First 1).FullName
 
     function New-Request {
-        param([int]$StartOffsetSeconds)
+        param([int]$StartOffsetSeconds, [int]$DurationSeconds = 86400)
         $Now = [DateTimeOffset]::UtcNow
+        $Start = $Now.AddSeconds($StartOffsetSeconds)
         $Principal = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('{"userDetails":"admin@contoso.com"}'))
         [pscustomobject]@{
             Params  = [pscustomobject]@{ CIPPEndpoint = 'ExecJITAdmin' }
@@ -28,12 +30,12 @@ BeforeAll {
             Body    = [pscustomobject]@{
                 tenantFilter    = 'contoso.com'
                 userAction      = 'existing'
-                existingUser    = [pscustomobject]@{ value = 'jit@contoso.com' }
-                AdminRoles      = @([pscustomobject]@{ value = '62e90394-69f5-4237-9190-012177145e10' })
+                existingUser    = [pscustomobject]@{ value = 'jit@contoso.com'; label = 'jit@contoso.com' }
+                AdminRoles      = @([pscustomobject]@{ value = '62e90394-69f5-4237-9190-012177145e10'; label = 'Global Administrator' })
                 ExpireAction    = [pscustomobject]@{ value = 'RemoveRoles' }
                 Reason          = 'Break glass'
-                StartDate       = $Now.AddSeconds($StartOffsetSeconds).ToUnixTimeSeconds()
-                EndDate         = $Now.AddDays(1).ToUnixTimeSeconds()
+                StartDate       = $Start.ToUnixTimeSeconds()
+                EndDate         = $Start.AddSeconds($DurationSeconds).ToUnixTimeSeconds()
                 PostExecution   = @([pscustomobject]@{ value = 'webhook' }, [pscustomobject]@{ value = 'Push' })
             }
         }
@@ -45,6 +47,7 @@ Describe 'Invoke-ExecJITAdmin enable scheduling' {
         Mock Add-CIPPScheduledTask { }
         Mock Set-CIPPUserJITAdmin { }
         Mock Set-CIPPUserJITAdminProperties { }
+        Mock Write-LogMessage { }
     }
 
     It 'queues the enable task to run now with the requested notification channels when the start is immediate' {
@@ -65,6 +68,36 @@ Describe 'Invoke-ExecJITAdmin enable scheduling' {
         Should -Invoke Add-CIPPScheduledTask -Times 1 -ParameterFilter { -not $RunNow -and $Task.Name -like 'JIT Admin (enable)*' }
         Should -Invoke Add-CIPPScheduledTask -Times 1 -ParameterFilter { -not $RunNow -and $Task.Name -like 'JIT Admin (RemoveRoles)*' }
         Should -Invoke Add-CIPPScheduledTask -Times 2
+    }
+
+    It 'honors a <Name> window and schedules removal at that end' -ForEach @(
+        @{ Name = '1 hour'; DurationSeconds = 3600 }
+        @{ Name = '30 day'; DurationSeconds = 30 * 86400 }
+        @{ Name = '365 day'; DurationSeconds = 365 * 86400 }
+    ) {
+        $Request = New-Request -StartOffsetSeconds 60 -DurationSeconds $DurationSeconds
+        $Response = Invoke-ExecJITAdmin -Request $Request -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        Should -Invoke Add-CIPPScheduledTask -Times 1 -ParameterFilter {
+            -not $RunNow -and $Task.Name -like 'JIT Admin (RemoveRoles)*' -and [string]$Task.ScheduledTime -eq [string]$Request.Body.EndDate
+        }
+        Should -Invoke Write-LogMessage -Times 1 -ParameterFilter {
+            $tenant -eq 'contoso.com' -and $message -match 'jit@contoso.com' -and $message -match 'Global Administrator' -and $LogData.Caller -eq 'admin@contoso.com' -and [string]$LogData.Start -eq [string]$Request.Body.StartDate -and [string]$LogData.End -eq [string]$Request.Body.EndDate
+        }
+    }
+
+    It 'returns 400 when the window is longer than 365 days and schedules nothing' {
+        $Response = Invoke-ExecJITAdmin -Request (New-Request -StartOffsetSeconds 60 -DurationSeconds (366 * 86400)) -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results[0] | Should -Match 'P365D'
+        Should -Invoke Add-CIPPScheduledTask -Times 0
+    }
+
+    It 'returns 400 when the end date is in the past and schedules nothing' {
+        $Response = Invoke-ExecJITAdmin -Request (New-Request -StartOffsetSeconds -7200 -DurationSeconds 3600) -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results[0] | Should -Match 'past'
+        Should -Invoke Add-CIPPScheduledTask -Times 0
     }
 }
 

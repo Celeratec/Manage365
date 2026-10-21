@@ -10,6 +10,8 @@
 
 BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/Get-CIPPMaxRoleAssignmentDuration.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GraphHelper/Get-CIPPGraphErrorMessage.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/New-CIPPPIMScheduleRequest.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/Invoke-CIPPPIMAssignmentAction.ps1')
 
@@ -146,9 +148,15 @@ Describe 'Invoke-CIPPPIMAssignmentAction' {
             $script:Posts[0].Body.action | Should -Be 'adminAssign'
         }
 
-        It 'refuses an eligibility lifetime above the policy cap instead of clamping it' {
-            Mock Get-CIPPPIMRolePolicies { [pscustomobject]@{ RoleDefinitionId = $script:GA; PolicyId = 'pol'; Settings = [pscustomobject]@{ eligibilityMaxDuration = 'P180D'; activeAssignmentMaxDuration = 'P180D' } } }
-            { Invoke-Convert @{ Duration = 'P365D' } } | Should -Throw '*exceeds the maximum allowed*' -ExceptionType ([System.ArgumentException])
+        It 'sends P365D when the tenant policy maximum is shorter, so Entra can reject it itself' {
+            Mock Get-CIPPPIMRolePolicies { [pscustomobject]@{ RoleDefinitionId = $script:GA; PolicyId = 'pol'; Settings = [pscustomobject]@{ eligibilityMaxDuration = 'PT1H'; activeAssignmentMaxDuration = 'PT1H' } } }
+            $Result = Invoke-Convert @{ Duration = 'P365D' }
+            $Result.state | Should -Be 'success'
+            $script:Posts[0].Body.scheduleInfo.expiration.duration | Should -Be 'P365D'
+        }
+
+        It 'refuses an eligibility longer than 365 days instead of truncating it' {
+            { Invoke-Convert @{ Duration = 'P366D' } } | Should -Throw '*P365D*' -ExceptionType ([System.ArgumentException])
             Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
         }
 
@@ -170,11 +178,53 @@ Describe 'Invoke-CIPPPIMAssignmentAction' {
             $script:Posts[0].Body.scheduleInfo.expiration.duration | Should -Be 'PT4H'
         }
 
-        It 'applies the JIT admin maximum duration as a cap' {
-            Mock Get-CIPPAzDataTableEntity { [pscustomobject]@{ MaxDuration = 'PT2H' } }
+        It 'does not let the JIT admin MaxDuration setting shorten a PIM assignment' {
+            Mock Get-CIPPAzDataTableEntity { [pscustomobject]@{ MaxDuration = 'PT1H' } }
             Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Eligible'), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
-            { Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -Duration 'PT4H' -Justification 'test' } | Should -Throw '*exceeds the maximum allowed*' -ExceptionType ([System.ArgumentException])
+            $Result = Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -Duration 'P30D' -Justification 'test'
+            $Result.state | Should -Be 'success'
+            $script:Posts[0].Body.scheduleInfo.expiration.duration | Should -Be 'P30D'
+        }
+
+        It 'posts <_> as afterDuration' -ForEach @('PT1H', 'P30D', 'P365D') {
+            $ExpectedDuration = $_
+            Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Eligible'), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
+            $Result = Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -Duration $ExpectedDuration -Justification 'test'
+            $Result.state | Should -Be 'success'
+            $script:Posts[0].Body.scheduleInfo.expiration.type | Should -Be 'afterDuration'
+            $script:Posts[0].Body.scheduleInfo.expiration.duration | Should -Be $ExpectedDuration
+        }
+
+        It 'rejects an active assignment longer than 365 days' {
+            Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Eligible'), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
+            { Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -Duration 'P366D' -Justification 'test' } | Should -Throw '*P365D*' -ExceptionType ([System.ArgumentException])
             Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
+        }
+
+        It 'rejects an end date in the past' {
+            Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Eligible'), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
+            { Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -EndDateTime ([datetime]::UtcNow.AddHours(-1)) -Justification 'test' } | Should -Throw '*not in the future*' -ExceptionType ([System.ArgumentException])
+            Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
+        }
+
+        It 'logs tenant, user, role, start, end and caller' {
+            Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Eligible'), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
+            $Principal = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes('{"userDetails":"caller@contoso.com"}'))
+            $null = Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantActive -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Eligible -Duration 'PT1H' -Justification 'test' -Headers @{ 'x-ms-client-principal' = $Principal }
+            Should -Invoke Write-LogMessage -Times 1 -ParameterFilter {
+                $tenant -eq 'contoso.onmicrosoft.com' -and $LogData.Principal -eq 'user-1@contoso.com' -and $LogData.Role -eq 'Global Administrator' -and $LogData.Caller -eq 'caller@contoso.com' -and $LogData.Start -and $LogData.End
+            }
+        }
+
+        It 'grants eligibility with adminAssign and does not remove an active assignment' {
+            Mock Get-CIPPPIMRoleAssignments { @((New-Row -Principal 'user-1' -Type 'Active' -End ([datetime]::UtcNow.AddHours(2))), (New-Row -Principal 'user-2')) | Where-Object { -not $PrincipalId -or $_.PrincipalId -eq $PrincipalId } }
+            $Result = Invoke-CIPPPIMAssignmentAction -TenantFilter 'contoso.onmicrosoft.com' -Action GrantEligible -PrincipalId 'user-1' -RoleDefinitionId $script:GA -AssignmentType Active -Duration 'P180D' -Justification 'test'
+            $Result.state | Should -Be 'success'
+            $script:Posts.Count | Should -Be 1
+            $script:Posts[0].Uri | Should -Match 'roleEligibilityScheduleRequests$'
+            $script:Posts[0].Body.action | Should -Be 'adminAssign'
+            $script:Posts[0].Body.scheduleInfo.expiration.type | Should -Be 'afterDuration'
+            $script:Posts[0].Body.scheduleInfo.expiration.duration | Should -Be 'P180D'
         }
 
         It 'refuses without an expiration' {

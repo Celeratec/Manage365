@@ -19,7 +19,10 @@ BeforeAll {
         $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode])
     }
 
-    function Invoke-CIPPPIMAssignmentAction { param($TenantFilter, $Action, $PrincipalId, $RoleDefinitionId, $DirectoryScopeId, $AssignmentType, $Duration, $EndDateTime, $Justification, $TimeZone, $Headers, $APIName) }
+    function Invoke-CIPPPIMAssignmentAction { param($TenantFilter, $Action, $PrincipalId, $RoleDefinitionId, $DirectoryScopeId, $AssignmentType, $Duration, $EndDateTime, $StartDateTime, $Justification, $TimeZone, $Headers, $APIName) }
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/Get-CIPPMaxRoleAssignmentDuration.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GraphHelper/Get-CIPPGraphErrorMessage.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/PIM/New-CIPPPIMScheduleRequest.ps1')
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
     function Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
 
@@ -166,6 +169,55 @@ Describe 'Invoke-ExecPIMRoleAssignment' {
             $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Action = 'Remove'; Duration = $null })
             $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::InternalServerError)
             $Response.Body.Results[0].state | Should -Be 'error'
+        }
+
+        It 'forwards <_> for GrantActive' -ForEach @('PT1H', 'P30D', 'P90D', 'P180D', 'P365D') {
+            $ExpectedDuration = $_
+            $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Duration = $ExpectedDuration })
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            Should -Invoke Invoke-CIPPPIMAssignmentAction -Times 1 -Exactly -ParameterFilter { $Duration -eq $ExpectedDuration }
+        }
+
+        It 'accepts GrantEligible and forwards the duration' {
+            $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Action = 'GrantEligible'; Duration = 'P90D' })
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            Should -Invoke Invoke-CIPPPIMAssignmentAction -Times 1 -Exactly -ParameterFilter { $Action -eq 'GrantEligible' -and $Duration -eq 'P90D' }
+        }
+
+        It 'forwards an explicit StartDateTime and EndDateTime pair' {
+            $Start = [datetime]::UtcNow.AddHours(1).ToString('o')
+            $End = [datetime]::UtcNow.AddDays(30).ToString('o')
+            $null = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Duration = $null; StartDateTime = $Start; EndDateTime = $End })
+            Should -Invoke Invoke-CIPPPIMAssignmentAction -Times 1 -Exactly -ParameterFilter {
+                $null -eq $Duration -and $null -ne $StartDateTime -and $null -ne $EndDateTime -and ($EndDateTime - $StartDateTime).TotalDays -gt 29
+            }
+        }
+
+        It 'returns 400 for a duration over 365 days and does not call PIM' {
+            $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Duration = 'P366D' })
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+            $Response.Body.Results[0].resultText | Should -Match 'P365D'
+            Should -Invoke Invoke-CIPPPIMAssignmentAction -Times 0 -Exactly
+        }
+
+        It 'returns 400 for an end date in the past and does not call PIM' {
+            $Past = [datetime]::UtcNow.AddHours(-2).ToString('o')
+            $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Duration = $null; EndDateTime = $Past })
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+            $Response.Body.Results[0].resultText | Should -Match 'not in the future|in the past'
+            Should -Invoke Invoke-CIPPPIMAssignmentAction -Times 0 -Exactly
+        }
+
+        It 'returns the Graph policy error instead of a generic token failure' {
+            Mock Invoke-CIPPPIMAssignmentAction {
+                $Ex = [System.Exception]::new('Response status code does not indicate success: 400 (Bad Request).')
+                $Ex.Data['RawErrorBody'] = '{"error":{"code":"RoleAssignmentRequestPolicyValidationFailed","message":"The following policy rules failed: Expiration_Admin_Assignment"}}'
+                throw $Ex
+            }
+            $Response = Invoke-ExecPIMRoleAssignment -Request (New-PimRequest @{ Duration = 'P365D' })
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+            $Response.Body.Results[0].resultText | Should -Match 'Expiration_Admin_Assignment'
+            $Response.Body.Results[0].resultText | Should -Not -Match 'token configuration'
         }
     }
 }

@@ -91,7 +91,7 @@ const CippJitAdminSettings = () => {
             type="autoComplete"
             name="MaxDuration"
             label="Maximum Duration (ISO 8601)"
-            placeholder="Leave empty for no limit"
+            placeholder="Leave empty for the 365 day ceiling"
             options={[
               { label: "1 Hour", value: "PT1H" },
               { label: "4 Hours", value: "PT4H" },
@@ -101,6 +101,9 @@ const CippJitAdminSettings = () => {
               { label: "7 Days", value: "P7D" },
               { label: "14 Days", value: "P14D" },
               { label: "30 Days", value: "P30D" },
+              { label: "90 Days", value: "P90D" },
+              { label: "180 Days", value: "P180D" },
+              { label: "365 Days", value: "P365D" },
             ]}
             creatable={true}
             multiple={false}
@@ -126,9 +129,8 @@ const CippJitAdminSettings = () => {
 
         <Alert severity="info">
           <Typography variant="body2">
-            Leave empty for no limit on JIT admin account duration. When set, technicians cannot
-            create JIT admin accounts with durations exceeding this limit. This setting applies
-            globally to all tenants.
+            Leave empty to use the 365 day ceiling (P365D). A value here can only make that shorter.
+            Windows longer than the ceiling, or end dates in the past, are rejected and not shortened.
           </Typography>
         </Alert>
 

@@ -44,8 +44,14 @@ function Invoke-ExecJITAdminSettings {
                 # Validate ISO 8601 duration format if provided
                 if (![string]::IsNullOrWhiteSpace($MaxDuration)) {
                     try {
-                        # Test if it's a valid ISO 8601 duration
-                        $null = [System.Xml.XmlConvert]::ToTimeSpan($MaxDuration)
+                        $DurationSpan = [System.Xml.XmlConvert]::ToTimeSpan($MaxDuration)
+                        $Ceiling = Get-CIPPMaxRoleAssignmentDuration
+                        $CeilingSpan = [System.Xml.XmlConvert]::ToTimeSpan($Ceiling)
+                        if ($DurationSpan -gt $CeilingSpan) {
+                            $StatusCode = [HttpStatusCode]::BadRequest
+                            @{ Results = "Error: JIT Admin maximum duration cannot exceed $Ceiling." }
+                            break
+                        }
                         $JITAdminConfig | Add-Member -NotePropertyName MaxDuration -NotePropertyValue $MaxDuration -Force
                     } catch {
                         $StatusCode = [HttpStatusCode]::BadRequest
@@ -84,7 +90,7 @@ function Invoke-ExecJITAdminSettings {
                 $DurationMessage = if ($JITAdminConfig.MaxDuration) {
                     "Successfully set JIT Admin maximum duration to $($JITAdminConfig.MaxDuration)"
                 } else {
-                    'Successfully removed JIT Admin maximum duration limit'
+                    'Successfully cleared the extra JIT Admin duration limit. Assignments still cannot exceed MaxRoleAssignmentDuration (default P365D).'
                 }
                 $ApprovalMessage = if ($JITAdminConfig.RequireApproval) {
                     "approval required: $($JITAdminConfig.RequiredApprovals) from $($ApproverRoles -join ', ') in $(if ($ApprovalTenants.Count -gt 0) { "$($ApprovalTenants.Count) tenant selection(s)" } else { 'all tenants' })"

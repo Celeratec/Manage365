@@ -32,7 +32,7 @@ Changing the tenant clears the selected user, groups and Conditional Access poli
 | Field      | Description                                                                                           |
 | ---------- | ----------------------------------------------------------------------------------------------------- |
 | Start Date | When the access begins. Required.                                                                     |
-| End Date   | When the access ends and the expiration action runs. Required, and it has to be after the start date. |
+| End Date   | When the access ends and the expiration action runs. Required. It has to be in the future, after the start date, and no more than 365 days later (`P365D`, `MaxRoleAssignmentDuration`). A longer window or a past end date is rejected and is not shortened. A JIT Admin maximum duration in settings, when set, can only make this shorter. The tenant's own PIM policy can still refuse a long directory role assignment; that error is returned as Graph reported it. |
 
 ## Roles and groups
 

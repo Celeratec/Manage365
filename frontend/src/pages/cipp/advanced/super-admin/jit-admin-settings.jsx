@@ -59,9 +59,8 @@ const Page = () => {
 
         <Grid size={{ md: 12, xs: 12 }}>
           <Alert severity="info" sx={{ mb: 3 }}>
-            Set the maximum duration in ISO 8601 format, or leave empty for no limit (default). The
-            backend will validate that the difference between the start and end dates of any JIT
-            admin account does not exceed the configured maximum duration.
+            Leave empty to use the 365 day ceiling (P365D). A value here can only make that shorter.
+            The backend rejects a longer window or an end date in the past and does not shorten it.
           </Alert>
         </Grid>
 
@@ -70,7 +69,7 @@ const Page = () => {
             type="autoComplete"
             name="MaxDuration"
             label="Maximum Duration (ISO 8601)"
-            placeholder="Leave empty for no limit, or enter duration (e.g., P28D for 4 weeks)"
+            placeholder="Leave empty for the 365 day ceiling (P365D)"
             options={[
               { label: "1 Hour", value: "PT1H" },
               { label: "4 Hours", value: "PT4H" },
@@ -80,6 +79,9 @@ const Page = () => {
               { label: "7 Days", value: "P7D" },
               { label: "14 Days", value: "P14D" },
               { label: "30 Days", value: "P30D" },
+              { label: "90 Days", value: "P90D" },
+              { label: "180 Days", value: "P180D" },
+              { label: "365 Days", value: "P365D" },
             ]}
             creatable={true}
             multiple={false}
@@ -99,7 +101,7 @@ const Page = () => {
               },
             }}
             formControl={formControl}
-            helperText="ISO 8601 format: PT1H (1 hour), P1D (1 day), P7D (1 week), P28D (4 weeks). Leave empty for no limit."
+            helperText="ISO 8601 format: PT1H, P30D, P365D. Empty uses the 365 day ceiling. A saved value cannot be longer than that."
           />
         </Grid>
 
@@ -110,7 +112,7 @@ const Page = () => {
             </Typography>
             <Typography variant="body2" component="div">
               <ul style={{ margin: 0, paddingLeft: "20px" }}>
-                <li>Leave empty for no limit on JIT admin account duration (default behavior)</li>
+                <li>Leave empty for the 365 day ceiling (P365D). A saved value can only be shorter.</li>
                 <li>
                   The duration is calculated from the start date to the expiration date of the JIT
                   admin

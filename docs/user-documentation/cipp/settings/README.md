@@ -116,7 +116,7 @@ Caps how long a Just-In-Time admin account created through CIPP may remain activ
 
 | Field                       | Description                                                                                                                                                                                             |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Maximum Duration (ISO 8601) | The longest duration a JIT admin account may be granted. Presets range from 1 hour to 30 days, and a custom ISO 8601 duration such as `PT6H` or `P21D` can be typed directly. Leave empty for no limit. |
+| Maximum Duration (ISO 8601) | An optional shorter cap on a JIT admin window. Leave empty to use the CIPP ceiling of 365 days (`P365D`). A saved value cannot extend that ceiling. |
 | Require approval for JIT Admin requests | Holds JIT Admin requests until they are approved, instead of carrying them out straight away. The fields below appear when this is on. |
 | Roles that need approval    | The Entra ID directory roles that trigger approval. A request including any of them needs approval, and a request without them goes ahead as before. Leave empty to require approval for every request, including one that only adds groups. |
 | Approver roles              | The CIPP roles, built-in or custom, whose users can approve or reject requests. Required when approval is on. |

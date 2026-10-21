@@ -32,19 +32,50 @@ const justificationField = {
   validators: { required: 'A justification is required' },
 }
 
+// Same ceiling as Config/RoleAssignment.json MaxRoleAssignmentDuration (default P365D).
+const MAX_ROLE_ASSIGNMENT_MS = 365 * 24 * 60 * 60 * 1000
+
+const durationValue = (value) => (value && typeof value === 'object' ? value.value : value)
+
+// XmlConvert treats a year as 365 days and a month as 30 days. Weeks are 7 days.
+const isoDurationToMs = (value) => {
+  const raw = durationValue(value)
+  if (!raw || raw === 'custom') return null
+  const match = /^P(?:(\d+)Y)?(?:(\d+)M)?(?:(\d+)W)?(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/.exec(raw)
+  if (!match) return null
+  const days = Number(match[1] || 0) * 365 + Number(match[2] || 0) * 30 + Number(match[3] || 0) * 7 + Number(match[4] || 0)
+  const hours = Number(match[5] || 0)
+  const minutes = Number(match[6] || 0)
+  const seconds = Number(match[7] || 0)
+  return (((days * 24 + hours) * 60 + minutes) * 60 + seconds) * 1000
+}
+
+const durationValidator = (value) => {
+  const raw = durationValue(value)
+  if (!raw || raw === 'custom') return true
+  const ms = isoDurationToMs(raw)
+  if (ms == null) return 'Use an ISO 8601 duration such as PT1H, P30D or P365D'
+  if (ms <= 0) return 'Duration must be greater than zero'
+  if (ms > MAX_ROLE_ASSIGNMENT_MS) return 'Duration cannot exceed 365 days (P365D)'
+  return true
+}
+
 const eligibilityDurationField = {
   type: 'autoComplete',
   name: 'Duration',
   label: 'Eligibility lifetime',
   multiple: false,
-  creatable: false,
+  creatable: true,
   required: true,
   options: [
     { label: '3 months', value: 'P90D' },
     { label: '6 months', value: 'P180D' },
     { label: '1 year', value: 'P365D' },
   ],
-  validators: { required: 'Select how long the eligibility lasts' },
+  validators: {
+    required: 'Select how long the eligibility lasts',
+    validate: durationValidator,
+  },
 }
 
 const activeDurationField = {
@@ -52,30 +83,67 @@ const activeDurationField = {
   name: 'Duration',
   label: 'Active for',
   multiple: false,
-  creatable: false,
+  creatable: true,
   required: true,
   options: [
     { label: '30 minutes', value: 'PT30M' },
     { label: '1 hour', value: 'PT1H' },
-    { label: '2 hours', value: 'PT2H' },
-    { label: '4 hours', value: 'PT4H' },
     { label: '8 hours', value: 'PT8H' },
     { label: '1 day', value: 'P1D' },
+    { label: '7 days', value: 'P7D' },
+    { label: '30 days', value: 'P30D' },
+    { label: '90 days', value: 'P90D' },
+    { label: '180 days', value: 'P180D' },
+    { label: '365 days', value: 'P365D' },
     { label: 'Custom end date', value: 'custom' },
   ],
-  validators: { required: 'Select how long the assignment stays active' },
+  validators: {
+    required: 'Select how long the assignment stays active',
+    validate: durationValidator,
+  },
 }
 
-const customEndField = {
-  type: 'datePicker',
-  name: 'EndDateTime',
-  label: 'Active until',
-  dateTimeType: 'datetime',
-  condition: {
+const customWindowFields = () => {
+  const now = new Date()
+  const maxEnd = new Date(now.getTime() + MAX_ROLE_ASSIGNMENT_MS)
+  const whenCustom = {
     field: 'Duration',
     compareType: 'contains',
     compareValue: 'custom',
-  },
+  }
+  return [
+    {
+      type: 'datePicker',
+      name: 'StartDateTime',
+      label: 'Active from (optional)',
+      dateTimeType: 'datetime',
+      minDate: now,
+      maxDate: maxEnd,
+      condition: whenCustom,
+    },
+    {
+      type: 'datePicker',
+      name: 'EndDateTime',
+      label: 'Active until',
+      dateTimeType: 'datetime',
+      minDate: now,
+      maxDate: maxEnd,
+      condition: whenCustom,
+      validators: {
+        validate: (value, formValues) => {
+          const selected = durationValue(formValues?.Duration)
+          if (selected !== 'custom' && !(typeof selected === 'string' && selected.includes('custom'))) return true
+          if (!value) return 'Choose an end date'
+          const endMs = value * 1000
+          if (endMs <= Date.now()) return 'End date is in the past'
+          const startMs = formValues?.StartDateTime ? formValues.StartDateTime * 1000 : Date.now()
+          if (endMs <= startMs) return 'End date must be after the start date'
+          if (endMs - startMs > MAX_ROLE_ASSIGNMENT_MS) return 'The assignment cannot last longer than 365 days (P365D)'
+          return true
+        },
+      },
+    },
+  ]
 }
 
 const baseData = {
@@ -101,6 +169,7 @@ export const useCippRoleAssignmentActions = ({
   const timeZoneData = {
     TimeZone: `!${Intl.DateTimeFormat().resolvedOptions().timeZone}`,
   }
+  const [customStartField, customEndField] = customWindowFields()
 
   return [
     {
@@ -127,9 +196,9 @@ export const useCippRoleAssignmentActions = ({
       icon: <CippIcons.HourglassBottom />,
       url: '/api/ExecPIMRoleAssignment',
       data: { ...baseData, ...timeZoneData, Action: '!GrantActive' },
-      fields: [activeDurationField, customEndField, justificationField],
+      fields: [activeDurationField, customStartField, customEndField, justificationField],
       confirmText:
-        'Grant [PrincipalUserPrincipalName] an active [RoleDisplayName] assignment for the chosen time? Entra removes the assignment automatically when it expires.',
+        'Grant [PrincipalUserPrincipalName] an active [RoleDisplayName] assignment for the chosen time? The maximum is 365 days. Entra removes the assignment automatically when it expires, and the tenant PIM policy can still refuse a long assignment.',
       confirmPhrase: globalAdminPhrase,
       relatedQueryKeys,
       condition: (row) =>
@@ -139,14 +208,33 @@ export const useCippRoleAssignmentActions = ({
         isDirect(row),
     },
     {
+      label: 'Grant eligible assignment',
+      type: 'POST',
+      icon: <CippIcons.PersonAdd />,
+      url: '/api/ExecPIMRoleAssignment',
+      data: { ...baseData, ...timeZoneData, Action: '!GrantEligible' },
+      fields: [eligibilityDurationField, justificationField],
+      confirmText:
+        'Grant [PrincipalUserPrincipalName] an eligible [RoleDisplayName] assignment for the chosen lifetime? The maximum is 365 days. This does not remove an active assignment. A permanent assignment has to be converted instead.',
+      confirmPhrase: globalAdminPhrase,
+      relatedQueryKeys,
+      condition: (row) =>
+        canWriteRole &&
+        row?.PIMCapable &&
+        isDirect(row) &&
+        row?.PrincipalType !== 'ServicePrincipal' &&
+        row?.AssignmentType !== 'Eligible' &&
+        row?.AssignmentType !== 'Permanent',
+    },
+    {
       label: 'Extend',
       type: 'POST',
       icon: <CippIcons.MoreTime />,
       url: '/api/ExecPIMRoleAssignment',
       data: { ...baseData, ...timeZoneData, Action: '!Extend' },
-      fields: [activeDurationField, customEndField, justificationField],
+      fields: [activeDurationField, customStartField, customEndField, justificationField],
       confirmText:
-        'Extend the [AssignmentType] [RoleDisplayName] assignment of [PrincipalUserPrincipalName]? The new end is counted from now and cannot exceed the role policy maximum.',
+        'Extend the [AssignmentType] [RoleDisplayName] assignment of [PrincipalUserPrincipalName]? The new end is counted from now and cannot exceed 365 days. The tenant PIM policy can still refuse it.',
       confirmPhrase: globalAdminPhrase,
       relatedQueryKeys,
       condition: (row) =>
@@ -162,9 +250,9 @@ export const useCippRoleAssignmentActions = ({
       icon: <CippIcons.Autorenew />,
       url: '/api/ExecPIMRoleAssignment',
       data: { ...baseData, ...timeZoneData, Action: '!Renew' },
-      fields: [activeDurationField, customEndField, justificationField],
+      fields: [activeDurationField, customStartField, customEndField, justificationField],
       confirmText:
-        'Renew the expired [AssignmentType] [RoleDisplayName] assignment of [PrincipalUserPrincipalName] for the chosen time?',
+        'Renew the expired [AssignmentType] [RoleDisplayName] assignment of [PrincipalUserPrincipalName] for the chosen time? The maximum is 365 days.',
       confirmPhrase: globalAdminPhrase,
       relatedQueryKeys,
       condition: (row) =>

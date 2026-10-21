@@ -545,8 +545,15 @@ const Page = () => {
                   required: "End date is required",
                   validate: (value) => {
                     const startDate = formControl.getValues("startDate");
-                    if (value && startDate && new Date(value) < new Date(startDate)) {
+                    if (value && value * 1000 <= Date.now()) {
+                      return "End date is in the past";
+                    }
+                    if (value && startDate && value <= startDate) {
                       return "End date must be after start date";
+                    }
+                    // MaxRoleAssignmentDuration default P365D. Dates are unix seconds.
+                    if (value && startDate && value - startDate > 365 * 24 * 60 * 60) {
+                      return "The access window cannot be longer than 365 days (P365D)";
                     }
                     return true;
                   },
