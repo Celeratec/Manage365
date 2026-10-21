@@ -39962,10 +39962,135 @@
         "x-cipp-role": "Identity.User.Read"
       }
     },
+    "/api/ExecAppRoleAssignment": {
+      "post": {
+        "summary": "Assign or remove an app role for one user or group.",
+        "operationId": "ExecAppRoleAssignment",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Action=Add posts /servicePrincipals/{id}/appRoleAssignedTo. principalId is a user or group. appRoleId defaults to 00000000-0000-0000-0000-000000000000. Action=Remove deletes the assignment by id. This does not grant delegated consent.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Add", "Remove"]}, "servicePrincipalId": {"type": "string"}, "principalId": {"type": "string"}, "appRoleId": {"type": "string"}, "assignmentId": {"type": "string"}},
+                "required": ["tenantFilter", "Action"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Success" },
+          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
+          "401": { "description": "Unauthorized - invalid or missing bearer token" },
+          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
+          "500": { "description": "Internal server error" }
+        },
+        "security": [ { "bearerAuth": [] } ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecOAuth2PermissionGrant": {
+      "post": {
+        "summary": "Add, update, or remove a Principal delegated grant.",
+        "operationId": "ExecOAuth2PermissionGrant",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Action=Add posts /oauth2PermissionGrants with consentType Principal. Scope is space-separated and must be published by the resource service principal (Microsoft Graph unless resourceId is set). Action=Update patches scope. Action=Remove deletes by grantId. consentType AllPrincipals is rejected with 400. This endpoint never creates a tenant-wide grant.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Add", "Update", "Remove"]}, "servicePrincipalId": {"type": "string"}, "principalId": {"type": "string"}, "scope": {"type": "string"}, "consentType": {"type": "string", "enum": ["Principal"]}, "resourceId": {"type": "string"}, "grantId": {"type": "string"}},
+                "required": ["tenantFilter", "Action"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Success" },
+          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
+          "401": { "description": "Unauthorized - invalid or missing bearer token" },
+          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
+          "500": { "description": "Internal server error" }
+        },
+        "security": [ { "bearerAuth": [] } ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecAppConsentRequest": {
+      "post": {
+        "summary": "Approve or deny a user consent request without granting admin consent.",
+        "operationId": "ExecAppConsentRequest",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Action=Approve or Deny patches the Graph approval stage for one userConsentRequest. The decision is recorded only. The call does not create an oauth2PermissionGrant.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Approve", "Deny"]}, "appConsentRequestId": {"type": "string"}, "userConsentRequestId": {"type": "string"}, "stageId": {"type": "string"}, "justification": {"type": "string"}},
+                "required": ["tenantFilter", "Action", "appConsentRequestId", "userConsentRequestId", "justification"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Success" },
+          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
+          "401": { "description": "Unauthorized - invalid or missing bearer token" },
+          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
+          "500": { "description": "Internal server error" }
+        },
+        "security": [ { "bearerAuth": [] } ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecGrantAppToUsers": {
+      "post": {
+        "summary": "Grant an application to specific users.",
+        "operationId": "ExecGrantAppToUsers",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Creates the service principal in the customer tenant if needed, sets appRoleAssignmentRequired when requireAssignment is true (the default), assigns each user, then adds or merges a Principal delegated grant. Unknown scopes are rejected before anything is written. Existing objects are reused. Metadata.Created lists only the ids this call created. Never writes AllPrincipals.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {"tenantFilter": {"type": "string"}, "appId": {"type": "string"}, "userIds": {"type": "array", "items": {"type": "string"}}, "scopes": {"type": "array", "items": {"type": "string"}}, "requireAssignment": {"type": "boolean"}},
+                "required": ["tenantFilter", "appId", "userIds", "scopes"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Success" },
+          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
+          "401": { "description": "Unauthorized - invalid or missing bearer token" },
+          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
+          "500": { "description": "Internal server error" }
+        },
+        "security": [ { "bearerAuth": [] } ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
     "/api/ExecServicePrincipals": {
       "post": {
-        "summary": "ExecServicePrincipals",
+        "summary": "Create or update a service principal without granting consent.",
         "operationId": "ExecServicePrincipals",
+        "description": "Action=Create posts /servicePrincipals for the AppId in tenantFilter and grants no consent. Omit tenantFilter to keep the previous partner-tenant behavior. Action=Update sets appRoleAssignmentRequired and requires tenantFilter. List and Get still read the partner tenant.",
         "tags": [
           "CIPP > Core"
         ],
@@ -39988,7 +40113,8 @@
             "schema": {
               "type": "string",
               "enum": [
-                "Create"
+                "Create",
+                "Update"
               ]
             }
           },
@@ -40015,6 +40141,24 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "tenantFilter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Customer tenant for Action=Create or Action=Update. Required for Update."
+          },
+          {
+            "name": "appRoleAssignmentRequired",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Action=Update. True limits the app to users or groups that are assigned to it."
           }
         ],
         "responses": {
@@ -40217,8 +40361,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Application.ReadWrite",
-        "x-cipp-any-tenant": true
+        "x-cipp-role": "Tenant.Application.ReadWrite"
       }
     },
     "/api/ExecSetAPDeviceGroupTag": {

@@ -10,6 +10,8 @@ This is an advanced configuration of CIPP currently in beta. Please proceed with
 
 CIPP's own default permissions are always applied and cannot be removed. Anything you configure here is layered on top of them, so this page adds permissions rather than replacing the set.
 
+The defaults include `Application.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`, and `DelegatedPermissionGrant.ReadWrite.All`, which the user-scoped app consent endpoints use. `ConsentRequest.ReadWrite.All` is also part of the defaults, so a permissions repair and a CPV refresh are required on an instance that was consented before that permission was added. Application Administrator remains the GDAP directory role for these calls. See [user-app-consent](../../../tools/tenant-tools/user-app-consent.md "mention").
+
 Saving stores the permission set. It does not grant anything on its own. To apply the change you need to run a permissions repair from [permissions.md](../../settings/permissions.md "mention"), then complete a CPV refresh so that consent is updated in each customer tenant.
 
 {% hint style="warning" %}

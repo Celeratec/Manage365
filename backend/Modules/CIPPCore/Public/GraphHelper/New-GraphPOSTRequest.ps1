@@ -50,6 +50,7 @@ function New-GraphPOSTRequest {
         $RetryCount = 0
         $RequestSuccessful = $false
         $RawErrorBody = $null
+        $GraphStatusCode = $null
         do {
             try {
                 Write-Information "$($type.ToUpper()) [ $uri ] | tenant: $tenantid | user-agent: $($headers['User-Agent']) | attempt: $($RetryCount + 1) of $maxRetries"
@@ -60,6 +61,7 @@ function New-GraphPOSTRequest {
                 $WaitTime = 0
                 $RetryReason = ''
                 $RawErrorBody = $_.ErrorDetails.Message
+                if ($_.Exception.Response.StatusCode) { $GraphStatusCode = [int]$_.Exception.Response.StatusCode }
                 $Message = if ($_.ErrorDetails.Message) {
                     Get-NormalizedError -Message $_.ErrorDetails.Message
                 } else {
@@ -149,6 +151,7 @@ function New-GraphPOSTRequest {
             if ($RawErrorBody) {
                 $GraphException = [System.Exception]::new($Message)
                 $GraphException.Data['RawErrorBody'] = $RawErrorBody
+                if ($GraphStatusCode) { $GraphException.Data['StatusCode'] = $GraphStatusCode }
                 throw $GraphException
             }
             throw $Message

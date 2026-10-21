@@ -1,22 +1,30 @@
 function Invoke-ExecServicePrincipals {
     <#
     .FUNCTIONALITY
-        Entrypoint,AnyTenant
+        Entrypoint
     .ROLE
         Tenant.Application.ReadWrite
+    .SYNOPSIS
+        Lists service principals, or creates one in the tenant named by tenantFilter without granting consent.
+    .DESCRIPTION
+        Action=Create posts the service principal only. Action=Update sets appRoleAssignmentRequired.
+        A request without tenantFilter still targets the partner tenant, which is the previous behavior.
+        A request with tenantFilter runs in that customer tenant. Neither action grants consent.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
-    $TenantFilter = $env:TenantID
+    $Context = Get-CIPPAppConsentContext -Request $Request
+    $TenantFilter = if ([string]::IsNullOrWhiteSpace($Context.TenantFilter)) { $env:TenantID } else { $Context.TenantFilter }
+    $ExplicitTenant = -not [string]::IsNullOrWhiteSpace($Context.TenantFilter)
 
     $Success = $true
     $StatusCode = [HttpStatusCode]::OK
 
-    $Action = $Request.Query.Action ?? 'Default'
+    $Action = if ($Context.Action) { $Context.Action } else { 'Default' }
     try {
-        switch ($Request.Query.Action) {
+        switch ($Action) {
             'Create' {
                 $BlockList = @(
                     'e9a7fea1-1cc0-4cd9-a31b-9137ca5deedd', # eM Client
@@ -36,19 +44,21 @@ function Invoke-ExecServicePrincipals {
                         $StatusCode = [HttpStatusCode]::BadRequest
                         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
                     } else {
-                        $Body = @{
-                            'appId' = $Request.Query.AppId
-                        } | ConvertTo-Json -Compress
+                        $AppId = ConvertTo-CIPPRequestValue ($Request.Query.AppId ?? $Request.Body.AppId)
                         try {
-                            $ServicePrincipal = New-GraphPostRequest -Uri 'https://graph.microsoft.com/beta/servicePrincipals' -tenantid $TenantFilter -type POST -body $Body -NoAuthCheck $true
-                            $Results = "Created service principal for $($ServicePrincipal.displayName) ($($ServicePrincipal.appId))"
-                            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Info'
+                            $Created = Invoke-CIPPServicePrincipalAction -TenantFilter $TenantFilter -Action Create -AppId $AppId -Headers $Headers -APIName $APIName -NoAuthCheck:(-not $ExplicitTenant)
+                            $ServicePrincipal = $Created.ServicePrincipal
+                            $Results = if ($Created.Created) {
+                                "Created service principal for $($ServicePrincipal.displayName) ($($ServicePrincipal.appId)) without granting consent"
+                            } else {
+                                "Service principal already exists for $($ServicePrincipal.displayName) ($($ServicePrincipal.appId)). No consent was granted"
+                            }
                         } catch {
-                            $ErrorMessage = Get-CippException -Exception $_
-                            $Results = "Unable to create service principal: $($ErrorMessage.NormalizedError)"
+                            $Failure = Get-CIPPGraphFailure -ErrorRecord $_
+                            $Results = "Unable to create service principal: $($Failure.Message)"
                             $Success = $false
-                            $StatusCode = [HttpStatusCode]::InternalServerError
-                            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error' -LogData $ErrorMessage
+                            $StatusCode = if ($_.Exception -is [System.ArgumentException]) { [HttpStatusCode]::BadRequest } else { $Failure.StatusCode }
+                            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
                         }
                     }
                 } else {
@@ -58,13 +68,42 @@ function Invoke-ExecServicePrincipals {
                     Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
                 }
             }
+            'Update' {
+                $Action = 'Update'
+                if (-not $ExplicitTenant) {
+                    $Results = 'tenantFilter is required'
+                    $Success = $false
+                    $StatusCode = [HttpStatusCode]::BadRequest
+                    break
+                }
+                $AppId = ConvertTo-CIPPRequestValue ($Request.Query.AppId ?? $Request.Body.AppId ?? $Request.Body.appId)
+                $SpId = ConvertTo-CIPPRequestValue ($Request.Query.Id ?? $Request.Body.Id ?? $Request.Body.id)
+                $RequiredText = ConvertTo-CIPPRequestValue ($Request.Query.appRoleAssignmentRequired ?? $Request.Body.appRoleAssignmentRequired)
+                if ($RequiredText -notin @('true', 'false')) {
+                    $Results = 'appRoleAssignmentRequired must be true or false.'
+                    $Success = $false
+                    $StatusCode = [HttpStatusCode]::BadRequest
+                    break
+                }
+                try {
+                    $Updated = Invoke-CIPPServicePrincipalAction -TenantFilter $TenantFilter -Action Update -AppId $AppId -Id $SpId -AppRoleAssignmentRequired ([System.Convert]::ToBoolean($RequiredText)) -Headers $Headers -APIName $APIName
+                    $ServicePrincipal = $Updated.ServicePrincipal
+                    $Results = "Set appRoleAssignmentRequired=$RequiredText on service principal $($ServicePrincipal.id). No consent was granted"
+                } catch {
+                    $Failure = Get-CIPPGraphFailure -ErrorRecord $_
+                    $Results = $Failure.Message
+                    $Success = $false
+                    $StatusCode = if ($_.Exception -is [System.ArgumentException]) { [HttpStatusCode]::BadRequest } else { $Failure.StatusCode }
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
+                }
+            }
             default {
                 if ($Request.Query.AppId) {
                     $Action = 'Get'
-                    $Results = New-GraphGetRequest -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='$($Request.Query.AppId)')" -tenantid $TenantFilter -NoAuthCheck $true
+                    $Results = New-GraphGetRequest -Uri "https://graph.microsoft.com/beta/servicePrincipals(appId='$($Request.Query.AppId)')" -tenantid $env:TenantID -NoAuthCheck $true
                 } elseif ($Request.Query.Id) {
                     $Action = 'Get'
-                    $Results = New-GraphGetRequest -Uri "https://graph.microsoft.com/beta/servicePrincipals/$($Request.Query.Id)" -tenantid $TenantFilter -NoAuthCheck $true
+                    $Results = New-GraphGetRequest -Uri "https://graph.microsoft.com/beta/servicePrincipals/$($Request.Query.Id)" -tenantid $env:TenantID -NoAuthCheck $true
                 } else {
                     $Action = 'List'
                     $Uri = 'https://graph.microsoft.com/beta/servicePrincipals?$top=999&$orderby=displayName&$count=true'
@@ -72,7 +111,7 @@ function Invoke-ExecServicePrincipals {
                         $Uri = '{0}&$select={1}' -f $Uri, $Request.Query.Select
                     }
 
-                    $Results = New-GraphGetRequest -Uri $Uri -ComplexFilter -tenantid $TenantFilter -NoAuthCheck $true
+                    $Results = New-GraphGetRequest -Uri $Uri -ComplexFilter -tenantid $env:TenantID -NoAuthCheck $true
                 }
             }
         }

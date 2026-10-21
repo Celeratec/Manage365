@@ -1,6 +1,6 @@
 # Application Approval
 
-The Application Approval wizard grants admin consent for an application across one or more customer tenants in a single pass, so your users are not left raising individual consent requests. Deploy from an app approval template, which carries a predefined permission set, or configure the application manually by its application ID.
+The Application Approval wizard grants admin consent for an application across one or more customer tenants in a single pass, so your users are not left raising individual consent requests. That grant is tenant-wide. To consent an application for named users only, without an AllPrincipals grant, use [user-app-consent](user-app-consent.md "mention"). Deploy from an app approval template, which carries a predefined permission set, or configure the application manually by its application ID.
 
 {% hint style="info" %}
 If you need an application deployed to every tenant and kept that way, use the App Approval standard instead. This wizard is a one-off action against the tenants you pick, and does not remediate tenants added later. See [standards](../../tenant/standards/ "mention").
