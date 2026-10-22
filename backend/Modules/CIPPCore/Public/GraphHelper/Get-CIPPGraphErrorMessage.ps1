@@ -40,6 +40,7 @@ function Get-CIPPGraphErrorMessage {
                 }
             }
             if ($Parts.Count -gt 0) { return ($Parts -join ' ') }
+            return $Raw
         } catch {
             Write-Information "Could not parse a Graph error body: $($_.Exception.Message)"
         }

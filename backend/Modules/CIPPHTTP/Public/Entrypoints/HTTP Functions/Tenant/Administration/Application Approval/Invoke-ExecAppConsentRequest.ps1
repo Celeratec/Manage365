@@ -22,7 +22,12 @@ function Invoke-ExecAppConsentRequest {
             -Justification (ConvertTo-CIPPRequestValue ($Request.Body.justification ?? $Request.Body.Justification)) `
             -Headers $Context.Headers -APIName $Context.APIName
         $StatusCode = [HttpStatusCode]::OK
-        $Body = @{ Results = "$Action recorded for the user consent request in $($Context.TenantFilter). Admin consent was not granted."; Metadata = $Result }
+        $Results = if ($Result.Fallback) {
+            "Denied the user consent request in $($Context.TenantFilter) because CIPP is not an assigned reviewer. Justification: $($Result.Justification). Admin consent was not granted."
+        } else {
+            "$($Result.ReviewResult) recorded for the user consent request in $($Context.TenantFilter). Admin consent was not granted."
+        }
+        $Body = @{ Results = $Results; Metadata = $Result }
     } catch {
         $Failure = Get-CIPPGraphFailure -ErrorRecord $_
         $StatusCode = if ($_.Exception -is [System.ArgumentException]) { [HttpStatusCode]::BadRequest } else { $Failure.StatusCode }

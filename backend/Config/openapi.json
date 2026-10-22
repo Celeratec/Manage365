@@ -40031,7 +40031,7 @@
         "tags": [
           "Tenant > Administration > Application Approval"
         ],
-        "description": "Action=Approve or Deny patches the Graph approval stage for one userConsentRequest. The decision is recorded only. The call does not create an oauth2PermissionGrant.",
+        "description": "Action=Approve or Deny patches the approval stage for one userConsentRequest. The stage is read from approval?$expand=stages (beta when v1.0 returns none). The call does not create an oauth2PermissionGrant. When assignedToMe is false, the request is denied with justification 'Handled via per-user grant' after the calling user is added to adminConsentRequestPolicy and that policy is restored. That fallback does not approve and does not grant admin consent.",
         "requestBody": {
           "required": true,
           "content": {
