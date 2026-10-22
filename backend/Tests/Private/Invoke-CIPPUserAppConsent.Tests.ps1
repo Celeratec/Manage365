@@ -60,8 +60,8 @@ Describe 'user-scoped app consent' {
         $script:ClientSp = $null
         $script:Assignments = @()
         $script:Grants = @()
-        $script:Stages = @([pscustomobject]@{ id = 'stage-1'; status = 'InProgress'; assignedToMe = $true })
-        $script:V1StagesMissing = $false
+        $script:Steps = @([pscustomobject]@{ id = 'user-req'; status = 'InProgress'; assignedToMe = $true })
+        $script:V1StepsMissing = $false
         $script:Me = [pscustomobject]@{ id = '33333333-3333-3333-3333-333333333333' }
         $script:ConsentPolicy = [pscustomobject]@{
             isEnabled             = $false
@@ -74,11 +74,15 @@ Describe 'user-scoped app consent' {
         Mock Write-LogMessage {}
         Mock New-GraphGetRequest {
             $script:Gets.Add([string]$uri)
-            if ($uri -match 'expand=stages') {
-                if ($uri -match 'graph\.microsoft\.com/v1\.0/' -and $script:V1StagesMissing) {
+            if ($uri -match 'expand=steps') {
+                if ($uri -match 'graph\.microsoft\.com/v1\.0/' -and $script:V1StepsMissing) {
                     return [pscustomobject]@{ id = 'approval-1' }
                 }
-                return [pscustomobject]@{ stages = @($script:Stages) }
+                return [pscustomobject]@{ steps = @($script:Steps) }
+            }
+            if ($uri -match 'approval/steps') {
+                if ($uri -match 'graph\.microsoft\.com/v1\.0/' -and $script:V1StepsMissing) { return @() }
+                return @($script:Steps)
             }
             if ($uri -match '/me\?') { return $script:Me }
             if ($uri -match 'adminConsentRequestPolicy') { return $script:ConsentPolicy }
@@ -207,13 +211,14 @@ Describe 'user-scoped app consent' {
         $Result = Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Approve -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -Justification 'Approved for one user' -Headers @{ 'x-ms-client-principal' = $script:Principal } -APIName 'ExecAppConsentRequest'
         $Result.ReviewResult | Should -Be 'Approve'
         $Result.AdminConsentGranted | Should -BeFalse
-        $script:Gets -join ' ' | Should -Match 'v1\.0/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval\?\$expand=stages'
-        @($script:Gets | Where-Object { $_ -match 'approval/stages(\?|$)' }).Count | Should -Be 0
+        $Result.StepId | Should -Be 'user-req'
+        $script:Gets -join ' ' | Should -Match 'v1\.0/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval\?\$expand=steps'
+        $script:Gets -join ' ' | Should -Not -Match 'stages'
         $script:Posts.Count | Should -Be 1
         $script:Posts[0].Type | Should -Be 'PATCH'
-        $script:Posts[0].Uri | Should -Be 'https://graph.microsoft.com/v1.0/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval/stages/stage-1'
+        $script:Posts[0].Uri | Should -Be 'https://graph.microsoft.com/v1.0/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval/steps/user-req'
         ($script:Posts[0].Body | ConvertFrom-Json).reviewResult | Should -Be 'Approve'
-        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant|adminConsent'
+        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant|adminConsent|stages'
         Should -Invoke Write-LogMessage -Times 1 -ParameterFilter {
             $tenant -eq 'contoso.onmicrosoft.com' -and
             $message -match 'caller@contoso.com' -and
@@ -221,38 +226,39 @@ Describe 'user-scoped app consent' {
             $message -match 'user-req' -and
             $LogData.ReviewResult -eq 'Approve' -and
             $LogData.AppConsentRequestId -eq 'app-req' -and
-            $LogData.UserConsentRequestId -eq 'user-req'
+            $LogData.UserConsentRequestId -eq 'user-req' -and
+            $LogData.StepId -eq 'user-req'
         }
     }
 
-    It 'denies a consent request' {
-        $null = Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Deny -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -StageId 'stage-9' -Justification 'No' -Headers @{} -APIName 'ExecAppConsentRequest'
+    It 'denies a consent request on the user consent request step' {
+        $null = Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Deny -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -Justification 'No' -Headers @{} -APIName 'ExecAppConsentRequest'
         ($script:Posts[0].Body | ConvertFrom-Json).reviewResult | Should -Be 'Deny'
-        $script:Posts[0].Uri | Should -Match 'stages/stage-9$'
-        $script:Gets -join ' ' | Should -Match 'expand=stages'
-        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant'
+        $script:Posts[0].Uri | Should -Be 'https://graph.microsoft.com/v1.0/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval/steps/user-req'
+        $script:Gets -join ' ' | Should -Match 'expand=steps'
+        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant|stages'
     }
 
-    It 'reads stages from beta when v1.0 does not return them' {
-        $script:V1StagesMissing = $true
+    It 'reads steps from beta when v1.0 does not return them' {
+        $script:V1StepsMissing = $true
         $null = Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Approve -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -Justification 'Approved for one user' -Headers @{} -APIName 'ExecAppConsentRequest'
-        $script:Gets -join ' ' | Should -Match 'v1\.0/.+expand=stages'
-        $script:Gets -join ' ' | Should -Match 'beta/.+expand=stages'
-        $script:Posts[0].Uri | Should -Be 'https://graph.microsoft.com/beta/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval/stages/stage-1'
+        $script:Gets -join ' ' | Should -Match 'v1\.0/.+expand=steps'
+        $script:Gets -join ' ' | Should -Match 'beta/.+expand=steps'
+        $script:Posts[0].Uri | Should -Be 'https://graph.microsoft.com/beta/identityGovernance/appConsent/appConsentRequests/app-req/userConsentRequests/user-req/approval/steps/user-req'
     }
 
-    It 'rejects a consent request that has no approval stage' {
-        $script:Stages = @()
-        $script:V1StagesMissing = $true
+    It 'rejects a consent request that has no approval step' {
+        $script:Steps = @()
+        $script:V1StepsMissing = $true
         { Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Deny -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -Justification 'No' -Headers @{} -APIName 'ExecAppConsentRequest' } |
-            Should -Throw '*No approval stage*' -ExceptionType ([System.ArgumentException])
-        $script:Gets -join ' ' | Should -Match 'v1\.0/.+expand=stages'
-        $script:Gets -join ' ' | Should -Match 'beta/.+expand=stages'
+            Should -Throw '*No approval step*' -ExceptionType ([System.ArgumentException])
+        $script:Gets -join ' ' | Should -Match 'v1\.0/.+expand=steps'
+        $script:Gets -join ' ' | Should -Match 'beta/.+expand=steps'
         $script:Posts.Count | Should -Be 0
     }
 
     It 'closes a request it cannot review without granting admin consent' {
-        $script:Stages = @([pscustomobject]@{ id = 'stage-1'; status = 'InProgress'; assignedToMe = $false })
+        $script:Steps = @([pscustomobject]@{ id = 'user-req'; status = 'InProgress'; assignedToMe = $false })
         $Result = Invoke-CIPPAppConsentRequest -TenantFilter 'contoso.onmicrosoft.com' -Action Approve -AppConsentRequestId 'app-req' -UserConsentRequestId 'user-req' -Justification 'Approved for one user' -Headers @{ 'x-ms-client-principal' = $script:Principal } -APIName 'ExecAppConsentRequest'
         $Result.ReviewResult | Should -Be 'Deny'
         $Result.AdminConsentGranted | Should -BeFalse
@@ -270,12 +276,12 @@ Describe 'user-scoped app consent' {
         $Restored = $Puts[1].Body | ConvertFrom-Json
         @($Restored.reviewers).Count | Should -Be 1
         $Restored.reviewers.query | Should -Be '/users/existing-reviewer'
-        $Decision = @($script:Posts | Where-Object { $_.Type -eq 'PATCH' -and $_.Uri -match 'approval/stages/stage-1$' })
+        $Decision = @($script:Posts | Where-Object { $_.Type -eq 'PATCH' -and $_.Uri -match 'approval/steps/user-req$' })
         $Decision.Count | Should -Be 1
         ($Decision[0].Body | ConvertFrom-Json).reviewResult | Should -Be 'Deny'
         ($Decision[0].Body | ConvertFrom-Json).justification | Should -Be 'Handled via per-user grant'
         $script:Posts.Body -join ' ' | Should -Not -Match 'AllPrincipals'
-        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant'
+        $script:Posts.Uri -join ' ' | Should -Not -Match 'oauth2PermissionGrant|stages'
         Should -Invoke Write-LogMessage -Times 1 -ParameterFilter {
             $tenant -eq 'contoso.onmicrosoft.com' -and
             $message -match 'caller@contoso.com' -and
@@ -285,7 +291,7 @@ Describe 'user-scoped app consent' {
         }
     }
 
-    It 'returns the Graph status and error body when the stage decision is rejected' {
+    It 'returns the Graph status and error body when the step decision is rejected' {
         Mock New-GraphPOSTRequest {
             $Exception = [System.Exception]::new('UnknownError')
             $Exception.Data['RawErrorBody'] = '{"error":{"code":"UnknownError","message":"","innerError":{"request-id":"req-1"}}}'
@@ -341,6 +347,15 @@ Describe 'ExecServicePrincipals tenantFilter' {
         $Response = Invoke-ExecServicePrincipals -Request $Request -TriggerMetadata $null
         $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         Should -Invoke Invoke-CIPPServicePrincipalAction -Times 1 -ParameterFilter { $TenantFilter -eq 'contoso.onmicrosoft.com' -and $Action -eq 'Create' -and $AppId -eq $script:AppId }
+    }
+
+    It 'accepts AppId from the JSON body on Create' {
+        $Request = New-ConsentRequest -Body @{ AppId = $script:AppId } -Query @{ Action = 'Create'; tenantFilter = 'contoso.onmicrosoft.com' }
+        $Request.Params.CIPPEndpoint = 'ExecServicePrincipals'
+        $Response = Invoke-ExecServicePrincipals -Request $Request -TriggerMetadata $null
+        [int]$Response.StatusCode | Should -Be 200
+        [string]$Response.Body.Results | Should -Not -Match 'Invalid AppId'
+        Should -Invoke Invoke-CIPPServicePrincipalAction -Times 1 -ParameterFilter { $AppId -eq $script:AppId -and $Action -eq 'Create' -and $TenantFilter -eq 'contoso.onmicrosoft.com' }
     }
 
     It 'requires tenantFilter for Update' {

@@ -40031,14 +40031,14 @@
         "tags": [
           "Tenant > Administration > Application Approval"
         ],
-        "description": "Action=Approve or Deny patches the approval stage for one userConsentRequest. The stage is read from approval?$expand=stages (beta when v1.0 returns none). The call does not create an oauth2PermissionGrant. When assignedToMe is false, the request is denied with justification 'Handled via per-user grant' after the calling user is added to adminConsentRequestPolicy and that policy is restored. That fallback does not approve and does not grant admin consent.",
+        "description": "Action=Approve or Deny patches approval/steps/{userConsentRequestId}. The step id is the user consent request id. The step is read from approval?$expand=steps, or approval/steps when expand returns none (beta when v1.0 returns none). The call does not create an oauth2PermissionGrant. When assignedToMe is false, the request is denied with justification 'Handled via per-user grant' after the calling user is added to adminConsentRequestPolicy and that policy is restored. That fallback does not approve and does not grant admin consent. A Graph rejection returns Graph's status and error body.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Approve", "Deny"]}, "appConsentRequestId": {"type": "string"}, "userConsentRequestId": {"type": "string"}, "stageId": {"type": "string"}, "justification": {"type": "string"}},
+                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Approve", "Deny"]}, "appConsentRequestId": {"type": "string"}, "userConsentRequestId": {"type": "string"}, "justification": {"type": "string"}},
                 "required": ["tenantFilter", "Action", "appConsentRequestId", "userConsentRequestId", "justification"]
               }
             }
@@ -40090,7 +40090,7 @@
       "post": {
         "summary": "Create or update a service principal without granting consent.",
         "operationId": "ExecServicePrincipals",
-        "description": "Action=Create posts /servicePrincipals for the AppId in tenantFilter and grants no consent. Omit tenantFilter to keep the previous partner-tenant behavior. Action=Update sets appRoleAssignmentRequired and requires tenantFilter. List and Get still read the partner tenant.",
+        "description": "Action=Create posts /servicePrincipals for the AppId in tenantFilter and grants no consent. AppId is accepted in the query string or the JSON body. Omit tenantFilter to keep the previous partner-tenant behavior. Action=Update sets appRoleAssignmentRequired and requires tenantFilter. List and Get still read the partner tenant.",
         "tags": [
           "CIPP > Core"
         ],
@@ -40100,7 +40100,7 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {}
+                "properties": {"AppId": {"type": "string"}}
               }
             }
           }
