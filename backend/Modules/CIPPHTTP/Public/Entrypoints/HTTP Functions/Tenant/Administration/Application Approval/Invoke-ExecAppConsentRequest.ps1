@@ -18,7 +18,6 @@ function Invoke-ExecAppConsentRequest {
         $Result = Invoke-CIPPAppConsentRequest -TenantFilter $Context.TenantFilter -Action $Action `
             -AppConsentRequestId (ConvertTo-CIPPRequestValue ($Request.Body.appConsentRequestId ?? $Request.Body.AppConsentRequestId)) `
             -UserConsentRequestId (ConvertTo-CIPPRequestValue ($Request.Body.userConsentRequestId ?? $Request.Body.UserConsentRequestId)) `
-            -StageId (ConvertTo-CIPPRequestValue ($Request.Body.stageId ?? $Request.Body.StageId)) `
             -Justification (ConvertTo-CIPPRequestValue ($Request.Body.justification ?? $Request.Body.Justification)) `
             -Headers $Context.Headers -APIName $Context.APIName
         $StatusCode = [HttpStatusCode]::OK

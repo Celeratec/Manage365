@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.20) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.21) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.20** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.21** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -41,9 +41,13 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 
+## Release 6.1.21 (October 2026)
+
+`ExecAppConsentRequest` reads the approval step with `approval?$expand=steps`. The step id is the user consent request id. When CIPP is not an assigned reviewer it denies the request with "Handled via per-user grant" and restores the admin consent policy. `ExecServicePrincipals` Create accepts `AppId` in the query string or the JSON body. CIPP baseline stays **11.2.1**.
+
 ## Release 6.1.20 (October 2026)
 
-`ExecAppConsentRequest` reads the approval stage with `approval?$expand=stages`. When CIPP is not an assigned reviewer it denies the request with "Handled via per-user grant" and restores the admin consent policy. It does not grant admin consent. CIPP baseline stays **11.2.1**.
+`ExecAppConsentRequest` closes a consent request CIPP cannot review by denying it with "Handled via per-user grant" and restoring the admin consent policy. It does not grant admin consent. CIPP baseline stays **11.2.1**.
 
 ## Release 6.1.19 (October 2026)
 
@@ -757,7 +761,7 @@ Manage365 tracks **two** version numbers:
 After each upstream intake, bump both and redeploy:
 
 ```powershell
-./Tools/Update-Version.ps1 -UpstreamVersion 11.2.1 -Manage365Version 6.1.20
+./Tools/Update-Version.ps1 -UpstreamVersion 11.2.1 -Manage365Version 6.1.21
 ```
 
 Then **build the container image with `APP_VERSION=<upstream baseline>` and deploy it** to the App Service container. Until redeployed, the settings page may still show old versions.

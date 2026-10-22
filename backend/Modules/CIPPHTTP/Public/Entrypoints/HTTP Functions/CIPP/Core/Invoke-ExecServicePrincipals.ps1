@@ -36,15 +36,15 @@ function Invoke-ExecServicePrincipals {
                 )
                 $Action = 'Create'
 
-                if ($Request.Query.AppId -match '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$') {
+                $AppId = ConvertTo-CIPPRequestValue ($Request.Query.AppId ?? $Request.Body.AppId ?? $Request.Body.appId)
+                if ($AppId -match '^[0-9a-f]{8}-([0-9a-f]{4}-){3}[0-9a-f]{12}$') {
 
-                    if ($BlockList -contains $Request.Query.AppId) {
+                    if ($BlockList -contains $AppId) {
                         $Results = 'Service Principal creation is blocked for this AppId'
                         $Success = $false
                         $StatusCode = [HttpStatusCode]::BadRequest
                         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
                     } else {
-                        $AppId = ConvertTo-CIPPRequestValue ($Request.Query.AppId ?? $Request.Body.AppId)
                         try {
                             $Created = Invoke-CIPPServicePrincipalAction -TenantFilter $TenantFilter -Action Create -AppId $AppId -Headers $Headers -APIName $APIName -NoAuthCheck:(-not $ExplicitTenant)
                             $ServicePrincipal = $Created.ServicePrincipal

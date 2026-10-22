@@ -6,7 +6,7 @@ Every call requires `tenantFilter` and runs in that customer tenant with the CIP
 
 ## ExecServicePrincipals
 
-`Action=Create` posts the service principal (`POST /servicePrincipals` with `appId`) and stops. It grants no roles and no delegated scopes. Pass `tenantFilter` to create it in the customer tenant. A request that omits `tenantFilter` still creates it in the partner tenant, which is the previous behavior.
+`Action=Create` posts the service principal (`POST /servicePrincipals` with `appId`) and stops. It grants no roles and no delegated scopes. `AppId` is accepted in the query string or the JSON body. Pass `tenantFilter` to create it in the customer tenant. A request that omits `tenantFilter` still creates it in the partner tenant, which is the previous behavior.
 
 `Action=Update` requires `tenantFilter` and sets `appRoleAssignmentRequired`. `true` means only assigned users and groups can sign in to the application.
 
@@ -26,11 +26,9 @@ List and Get are unchanged and still read the partner tenant.
 
 ## ExecAppConsentRequest
 
-`Action=Approve` or `Action=Deny` records the decision on one user consent request. The stage is read with `GET .../approval?$expand=stages`. v1.0 is tried first. If that response has no stages, the same read is repeated on beta. The decision is `PATCH .../approval/stages/{stageId}` with `reviewResult` `Approve` or `Deny`. This endpoint does not create an `oauth2PermissionGrant` and does not call the admin consent URL.
+`Action=Approve` or `Action=Deny` records the decision on one user consent request. The approval resource has `steps`. The step id is the user consent request id. The step is read with `GET .../approval?$expand=steps`, or `GET .../approval/steps` when the expanded approval has none. v1.0 is tried first. If that response has no steps, the same read is repeated on beta. The decision is `PATCH .../approval/steps/{userConsentRequestId}` with `reviewResult` and `justification`. This endpoint does not create an `oauth2PermissionGrant` and does not call the admin consent URL.
 
-`GET .../approval/stages` is not a Graph resource. That URL returns "No HTTP resource was found", which is why the stage is read from the approval object instead.
-
-When the stage has `assignedToMe` false, CIPP is not a reviewer and Graph rejects the decision with `UnknownError` and an empty message. Approving after adding CIPP as a reviewer would let Graph grant admin consent, so this path does not approve. It reads `GET /me`, then `PUT /policies/adminConsentRequestPolicy` with the current settings and one added reviewer, the calling SAM user (`/users/{id}`). A service principal is not a valid reviewer, and this policy does not support PATCH. The stage is then denied with the justification `Handled via per-user grant`. The original policy, including the previous reviewer list, is written back afterwards. Grant the user with `ExecGrantAppToUsers` instead. `Policy.ReadWrite.ConsentRequest` is already on the CIPP-SAM manifest.
+When the step has `assignedToMe` false, CIPP is not a reviewer and Graph rejects the decision with `UnknownError` and an empty message. That body and status are returned when the decision itself is rejected. Approving after adding CIPP as a reviewer would let Graph grant admin consent, so this path does not approve. It reads `GET /me`, then `PUT /policies/adminConsentRequestPolicy` with the current settings and one added reviewer, the calling SAM user (`/users/{id}`). A service principal is not a valid reviewer, and this policy does not support PATCH. The step is then denied with the justification `Handled via per-user grant`. The original policy, including the previous reviewer list, is written back afterwards. Grant the user with `ExecGrantAppToUsers` instead. `Policy.ReadWrite.ConsentRequest` is already on the CIPP-SAM manifest.
 
 ## ExecGrantAppToUsers
 
