@@ -7243,17 +7243,14 @@
               }
             }
           },
-          "207": {
-            "description": "Partial success - some items failed; per-item results are in the body"
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -8262,6 +8259,44 @@
             "bearerAuth": []
           }
         ],
+        "x-cipp-role": "Endpoint.Application.ReadWrite",
+        "x-cipp-any-tenant": true
+      }
+    },
+    "/api/BestPracticeAnalyser_List": {
+      "get": {
+        "summary": "BestPracticeAnalyser_List",
+        "operationId": "BestPracticeAnalyser_List",
+        "tags": [
+          "Tenant > Standards"
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "x-cipp-role": "Tenant.BestPracticeAnalyser.Read",
         "x-cipp-any-tenant": true
       }
@@ -9097,6 +9132,141 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Contact.ReadWrite",
+        "x-cipp-any-tenant": true
+      }
+    },
+    "/api/EditCrossTenantPartner": {
+      "post": {
+        "summary": "EditCrossTenantPartner",
+        "operationId": "EditCrossTenantPartner",
+        "tags": [
+          "Tenant > CrossTenant"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "automaticUserConsentSettings": {
+                    "type": "string"
+                  },
+                  "b2bCollaborationInbound": {
+                    "type": "string"
+                  },
+                  "b2bCollaborationOutbound": {
+                    "type": "string"
+                  },
+                  "b2bDirectConnectInbound": {
+                    "type": "string"
+                  },
+                  "b2bDirectConnectOutbound": {
+                    "type": "string"
+                  },
+                  "inboundTrust": {
+                    "type": "string"
+                  },
+                  "partnerTenantId": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "partnerTenantId",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                  "properties": {
+                    "appServiceConnectInbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "automaticUserConsentSettings": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "b2bCollaborationInbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "b2bCollaborationOutbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "b2bDirectConnectInbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "b2bDirectConnectOutbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "inboundTrust": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "isInMultiTenantOrganization": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "isServiceProvider": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "m365CollaborationInbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "m365CollaborationOutbound": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "tenantId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "tenantRestrictions": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
           }
         },
         "security": [
@@ -14428,6 +14598,7 @@
                 "GetMcpAuth",
                 "List",
                 "ListAvailable",
+                "RepairUri",
                 "ResetSecret",
                 "SaveToAzure",
                 "SetMcpRedirectUris"
@@ -14886,6 +15057,64 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecAppConsentRequest": {
+      "post": {
+        "summary": "Approves or denies a user consent request. The decision is recorded only; admin consent is not granted.",
+        "operationId": "ExecAppConsentRequest",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appConsentRequestId": {
+                    "type": "string"
+                  },
+                  "justification": {
+                    "type": "string"
+                  },
+                  "userConsentRequestId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
     "/api/ExecAppInsightsQuery": {
       "post": {
         "summary": "ExecAppInsightsQuery",
@@ -15333,6 +15562,77 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecAppRoleAssignment": {
+      "post": {
+        "summary": "Assigns or removes an app role for one user or group. Does not grant delegated consent.",
+        "operationId": "ExecAppRoleAssignment",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appRoleId": {
+                    "type": "string"
+                  },
+                  "assignmentId": {
+                    "type": "string"
+                  },
+                  "principalId": {
+                    "type": "string"
+                  },
+                  "servicePrincipalId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "servicePrincipalId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
     "/api/ExecAppServiceDomains": {
       "post": {
         "summary": "Manage custom domains (hostname bindings) and managed certificates on the CIPP App Service.",
@@ -15403,6 +15703,9 @@
                     },
                     "AlertComment": {
                       "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "AlertReNotify": {
                       "x-cipp-field-source": "storage"
                     },
                     "Command": {
@@ -18243,7 +18546,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Revokes all sharing links / external direct grants on one site in bulk, sourced from\nthe SharePointSharingLinks reporting cache. Scope selects which classifications are\nrevoked: Anonymous (anyone links only), External (anonymous + external), or All\n(every cached link on the site, including internal). Because the source is the\nreporting cache, links created after the last sharing sync are not covered.",
+        "description": "Revokes all sharing links / external direct grants on one site in bulk, sourced from\nthe cached sharing links (the sharing links sync). Scope selects which classifications\nare revoked: Anonymous (anyone links only), External (anonymous + external), or All\n(every cached link on the site, including internal). Because the source is the cache,\nlinks created after the last sharing sync are not covered.",
         "requestBody": {
           "required": true,
           "content": {
@@ -23938,9 +24241,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -25177,6 +25477,7 @@
         "tags": [
           "CIPP > Extensions"
         ],
+        "description": "Tests the stored credentials for a configured third-party integration and reports whether CIPP can connect. extensionName selects which one: HaloPSA, Gradient, NinjaOne, PWPush, Hudu, Sherweb, HIBP or GitHub.",
         "parameters": [
           {
             "name": "extensionName",
@@ -25192,7 +25493,8 @@
                 "HIBP",
                 "Hudu",
                 "NinjaOne",
-                "PWPush"
+                "PWPush",
+                "Sherweb"
               ]
             }
           }
@@ -27011,7 +27313,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Server-renders the SharePoint Permissions report as application/pdf bytes. Gathers the same shaped\ndata the Permissions page uses (ListSharePointPermissions, from the CIPP reporting cache), composes\nit through the shared CIPPSharp component kit (Build-CippPermissionsReportTree) and returns the\nfinished PDF - the server-side replacement for the client react-pdf PermissionsReportButton.",
+        "description": "Server-renders the SharePoint Permissions report as application/pdf bytes. Gathers the same shaped\ndata the Permissions page uses (ListSharePointPermissions, from cached scan data), composes\nit through the shared CIPPSharp component kit (Build-CippPermissionsReportTree) and returns the\nfinished PDF - the server-side replacement for the client react-pdf PermissionsReportButton.",
         "requestBody": {
           "required": true,
           "content": {
@@ -27426,6 +27728,68 @@
         ],
         "x-cipp-role": "CIPP.Extension.ReadWrite",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ExecGrantAppToUsers": {
+      "post": {
+        "summary": "Creates the customer service principal if needed, requires assignment, and grants Principal delegated scopes to the named users.",
+        "operationId": "ExecGrantAppToUsers",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Idempotent. Reuses an existing service principal, assignment, or grant and merges scopes.\nReturns the ids created so the change can be rolled back. Never writes AllPrincipals consent.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appId": {
+                    "type": "string"
+                  },
+                  "requireAssignment": {
+                    "type": "string"
+                  },
+                  "scopes": {
+                    "type": "string"
+                  },
+                  "userIds": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
       }
     },
     "/api/ExecGraphExplorerPreset": {
@@ -28777,7 +29141,7 @@
         "tags": [
           "Identity > Administration > Users"
         ],
-        "description": "Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user. StartDate and EndDate are unix seconds. The window cannot end in the past and cannot exceed MaxRoleAssignmentDuration (default P365D). A longer or past window is rejected with 400 and is not shortened. The scheduled removal uses the requested EndDate. A configured JIT Admin MaxDuration can only make the window shorter. Entra PIM policy can still refuse the underlying role assignment; that Graph error is returned.",
+        "description": "Just-in-time admin management API endpoint. This function can create users, add roles, remove roles, delete, or disable a user. StartDate and EndDate are unix seconds. The window cannot end in the past and cannot exceed MaxRoleAssignmentDuration (Config/RoleAssignment.json, default P365D); a longer or past window is rejected with 400 and is not shortened. A configured JIT Admin MaxDuration, when set, can only be shorter than that ceiling.",
         "requestBody": {
           "required": true,
           "content": {
@@ -28800,7 +29164,7 @@
                     "$ref": "#/components/schemas/LabelValue"
                   },
                   "EndDate": {
-                    "type": "string"
+                    "type": "integer"
                   },
                   "existingUser": {
                     "$ref": "#/components/schemas/LabelValue"
@@ -28827,7 +29191,7 @@
                     "type": "string"
                   },
                   "StartDate": {
-                    "type": "string"
+                    "type": "integer"
                   },
                   "tapLifetimeInMinutes": {
                     "type": "integer"
@@ -29696,6 +30060,7 @@
         "tags": [
           "CIPP > Core"
         ],
+        "description": "Lists stored CIPP backups, optionally narrowed by Type, tenantFilter or BackupName. NameOnly=true returns just the backup names and the items each one contains, without the backup payload.",
         "requestBody": {
           "required": true,
           "content": {
@@ -29763,9 +30128,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -32658,9 +33020,6 @@
               }
             }
           },
-          "207": {
-            "description": "Partial success - some items failed; per-item results are in the body"
-          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -32669,9 +33028,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -33198,6 +33554,76 @@
           }
         ],
         "x-cipp-role": "Sharepoint.Site.ReadWrite"
+      }
+    },
+    "/api/ExecOAuth2PermissionGrant": {
+      "post": {
+        "summary": "Adds, updates, or removes a Principal delegated permission grant. AllPrincipals is refused.",
+        "operationId": "ExecOAuth2PermissionGrant",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string"
+                  },
+                  "consentType": {
+                    "type": "string"
+                  },
+                  "grantId": {
+                    "type": "string"
+                  },
+                  "principalId": {
+                    "type": "string"
+                  },
+                  "resourceId": {
+                    "type": "string"
+                  },
+                  "scope": {
+                    "type": "string"
+                  },
+                  "servicePrincipalId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
       }
     },
     "/api/ExecOffboardTenant": {
@@ -34646,7 +35072,7 @@
         "tags": [
           "Identity > Administration > Roles"
         ],
-        "description": "Converts a permanent assignment to eligible, grants an eligibility (GrantEligible), grants a time-bound active assignment, extends or renews a time-bound assignment or eligibility, or removes an assignment. Duration is any ISO 8601 value up to MaxRoleAssignmentDuration (default P365D), such as PT1H, P30D, P90D, P180D or P365D, or a StartDateTime and EndDateTime pair. Longer windows and end dates in the past are rejected with 400 and are not shortened. scheduleInfo.expiration is afterDuration or afterDateTime. Entra PIM policy rules Expiration_Admin_Assignment and Expiration_Admin_Eligibility can still refuse a long assignment; that Graph error is returned. Permanent assignments are refused. Requires Entra ID P2.",
+        "description": "Converts a permanent assignment to eligible, grants an eligibility, grants a time-bound active assignment, extends or renews a time-bound assignment or eligibility, or removes an assignment. A lifetime is an ISO 8601 duration (PT1H, P30D, P90D, P180D, P365D) or a StartDateTime and EndDateTime pair. The window cannot exceed MaxRoleAssignmentDuration (default P365D) and cannot end in the past; CIPP rejects those with 400 and does not shorten them. Entra's own PIM policy (Expiration_Admin_Assignment / Expiration_Admin_Eligibility) can still refuse a long assignment, and that Graph error is returned as-is. Permanent assignments are refused, as are changes to group-inherited rows, the CIPP-SAM application and the last active Global Administrator. Requires Entra ID P2.",
         "requestBody": {
           "required": true,
           "content": {
@@ -34684,7 +35110,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "ISO 8601 lifetime such as PT1H, P30D, P90D, P180D or P365D, up to MaxRoleAssignmentDuration (default P365D). Use either Duration or EndDateTime, not both."
+                    "description": "ISO 8601 lifetime such as PT1H, P30D or P365D, up to MaxRoleAssignmentDuration. Use either Duration or EndDateTime, not both."
                   },
                   "EndDateTime": {
                     "allOf": [
@@ -34692,15 +35118,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "Absolute end (unix seconds or ISO 8601). Use either Duration or EndDateTime, not both. Must be in the future and within MaxRoleAssignmentDuration of the start."
-                  },
-                  "StartDateTime": {
-                    "allOf": [
-                      {
-                        "$ref": "#/components/schemas/LabelValue"
-                      }
-                    ],
-                    "description": "Optional start (unix seconds or ISO 8601). Defaults to now. Pair with EndDateTime for an explicit window."
+                    "description": "Absolute end (unix seconds or ISO 8601). Use either Duration or EndDateTime, not both."
                   },
                   "Justification": {
                     "type": "string",
@@ -34721,6 +35139,14 @@
                       }
                     ],
                     "description": "Role template id (roleDefinitionId as PIM reports it)."
+                  },
+                  "StartDateTime": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Optional start (unix seconds or ISO 8601). Defaults to now when omitted."
                   },
                   "tenantFilter": {
                     "$ref": "#/components/schemas/LabelValue"
@@ -34760,6 +35186,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -35031,14 +35460,14 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -36187,7 +36616,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Revokes a sharing link (or direct sharing grant) on a SharePoint or OneDrive item by\ndeleting the permission from the drive item. Also removes the revoked link from the\nSharePointSharingLinks reporting cache so the sharing report reflects it immediately.",
+        "description": "Revokes a sharing link (or direct sharing grant) on a SharePoint or OneDrive item by\ndeleting the permission from the drive item. Also removes the revoked link from the\ncached sharing links so the sharing report reflects it immediately.",
         "requestBody": {
           "required": true,
           "content": {
@@ -39962,164 +40391,46 @@
         "x-cipp-role": "Identity.User.Read"
       }
     },
-    "/api/ExecAppRoleAssignment": {
-      "post": {
-        "summary": "Assign or remove an app role for one user or group.",
-        "operationId": "ExecAppRoleAssignment",
-        "tags": [
-          "Tenant > Administration > Application Approval"
-        ],
-        "description": "Action=Add posts /servicePrincipals/{id}/appRoleAssignedTo. principalId is a user or group. appRoleId defaults to 00000000-0000-0000-0000-000000000000. Action=Remove deletes the assignment by id. This does not grant delegated consent.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Add", "Remove"]}, "servicePrincipalId": {"type": "string"}, "principalId": {"type": "string"}, "appRoleId": {"type": "string"}, "assignmentId": {"type": "string"}},
-                "required": ["tenantFilter", "Action"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Success" },
-          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
-          "401": { "description": "Unauthorized - invalid or missing bearer token" },
-          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
-          "500": { "description": "Internal server error" }
-        },
-        "security": [ { "bearerAuth": [] } ],
-        "x-cipp-role": "Tenant.Application.ReadWrite"
-      }
-    },
-    "/api/ExecOAuth2PermissionGrant": {
-      "post": {
-        "summary": "Add, update, or remove a Principal delegated grant.",
-        "operationId": "ExecOAuth2PermissionGrant",
-        "tags": [
-          "Tenant > Administration > Application Approval"
-        ],
-        "description": "Action=Add posts /oauth2PermissionGrants with consentType Principal. Scope is space-separated and must be published by the resource service principal (Microsoft Graph unless resourceId is set). Action=Update patches scope. Action=Remove deletes by grantId. consentType AllPrincipals is rejected with 400. This endpoint never creates a tenant-wide grant.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Add", "Update", "Remove"]}, "servicePrincipalId": {"type": "string"}, "principalId": {"type": "string"}, "scope": {"type": "string"}, "consentType": {"type": "string", "enum": ["Principal"]}, "resourceId": {"type": "string"}, "grantId": {"type": "string"}},
-                "required": ["tenantFilter", "Action"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Success" },
-          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
-          "401": { "description": "Unauthorized - invalid or missing bearer token" },
-          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
-          "500": { "description": "Internal server error" }
-        },
-        "security": [ { "bearerAuth": [] } ],
-        "x-cipp-role": "Tenant.Application.ReadWrite"
-      }
-    },
-    "/api/ExecAppConsentRequest": {
-      "post": {
-        "summary": "Approve or deny a user consent request without granting admin consent.",
-        "operationId": "ExecAppConsentRequest",
-        "tags": [
-          "Tenant > Administration > Application Approval"
-        ],
-        "description": "Action=Approve or Deny patches approval/steps/{userConsentRequestId}. The step id is the user consent request id. The step is read from approval?$expand=steps, or approval/steps when expand returns none (beta when v1.0 returns none). The call does not create an oauth2PermissionGrant. When assignedToMe is false, the request is denied with justification 'Handled via per-user grant' after the calling user is added to adminConsentRequestPolicy and that policy is restored. That fallback does not approve and does not grant admin consent. A Graph rejection returns Graph's status and error body.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {"tenantFilter": {"type": "string"}, "Action": {"type": "string", "enum": ["Approve", "Deny"]}, "appConsentRequestId": {"type": "string"}, "userConsentRequestId": {"type": "string"}, "justification": {"type": "string"}},
-                "required": ["tenantFilter", "Action", "appConsentRequestId", "userConsentRequestId", "justification"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Success" },
-          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
-          "401": { "description": "Unauthorized - invalid or missing bearer token" },
-          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
-          "500": { "description": "Internal server error" }
-        },
-        "security": [ { "bearerAuth": [] } ],
-        "x-cipp-role": "Tenant.Application.ReadWrite"
-      }
-    },
-    "/api/ExecGrantAppToUsers": {
-      "post": {
-        "summary": "Grant an application to specific users.",
-        "operationId": "ExecGrantAppToUsers",
-        "tags": [
-          "Tenant > Administration > Application Approval"
-        ],
-        "description": "Creates the service principal in the customer tenant if needed, sets appRoleAssignmentRequired when requireAssignment is true (the default), assigns each user, then adds or merges a Principal delegated grant. Unknown scopes are rejected before anything is written. Existing objects are reused. Metadata.Created lists only the ids this call created. Never writes AllPrincipals.",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {"tenantFilter": {"type": "string"}, "appId": {"type": "string"}, "userIds": {"type": "array", "items": {"type": "string"}}, "scopes": {"type": "array", "items": {"type": "string"}}, "requireAssignment": {"type": "boolean"}},
-                "required": ["tenantFilter", "appId", "userIds", "scopes"]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Success" },
-          "400": { "description": "Bad request. The body is Graph's message when Graph rejected the call." },
-          "401": { "description": "Unauthorized - invalid or missing bearer token" },
-          "403": { "description": "Forbidden - caller lacks the required RBAC role, or Graph refused the call" },
-          "500": { "description": "Internal server error" }
-        },
-        "security": [ { "bearerAuth": [] } ],
-        "x-cipp-role": "Tenant.Application.ReadWrite"
-      }
-    },
     "/api/ExecServicePrincipals": {
       "post": {
-        "summary": "Create or update a service principal without granting consent.",
+        "summary": "Lists service principals, or creates one in the tenant named by tenantFilter without granting consent.",
         "operationId": "ExecServicePrincipals",
-        "description": "Action=Create posts /servicePrincipals for the AppId in tenantFilter and grants no consent. AppId is accepted in the query string or the JSON body. Omit tenantFilter to keep the previous partner-tenant behavior. Action=Update sets appRoleAssignmentRequired and requires tenantFilter. List and Get still read the partner tenant.",
         "tags": [
           "CIPP > Core"
         ],
+        "description": "Action=Create posts the service principal only. Action=Update sets appRoleAssignmentRequired.\nA request without tenantFilter still targets the partner tenant, which is the previous behavior.\nA request with tenantFilter runs in that customer tenant. Neither action grants consent.",
         "requestBody": {
           "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
-                "properties": {"AppId": {"type": "string"}}
+                "properties": {
+                  "AppId": {
+                    "type": "string"
+                  },
+                  "appRoleAssignmentRequired": {
+                    "type": "string"
+                  },
+                  "Id": {
+                    "type": "string"
+                  }
+                }
               }
             }
           }
         },
         "parameters": [
           {
-            "name": "Action",
+            "name": "AppId",
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "enum": [
-                "Create",
-                "Update"
-              ]
+              "type": "string"
             }
           },
           {
-            "name": "AppId",
+            "name": "appRoleAssignmentRequired",
             "in": "query",
             "required": false,
             "schema": {
@@ -40141,24 +40452,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "name": "tenantFilter",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "description": "Customer tenant for Action=Create or Action=Update. Required for Update."
-          },
-          {
-            "name": "appRoleAssignmentRequired",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean"
-            },
-            "description": "Action=Update. True limits the app to users or groups that are assigned to it."
           }
         ],
         "responses": {
@@ -41293,9 +41586,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -42404,6 +42694,98 @@
         "x-cipp-role": "Sharepoint.Site.ReadWrite"
       }
     },
+    "/api/ExecSetSiteProperty": {
+      "post": {
+        "summary": "ExecSetSiteProperty",
+        "operationId": "ExecSetSiteProperty",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "AnonymousLinkExpirationInDays": {
+                    "type": "string",
+                    "description": "Anonymous link expiration (requires override flag)"
+                  },
+                  "DefaultLinkPermission": {
+                    "type": "string",
+                    "description": "Default Link Permission (0=None/tenant default, 1=View, 2=Edit)"
+                  },
+                  "DefaultSharingLinkType": {
+                    "type": "string",
+                    "description": "Default Sharing Link Type (0=None/tenant default, 1=Direct, 2=Internal, 3=AnonymousAccess)"
+                  },
+                  "DisplayName": {
+                    "type": "string"
+                  },
+                  "LockState": {
+                    "type": "string",
+                    "description": "Lock State"
+                  },
+                  "RestrictedAccessControl": {
+                    "type": "string",
+                    "description": "Restricted Access Control (requires SharePoint Advanced Management licensing)"
+                  },
+                  "SharingCapability": {
+                    "type": "string",
+                    "description": "Sharing Capability"
+                  },
+                  "SiteId": {
+                    "type": "string"
+                  },
+                  "StorageMaximumLevelGB": {
+                    "type": "number",
+                    "description": "Storage Quota (accepts GB, converts to MB for the API)"
+                  },
+                  "StorageWarningLevelGB": {
+                    "type": "number"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "SiteId",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Site.ReadWrite"
+      }
+    },
     "/api/ExecSetUserPhoto": {
       "post": {
         "summary": "ExecSetUserPhoto",
@@ -42954,6 +43336,72 @@
         "x-cipp-role": "Sharepoint.Site.ReadWrite"
       }
     },
+    "/api/ExecSharePointPermissionsSync": {
+      "post": {
+        "summary": "Start a SharePoint permissions report sync",
+        "operationId": "ExecSharePointPermissionsSync",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Queues a refresh of one of the cached datasets the SharePoint permissions report is built from, for a single tenant.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Name",
+            "in": "query",
+            "description": "The cached dataset to refresh.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SharePointPermissions"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Reports.ReadWrite"
+      }
+    },
     "/api/ExecSharePointPerms": {
       "post": {
         "summary": "ExecSharePointPerms",
@@ -43030,6 +43478,142 @@
           }
         ],
         "x-cipp-role": "Sharepoint.Site.ReadWrite"
+      }
+    },
+    "/api/ExecSharePointSharingSync": {
+      "post": {
+        "summary": "Start a SharePoint sharing report sync",
+        "operationId": "ExecSharePointSharingSync",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Queues a refresh of one of the cached datasets the SharePoint sharing report is built from, for a single tenant.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Name",
+            "in": "query",
+            "description": "The cached dataset to refresh.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OneDriveUsage",
+                "SharePointSharingLinks",
+                "SharePointSiteUsage"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Reports.ReadWrite"
+      }
+    },
+    "/api/ExecSharePointStorageSync": {
+      "post": {
+        "summary": "Start a SharePoint storage report sync",
+        "operationId": "ExecSharePointStorageSync",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Queues a refresh of one of the cached datasets the SharePoint storage report is built from, for a single tenant.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Name",
+            "in": "query",
+            "description": "The cached dataset to refresh.",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "OneDriveUsage",
+                "SharePointSiteUsage",
+                "StorageCleanupScan"
+              ]
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Reports.ReadWrite"
       }
     },
     "/api/ExecSharePointTemplate": {
@@ -44762,6 +45346,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
+        "description": "Assigns a phone number to a user or resource account, or sets the emergency location on a\nnumber, via the Teams administration Graph API.",
         "requestBody": {
           "required": true,
           "content": {
@@ -44769,6 +45354,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "AssignmentCategory": {
+                    "type": "string"
+                  },
                   "input": {
                     "$ref": "#/components/schemas/LabelValue"
                   },
@@ -44776,8 +45364,7 @@
                     "type": "string"
                   },
                   "PhoneNumber": {
-                    "type": "string",
-                    "description": "Normalize phone number -- the + prefix can be lost during URL encoding (+ becomes space)"
+                    "type": "string"
                   },
                   "PhoneNumberType": {
                     "type": "string"
@@ -44809,9 +45396,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -45142,6 +45726,90 @@
         ],
         "x-cipp-role": "Tenant.Groups.ReadWrite",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ExecTestMessage": {
+      "post": {
+        "summary": "ExecTestMessage",
+        "operationId": "ExecTestMessage",
+        "tags": [
+          "Email-Exchange > Tools"
+        ],
+        "description": "Runs Exchange Online's Test-Message against a tenant: a test message is pushed through the\nmail flow rule (and optionally unified DLP) evaluation pipeline and Exchange emails a report\nof every rule that matched to the SendReportTo mailbox. Nothing is returned inline. The\nmessage is either an uploaded .eml (MessageFileBase64) or a minimal one CIPP builds from\nSubject and Body. Because the message really enters the pipeline, rule actions such as\nblock, moderate or notify can fire for it. The dropped message's trace carries the rules\nthat acted, so an async deployment job (DeploymentId) waits for it on the queue and\npushes the verdict live; the page follows it through ListAsyncDeployment.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Body": {
+                    "type": "string"
+                  },
+                  "MessageFileBase64": {
+                    "type": "string"
+                  },
+                  "Recipients": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  },
+                  "Sender": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "SendReportTo": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "Subject": {
+                    "type": "string",
+                    "description": "Minimal RFC 5322 message. CRLF line endings and a Message-ID keep it well-formed for the pipeline; the sender and recipients on the command still decide the envelope."
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "TransportRules": {
+                    "type": "boolean"
+                  },
+                  "UnifiedDlpRules": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.TransportRule.ReadWrite"
       }
     },
     "/api/ExecTestRefresh": {
@@ -45628,7 +46296,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string"
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
             }
           },
           {
@@ -45930,10 +46601,47 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                  "description": "Derived from the fields written into the storage table it reads, and the fields the endpoint selects onto each record. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
                   "properties": {
+                    "APIKey": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "ApplicationId": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "ApplicationSecret": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "ETag": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "PartitionKey": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "RefreshToken": {
+                      "x-cipp-field-source": "storage"
+                    },
                     "Results": {
                       "x-cipp-field-source": "backend"
+                    },
+                    "RowKey": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "SASUrl": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "SecretValue": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "TenantId": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "Timestamp": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
                     }
                   }
                 }
@@ -46161,6 +46869,91 @@
         "x-cipp-role": "CIPP.Core.ReadWrite"
       }
     },
+    "/api/ExecValidateExternalDomain": {
+      "post": {
+        "summary": "ExecValidateExternalDomain",
+        "operationId": "ExecValidateExternalDomain",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "context": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "context",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "email",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Site.Read"
+      }
+    },
     "/api/ExecValidateIntuneTemplate": {
       "post": {
         "summary": "Check an Intune template for problems that would stop it deploying.",
@@ -46247,9 +47040,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -46259,91 +47049,6 @@
         ],
         "x-cipp-role": "Endpoint.MEM.Read",
         "x-cipp-any-tenant": true
-      }
-    },
-    "/api/ExecValidateExternalDomain": {
-      "post": {
-        "summary": "ExecValidateExternalDomain",
-        "operationId": "ExecValidateExternalDomain",
-        "tags": [
-          "Teams-Sharepoint"
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "context": {
-                    "type": "string"
-                  },
-                  "email": {
-                    "type": "string"
-                  },
-                  "tenantFilter": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "tenantFilter"
-                ]
-              }
-            }
-          }
-        },
-        "parameters": [
-          {
-            "name": "context",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "email",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "$ref": "#/components/parameters/tenantFilter"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad request - missing required field or invalid input"
-          },
-          "401": {
-            "description": "Unauthorized - invalid or missing bearer token"
-          },
-          "403": {
-            "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
-          }
-        },
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "x-cipp-role": "Sharepoint.Site.Read"
       }
     },
     "/api/ExecWebhookSubscriptions": {
@@ -48381,6 +49086,33 @@
         "description": "Lists Intune app protection policies for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -48452,7 +49184,42 @@
         ],
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "UseReportDB",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -48781,6 +49548,33 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -49090,6 +49884,10 @@
                       "Attempts": {
                         "x-cipp-field-source": "storage"
                       },
+                      "CandidateCount": {
+                        "type": "integer",
+                        "x-cipp-field-source": "storage"
+                      },
                       "CreatedUtc": {
                         "x-cipp-field-source": "storage"
                       },
@@ -49124,7 +49922,6 @@
                         "x-cipp-field-source": "storage"
                       },
                       "RowKey": {
-                        "type": "string",
                         "x-cipp-field-source": "storage"
                       },
                       "SearchId": {
@@ -49156,11 +49953,9 @@
                         "x-cipp-field-source": "storage,frontend"
                       },
                       "WindowEnd": {
-                        "type": "string",
                         "x-cipp-field-source": "storage,frontend"
                       },
                       "WindowStart": {
-                        "type": "string",
                         "x-cipp-field-source": "storage,frontend"
                       }
                     }
@@ -50663,6 +51458,33 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -50769,6 +51591,83 @@
           },
           {
             "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.ConditionalAccess.Read"
+      }
+    },
+    "/api/ListCAPolicyImpact": {
+      "get": {
+        "summary": "ListCAPolicyImpact",
+        "operationId": "ListCAPolicyImpact",
+        "tags": [
+          "Tenant > Conditional"
+        ],
+        "description": "Shows how a single Conditional Access policy was evaluated against recent interactive sign-ins, like\nthe Entra portal's Policy impact view: sign-ins per UTC day split by the policy's result (success,\nfailure, not applied and the report-only equivalents), totals for the window, and a capped sample\nof sign-ins per day where the policy's controls were not met. Days is 1, 7 or 30.",
+        "parameters": [
+          {
+            "name": "Days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "GUID",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Segment",
             "in": "query",
             "required": false,
             "schema": {
@@ -51639,6 +52538,33 @@
         ],
         "description": "Lists Intune device compliance policies for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -57124,6 +58050,9 @@
                         "type": "string",
                         "x-cipp-field-source": "storage"
                       },
+                      "AlertReNotify": {
+                        "x-cipp-field-source": "storage"
+                      },
                       "Command": {
                         "type": "string",
                         "x-cipp-field-source": "storage"
@@ -59470,6 +60399,33 @@
         "description": "Compiles where each Entra group is used (Conditional Access, Intune assignments, group-based\nlicensing, Teams, nested groups, Entra roles, enterprise applications, Exchange transport\nrules) from the CIPP reporting database cache. Always served from cache — no live Graph calls.",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           }
         ],
@@ -59903,6 +60859,33 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -60088,6 +61071,33 @@
           {
             "name": "InactiveDays",
             "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
             "required": false,
             "schema": {
               "type": "integer"
@@ -60912,6 +61922,33 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -61000,6 +62037,33 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
             }
           },
           {
@@ -61160,6 +62224,33 @@
         ],
         "description": "Lists Intune device management scripts (Windows, macOS, Linux, and remediation scripts) for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -62453,6 +63544,14 @@
             }
           },
           {
+            "name": "AppId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "BaselineRunId",
             "in": "query",
             "required": false,
@@ -62497,10 +63596,18 @@
           {
             "name": "Filter",
             "in": "query",
-            "description": "When true, the Severity/User/Tenant/API/StartDate/EndDate query filters are applied; otherwise the current day is returned unfiltered.",
+            "description": "When true, the Severity/User/Tenant/API/IP/AppId/StartDate/EndDate query filters are applied; otherwise the current day is returned unfiltered.",
             "required": false,
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "IP",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -63016,6 +64123,33 @@
         "description": "Lists mailbox forwarding rules and configurations for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -63202,6 +64336,33 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -63365,6 +64526,33 @@
           "Email-Exchange > Administration"
         ],
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -64019,6 +65207,33 @@
         ],
         "description": "Lists Microsoft Defender for Endpoint onboarding status for devices in a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance. Automatically uses the reporting database when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -64871,6 +66086,33 @@
         "description": "Lists OAuth application consent grants and permissions for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -65149,6 +66391,127 @@
           },
           "500": {
             "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Administration.ReadWrite"
+      }
+    },
+    "/api/ListOneDriveFiles": {
+      "get": {
+        "summary": "ListOneDriveFiles",
+        "operationId": "ListOneDriveFiles",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "parameters": [
+          {
+            "name": "DriveId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "FolderId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SiteId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "UserId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "childCount": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "createdBy": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "driveId": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "fileExtension": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "id": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "isFolder": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "lastModified": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "name": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "parentId": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "parentPath": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "sizeFormatted": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "sizeInBytes": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "type": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "webUrl": {
+                        "x-cipp-field-source": "backend"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
           }
         },
         "security": [
@@ -67671,6 +69034,9 @@
                         "type": "string",
                         "x-cipp-field-source": "storage"
                       },
+                      "AlertReNotify": {
+                        "x-cipp-field-source": "storage"
+                      },
                       "Command": {
                         "type": "string",
                         "x-cipp-field-source": "storage"
@@ -68623,6 +69989,33 @@
         "description": "Lists shared mailboxes that have direct sign-in enabled (account not disabled), which is a security concern.\nSupports UseReportDB=true to read cached data from the reporting database (required for AllTenants).",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -68931,6 +70324,259 @@
         "x-cipp-role": "Sharepoint.Site.Read"
       }
     },
+    "/api/ListSharePointFolders": {
+      "get": {
+        "summary": "Lists folders inside a SharePoint document library for the Image Optimizer folder picker.",
+        "operationId": "ListSharePointFolders",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Accepts a SiteId and optional DriveId (document library). When DriveId is omitted the\ndefault document library for the site is used. Returns folder items with their id and\nlibrary-relative path so callers can scope a scan to a specific folder.",
+        "parameters": [
+          {
+            "name": "DriveId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SiteId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the Microsoft Graph entity it queries. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                    "properties": {
+                      "createdBy": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "createdDateTime": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "description": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "error": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "eTag": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "id": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "isPersonalSite": {
+                        "type": "boolean",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "lastModifiedBy": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "lastModifiedDateTime": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "name": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "parentReference": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "root": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "sharepointIds": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "siteCollection": {
+                        "type": "object",
+                        "x-cipp-field-source": "graph-entity"
+                      },
+                      "webUrl": {
+                        "type": "string",
+                        "x-cipp-field-source": "graph-entity"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Site.Read"
+      }
+    },
+    "/api/ListSharePointImageCandidates": {
+      "get": {
+        "summary": "Audits a SharePoint document library for large JPG/JPEG files (read-only).",
+        "operationId": "ListSharePointImageCandidates",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "description": "Returns the SharePoint Image Optimizer result object in Audit mode. No files are\nmodified and no versions are deleted. Accepts parameters from either the query\nstring or the request body so it can be called as a GET (list) or POST.",
+        "parameters": [
+          {
+            "name": "DriveId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "FolderId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "FolderPath",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "IncludeSubfolders",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "LibraryName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "MaxFiles",
+            "in": "query",
+            "description": "This endpoint scans synchronously inside the HTTP request, which is bound by the ~230s gateway limit. Cap the scan so a large library cannot run past that limit; callers wanting a full library audit should use the queued ExecSharePointImageOptimize.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "MinimumFileSizeMB",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SiteId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SiteUrl",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Site.Read"
+      }
+    },
     "/api/ListSharePointPermissions": {
       "get": {
         "summary": "ListSharePointPermissions",
@@ -68938,7 +70584,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Compiles the SharePoint permissions report for a tenant from CACHED data in the CIPP\nreporting database (SharePointPermissions). No live enumeration is performed - refresh the\ndata by syncing that cache (ExecCIPPDBCache). Returns the scan summary, the oversharing\nsignals worth acting on, chart datasets and the individual permission assignments.\n\nSignals reported:\n- Broad claims: grants to Everyone, Everyone except external users, or All Users. A library\n  carrying one of these is reachable by the whole tenant regardless of who was meant to\n  have it, which is the classic oversharing footgun.\n- External grants: permissions held by guest or external identities.\n- Direct Full Control: Full Control held by something other than a SharePoint group, i.e.\n  granted to a user or directory group rather than through the site's Owners group.\n- Unique permission libraries: libraries that no longer inherit from their site, so site\n  level permission changes no longer reach them.\n\nLimited Access assignments (isSystemManaged) are excluded from every signal - SharePoint\ncreates them itself so a user can traverse to an item, and they grant nothing on their own.",
+        "description": "Compiles the SharePoint permissions report for a tenant from CACHED data in the\nCippSharePointPermissions table. No live enumeration is performed - refresh the\ndata by syncing that cache (ExecCIPPDBCache). Returns the scan summary, the oversharing\nsignals worth acting on, chart datasets and the individual permission assignments.\n\nSignals reported:\n- Broad claims: grants to Everyone, Everyone except external users, or All Users. A library\n  carrying one of these is reachable by the whole tenant regardless of who was meant to\n  have it, which is the classic oversharing footgun.\n- External grants: permissions held by guest or external identities.\n- Direct Full Control: Full Control held by something other than a SharePoint group, i.e.\n  granted to a user or directory group rather than through the site's Owners group.\n- Unique permission libraries: libraries that no longer inherit from their site, so site\n  level permission changes no longer reach them.\n\nLimited Access assignments (isSystemManaged) are excluded from every signal - SharePoint\ncreates them itself so a user can traverse to an item, and they grant nothing on their own.",
         "parameters": [
           {
             "$ref": "#/components/parameters/tenantFilter"
@@ -69221,8 +70867,17 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Compiles the SharePoint & OneDrive sharing report for a tenant from CACHED data in the\nCIPP reporting database (SharePointSharingLinks, SharePointSiteUsage, OneDriveUsage).\nNo live Graph enumeration is performed - refresh the data by syncing those caches\n(ExecCIPPDBCache). Returns environment/file/storage summaries per workload, sharing link\ncounts by classification, chart datasets and the individual sharing link rows.\n\nAlso rolls up the sharing sprawl signals held in the same rows: anonymous links that allow\nediting, anonymous links with no expiry, folder-level external shares (one share exposes\neverything below it), and the busiest libraries and external recipients.",
+        "description": "Compiles the SharePoint & OneDrive sharing report for a tenant from CACHED data: the\ncached sharing links plus the SharePointSiteUsage and OneDriveUsage datasets. No live\nGraph enumeration is performed - refresh the data by syncing those caches\n(ExecCIPPDBCache). Returns environment/file/storage summaries per workload, sharing link\ncounts by classification, chart datasets, the individual sharing link rows, and the state\nof any sharing links scan still running (when it started, its queue and its current phase).\n\nAlso rolls up the sharing sprawl signals held in the same rows: anonymous links that allow\nediting, anonymous links with no expiry, folder-level external shares (one share exposes\neverything below it), and the busiest libraries and external recipients.",
         "parameters": [
+          {
+            "name": "ScanStatusOnly",
+            "in": "query",
+            "description": "Only the running scan's progress, library by library - cheap enough to poll while a scan runs.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           }
@@ -70074,6 +71729,109 @@
         "x-cipp-role": "Sharepoint.Site.Read"
       }
     },
+    "/api/ListSiteLiveStorage": {
+      "get": {
+        "summary": "ListSiteLiveStorage",
+        "operationId": "ListSiteLiveStorage",
+        "tags": [
+          "Teams-Sharepoint"
+        ],
+        "parameters": [
+          {
+            "name": "SiteId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "displayName": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "lastModifiedDateTime": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "lockState": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Results": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "retrievedAt": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "sharingCapability": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "siteId": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageAllocatedInGigabytes": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageAllocatedInMB": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storagePercentage": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageUsedInGigabytes": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageUsedInMB": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageWarningInGigabytes": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "storageWarningInMB": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "template": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "url": {
+                        "x-cipp-field-source": "backend"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Sharepoint.Site.Read"
+      }
+    },
     "/api/ListSiteMembers": {
       "get": {
         "summary": "ListSiteMembers",
@@ -70480,6 +72238,33 @@
         "description": "Lists SharePoint sites or OneDrive usage for a tenant. Requires a Type parameter (SharePointSiteUsage or OneDriveUsageAccount). SharePoint live data uses SPO admin RLD plus Graph enrichment; OneDrive live data uses Graph usage reports. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -70659,7 +72444,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Explains how one user can reach a SharePoint site or document library: every route that\ngrants them access, and the permission level each route carries. This is the effective\naccess answer that the permission lists cannot give on their own, because those show who\nholds a grant rather than who the grant resolves to.\n\nRoutes checked, live:\n- Site collection administrator (full control over everything in the site)\n- A permission granted straight to the user\n- Membership of a SharePoint group that holds a permission, including the Owners,\n  Members and Visitors groups\n- Membership of an Entra security group or Microsoft 365 group that holds a permission,\n  resolved through transitiveMemberOf so nested groups count\n- A tenant-wide claim (Everyone, Everyone except external users, All Users), which every\n  internal user matches\n- Sharing links and direct item shares the user received, read from the\n  SharePointSharingLinks cache rather than live\n\nWhen a library is given and it still inherits, its permissions are the site's, so the\nsite is evaluated and the result says so.\n\nLimited Access is reported but flagged, because on its own it grants no ability to open\nor list anything - SharePoint adds it so a user can traverse to an item they were given\naccess to further down.",
+        "description": "Explains how one user can reach a SharePoint site or document library: every route that\ngrants them access, and the permission level each route carries. This is the effective\naccess answer that the permission lists cannot give on their own, because those show who\nholds a grant rather than who the grant resolves to.\n\nRoutes checked, live:\n- Site collection administrator (full control over everything in the site)\n- A permission granted straight to the user\n- Membership of a SharePoint group that holds a permission, including the Owners,\n  Members and Visitors groups\n- Membership of an Entra security group or Microsoft 365 group that holds a permission,\n  resolved through transitiveMemberOf so nested groups count\n- A tenant-wide claim (Everyone, Everyone except external users, All Users), which every\n  internal user matches\n- Sharing links and direct item shares the user received, read from the cached\n  sharing links rather than live\n\nWhen a library is given and it still inherits, its permissions are the site's, so the\nsite is evaluated and the result says so.\n\nLimited Access is reported but flagged, because on its own it grants no ability to open\nor list anything - SharePoint adds it so a user can traverse to an item they were given\naccess to further down.",
         "parameters": [
           {
             "name": "ListId",
@@ -71406,7 +73191,7 @@
         "tags": [
           "Teams-Sharepoint"
         ],
-        "description": "Reads the hold-only StorageCleanupScan CIPPDB cache and rebuilds the scans map expected by\nthe storage report cleanup opportunity helpers. No live enumeration — refresh via\nExecCIPPDBCache Name=StorageCleanupScan. Report-private; not used by other List APIs.",
+        "description": "Reads the StorageCleanupScan rows from the CippStorageCleanupScan table and rebuilds the scans map expected by\nthe storage report cleanup opportunity helpers. No live enumeration — refresh via\nExecCIPPDBCache Name=StorageCleanupScan. Report-private; not used by other List APIs.",
         "parameters": [
           {
             "$ref": "#/components/parameters/tenantFilter"
@@ -71488,6 +73273,30 @@
             }
           },
           {
+            "name": "manualPagination",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "$ref": "#/components/parameters/tenantFilter"
           },
           {
@@ -71501,6 +73310,15 @@
                 "SharedChannels",
                 "Team"
               ]
+            }
+          },
+          {
+            "name": "UseReportDB",
+            "in": "query",
+            "description": "Cached reads, including AllTenants, page through the report. A single tenant still uses the live list below.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -71580,6 +73398,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -71597,7 +73418,35 @@
         "tags": [
           "Teams-Sharepoint"
         ],
+        "description": "Lists Microsoft Teams user activity reports for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -71607,6 +73456,15 @@
             "required": false,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "UseReportDB",
+            "in": "query",
+            "description": "Serve from the reporting database cache instead of live Graph. Much faster, especially for AllTenants.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -71621,22 +73479,7 @@
                     "type": "object",
                     "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
                     "properties": {
-                      "AdHocMeetingsAttended": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "AdHocMeetingsOrganized": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "AudioDuration": {
-                        "x-cipp-field-source": "backend"
-                      },
                       "CallCount": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "displayName": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "hasOtherAction": {
                         "x-cipp-field-source": "backend"
                       },
                       "LastActive": {
@@ -71645,40 +73488,10 @@
                       "MeetingCount": {
                         "x-cipp-field-source": "backend"
                       },
-                      "MeetingsAttended": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "MeetingsOrganized": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "PrivateChat": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "reportPeriod": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "reportRefreshDate": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "ScheduledMeetingsAttended": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "ScheduledMeetingsOrganized": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "ScreenShareDuration": {
-                        "x-cipp-field-source": "backend"
-                      },
                       "TeamsChat": {
                         "x-cipp-field-source": "backend"
                       },
-                      "totalActivity": {
-                        "x-cipp-field-source": "backend"
-                      },
                       "UPN": {
-                        "x-cipp-field-source": "backend"
-                      },
-                      "VideoDuration": {
                         "x-cipp-field-source": "backend"
                       }
                     }
@@ -71692,6 +73505,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -72016,6 +73832,33 @@
         ],
         "description": "Lists Microsoft Teams voice and PSTN usage for a tenant. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -72676,6 +74519,33 @@
         ],
         "description": "Lists Tenant Allow/Block List entries (senders, URLs, file hashes, IPs) from Exchange Online Protection. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
+          {
+            "name": "manualPagination",
+            "in": "query",
+            "description": "Return one page per request as { Results, Metadata } with a continuation token in Metadata.nextLink.",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "nextLink",
+            "in": "query",
+            "description": "Continuation token from the previous page's Metadata.nextLink; opaque to callers.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "PageSize",
+            "in": "query",
+            "description": "Cached rows per page, clamped between 250 and 10000. Defaults to 5000. Pages hold whole tenants.",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           },
@@ -75583,8 +77453,25 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Lists user reported email threat submissions (Defender Submissions with source 'user') for a tenant.",
+        "description": "Lists user reported messages (Outlook Report button) for a tenant. Source=AuditLog (default) reads the unified\naudit log two weeks per page, Source=Submissions reads the Defender Submissions list from Graph.",
         "parameters": [
+          {
+            "name": "nextLink",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Source",
+            "in": "query",
+            "description": "AuditLog (default) or Submissions",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "$ref": "#/components/parameters/tenantFilter"
           }
@@ -75678,9 +77565,9 @@
                         "type": "string",
                         "x-cipp-field-source": "graph-entity"
                       },
-                      "source": {
+                      "Source": {
                         "type": "object",
-                        "x-cipp-field-source": "graph-entity"
+                        "x-cipp-field-source": "graph-entity,frontend"
                       },
                       "Status": {
                         "type": "object",
