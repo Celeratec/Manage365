@@ -49,19 +49,21 @@ Function Invoke-ListCalendarPermissions {
                 })
         }
 
-        # Original live query logic for specific user
-        $GetCalParam = @{Identity = $UserID; FolderScope = 'Calendar' }
-        $CalendarFolders = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderStatistics' -anchor $UserID -cmdParams $GetCalParam | Select-Object -ExcludeProperty *data.type*
-        $CalendarFolder = @($CalendarFolders) | Where-Object { $_.FolderType -eq 'Calendar' } | Select-Object -First 1
+        # Live query for a single mailbox calendar folder.
+        $GetCalParam = @{ Identity = $UserID; FolderScope = 'Calendar' }
+        $CalendarFolders = @(New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderStatistics' -anchor $UserID -cmdParams $GetCalParam -Select 'Name,FolderType')
+        $CalendarFolder = $CalendarFolders | Where-Object { $_.FolderType -eq 'Calendar' } | Select-Object -First 1
         if (-not $CalendarFolder) {
-            $CalendarFolder = @($CalendarFolders) | Select-Object -First 1
+            $CalendarFolder = $CalendarFolders | Select-Object -First 1
         }
-        $CalParam = @{Identity = "$($UserID):\$($CalendarFolder.name)" }
-        $Mailbox = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-Mailbox' -cmdParams @{Identity = $UserID }
-        $RawPermissions = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderPermission' -anchor $UserID -cmdParams $CalParam -UseSystemMailbox $true
+        $CalParam = @{ Identity = "$($UserID):\$($CalendarFolder.Name)" }
+        $MailboxSelect = 'DisplayName,UserPrincipalName,PrimarySmtpAddress,Alias,Identity,Guid,ExchangeGuid,ExternalDirectoryObjectId,RecipientType,RecipientTypeDetails'
+        $Mailbox = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-Mailbox' -cmdParams @{ Identity = $UserID } -Select $MailboxSelect
+        $RawPermissions = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderPermission' -anchor $UserID -cmdParams $CalParam -UseSystemMailbox $true -Select 'Identity,User,AccessRights,FolderName'
+        $Permissions = Resolve-CIPPFolderPermissionUser -TenantFilter $TenantFilter -FolderIdentity $CalParam.Identity -Permissions $RawPermissions
 
         $ResolveCache = @{}
-        $GraphRequest = foreach ($Perm in @($RawPermissions)) {
+        $GraphRequest = foreach ($Perm in @($Permissions)) {
             $UserKey = [string]$Perm.User
             if (-not $ResolveCache.ContainsKey($UserKey)) {
                 $ResolveCache[$UserKey] = Resolve-CIPPFolderPermissionUser -User $Perm.User -TenantFilter $TenantFilter
@@ -69,22 +71,22 @@ Function Invoke-ListCalendarPermissions {
             $Resolved = $ResolveCache[$UserKey]
 
             [PSCustomObject]@{
-                Identity          = $Perm.Identity
-                User              = $Resolved.User ?? $(if ($Perm.User -is [string]) { $Perm.User } else { $Perm.User.DisplayName ?? [string]$Perm.User })
-                UserEmail         = $Resolved.UserEmail
-                UserId            = $Resolved.UserId
-                UserAmbiguous     = [bool]$Resolved.UserAmbiguous
-                CandidateEmails   = $Resolved.CandidateEmails
-                UserType          = $(
+                Identity        = $Perm.Identity
+                User            = $Resolved.User ?? $(if ($Perm.User -is [string]) { $Perm.User } else { $Perm.User.DisplayName ?? [string]$Perm.User })
+                UserEmail       = $Resolved.UserEmail
+                UserId          = $Perm.UserId ?? $Resolved.UserId
+                UserAmbiguous   = [bool]$Resolved.UserAmbiguous
+                CandidateEmails = $Resolved.CandidateEmails
+                UserType        = $(
                     if ($Perm.User -is [psobject] -and ($Perm.User.PSObject.Properties.Name -contains 'UserType')) {
                         $Ut = $Perm.User.UserType
                         if ($Ut -is [psobject] -and ($Ut.PSObject.Properties.Name -contains 'Value')) { $Ut.Value } else { [string]$Ut }
                     } else { $null }
                 )
-                AccessRights      = $Perm.AccessRights
-                FolderName        = $Perm.FolderName
-                FolderIdentity    = $CalParam.Identity
-                MailboxInfo       = $Mailbox
+                AccessRights    = $Perm.AccessRights
+                FolderName      = $Perm.FolderName
+                FolderIdentity  = $CalParam.Identity
+                MailboxInfo     = $Mailbox
             }
         }
 

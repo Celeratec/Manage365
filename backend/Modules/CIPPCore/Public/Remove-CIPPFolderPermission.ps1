@@ -52,14 +52,21 @@ function Remove-CIPPFolderPermission {
             ResultSize = 'Unlimited'
         } -Select 'PrimarySmtpAddress,Guid')
 
-    $Probe = @(New-ExoBulkRequest -tenantid $TenantFilter -useSystemMailbox $true -cmdletArray @(
-            foreach ($Candidate in $Candidates) {
-                @{
-                    CmdletInput   = @{ CmdletName = 'Get-MailboxFolderPermission'; Parameters = @{ Identity = $FolderIdentity; User = $Candidate.Guid } }
+    $LivePermissions = @(New-ExoRequest @Exo -cmdlet 'Get-MailboxFolderPermission' -cmdParams @{ Identity = $FolderIdentity } -UseSystemMailbox $true)
+    $Holders = @()
+    foreach ($Candidate in $Candidates) {
+        foreach ($Perm in $LivePermissions) {
+            $AclKeys = Get-CIPPFolderPermissionAclUserKeys -PermUser $Perm.User
+            if ($AclKeys -contains $Candidate.Guid -or $AclKeys -contains $User) {
+                $Holders += [PSCustomObject]@{
                     OperationGuid = $Candidate.Guid
+                    AccessRights  = $Perm.AccessRights
+                    User          = $Perm.User
                 }
-            }))
-    $Holders = @($Probe | Where-Object { -not $_.error })
+                break
+            }
+        }
+    }
 
     if ($Holders.Count -gt 1 -and $AccessRights) {
         $Matched = @($Holders | Where-Object { ($_.AccessRights -join ', ') -eq $AccessRights })

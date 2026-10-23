@@ -180,6 +180,17 @@ function Invoke-CIPPMailboxFolderPermissionAttempt {
             continue
         }
 
+        $LiveForSetAdd = $null
+        if ($Action -in 'Set', 'Add') {
+            try {
+                $LiveForSetAdd = @(New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxFolderPermission' -cmdParams @{
+                        Identity = $ThisFolder
+                    } -Anchor $Anchor -UseSystemMailbox $true)
+            } catch {
+                Write-Information "Get-MailboxFolderPermission failed for '$ThisFolder' before set/add: $((Get-CippException -Exception $_).NormalizedError)"
+            }
+        }
+
         foreach ($Candidate in $UniqueCandidates) {
             try {
                 $CmdParams = @{
@@ -191,7 +202,24 @@ function Invoke-CIPPMailboxFolderPermissionAttempt {
                 if ($SharingPermissionFlags) {
                     $CmdParams['SharingPermissionFlags'] = $SharingPermissionFlags
                 }
-                $Cmdlet = if ($Action -eq 'Set') { 'Set-MailboxFolderPermission' } else { 'Add-MailboxFolderPermission' }
+                $EffectiveAction = $Action
+                if ($EffectiveAction -eq 'Set' -and $LiveForSetAdd) {
+                    $CandidateSet = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+                    [void]$CandidateSet.Add([string]$Candidate)
+                    $HasEntry = $false
+                    foreach ($Perm in @($LiveForSetAdd)) {
+                        $AclKeys = Get-CIPPFolderPermissionAclUserKeys -PermUser $Perm.User
+                        foreach ($AclKey in $AclKeys) {
+                            if ($CandidateSet.Contains([string]$AclKey)) {
+                                $HasEntry = $true
+                                break
+                            }
+                        }
+                        if ($HasEntry) { break }
+                    }
+                    if (-not $HasEntry) { $EffectiveAction = 'Add' }
+                }
+                $Cmdlet = if ($EffectiveAction -eq 'Set') { 'Set-MailboxFolderPermission' } else { 'Add-MailboxFolderPermission' }
                 $null = New-ExoRequest -tenantid $TenantFilter -cmdlet $Cmdlet -cmdParams $CmdParams -Anchor $Anchor
                 return [PSCustomObject]@{
                     Success      = $true
