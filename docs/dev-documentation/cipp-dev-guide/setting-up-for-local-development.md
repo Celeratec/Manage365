@@ -19,7 +19,7 @@ Everything is served same-origin through **http://localhost:5196.**
 * **When developing on Windows:**&#x20;
   * [PowerShell 7](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows)
   * [Windows Terminal](https://aka.ms/terminal)
-  * [Node.js 22](https://nodejs.org/) with Yarn enabled (`corepack enable`)
+  * [Node.js 22.23.4+](https://nodejs.org/) (see repo `.nvmrc` / `frontend/package.json` `engines`) with Yarn enabled (`corepack enable`)
 
 Fork [CyberDrain/CIPP](https://github.com/CyberDrain/CIPP), clone it, and check out the `dev` branch (active development happens on `dev`; `main` is stable release code):
 

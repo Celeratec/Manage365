@@ -196,7 +196,7 @@ services:
       - cipp-network
 
   cipp-frontend:
-    image: node:22-slim
+    image: node:22.23.4-slim
     platform: linux/amd64
     container_name: cipp-frontend
     logging: *logging
@@ -245,7 +245,7 @@ services:
     # Deliberately NOT in docker-compose-no-frontend.yml: it reuses cipp-frontend's
     # node_modules volume, and on the Windows loop that volume doesn't exist (run
     # `yarn storybook` on the host there instead).
-    image: node:22-slim
+    image: node:22.23.4-slim
     platform: linux/amd64
     container_name: cipp-storybook
     logging: *logging

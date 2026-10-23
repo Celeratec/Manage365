@@ -135,7 +135,7 @@ RUN pwsh -File /build/build-openapi.ps1 \
     -OutputPath /gen/openapi.json
 
 # ── Frontend build ──
-FROM node:22-slim AS frontend-deps
+FROM node:22.23.4-slim AS frontend-deps
 WORKDIR /build
 COPY frontend/package.json frontend/yarn.lock frontend/.npmrc frontend/.yarnrc ./
 RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
