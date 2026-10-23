@@ -44,6 +44,11 @@ jobs:
           path: pr
           persist-credentials: false
 
+      - name: Use Node.js from package.json engines
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/package.json
+
       - name: Validate JSON files
         id: validate
         continue-on-error: true
