@@ -1,3 +1,7 @@
+# Pester CI artifacts (generated locally and in Actions)
+Tests/TestResults.xml
+Tests/coverage.xml
+
 # Build output
 Output/
 Shared/CIPPSharp/obj/
