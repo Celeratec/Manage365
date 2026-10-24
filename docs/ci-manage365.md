@@ -19,7 +19,7 @@ Upstream CyberDrain uses a separate workflow (`update-openapi-spec.yml`) against
 
 Keep all `@storybook/*` packages on the **same version** as the `storybook` package (see `frontend/package.json`). A mismatch (for example `@storybook/react-vite` behind `storybook`) breaks Vitest startup with `reportToolsetTelemetry` import errors.
 
-After the Storybook alignment fix, Vitest runs cleanly but **individual component tests may still fail** on `main` (same pattern as Manage365 6.1.24). Treat red Vitest shards as unrelated unless the PR touches those files. Sharded CI: `yarn test:unit --shard=N/4 --run`.
+Sharded CI: `yarn test:unit --shard=N/4 --run`. Nav routes that redirect to a different URL need a matching `docsPath` in `config.jsx` so `help-links.test.js` resolves real files under `docs/user-documentation/`.
 
 ## Backend Pester
 

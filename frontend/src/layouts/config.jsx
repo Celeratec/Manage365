@@ -128,6 +128,7 @@ export const nativeMenuItems = [
               {
                 title: "JIT Admin Templates",
                 path: "/identity/administration/jit-admin-templates",
+                docsPath: "identity/administration/jit-admin/templates",
                 permissions: [
                   "Identity.Role.*",
                 ],
@@ -1308,6 +1309,7 @@ export const nativeMenuItems = [
           {
             title: "Sharing Report",
             path: "/teams-share/sharing-report",
+            docsPath: "teams-share/reports/sharing-report",
             permissions: [
               "Sharepoint.Site.*",
             ],
@@ -1315,6 +1317,7 @@ export const nativeMenuItems = [
           {
             title: "Permissions Report",
             path: "/teams-share/permissions-report",
+            docsPath: "teams-share/reports/permissions-report",
             permissions: [
               "Sharepoint.Site.*",
             ],
@@ -1372,6 +1375,7 @@ export const nativeMenuItems = [
           {
             title: 'Teams Activity',
             path: '/teams-share/teams/teams-activity',
+            docsPath: 'teams-share/reports/teams-activity',
             permissions: [
               'Teams.Activity.*',
             ],
