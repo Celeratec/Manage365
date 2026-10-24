@@ -63,7 +63,7 @@ Other extension files (Hudu sync, Halo PSA, schedulers) are similarly sensitive 
 
 ### CodeQL (`.github/workflows/codeql.yml`)
 
-The workflow uses `.github/codeql/codeql-config.yml` (frontend-only paths) with `disable-default-setup: true` so it does not fight GitHub’s repository **CodeQL default setup**. If **Analyze (javascript)** fails with *advanced configurations cannot be processed when the default setup is enabled*, confirm this flag is present or turn off default setup under **Settings → Code security**.
+Manage365 currently relies on GitHub **CodeQL default setup** for PR scans (`Analyze (javascript-typescript)`). The repo workflow `.github/workflows/codeql.yml` (scoped via `.github/codeql/codeql-config.yml`) is scheduled/ manual only so it does not double-run or fail SARIF upload on PRs. To use the custom config on every PR, disable default setup under **Settings → Code security → CodeQL analysis → Disable CodeQL**, then restore a `pull_request` trigger on `codeql.yml`.
 
 ### Interpreting PR CI
 
