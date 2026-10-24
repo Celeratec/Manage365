@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { useSystemPrefersDark } from '../hooks/use-system-prefers-dark'
 import Error500 from './500'
 import { ErrorBoundary } from 'react-error-boundary'
+import { PostHogProvider } from '../providers/PostHogProvider'
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider'
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 import {
@@ -203,8 +204,9 @@ const App = (props) => {
         <title>Manage365</title>
         <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover" />
       </Head>
-      <ReduxProvider store={store}>
-        <QueryClientProvider client={queryClient}>
+      <PostHogProvider>
+        <ReduxProvider store={store}>
+          <QueryClientProvider client={queryClient}>
           <SettingsProvider>
             <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateLocale}>
               <SettingsConsumer>
@@ -256,6 +258,7 @@ const App = (props) => {
           </SettingsProvider>
         </QueryClientProvider>
       </ReduxProvider>
+      </PostHogProvider>
     </CacheProvider>
   )
 }
