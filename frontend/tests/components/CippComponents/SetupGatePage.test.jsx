@@ -31,7 +31,7 @@ vi.mock('../../../src/components/CippWizard/OnboardingWizardPage.jsx', () => ({
 
 import SetupGatePage from '../../../src/components/CippComponents/SetupGatePage.jsx'
 
-describe('SetupGatePage - Enter CIPP', () => {
+describe('SetupGatePage - Enter Manage365', () => {
   beforeEach(() => {
     routerState.replace.mockClear()
   })
@@ -41,7 +41,7 @@ describe('SetupGatePage - Enter CIPP', () => {
     const user = userEvent.setup()
     renderWithProviders(<SetupGatePage />)
 
-    await user.click(await screen.findByRole('button', { name: 'Enter CIPP' }))
+    await user.click(await screen.findByRole('button', { name: 'Enter Manage365' }))
 
     expect(routerState.replace).toHaveBeenCalledWith('/')
   })
@@ -51,7 +51,7 @@ describe('SetupGatePage - Enter CIPP', () => {
     const user = userEvent.setup()
     renderWithProviders(<SetupGatePage />)
 
-    await user.click(await screen.findByRole('button', { name: 'Enter CIPP' }))
+    await user.click(await screen.findByRole('button', { name: 'Enter Manage365' }))
 
     expect(routerState.replace).not.toHaveBeenCalled()
   })

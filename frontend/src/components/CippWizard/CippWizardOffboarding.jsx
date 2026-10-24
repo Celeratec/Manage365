@@ -142,6 +142,7 @@ export const CippWizardOffboarding = (props) => {
       formControl.setValue('WipeMobile', false)
       formControl.setValue('RemoveMobile', false)
       formControl.setValue('RemoveGroups', false)
+      formControl.setValue('RemoveGroupOwnership', false)
       formControl.setValue('RemoveLicenses', false)
       formControl.setValue('RevokeSessions', false)
       formControl.setValue('DisableSignIn', false)
@@ -257,6 +258,13 @@ export const CippWizardOffboarding = (props) => {
               <CippFormComponent
                 name="RemoveGroups"
                 label="Remove from all groups"
+                type="switch"
+                formControl={formControl}
+                disabled={!!deleteUser}
+              />
+              <CippFormComponent
+                name="RemoveGroupOwnership"
+                label="Remove group ownership"
                 type="switch"
                 formControl={formControl}
                 disabled={!!deleteUser}

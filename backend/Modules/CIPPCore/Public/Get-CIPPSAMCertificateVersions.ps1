@@ -148,8 +148,10 @@ function ConvertTo-CIPPSAMCertificateInfo {
 
     try {
         $PfxBytes = [Convert]::FromBase64String($PfxBase64)
-        $KeyFlags = if ($IsLinux -or $IsMacOS) {
+        $KeyFlags = if ($IsLinux) {
             [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+        } elseif ($IsMacOS) {
+            [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable
         } else {
             [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet
         }

@@ -51,19 +51,25 @@ const items = [
 
 // rerender() would drop renderWithProviders' wrappers, so drive the re-render from inside
 const Harness = () => {
-  const [, setTick] = React.useState(0)
+  const [pathKey, setPathKey] = React.useState(nav.pathname)
   React.useEffect(() => {
-    nav.rerender = () => setTick((t) => t + 1)
+    nav.rerender = () => setPathKey(nav.pathname)
   }, [])
-  return <SideNav items={items} pinned />
+  // SideNav is memoized on props; remount when the mocked pathname changes so usePathname() refreshes.
+  return <SideNav items={items} pinned key={pathKey} />
 }
 
 const renderNav = () =>
   renderWithProviders(<Harness />, { settings: settingsWith({ bookmarkSidebar: false }) })
 
 describe('SideNav', () => {
-  // Ctrl+K navigates with router.push, the nav stays mounted and only the pathname changes
-  it('expands the parent sections when the route moves into them after mount', async () => {
+  it('expands parent sections for a deep-linked route on mount', async () => {
+    nav.pathname = '/identity/administration/users'
+    renderNav()
+    await waitFor(() => expect(screen.getByText('Users')).toBeVisible())
+  })
+
+  it('expands parent sections when the pathname changes after mount', async () => {
     nav.pathname = '/'
     renderNav()
     expect(screen.queryByText('Users')).toBeNull()

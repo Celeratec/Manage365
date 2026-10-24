@@ -64,14 +64,15 @@ function Get-CIPPSAMCertificate {
 
     $PfxBytes = [Convert]::FromBase64String($PfxBase64)
     # Pick key storage flags based on the runtime platform — no try/catch needed.
-    #   Linux / macOS  → EphemeralKeySet   (memory-only, no disk I/O)
-    #   Windows        → MachineKeySet     (machine store, no user-profile dependency)
-    # EphemeralKeySet is ideal everywhere but is not supported on macOS .NET and older
-    # Windows runtimes. MachineKeySet is the safest Windows choice because Azure
-    # Functions consumption workers often run without a loaded user profile, which makes
-    # the per-user key store (Exportable) inaccessible ("cannot find the file").
-    $KeyFlags = if ($IsLinux -or $IsMacOS) {
+    #   Linux        → EphemeralKeySet   (memory-only, no disk I/O)
+    #   macOS        → Exportable        (EphemeralKeySet is not supported on macOS .NET)
+    #   Windows      → MachineKeySet     (machine store, no user-profile dependency)
+    # MachineKeySet is the safest Windows choice because Azure Functions consumption workers
+    # often run without a loaded user profile, which makes the per-user key store inaccessible.
+    $KeyFlags = if ($IsLinux) {
         [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
+    } elseif ($IsMacOS) {
+        [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::Exportable
     } else {
         [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::MachineKeySet
     }

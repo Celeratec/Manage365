@@ -2,7 +2,7 @@
 
 BeforeAll {
     $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
-    $Baselines = Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines'
+    $Baselines = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public'
 
     function New-CIPPDbRequest { param($TenantFilter, $Type, $Fields) }
     function Write-LogMessage { param($API, $tenant, $message, $Sev, $LogData) }
@@ -25,10 +25,11 @@ BeforeAll {
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/SecuritySimulations/CAAnalysis/Get-CIPPCABreakGlassCandidate.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
-    . (Join-Path $Baselines 'Get-CIPPBaselineCacheRows.ps1')
-    . (Join-Path $Baselines 'Test-CIPPBaselineCacheCollected.ps1')
-    . (Join-Path $Baselines 'Get-CIPPBaselineGlobalSecureAccessCompliantNetworkState.ps1')
-    . (Join-Path $Baselines 'Invoke-CIPPBaselineGlobalSecureAccessCompliantNetwork.ps1')
+    . (Join-Path $Baselines 'Helpers/Get-CIPPBaselineCacheRows.ps1')
+    . (Join-Path $Baselines 'Helpers/Test-CIPPBaselineCacheCollected.ps1')
+    . (Join-Path $Baselines 'Helpers/Get-CIPPBaselineCommand.ps1')
+    . (Join-Path $Baselines 'PrepareHooks/Get-CIPPBaselineGlobalSecureAccessCompliantNetworkState.ps1')
+    . (Join-Path $Baselines 'Executors/Invoke-CIPPBaselineGlobalSecureAccessCompliantNetwork.ps1')
 
     $script:Tenant = 'contoso.onmicrosoft.com'
     function ConvertTo-Cached { param([Parameter(ValueFromPipeline = $true)]$InputObject) process { $InputObject | ConvertTo-Json -Depth 25 | ConvertFrom-Json } }

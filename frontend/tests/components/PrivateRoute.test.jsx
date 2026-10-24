@@ -121,7 +121,7 @@ describe('PrivateRoute', () => {
     authState.me = result({ isLoading: true, isPending: true, isSuccess: false })
     renderRoute()
 
-    expect(screen.getByText('Logging into CIPP')).toBeInTheDocument()
+    expect(screen.getByText('Logging into Manage365')).toBeInTheDocument()
     expect(screen.queryByText('app content')).not.toBeInTheDocument()
   })
 
@@ -264,6 +264,6 @@ describe('PrivateRoute', () => {
     )
 
     expect(screen.getByText('Sign in to Manage365')).toBeInTheDocument()
-    expect(screen.queryByText('Logging into CIPP')).not.toBeInTheDocument()
+    expect(screen.queryByText('Logging into Manage365')).not.toBeInTheDocument()
   })
 })

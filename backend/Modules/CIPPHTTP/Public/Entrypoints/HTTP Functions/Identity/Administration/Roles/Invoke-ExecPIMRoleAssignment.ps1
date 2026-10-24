@@ -85,24 +85,6 @@ function Invoke-ExecPIMRoleAssignment {
     if (-not [string]::IsNullOrWhiteSpace($Duration) -and $null -ne $EndDateTime) {
         return (& $Fail 'Supply either Duration or EndDateTime, not both.')
     }
-    if ($Action -ne 'Remove' -and (-not [string]::IsNullOrWhiteSpace($Duration) -or $null -ne $EndDateTime)) {
-        try {
-            $Window = @{
-                Kind             = 'Assignment'
-                Action           = 'adminAssign'
-                PrincipalId      = $PrincipalId
-                RoleDefinitionId = $RoleDefinitionId
-                Justification    = $Justification
-            }
-            if (-not [string]::IsNullOrWhiteSpace($Duration)) { $Window.Duration = $Duration }
-            if ($null -ne $EndDateTime) { $Window.EndDateTime = $EndDateTime }
-            if ($null -ne $StartDateTime) { $Window.StartDateTime = $StartDateTime }
-            $null = New-CIPPPIMScheduleRequest @Window
-        } catch {
-            return (& $Fail $_.Exception.Message)
-        }
-    }
-
     $Params = @{
         TenantFilter     = $TenantFilter
         Action           = $Action

@@ -1,12 +1,13 @@
 ---
 name: "CodeQL"
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'frontend/**'
+  # Do not run on pull_request while GitHub **CodeQL default setup** is enabled on the repo:
+  # SARIF upload from this workflow is rejected (*advanced configurations cannot be processed*).
+  # Default setup already runs javascript-typescript analysis on PRs. Re-enable pull_request
+  # after switching the repo to advanced setup (Settings → Code security → Disable CodeQL default).
   schedule:
     - cron: "26 17 * * 0"
+  workflow_dispatch:
 jobs:
   analyze:
     name: Analyze
@@ -26,7 +27,9 @@ jobs:
         uses: github/codeql-action/init@v4.37.7
         with:
           languages: ${{ matrix.language }}
-          source-root: frontend
+          config-file: ./.github/codeql/codeql-config.yml
+          # Custom workflow + codeql-config.yml require advanced setup; default CodeQL on the repo must yield to this job.
+          disable-default-setup: true
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4.37.7
       - name: Perform CodeQL Analysis

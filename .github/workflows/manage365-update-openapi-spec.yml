@@ -1,0 +1,74 @@
+name: Manage365 Update OpenAPI Spec
+
+# Fork counterpart to update-openapi-spec.yml (upstream-only). Regenerates openapi.json and
+# opens a PR against main when drift is detected. PR CI (openapi_spec.yml) still blocks
+# merges when the spec is stale; this workflow produces the fix on a schedule.
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: manage365-update-openapi-spec
+  cancel-in-progress: false
+
+jobs:
+  update:
+    if: github.repository == 'Celeratec/Manage365'
+    name: Update OpenAPI spec (Manage365)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      BASE_BRANCH: main
+      BRANCH_PREFIX: chore/manage365-openapi-spec
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Regenerate the OpenAPI spec
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Copy-Item ./backend/Config/openapi.json "$env:RUNNER_TEMP/openapi.before.json"
+          ./build/tools/build-openapi.ps1
+
+      - name: Stage changes
+        id: stage
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          git add -- 'backend/Config/openapi.json' 'frontend/public/openapi.json'
+          $Staged = @(git diff --cached --name-only)
+          if ($Staged.Count -eq 0) {
+            Write-Host 'OpenAPI spec is already up to date.'
+            'changed=false' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            exit 0
+          }
+          'changed=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Commit, push and open the PR
+        if: steps.stage.outputs.changed == 'true'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $Branch = '{0}-{1}' -f $env:BRANCH_PREFIX, (Get-Date -Format 'yyyyMMdd')
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git switch -c $Branch
+          git commit -m 'chore(openapi): regenerate API spec (Manage365)'
+          git push --force origin $Branch
+          gh pr create --repo Celeratec/Manage365 `
+            --base $env:BASE_BRANCH `
+            --head $Branch `
+            --title "chore(openapi): regenerate API spec ($(Get-Date -Format 'yyyy-MM-dd'))" `
+            --body 'Automated OpenAPI regeneration from HTTP entrypoints. Merge after CI drift check passes.'
