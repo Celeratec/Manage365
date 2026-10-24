@@ -1,0 +1,4 @@
+# Code ownership for Manage365 repository
+
+# Cursor rules must be reviewed by Clint
+/.cursor/rules/ @ClintThomson
