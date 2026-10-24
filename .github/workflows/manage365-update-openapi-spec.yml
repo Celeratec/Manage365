@@ -9,9 +9,7 @@ on:
     - cron: '0 6 * * *'
   workflow_dispatch:
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 concurrency:
   group: manage365-update-openapi-spec
@@ -22,6 +20,9 @@ jobs:
     if: github.repository == 'Celeratec/Manage365'
     name: Update OpenAPI spec (Manage365)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     env:
       BASE_BRANCH: main
       BRANCH_PREFIX: chore/manage365-openapi-spec
@@ -32,6 +33,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Regenerate the OpenAPI spec
         shell: pwsh
