@@ -16,6 +16,8 @@ BeforeAll {
     . (Join-Path $Http 'Tenant/Standards/Invoke-ExecDomainAnalyser.ps1')
     . (Join-Path $Http 'Endpoint/Applications/Invoke-ExecAppUpload.ps1')
     . (Join-Path $Http 'Tenant/Tests/Invoke-ExecTestRun.ps1')
+    $ActivityTriggers = Join-Path $RepoRoot 'Modules/CIPPActivityTriggers/Public/Entrypoints/Activity Triggers'
+    . (Join-Path $ActivityTriggers 'Push-SchedulerCIPPNotifications.ps1')
 
     class HttpResponseContext { [int]$StatusCode; [object]$Body }
     $TypeAccelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')

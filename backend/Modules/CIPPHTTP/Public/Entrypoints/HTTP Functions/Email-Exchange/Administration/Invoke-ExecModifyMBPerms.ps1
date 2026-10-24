@@ -321,9 +321,20 @@ function Invoke-ExecModifyMBPerms {
         }
     }
 
-    $body = [pscustomobject]@{'Results' = @($Results) }
+    $ResultMessages = @($Results)
+    $ErrorMessages = @($ResultMessages | Where-Object { $_ -is [string] -and ($_ -like 'Error *' -or $_ -like 'Could not find user*') })
+    $StatusCode = [HttpStatusCode]::OK
+    if ($ErrorMessages.Count -gt 0) {
+        $StatusCode = if ($ErrorMessages.Count -eq $ResultMessages.Count) {
+            [HttpStatusCode]::InternalServerError
+        } else {
+            [HttpStatusCode]::MultiStatus
+        }
+    }
+
+    $body = [pscustomobject]@{'Results' = $ResultMessages }
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = $Body
         })
 }

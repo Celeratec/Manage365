@@ -7,8 +7,10 @@ BeforeAll {
     $script:BaselineFunctions = @((Get-ChildItem -Path (Join-Path $ModulesRoot 'CIPPBaselines/Public') -Filter '*.ps1' -File -Recurse).BaseName)
     if ($script:BaselineFunctions.Count -lt 100) { throw "Expected the CIPPBaselines source set to be present; found $($script:BaselineFunctions.Count) files" }
 
+    $BaselinesShimRoot = Join-Path $ModulesRoot 'CIPPCore/Public/Baselines'
     $script:Sources = foreach ($Module in 'CIPPCore', 'CIPPHTTP') {
         foreach ($File in (Get-ChildItem -Path (Join-Path $ModulesRoot $Module) -Filter '*.ps1' -File -Recurse)) {
+            if ($File.FullName.StartsWith($BaselinesShimRoot)) { continue }
             $Text = [System.IO.File]::ReadAllText($File.FullName)
             $Text = [regex]::Replace($Text, '<#[\s\S]*?#>', '')
             [pscustomobject]@{ Name = "$Module/$($File.Name)"; Text = [regex]::Replace($Text, '(?m)#.*$', '') }

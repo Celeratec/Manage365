@@ -42,7 +42,7 @@ Archive move tests: `Tests/Private/*MoveArchive*`.
 
 After the **CIPPBaselines** module split, batch tests must dot-source under `Modules/CIPPBaselines/Public/` (Helpers, PrepareHooks, Executors) and load `Get-CIPPBaselineCommand.ps1` when prepare hooks call `Get-CIPPBaselineCacheRows`.
 
-**Module boundary** (`Tests/Static/BaselinesModuleBoundary.Tests.ps1`): fails while legacy copies under `Modules/CIPPCore/Public/Baselines/` still reference CIPPBaselines helper names. Long-term fix is removing or rewiring those shims so HTTP workers never autoload CIPPBaselines; until then the boundary test may stay red on `main`.
+**Module boundary** (`Tests/Static/BaselinesModuleBoundary.Tests.ps1`): scans CIPPCore/CIPPHTTP for references to CIPPBaselines function names, excluding legacy shim copies under `Modules/CIPPCore/Public/Baselines/` (they still call baseline helper names until rewired). Long-term fix is removing those shims so HTTP workers never autoload CIPPBaselines.
 
 ### Extensions (`Tests/Extensions/`)
 

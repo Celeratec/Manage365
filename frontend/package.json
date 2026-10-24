@@ -68,7 +68,7 @@
     "axios": "1.20.0",
     "date-fns": "4.4.0",
     "diff": "^9.0.0",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.17",
     "driver.js": "^1.8.0",
     "eml-parse-js": "^1.2.0-beta.0",
     "export-to-csv": "^1.5.0",
@@ -84,7 +84,7 @@
     "material-react-table": "^3.0.1",
     "monaco-editor": "^0.57.0",
     "mui-tiptap": "^1.31.0",
-    "next": "^16.4.0",
+    "next": "^16.4.1",
     "nprogress": "0.2.0",
     "numeral": "2.0.6",
     "prop-types": "15.8.1",
@@ -161,6 +161,10 @@
     "source-map-js": "1.2.2",
     "postcss": "^8.5.23",
     "sharp": "^0.35.0",
-    "monaco-editor/dompurify": "^3.4.14"
+    "dompurify": "^3.4.17",
+    "monaco-editor/dompurify": "^3.4.17",
+    "jspdf/dompurify": "^3.4.17",
+    "jsdom/undici": "^8.12.2",
+    "zod": "^4.6.6"
   }
 }
