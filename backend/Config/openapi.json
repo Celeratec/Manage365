@@ -65989,10 +65989,24 @@
                     "type": "object",
                     "description": "Derived from the fields written into the storage table it reads. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
                     "properties": {
+                      "ArchiveBytesBefore": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "ArchiveItemsAfter": {
+                        "x-cipp-field-source": "storage"
+                      },
                       "ArchiveItemsBefore": {
                         "x-cipp-field-source": "storage"
                       },
+                      "ArchiveMailboxId": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
                       "Caller": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "CheckpointJson": {
+                        "type": "string",
                         "x-cipp-field-source": "storage"
                       },
                       "CreatedUtc": {
@@ -66015,7 +66029,17 @@
                       "PartitionKey": {
                         "x-cipp-field-source": "storage"
                       },
+                      "PrimaryBytesBefore": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "PrimaryItemsAfter": {
+                        "x-cipp-field-source": "storage"
+                      },
                       "PrimaryItemsBefore": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "PrimaryMailboxId": {
+                        "type": "string",
                         "x-cipp-field-source": "storage"
                       },
                       "RowKey": {
@@ -66034,6 +66058,10 @@
                         "x-cipp-field-source": "storage"
                       },
                       "Timestamp": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Transport": {
                         "type": "string",
                         "x-cipp-field-source": "storage"
                       },
