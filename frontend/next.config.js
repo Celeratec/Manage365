@@ -1,3 +1,5 @@
+const { withSentryConfig } = require('@sentry/nextjs')
+
 const disableOptimizePackageImports = process.env.NEXT_DISABLE_OPTIMIZE_PACKAGE_IMPORTS === '1'
 
 /** @type {import('next').NextConfig} */
@@ -40,4 +42,23 @@ const config = {
   distDir: './out',
 }
 
-module.exports = config
+module.exports = withSentryConfig(config, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  
+  silent: !process.env.CI,
+  
+  widenClientFileUpload: true,
+  
+  reactComponentAnnotation: {
+    enabled: true,
+  },
+  
+  tunnelRoute: '/monitoring',
+  
+  hideSourceMaps: true,
+  
+  disableLogger: true,
+  
+  automaticVercelMonitors: false,
+})
