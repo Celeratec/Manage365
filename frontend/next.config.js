@@ -23,7 +23,6 @@ const config = {
     webpackMemoryOptimizations: true,
     preloadEntriesOnStart: false,
     turbopackFileSystemCacheForDev: false,
-    instrumentationHook: true,
   },
   images: {
     unoptimized: true,
