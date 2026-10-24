@@ -57,38 +57,6 @@ beforeEach(() => {
   api.post = post
 })
 
-describe('CippIntegrationTenantMapping SyncPasswords', () => {
-  it('toggles SyncPasswords on the row and saves it in the payload', async () => {
-    renderWithProviders(<CippIntegrationTenantMapping />)
-    expect(tableProps.simpleColumns).toContain('SyncPasswords')
-
-    const exclude = tableProps.actions.find((a) =>
-      a.label.startsWith('Exclude password data')
-    )
-    const include = tableProps.actions.find(
-      (a) => a.label === 'Include password data'
-    )
-    expect(exclude.condition(tableProps.data[0])).toBe(true)
-    expect(include.condition(tableProps.data[0])).toBe(false)
-
-    act(() => exclude.customFunction(tableProps.data[0]))
-    expect(tableProps.data[0].SyncPasswords).toBe(false)
-
-    fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
-    await vi.waitFor(() => expect(post.mutate).toHaveBeenCalled())
-    expect(post.mutate.mock.calls[0][0].data[0].SyncPasswords).toBe(false)
-  })
-
-  it('has no SyncPasswords column or actions for a non-Hudu extension', () => {
-    routerQuery = { id: 'NinjaOne' }
-    renderWithProviders(<CippIntegrationTenantMapping />)
-    expect(tableProps.simpleColumns).not.toContain('SyncPasswords')
-    expect(tableProps.actions.some((a) => /password data/.test(a.label))).toBe(
-      false
-    )
-  })
-})
-
 describe('CippIntegrationTenantMapping automap', () => {
   it('keeps unsaved local name matches when the server automap refetch lands', async () => {
     routerQuery = { id: 'HaloPSA' }

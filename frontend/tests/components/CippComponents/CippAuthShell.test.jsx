@@ -84,7 +84,7 @@ describe('CippAuthShell', () => {
   })
 
   it('renders no controls when no action props are given', () => {
-    renderWithTheme(<CippAuthShell title="Logging into CIPP" description="Please wait..." />)
+    renderWithTheme(<CippAuthShell title="Logging into Manage365" description="Please wait..." />)
 
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
@@ -93,11 +93,11 @@ describe('CippAuthShell', () => {
   // separate renders rather than rerender: renderWithTheme's rerender would
   // replace the ThemeProvider wrapper along with the subject
   it('shows a progress bar only while busy', () => {
-    const { unmount } = renderWithTheme(<CippAuthShell title="Logging into CIPP" busy />)
+    const { unmount } = renderWithTheme(<CippAuthShell title="Logging into Manage365" busy />)
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
     unmount()
 
-    renderWithTheme(<CippAuthShell title="Logging into CIPP" />)
+    renderWithTheme(<CippAuthShell title="Logging into Manage365" />)
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   })
 

@@ -197,10 +197,23 @@ const CippIntegrationSettings = ({ children }) => {
   }, [tableData]);
 
   useEffect(() => {
-    if (mappings.isSuccess) {
-      setTableData(mappings.data.Mappings ?? []);
+    if (!mappings.isSuccess) {
+      return;
     }
-  }, [mappings.isSuccess]);
+    const serverRows = mappings.data.Mappings ?? [];
+    setTableData((previous) => {
+      if (!Array.isArray(previous) || previous.length === 0) {
+        return serverRows;
+      }
+      const merged = new Map(serverRows.map((row) => [row.TenantId, row]));
+      previous.forEach((row) => {
+        if (!merged.has(row.TenantId)) {
+          merged.set(row.TenantId, row);
+        }
+      });
+      return [...merged.values()];
+    });
+  }, [mappings.isSuccess, mappings.data]);
 
   return (
     <>
