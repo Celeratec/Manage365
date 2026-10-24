@@ -5073,14 +5073,7 @@ domhandler@^5.0.2, domhandler@^5.0.3:
   dependencies:
     domelementtype "^2.3.0"
 
-dompurify@3.4.15, dompurify@^3.3.1, dompurify@^3.4.14:
-  version "3.4.16"
-  resolved "https://registry.npmjs.org/dompurify/-/dompurify-3.4.16.tgz#c51b3709ea15ee9abb07e804f2ef30ea9b953128"
-  integrity sha512-sqo+pNp3qRhCIpbgRi1y8Tgk27Bo2Ry7w0dC1NBeNTdZChWjz9Xb/KOoZbRP/R6pQZ80Qw8YhXw13hWWBbMRnQ==
-  optionalDependencies:
-    "@types/trusted-types" "^2.0.7"
-
-dompurify@^3.4.17:
+dompurify@3.4.15, dompurify@3.4.17, dompurify@^3.3.1:
   version "3.4.17"
   resolved "https://registry.npmjs.org/dompurify/-/dompurify-3.4.17.tgz#074bbb24eaa419535ac19ffe7f663104b0e1543d"
   integrity sha512-B/pSlYVHQ58kqISD/yDjuJ1yfzI34m1gF4lAod2bwSRhiN4K5Cl3H8Af7hqB2PmTL911tdEudnnXn5FnhRoz0w==
@@ -7676,7 +7669,7 @@ natural-compare@^1.4.0:
   resolved "https://registry.yarnpkg.com/natural-compare/-/natural-compare-1.4.0.tgz#4abebfeed7541f2c27acfb29bdbbd15c8d5ba4f7"
   integrity sha512-OWND8ei3VtNC9h7V60qff3SVobHr996CTwgxubgyQYEpg290h9J0buyECNNJexkFm5sOajh5G116RYA1c8ZMSw==
 
-next@^16.4.1:
+next@16.4.3:
   version "16.4.3"
   resolved "https://registry.npmjs.org/next/-/next-16.4.3.tgz#72f79702e8537608f3227a01adac1213754821d2"
   integrity sha512-OqxKTGi9u80FydydsMNYNjnuje9Au+kvHlt2GZ//ftdpDHm1dxKqAaENoOOTX5wKzn+9vaKUNIfZeyZUuLhCnA==
