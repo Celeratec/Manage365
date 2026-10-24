@@ -26,6 +26,7 @@ BeforeAll {
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
     . (Join-Path $Baselines 'Helpers/Get-CIPPBaselineCacheRows.ps1')
     . (Join-Path $Baselines 'Helpers/Test-CIPPBaselineCacheCollected.ps1')
+    . (Join-Path $Baselines 'Helpers/Get-CIPPBaselineCommand.ps1')
     foreach ($Name in @('PhishProtection', 'ColleagueImpersonationAlert', 'DisableOutlookAddins',
             'RestrictThirdPartyStorageServices', 'IntuneAppTemplateDeploy', 'MFAPushApps')) {
         . (Join-Path $Baselines "PrepareHooks/Get-CIPPBaseline${Name}State.ps1")

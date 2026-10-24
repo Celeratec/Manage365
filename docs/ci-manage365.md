@@ -23,17 +23,53 @@ Sharded CI: `yarn test:unit --shard=N/4 --run`. Nav routes that redirect to a di
 
 ## Backend Pester
 
-Full-suite failures on CI are not always caused by the PR under review. Common unrelated buckets:
+Full suite: `./backend/Tests/Invoke-CippTests.ps1 -CI` (GitHub Actions: **Backend Pester** on `backend/**` PR paths). Expect **~6k+ tests**; a red job is not automatically caused by the PR under review.
 
-- Baseline tests that dot-source moved modules under `Modules/CIPPBaselines/Public/` (Helpers, PrepareHooks, Executors)
-- Extension / NinjaOne container setup
-- Certificate token retry tests
-
-For a focused change, run:
+### Run subsets
 
 ```bash
 cd backend
-pwsh -Command "Invoke-Pester -Path Tests/Private/Test-CIPPMoveArchiveItemsRequest.Tests.ps1 -Output Detailed"
+pwsh ./Tests/Invoke-CippTests.ps1 -Path Tests/Private/Test-CIPPMoveArchiveItemsRequest.Tests.ps1
+pwsh ./Tests/Invoke-CippTests.ps1 -Path Tests/Baselines
+pwsh ./Tests/Invoke-CippTests.ps1 -Path Tests/Extensions
+pwsh ./Tests/Invoke-CippTests.ps1 -Path Tests/GraphHelper/Get-GraphToken.CertificateAuth.Tests.ps1
+pwsh ./Tests/Invoke-CippTests.ps1 -Path Tests/Static/OffboardingOptionsSync.Tests.ps1
 ```
 
-Archive move tests live under `Tests/Private/*MoveArchive*`.
+Archive move tests: `Tests/Private/*MoveArchive*`.
+
+### Baselines (`Tests/Baselines/`)
+
+After the **CIPPBaselines** module split, batch tests must dot-source under `Modules/CIPPBaselines/Public/` (Helpers, PrepareHooks, Executors) and load `Get-CIPPBaselineCommand.ps1` when prepare hooks call `Get-CIPPBaselineCacheRows`.
+
+**Module boundary** (`Tests/Static/BaselinesModuleBoundary.Tests.ps1`): fails while legacy copies under `Modules/CIPPCore/Public/Baselines/` still reference CIPPBaselines helper names. Long-term fix is removing or rewiring those shims so HTTP workers never autoload CIPPBaselines; until then the boundary test may stay red on `main`.
+
+### Extensions (`Tests/Extensions/`)
+
+Integration tests stub Az table cmdlets the extension code calls directly (`Get-AzDataTableEntity` / `Add-AzDataTableEntity`), not only `Get-CIPPAzDataTableEntity`. Example: `Invoke-NinjaOneOrgMapping.Tests.ps1` (NinjaOne org mapping).
+
+`Invoke-NinjaOneOrgMapping.Tests.ps1` asserts inline **name** matches plus orchestrator **batch** enqueue for device correlation (no `-NameOnly` switch on the function anymore).
+
+Other extension files (Hudu sync, Halo PSA, schedulers) are similarly sensitive to table/mock shape—run `Tests/Extensions` when touching `Modules/CippExtensions/`.
+
+### Certificate / Graph token (`Tests/GraphHelper/`, `Tests/Private/*SAMCertificate*`)
+
+- **PFX load flags**: Linux uses `EphemeralKeySet`; macOS uses `Exportable` (Ephemeral is unsupported on macOS .NET); Windows uses `MachineKeySet` (`Get-CIPPSAMCertificate.ps1`, `Get-CIPPSAMCertificateVersions.ps1`).
+- **`Get-GraphToken.CertificateAuth.Tests.ps1`**: pins certificate-exclusive auth and stale-cert self-heal; duplicate `Describe` blocks were removed—do not re-add.
+
+### Wizard / static sync (`Tests/Static/`)
+
+**Offboarding** (`OffboardingOptionsSync.Tests.ps1`): every action in `Test-CIPPOffboardingRequest.ps1` must appear in `Invoke-CIPPOffboardingJob.ps1`, the offboarding wizard (`CippWizardOffboarding.jsx`), and default editors. Adding a backend action requires the wizard field and `setValue(..., false)` when Delete User is selected.
+
+### Interpreting PR CI
+
+| If your PR touches… | Run locally before push |
+| --- | --- |
+| HTTP / OpenAPI | `build-openapi.ps1 -Check` |
+| Frontend unit tests | `yarn test:unit --shard=1/4 --run` (or full four shards) |
+| CIPPBaselines / baseline tests | `Invoke-CippTests.ps1 -Path Tests/Baselines` |
+| Extensions | `Invoke-CippTests.ps1 -Path Tests/Extensions` |
+| Offboarding | `OffboardingOptionsSync.Tests.ps1` + wizard JSX |
+| Archive move | `Tests/Private/*MoveArchive*` |
+
+Remaining red files on full-suite `main` (endpoint one-offs, PIM invariants, HTTP catch-block lint, reports, scheduler overlap, etc.) are tracked upstream; fix when you touch that area, not as drive-by on unrelated PRs.
