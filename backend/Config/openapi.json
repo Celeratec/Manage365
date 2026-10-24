@@ -22660,6 +22660,113 @@
         "x-cipp-role": "CIPP.SuperAdmin.ReadWrite"
       }
     },
+    "/api/ExecDisableArchive": {
+      "post": {
+        "summary": "ExecDisableArchive",
+        "operationId": "ExecDisableArchive",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Force": {
+                    "type": "string"
+                  },
+                  "Reason": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "TicketNumber": {
+                    "type": "string"
+                  },
+                  "userid": {
+                    "type": "string"
+                  },
+                  "UserPrincipalName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Reason",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "TicketNumber",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LabelValue"
+            }
+          },
+          {
+            "name": "UserPrincipalName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
     "/api/ExecDisableUser": {
       "post": {
         "summary": "ExecDisableUser",
@@ -33016,6 +33123,143 @@
                       "x-cipp-field-source": "graph-entity"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
+    "/api/ExecMoveArchiveItems": {
+      "post": {
+        "summary": "ExecMoveArchiveItems",
+        "operationId": "ExecMoveArchiveItems",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "DryRun": {
+                    "type": "string"
+                  },
+                  "HoldAcknowledged": {
+                    "type": "string"
+                  },
+                  "SourceFolder": {
+                    "type": "string"
+                  },
+                  "TargetFolder": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "TicketNumber": {
+                    "type": "string"
+                  },
+                  "userid": {
+                    "type": "string"
+                  },
+                  "UserPrincipalName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "DryRun",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "HoldAcknowledged",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "SourceFolder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "TargetFolder",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "TicketNumber",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LabelValue"
+            }
+          },
+          {
+            "name": "userid",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "UserPrincipalName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
                 }
               }
             }
@@ -65704,6 +65948,123 @@
           }
         ],
         "x-cipp-role": "Identity.User.Read"
+      }
+    },
+    "/api/ListMoveArchiveItemsJobs": {
+      "get": {
+        "summary": "ListMoveArchiveItemsJobs",
+        "operationId": "ListMoveArchiveItemsJobs",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "parameters": [
+          {
+            "name": "JobId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "UserPrincipalName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields written into the storage table it reads. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
+                    "properties": {
+                      "ArchiveItemsBefore": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Caller": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "CreatedUtc": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "ErrorSummary": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "ETag": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "HoldAcknowledged": {
+                        "type": "boolean",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "MovedCount": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "PartitionKey": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "PrimaryItemsBefore": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "RowKey": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "SourceFolder": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Status": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "TargetFolder": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "TicketNumber": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Timestamp": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "UpdatedUtc": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "UserPrincipalName": {
+                        "x-cipp-field-source": "storage"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.Read"
       }
     },
     "/api/ListNamedLocations": {

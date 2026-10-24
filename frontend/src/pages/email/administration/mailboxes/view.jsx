@@ -1,10 +1,8 @@
 import { Layout as DashboardLayout } from "../../../../layouts/index.jsx";
 import { useRouter } from "next/router";
 import { useSettings } from "../../../../hooks/use-settings";
-import { ApiGetCall, ApiPostCall } from "../../../../api/ApiCall";
-import { CippExchangeActions } from "../../../../components/CippComponents/CippExchangeActions";
-import { useDialog } from "../../../../hooks/use-dialog";
-import { CippApiDialog } from "../../../../components/CippComponents/CippApiDialog";
+import { ApiGetCall } from "../../../../api/ApiCall";
+import { CippMoveArchiveItemsDialog } from "../../../../components/CippComponents/CippMoveArchiveItemsDialog";
 import {
   Alert,
   Avatar,
@@ -40,7 +38,7 @@ import {
 import Link from "next/link";
 import { getInitials, stringToColor } from "../../../../utils/get-initials";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 const getMailboxTypeInfo = (type) => {
   switch (type) {
@@ -95,6 +93,7 @@ const Page = () => {
   const router = useRouter();
   const { mailboxId } = router.query;
   const tenant = useSettings().currentTenant;
+  const [moveArchiveOpen, setMoveArchiveOpen] = useState(false);
 
   const mailboxData = ApiGetCall({
     url: "/api/ListMailboxes",
@@ -112,6 +111,9 @@ const Page = () => {
   }, [mailboxData.data, mailboxId]);
 
   const typeInfo = mailbox ? getMailboxTypeInfo(mailbox.recipientTypeDetails) : getMailboxTypeInfo("UserMailbox");
+  const hasArchive =
+    mailbox?.ArchiveGuid && mailbox.ArchiveGuid !== "00000000-0000-0000-0000-000000000000";
+  const mailboxUpn = mailbox?.UPN || mailbox?.primarySmtpAddress;
   const aliases = useMemo(() => {
     if (!mailbox?.AdditionalEmailAddresses) return [];
     return Array.isArray(mailbox.AdditionalEmailAddresses)
@@ -267,6 +269,34 @@ const Page = () => {
             </Paper>
           </Grid>
         </Grid>
+
+        {hasArchive && mailboxUpn && (
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <Storage fontSize="small" color="action" />
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                    Archive to primary move
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Dry-run preview, then queue a ticketed background move (Manage365).
+                  </Typography>
+                </Box>
+              </Stack>
+              <Button variant="outlined" startIcon={<Archive />} onClick={() => setMoveArchiveOpen(true)}>
+                Move archive items
+              </Button>
+            </Stack>
+          </Paper>
+        )}
+
+        <CippMoveArchiveItemsDialog
+          open={moveArchiveOpen}
+          onClose={() => setMoveArchiveOpen(false)}
+          tenantFilter={tenant}
+          userPrincipalName={mailboxUpn}
+        />
 
         {/* Email Information + Aliases */}
         <Grid container spacing={2}>
