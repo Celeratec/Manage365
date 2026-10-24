@@ -26,7 +26,9 @@ jobs:
         uses: github/codeql-action/init@v4.37.7
         with:
           languages: ${{ matrix.language }}
-          source-root: frontend
+          config-file: ./.github/codeql/codeql-config.yml
+          # Custom workflow + codeql-config.yml require advanced setup; default CodeQL on the repo must yield to this job.
+          disable-default-setup: true
       - name: Autobuild
         uses: github/codeql-action/autobuild@v4.37.7
       - name: Perform CodeQL Analysis

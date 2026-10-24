@@ -61,6 +61,10 @@ Other extension files (Hudu sync, Halo PSA, schedulers) are similarly sensitive 
 
 **Offboarding** (`OffboardingOptionsSync.Tests.ps1`): every action in `Test-CIPPOffboardingRequest.ps1` must appear in `Invoke-CIPPOffboardingJob.ps1`, the offboarding wizard (`CippWizardOffboarding.jsx`), and default editors. Adding a backend action requires the wizard field and `setValue(..., false)` when Delete User is selected.
 
+### CodeQL (`.github/workflows/codeql.yml`)
+
+The workflow uses `.github/codeql/codeql-config.yml` (frontend-only paths) with `disable-default-setup: true` so it does not fight GitHub’s repository **CodeQL default setup**. If **Analyze (javascript)** fails with *advanced configurations cannot be processed when the default setup is enabled*, confirm this flag is present or turn off default setup under **Settings → Code security**.
+
 ### Interpreting PR CI
 
 | If your PR touches… | Run locally before push |
