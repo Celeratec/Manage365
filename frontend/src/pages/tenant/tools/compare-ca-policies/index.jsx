@@ -265,10 +265,12 @@ const Page = () => {
 
               <CippJsonView
                 object={results.sourceAData}
+                tenant={compareApi.variables?.data?.sourceA?.tenantFilter}
                 title={`Source A Settings — ${results.sourceALabel}`}
               />
               <CippJsonView
                 object={results.sourceBData}
+                tenant={compareApi.variables?.data?.sourceB?.tenantFilter}
                 title={`Source B Settings — ${results.sourceBLabel}`}
               />
             </Stack>
