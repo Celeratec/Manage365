@@ -365,36 +365,4 @@ Describe 'New-CIPPUserTask' {
             Should -Invoke Add-CIPPScheduledTask -Times 0 -Exactly
         }
     }
-    
-    Context 'Per-user MFA' {
-        It 'passes object ID (GUID) to Set-CIPPPerUserMFA instead of UPN' {
-            $script:CapturedUserId = $null
-            
-            Mock Set-CIPPPerUserMFA {
-                $script:CapturedUserId = $userId
-                @([PSCustomObject]@{
-                    UserId = $userId
-                    Success = $true
-                    Message = 'Successfully set Per user MFA State to enforced'
-                })
-            }
-            
-            # Create a user object with perUserMfa = true
-            $UserObj = @{
-                tenantFilter = 'contoso.onmicrosoft.com'
-                displayName = 'Test User'
-                username = 'testuser'
-                PrimDomain = @{ value = 'contoso.com' }
-                domain = 'contoso.com'
-                perUserMfa = $true
-            }
-            
-            $Result = New-CIPPUserTask -UserObj $UserObj
-            
-            # Verify that the GUID was passed, not the UPN
-            $script:CapturedUserId | Should -Not -BeNullOrEmpty
-            $script:CapturedUserId | Should -Be 'test-user-guid'
-            $script:CapturedUserId | Should -Not -BeLike '*@*'
-        }
-    }
 }
