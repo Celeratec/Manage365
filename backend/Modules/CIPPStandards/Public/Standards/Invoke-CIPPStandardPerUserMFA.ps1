@@ -62,12 +62,31 @@ function Invoke-CIPPStandardPerUserMFA {
         $UpdateDB = $false
         if (($UsersWithoutMFA | Measure-Object).Count -gt 0) {
             try {
-                $MFAMessage = Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced'
-                Write-LogMessage -API 'Standards' -tenant $tenant -message $MFAMessage -sev Info
-                $UpdateDB = $true
+                $MFAResults = @(Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced' -APIName 'Standards')
+                
+                # Parse structured results to detect successes and failures (logging is done by Set-CIPPPerUserMFA)
+                $SuccessCount = 0
+                $FailureCount = 0
+                foreach ($Result in $MFAResults) {
+                    if ($Result.Success) {
+                        $SuccessCount++
+                    } else {
+                        $FailureCount++
+                    }
+                }
+                
+                # Only update DB if at least one user succeeded
+                if ($SuccessCount -gt 0) {
+                    $UpdateDB = $true
+                }
+                
+                if ($FailureCount -gt 0) {
+                    Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for $FailureCount of $($MFAResults.Count) users" -sev Warning
+                }
             } catch {
                 $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
-                Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for all users: $ErrorMessage" -sev Error
+                $UserList = $UsersWithoutMFA.userPrincipalName -join ', '
+                Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for users ($UserList): $ErrorMessage" -sev Error
             }
 
             # Refresh user cache after remediation only if changes were made
