@@ -18,6 +18,7 @@ BeforeAll {
     function Add-CIPPGroupMember { param($Headers, $GroupType, $GroupId, $Member, $TenantFilter, $APIName) }
     function Set-CIPPManager { param($Users, $Manager, $TenantFilter, $Headers) }
     function Set-CIPPSponsor { param($Users, $Sponsor, $TenantFilter, $Headers) }
+    function Set-CIPPPerUserMFA { param($TenantFilter, $userId, $State, $Headers, $APIName) }
     function Add-CIPPScheduledTask { param($Task, $hidden, $Headers, $DisallowDuplicateName) }
     function New-ExoRequest { param($tenantid, $cmdlet, $cmdParams, $Select, $Anchor, $useSystemMailbox) }
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
@@ -363,6 +364,32 @@ Describe 'New-CIPPUserTask' {
         It 'schedules nothing when no sites are configured' {
             $null = New-CIPPUserTask -UserObj (New-TestUserObj)
             Should -Invoke Add-CIPPScheduledTask -Times 0 -Exactly
+        }
+    }
+
+    Context 'Per-user MFA configuration' {
+        It 'passes the user GUID to Set-CIPPPerUserMFA when perUserMfa is enabled' {
+            Mock -CommandName New-CIPPUser -MockWith {
+                [pscustomobject]@{
+                    Username = 'new.user@contoso.com'
+                    Password = 'Correct-Horse-Battery'
+                    UserId   = 'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789'
+                    User     = [pscustomobject]@{ id = 'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789' }
+                }
+            }
+            Mock -CommandName Set-CIPPPerUserMFA -MockWith { }
+            
+            $UserObj = New-TestUserObj
+            $UserObj | Add-Member -NotePropertyName 'perUserMfa' -NotePropertyValue $true
+
+            $null = New-CIPPUserTask -UserObj $UserObj -APIName 'AddUser' -Headers @{}
+
+            Should -Invoke Set-CIPPPerUserMFA -Times 1 -Exactly -ParameterFilter {
+                $TenantFilter -eq 'contoso.com' -and
+                $userId -eq 'a1b2c3d4-e5f6-4789-a012-b3c4d5e6f789' -and
+                $State -eq 'enforced' -and
+                ([guid]::TryParse($userId, [ref][guid]::Empty))
+            }
         }
     }
 }

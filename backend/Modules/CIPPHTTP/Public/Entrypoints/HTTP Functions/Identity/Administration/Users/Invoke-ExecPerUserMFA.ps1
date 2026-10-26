@@ -15,8 +15,35 @@ function Invoke-ExecPerUserMFA {
     $Messages = @()
     $StatusCode = [HttpStatusCode]::OK
 
-    # Guest user handling
-    $UserId = $Request.Body.userPrincipalName -match '#EXT#' ? $Request.Body.userId : $Request.Body.userPrincipalName
+    # Prefer object ID (GUID) over UPN when available
+    $UserId = if ($Request.Body.userId) {
+        if ($Request.Body.userId -is [array]) {
+            # If userId is an array, validate all entries are GUIDs
+            $allValid = $true
+            foreach ($id in $Request.Body.userId) {
+                $parsedGuid = [guid]::Empty
+                if (-not [guid]::TryParse($id, [ref]$parsedGuid)) {
+                    $allValid = $false
+                    break
+                }
+            }
+            if ($allValid) {
+                $Request.Body.userId
+            } else {
+                $Request.Body.userPrincipalName
+            }
+        } else {
+            # Single value - check if it's a GUID
+            $parsedGuid = [guid]::Empty
+            if ([guid]::TryParse($Request.Body.userId, [ref]$parsedGuid)) {
+                $Request.Body.userId
+            } else {
+                $Request.Body.userPrincipalName
+            }
+        }
+    } else {
+        $Request.Body.userPrincipalName
+    }
     $TenantFilter = $Request.Body.tenantFilter
     $State = $Request.Body.State.value ?  $Request.Body.State.value : $Request.Body.State
 

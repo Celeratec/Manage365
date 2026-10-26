@@ -10,7 +10,7 @@ function Set-CIPPPerUserMFA {
     Tenant where the user resides
 
     .PARAMETER userId
-    One or more User IDs to set the MFA state for (GUID or UserPrincipalName)
+    One or more User IDs to set the MFA state for (GUID or UserPrincipalName). UPNs are resolved to object IDs before API calls.
 
     .PARAMETER State
     State to set the user to (enabled, disabled, enforced)
@@ -43,29 +43,198 @@ function Set-CIPPPerUserMFA {
             return @()
         }
         
+        # Resolve UPNs to GUIDs
+        $ResolvedUsers = [System.Collections.Generic.List[PSCustomObject]]::new()
+        $UPNsToResolve = [System.Collections.Generic.List[PSCustomObject]]::new()
+        
+        for ($i = 0; $i -lt $userId.Count; $i++) {
+            $id = $userId[$i]
+            # Check if it's a GUID using TryParse
+            $parsedGuid = [guid]::Empty
+            if ([guid]::TryParse($id, [ref]$parsedGuid)) {
+                # Already a GUID, use directly
+                $ResolvedUsers.Add([PSCustomObject]@{
+                    Index = $i
+                    ObjectId = $id
+                    DisplayIdentifier = $id
+                })
+            } elseif ($id -match '@') {
+                # Looks like a UPN, queue for resolution
+                $UPNsToResolve.Add([PSCustomObject]@{
+                    Index = $i
+                    UPN = $id
+                })
+            } else {
+                # Invalid format
+                $ErrorMsg = "Failed: Invalid user identifier format for $id (expected GUID or UPN)"
+                $ResolvedUsers.Add([PSCustomObject]@{
+                    Index = $i
+                    ObjectId = $null
+                    DisplayIdentifier = $id
+                    Error = $ErrorMsg
+                })
+                Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+            }
+        }
+        
+        # Resolve UPNs to GUIDs in bulk
+        if ($UPNsToResolve.Count -gt 0) {
+            $ResolveRequests = foreach ($Item in $UPNsToResolve) {
+                # Sanitize UPN for OData filter: double single quotes, then URL-encode
+                $SafeUPN = $Item.UPN -replace "'", "''"
+                $EncodedUPN = [uri]::EscapeDataString($SafeUPN)
+                @{
+                    id     = $Item.Index
+                    method = 'GET'
+                    url    = "users?`$filter=userPrincipalName eq '$EncodedUPN'&`$select=id,userPrincipalName"
+                }
+            }
+            
+            $ResolveResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests $ResolveRequests -asapp $true
+            
+            # Track which UPNs got responses
+            $ReceivedResolveIndices = [System.Collections.Generic.HashSet[int]]::new()
+            
+            foreach ($Response in $ResolveResponses) {
+                $ResolveIndex = [int]$Response.id
+                $null = $ReceivedResolveIndices.Add($ResolveIndex)
+                $Item = $UPNsToResolve | Where-Object { $_.Index -eq $ResolveIndex } | Select-Object -First 1
+                
+                if (-not $Item) {
+                    continue
+                }
+                
+                $ResolveStatus = [int]$Response.status
+                if ($ResolveStatus -eq 200) {
+                    $MatchedUsers = @($Response.body.value)
+                    if ($MatchedUsers.Count -eq 0) {
+                        # No match
+                        $ErrorMsg = "Failed: User not found with UPN $($Item.UPN)"
+                        $ResolvedUsers.Add([PSCustomObject]@{
+                            Index = $Item.Index
+                            ObjectId = $null
+                            DisplayIdentifier = $Item.UPN
+                            Error = $ErrorMsg
+                        })
+                        Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                    } elseif ($MatchedUsers.Count -gt 1) {
+                        # Ambiguous match
+                        $ErrorMsg = "Failed: More than one user found with UPN $($Item.UPN)"
+                        $ResolvedUsers.Add([PSCustomObject]@{
+                            Index = $Item.Index
+                            ObjectId = $null
+                            DisplayIdentifier = $Item.UPN
+                            Error = $ErrorMsg
+                        })
+                        Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                    } else {
+                        # Single match - verify exact UPN match (case-insensitive) before accepting
+                        $ReturnedUPN = $MatchedUsers[0].userPrincipalName
+                        if ($ReturnedUPN -ieq $Item.UPN) {
+                            # Exact match - verify returned ID is a GUID
+                            $ReturnedId = $MatchedUsers[0].id
+                            $parsedGuid = [guid]::Empty
+                            if ([guid]::TryParse($ReturnedId, [ref]$parsedGuid)) {
+                                # Valid GUID - success
+                                $ResolvedUsers.Add([PSCustomObject]@{
+                                    Index = $Item.Index
+                                    ObjectId = $ReturnedId
+                                    DisplayIdentifier = $Item.UPN
+                                })
+                            } else {
+                                # Invalid GUID returned
+                                $ErrorMsg = "Failed: Graph returned invalid object ID for UPN $($Item.UPN)"
+                                $ResolvedUsers.Add([PSCustomObject]@{
+                                    Index = $Item.Index
+                                    ObjectId = $null
+                                    DisplayIdentifier = $Item.UPN
+                                    Error = $ErrorMsg
+                                })
+                                Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                            }
+                        } else {
+                            # UPN mismatch - potential proxyAddresses match
+                            $ErrorMsg = "Failed: UPN mismatch for $($Item.UPN) (Graph returned $ReturnedUPN). The user may have matching proxyAddresses."
+                            $ResolvedUsers.Add([PSCustomObject]@{
+                                Index = $Item.Index
+                                ObjectId = $null
+                                DisplayIdentifier = $Item.UPN
+                                Error = $ErrorMsg
+                            })
+                            Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                        }
+                    }
+                } else {
+                    # Graph error during resolution
+                    $ErrorMsg = if ($Response.body.error.message) { $Response.body.error.message } else { "HTTP $ResolveStatus" }
+                    $FailureMessage = "Failed: Could not resolve UPN $($Item.UPN) to object ID. Graph API returned status $ResolveStatus : $ErrorMsg"
+                    $ResolvedUsers.Add([PSCustomObject]@{
+                        Index = $Item.Index
+                        ObjectId = $null
+                        DisplayIdentifier = $Item.UPN
+                        Error = $FailureMessage
+                    })
+                    Write-LogMessage -headers $Headers -API $APIName -message $FailureMessage -Sev Error -tenant $TenantFilter
+                }
+            }
+            
+            # Handle UPNs that got no response in the resolve batch
+            foreach ($Item in $UPNsToResolve) {
+                if (-not $ReceivedResolveIndices.Contains($Item.Index)) {
+                    $ErrorMsg = "Failed: No resolution response received for UPN $($Item.UPN)"
+                    $ResolvedUsers.Add([PSCustomObject]@{
+                        Index = $Item.Index
+                        ObjectId = $null
+                        DisplayIdentifier = $Item.UPN
+                        Error = $ErrorMsg
+                    })
+                    Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                }
+            }
+        }
+        
+        # Sort by index to maintain order
+        $ResolvedUsers = $ResolvedUsers | Sort-Object -Property Index
+        
         $int = 0
         $Body = @{
             perUserMfaState = $State
         }
         
-        # Build PATCH requests
-        $PatchRequests = foreach ($id in $userId) {
-            @{
-                id        = $int++
-                method    = 'PATCH'
-                url       = "users/$id/authentication/requirements"
-                body      = $Body
-                'headers' = @{
-                    'Content-Type' = 'application/json'
+        # Build PATCH requests only for successfully resolved users
+        $PatchRequests = foreach ($User in $ResolvedUsers) {
+            if ($User.ObjectId) {
+                @{
+                    id        = $User.Index
+                    method    = 'PATCH'
+                    url       = "users/$($User.ObjectId)/authentication/requirements"
+                    body      = $Body
+                    'headers' = @{
+                        'Content-Type' = 'application/json'
+                    }
+                }
+            }
+        }
+        
+        # Track results by index - pre-populate with resolution errors
+        $ResultsByIndex = @{}
+        foreach ($User in $ResolvedUsers) {
+            if ($User.Error) {
+                $ResultsByIndex[$User.Index] = [PSCustomObject]@{
+                    UserId  = $User.DisplayIdentifier
+                    Success = $false
+                    Message = $User.Error
                 }
             }
         }
 
-        # Execute PATCH requests
-        $PatchResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests @($PatchRequests) -asapp $true
+        # Execute PATCH requests (only for successfully resolved users)
+        $PatchResponses = if ($PatchRequests.Count -gt 0) {
+            New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests @($PatchRequests) -asapp $true
+        } else {
+            @()
+        }
         
-        # Track results by index to preserve userId order (store result objects, not strings)
-        $ResultsByIndex = @{}
         $ToVerify = [System.Collections.Generic.List[PSCustomObject]]::new()
         
         # Track which requests received responses
@@ -76,11 +245,14 @@ function Set-CIPPPerUserMFA {
             $RequestIndex = [int]$Response.id
             $null = $ReceivedIndices.Add($RequestIndex)
             
+            # Get the resolved user info
+            $ResolvedUser = $ResolvedUsers | Where-Object { $_.Index -eq $RequestIndex } | Select-Object -First 1
+            
             # Safely get the user ID - handle unexpected response IDs
-            if ($RequestIndex -lt 0 -or $RequestIndex -ge $userId.Count) {
-                $ErrorMsg = "Failed: Received unexpected response ID $RequestIndex (expected 0-$($userId.Count - 1))"
+            if (-not $ResolvedUser) {
+                $ErrorMsg = "Failed: Received unexpected response ID $RequestIndex"
                 $ResultsByIndex[$RequestIndex] = [PSCustomObject]@{
-                    UserId  = if ($RequestIndex -ge 0 -and $RequestIndex -lt $userId.Count) { $userId[$RequestIndex] } else { "Unknown" }
+                    UserId  = "Unknown"
                     Success = $false
                     Message = $ErrorMsg
                 }
@@ -88,15 +260,14 @@ function Set-CIPPPerUserMFA {
                 continue
             }
             
-            $TargetUserId = $userId[$RequestIndex]
             $StatusCode = [int]$Response.status
             
             # Check if PATCH succeeded
             if ($StatusCode -lt 200 -or $StatusCode -ge 300) {
                 $ErrorMsg = if ($Response.body.error.message) { $Response.body.error.message } else { "HTTP $StatusCode" }
-                $FailureMessage = "Failed: Could not set MFA State to $State for $TargetUserId. Graph API returned status $StatusCode : $ErrorMsg"
+                $FailureMessage = "Failed: Could not set MFA State to $State for $($ResolvedUser.DisplayIdentifier). Graph API returned status $StatusCode : $ErrorMsg"
                 $ResultsByIndex[$RequestIndex] = [PSCustomObject]@{
-                    UserId  = $TargetUserId
+                    UserId  = $ResolvedUser.DisplayIdentifier
                     Success = $false
                     Message = $FailureMessage
                 }
@@ -105,17 +276,18 @@ function Set-CIPPPerUserMFA {
                 # Queue for verification
                 $ToVerify.Add([PSCustomObject]@{
                         Index  = $RequestIndex
-                        UserId = $TargetUserId
+                        ObjectId = $ResolvedUser.ObjectId
+                        DisplayIdentifier = $ResolvedUser.DisplayIdentifier
                     })
             }
         }
         
-        # Report users missing from batch response
-        for ($i = 0; $i -lt $userId.Count; $i++) {
-            if (-not $ReceivedIndices.Contains($i)) {
-                $MissingMsg = "Failed: No response received for $($userId[$i]) (request ID $i)"
-                $ResultsByIndex[$i] = [PSCustomObject]@{
-                    UserId  = $userId[$i]
+        # Report users that were sent for PATCH but didn't get responses
+        foreach ($User in $ResolvedUsers) {
+            if ($User.ObjectId -and -not $ReceivedIndices.Contains($User.Index) -and -not $ResultsByIndex.ContainsKey($User.Index)) {
+                $MissingMsg = "Failed: No response received for $($User.DisplayIdentifier) (request ID $($User.Index))"
+                $ResultsByIndex[$User.Index] = [PSCustomObject]@{
+                    UserId  = $User.DisplayIdentifier
                     Success = $false
                     Message = $MissingMsg
                 }
@@ -143,7 +315,7 @@ function Set-CIPPPerUserMFA {
                         @{
                             id     = $Item.Index
                             method = 'GET'
-                            url    = "users/$($Item.UserId)/authentication/requirements"
+                            url    = "users/$($Item.ObjectId)/authentication/requirements"
                         }
                     }
                     
@@ -170,18 +342,18 @@ function Set-CIPPPerUserMFA {
                         
                         if ($VerifyStatus -eq 200 -and $ActualState -eq $State) {
                             # Verified successfully - Success = $true only here
-                            $SuccessMessage = "Successfully set Per user MFA State to $State for $($Item.UserId)"
+                            $SuccessMessage = "Successfully set Per user MFA State to $State for $($Item.DisplayIdentifier)"
                             $ResultsByIndex[$Item.Index] = [PSCustomObject]@{
-                                UserId  = $Item.UserId
+                                UserId  = $Item.DisplayIdentifier
                                 Success = $true
                                 Message = $SuccessMessage
                             }
                             Write-LogMessage -headers $Headers -API $APIName -message $SuccessMessage -Sev Info -tenant $TenantFilter
                         } elseif ($Retry -eq ($MaxRetries - 1)) {
                             # Final retry failed
-                            $VerificationError = "Failed: MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
+                            $VerificationError = "Failed: MFA State for $($Item.DisplayIdentifier) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
                             $ResultsByIndex[$Item.Index] = [PSCustomObject]@{
-                                UserId  = $Item.UserId
+                                UserId  = $Item.DisplayIdentifier
                                 Success = $false
                                 Message = $VerificationError
                             }
@@ -197,9 +369,9 @@ function Set-CIPPPerUserMFA {
                         if (-not $VerifiedIndices.Contains($Item.Index)) {
                             if ($Retry -eq ($MaxRetries - 1)) {
                                 # Final retry - report as failure
-                                $MissingVerifyMsg = "Failed: No verification response received for $($Item.UserId) (request ID $($Item.Index))"
+                                $MissingVerifyMsg = "Failed: No verification response received for $($Item.DisplayIdentifier) (request ID $($Item.Index))"
                                 $ResultsByIndex[$Item.Index] = [PSCustomObject]@{
-                                    UserId  = $Item.UserId
+                                    UserId  = $Item.DisplayIdentifier
                                     Success = $false
                                     Message = $MissingVerifyMsg
                                 }
@@ -219,9 +391,9 @@ function Set-CIPPPerUserMFA {
                 # If verification throws, keep the per-user results collected so far
                 $VerifyException = Get-CippException -Exception $_
                 foreach ($Item in $ToVerify) {
-                    $VerifyErrorMsg = "Failed: Could not verify MFA State for $($Item.UserId). Error: $($VerifyException.NormalizedError)"
+                    $VerifyErrorMsg = "Failed: Could not verify MFA State for $($Item.DisplayIdentifier). Error: $($VerifyException.NormalizedError)"
                     $ResultsByIndex[$Item.Index] = [PSCustomObject]@{
-                        UserId  = $Item.UserId
+                        UserId  = $Item.DisplayIdentifier
                         Success = $false
                         Message = $VerifyErrorMsg
                     }

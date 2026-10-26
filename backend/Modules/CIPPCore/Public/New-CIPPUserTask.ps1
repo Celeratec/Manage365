@@ -279,7 +279,7 @@ function New-CIPPUserTask {
 
     try {
         if ($UserObj.perUserMfa -eq $true) {
-            $MfaResults = @(Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.Username -State 'enforced' -Headers $Headers -APIName $APIName)
+            $MfaResults = @(Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.UserId -State 'enforced' -Headers $Headers -APIName $APIName)
             foreach ($Result in $MfaResults) {
                 $Results.Add($Result.Message)
                 # Logging is done by Set-CIPPPerUserMFA
