@@ -69,7 +69,7 @@ function Set-CIPPPerUserMFA {
             
             # Safely get the user ID - handle unexpected response IDs
             if ($RequestIndex -lt 0 -or $RequestIndex -ge $userId.Count) {
-                $ErrorMsg = "Received unexpected response ID $RequestIndex (expected 0-$($userId.Count - 1))"
+                $ErrorMsg = "Failed: Received unexpected response ID $RequestIndex (expected 0-$($userId.Count - 1))"
                 $ResultsByIndex[$RequestIndex] = $ErrorMsg
                 Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
                 continue
@@ -96,17 +96,18 @@ function Set-CIPPPerUserMFA {
         # Report users missing from batch response
         for ($i = 0; $i -lt $userId.Count; $i++) {
             if (-not $ReceivedIndices.Contains($i)) {
-                $MissingMsg = "No response received for $($userId[$i]) (request ID $i)"
+                $MissingMsg = "Failed: No response received for $($userId[$i]) (request ID $i)"
                 $ResultsByIndex[$i] = $MissingMsg
                 Write-LogMessage -headers $Headers -API $APIName -message $MissingMsg -Sev Error -tenant $TenantFilter
             }
         }
         
-        # Batch verify all successful PATCHes with bounded wait time
+        # Batch verify all successful PATCHes
         if ($ToVerify.Count -gt 0) {
             try {
-                # Limit retries to stay well under 5-minute Azure Function timeout
-                # Initial attempt + 2 retries with 2s and 4s delays = max 6s wait time
+                # Verification retries: 3 attempts with 2s and 4s delays between them (6s of sleep total).
+                # New-GraphBulkRequest itself retries throttled requests (429/503/504) up to twice per batch
+                # with up to 30s wait each, so worst case including Graph retries can approach several minutes.
                 $MaxRetries = 3
                 $RetryDelay = 2
                 
@@ -153,7 +154,7 @@ function Set-CIPPPerUserMFA {
                             Write-LogMessage -headers $Headers -API $APIName -message $SuccessMessage -Sev Info -tenant $TenantFilter
                         } elseif ($Retry -eq ($MaxRetries - 1)) {
                             # Final retry failed
-                            $VerificationError = "MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
+                            $VerificationError = "Failed: MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
                             $ResultsByIndex[$Item.Index] = $VerificationError
                             Write-LogMessage -headers $Headers -API $APIName -message $VerificationError -Sev Error -tenant $TenantFilter
                         } else {
@@ -162,13 +163,17 @@ function Set-CIPPPerUserMFA {
                         }
                     }
                     
-                    # Report users missing from verification response (only on final retry)
-                    if ($Retry -eq ($MaxRetries - 1)) {
-                        foreach ($Item in $ToVerify) {
-                            if (-not $VerifiedIndices.Contains($Item.Index)) {
-                                $MissingVerifyMsg = "No verification response received for $($Item.UserId) (request ID $($Item.Index))"
+                    # Handle users missing from verification response
+                    foreach ($Item in $ToVerify) {
+                        if (-not $VerifiedIndices.Contains($Item.Index)) {
+                            if ($Retry -eq ($MaxRetries - 1)) {
+                                # Final retry - report as failure
+                                $MissingVerifyMsg = "Failed: No verification response received for $($Item.UserId) (request ID $($Item.Index))"
                                 $ResultsByIndex[$Item.Index] = $MissingVerifyMsg
                                 Write-LogMessage -headers $Headers -API $APIName -message $MissingVerifyMsg -Sev Error -tenant $TenantFilter
+                            } else {
+                                # Non-final retry - queue for retry
+                                $StillToVerify.Add($Item)
                             }
                         }
                     }
@@ -188,28 +193,18 @@ function Set-CIPPPerUserMFA {
             }
         }
         
-        # Build final results array in userId order
-        $FinalResults = [System.Collections.Generic.List[string]]::new()
+        # Build final results array in userId order with structured objects
+        $FinalResults = [System.Collections.Generic.List[PSCustomObject]]::new()
         for ($i = 0; $i -lt $userId.Count; $i++) {
             if ($ResultsByIndex.ContainsKey($i)) {
-                $FinalResults.Add($ResultsByIndex[$i])
+                $Message = $ResultsByIndex[$i]
+                $IsSuccess = $Message -match '^Successfully'
+                $FinalResults.Add([PSCustomObject]@{
+                        UserId  = $userId[$i]
+                        Success = $IsSuccess
+                        Message = $Message
+                    })
             }
-        }
-        
-        # Check if all failed
-        $HasFailures = $false
-        $HasSuccesses = $false
-        foreach ($Message in $FinalResults) {
-            if ($Message -match '^Failed|^No response|^Received unexpected|did not change') {
-                $HasFailures = $true
-            } elseif ($Message -match '^Successfully') {
-                $HasSuccesses = $true
-            }
-        }
-        
-        # Throw if all failed
-        if ($HasFailures -and -not $HasSuccesses) {
-            throw ($FinalResults -join '; ')
         }
         
         return $FinalResults
@@ -217,6 +212,15 @@ function Set-CIPPPerUserMFA {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to set MFA State to $State. Error: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev Error -tenant $TenantFilter -LogData $ErrorMessage
-        throw $Result
+        
+        # Return structured failure for all users
+        $FailureResults = foreach ($id in $userId) {
+            [PSCustomObject]@{
+                UserId  = $id
+                Success = $false
+                Message = $Result
+            }
+        }
+        return $FailureResults
     }
 }

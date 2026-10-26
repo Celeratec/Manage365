@@ -35282,7 +35282,27 @@
         },
         "responses": {
           "200": {
-            "description": "Success",
+            "description": "Success - all users updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Multi-Status - partial success (some users failed)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request - all users failed",
             "content": {
               "application/json": {
                 "schema": {

@@ -64,18 +64,16 @@ function Invoke-CIPPStandardPerUserMFA {
             try {
                 $MFAResults = @(Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced')
                 
-                # Parse results to detect successes and failures
+                # Parse structured results to detect successes and failures
                 $SuccessCount = 0
                 $FailureCount = 0
-                foreach ($ResultMessage in $MFAResults) {
-                    if ($ResultMessage -match '^Successfully') {
-                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Info
+                foreach ($Result in $MFAResults) {
+                    if ($Result.Success) {
+                        Write-LogMessage -API 'Standards' -tenant $tenant -message $Result.Message -sev Info
                         $SuccessCount++
-                    } elseif ($ResultMessage -match '^Failed|^No response|^Received unexpected|did not change') {
-                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Error
-                        $FailureCount++
                     } else {
-                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Warning
+                        Write-LogMessage -API 'Standards' -tenant $tenant -message $Result.Message -sev Error
+                        $FailureCount++
                     }
                 }
                 

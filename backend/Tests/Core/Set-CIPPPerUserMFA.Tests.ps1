@@ -46,7 +46,9 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             
             $Result | Should -Not -BeNullOrEmpty
-            $Result[0] | Should -Match 'Successfully set Per user MFA State to disabled for user@contoso.com'
+            $Result[0].UserId | Should -Be 'user@contoso.com'
+            $Result[0].Success | Should -Be $true
+            $Result[0].Message | Should -Match 'Successfully set Per user MFA State to disabled for user@contoso.com'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Info' -and $message -match 'Successfully' }
         }
         
@@ -81,8 +83,10 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user1@contoso.com', 'user2@contoso.com') -State 'enabled' -Headers @{ Authorization = 'Bearer token' }
             
             $Result.Count | Should -Be 2
-            $Result[0] | Should -Match 'Successfully.*user1@contoso.com'
-            $Result[1] | Should -Match 'Successfully.*user2@contoso.com'
+            $Result[0].UserId | Should -Be 'user1@contoso.com'
+            $Result[0].Success | Should -Be $true
+            $Result[1].UserId | Should -Be 'user2@contoso.com'
+            $Result[1].Success | Should -Be $true
         }
     }
     
@@ -103,7 +107,9 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'admin@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'admin@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result[0].Success | Should -Be $false
+            $Result[0].Message | Should -Match '403'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match '403' }
         }
         
@@ -123,7 +129,9 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw -ExpectedMessage '*400*Invalid request*'
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result[0].Success | Should -Be $false
+            $Result[0].Message | Should -Match '400.*Invalid request'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' }
         }
     }
@@ -157,7 +165,9 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'olumc.org' -userId 'ryanadmin@olumc.org' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'olumc.org' -userId 'ryanadmin@olumc.org' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result[0].Success | Should -Be $false
+            $Result[0].Message | Should -Match 'did not change'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'did not change' }
             Should -Invoke Start-Sleep -Times 2
         }
@@ -192,7 +202,8 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result[0].Success | Should -Be $false
             $script:VerifyCallCount | Should -Be 3
         }
         
@@ -227,7 +238,8 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0] | Should -Match 'Successfully'
+            $Result[0].Success | Should -Be $true
+            $Result[0].Message | Should -Match 'Successfully'
             $script:VerifyCallCount | Should -Be 2
         }
     }
@@ -266,8 +278,11 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user@contoso.com', 'admin@contoso.com') -State 'disabled' -Headers @{ Authorization = 'Bearer token' }
             
             $Result.Count | Should -Be 2
-            $Result[0] | Should -Match 'Successfully.*user@contoso.com'
-            $Result[1] | Should -Match 'Failed.*admin@contoso.com.*403'
+            $Result[0].UserId | Should -Be 'user@contoso.com'
+            $Result[0].Success | Should -Be $true
+            $Result[1].UserId | Should -Be 'admin@contoso.com'
+            $Result[1].Success | Should -Be $false
+            $Result[1].Message | Should -Match 'Failed.*403'
         }
         
         It 'handles unexpected response IDs gracefully' {
@@ -283,8 +298,89 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result[0].Success | Should -Be $false
+            $Result[0].Message | Should -Match 'unexpected response ID 99'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'unexpected response ID 99' }
+        }
+        
+        It 'returns failures for all users instead of throwing when all fail' {
+            Mock New-GraphBulkRequest {
+                # All users fail
+                @(
+                    [pscustomobject]@{
+                        id     = 0
+                        status = 403
+                        body   = [pscustomobject]@{
+                            error = [pscustomobject]@{
+                                message = 'Insufficient privileges'
+                            }
+                        }
+                    }
+                    [pscustomobject]@{
+                        id     = 1
+                        status = 403
+                        body   = [pscustomobject]@{
+                            error = [pscustomobject]@{
+                                message = 'Insufficient privileges'
+                            }
+                        }
+                    }
+                )
+            }
+            Mock Start-Sleep { }
+            
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user1@contoso.com', 'user2@contoso.com') -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Result.Count | Should -Be 2
+            $Result[0].Success | Should -Be $false
+            $Result[1].Success | Should -Be $false
+        }
+        
+        It 'retries users missing from verification response on non-final retries' {
+            $script:VerifyCallCount = 0
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                
+                if ($script:GraphCalls.Count -eq 1) {
+                    # PATCH responses for 2 users
+                    @(
+                        [pscustomobject]@{ id = 0; status = 204; body = @{} }
+                        [pscustomobject]@{ id = 1; status = 204; body = @{} }
+                    )
+                } else {
+                    $script:VerifyCallCount++
+                    if ($script:VerifyCallCount -eq 1) {
+                        # First verification - only user2 in response (user1 missing)
+                        @(
+                            [pscustomobject]@{
+                                id     = 1
+                                status = 200
+                                body   = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                            }
+                        )
+                    } else {
+                        # Second verification - user1 now succeeds
+                        @(
+                            [pscustomobject]@{
+                                id     = 0
+                                status = 200
+                                body   = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                            }
+                        )
+                    }
+                }
+            }
+            Mock Start-Sleep { }
+            
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user1@contoso.com', 'user2@contoso.com') -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Result.Count | Should -Be 2
+            $Result[0].Success | Should -Be $true
+            $Result[0].UserId | Should -Be 'user1@contoso.com'
+            $Result[1].Success | Should -Be $true
+            $Result[1].UserId | Should -Be 'user2@contoso.com'
+            $script:VerifyCallCount | Should -Be 2
         }
         
         It 'handles out-of-order batch responses correctly' {
@@ -323,9 +419,12 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user0@contoso.com', 'user1@contoso.com', 'user2@contoso.com') -State 'disabled' -Headers @{ Authorization = 'Bearer token' }
             
             $Result.Count | Should -Be 3
-            $Result[0] | Should -Match 'user0@contoso.com'
-            $Result[1] | Should -Match 'user1@contoso.com'
-            $Result[2] | Should -Match 'user2@contoso.com'
+            $Result[0].UserId | Should -Be 'user0@contoso.com'
+            $Result[0].Success | Should -Be $true
+            $Result[1].UserId | Should -Be 'user1@contoso.com'
+            $Result[1].Success | Should -Be $true
+            $Result[2].UserId | Should -Be 'user2@contoso.com'
+            $Result[2].Success | Should -Be $true
         }
     }
 }

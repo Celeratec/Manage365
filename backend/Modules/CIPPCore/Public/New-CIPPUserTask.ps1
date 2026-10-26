@@ -280,11 +280,11 @@ function New-CIPPUserTask {
     try {
         if ($UserObj.perUserMfa -eq $true) {
             $MfaResults = @(Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.Username -State 'enforced' -Headers $Headers -APIName $APIName)
-            foreach ($MfaMessage in $MfaResults) {
-                $Results.Add($MfaMessage)
+            foreach ($Result in $MfaResults) {
+                $Results.Add($Result.Message)
                 # Log failures at Error level
-                if ($MfaMessage -match '^Failed|^No response|^Received unexpected|did not change') {
-                    Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message $MfaMessage -Sev 'Error'
+                if (-not $Result.Success) {
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message $Result.Message -Sev 'Error'
                 }
             }
         }
