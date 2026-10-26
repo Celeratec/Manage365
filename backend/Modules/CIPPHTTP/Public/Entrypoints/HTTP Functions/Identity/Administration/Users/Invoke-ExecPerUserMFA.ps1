@@ -10,7 +10,10 @@ function Invoke-ExecPerUserMFA {
 
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
-
+    
+    # Initialize response variables
+    $Messages = @()
+    $StatusCode = [HttpStatusCode]::OK
 
     # Guest user handling
     $UserId = $Request.Body.userPrincipalName -match '#EXT#' ? $Request.Body.userId : $Request.Body.userPrincipalName
