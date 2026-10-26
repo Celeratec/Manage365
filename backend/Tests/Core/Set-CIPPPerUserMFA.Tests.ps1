@@ -19,7 +19,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock New-GraphBulkRequest {
                 $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
                 
-                # First call is PATCH, second is GET verification
+                # First call is PATCH, second is batched GET verification
                 if ($script:GraphCalls.Count -eq 1) {
                     # PATCH response
                     @(
@@ -30,7 +30,7 @@ Describe 'Set-CIPPPerUserMFA' {
                         }
                     )
                 } else {
-                    # GET verification response
+                    # Batched GET verification response
                     @(
                         [pscustomobject]@{
                             id     = 0
@@ -54,7 +54,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock New-GraphBulkRequest {
                 $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
                 
-                # First call is bulk PATCH, subsequent calls are individual GET verifications
+                # First call is bulk PATCH, second is batched GET verifications
                 if ($script:GraphCalls.Count -eq 1) {
                     # PATCH responses for 2 users
                     @(
@@ -62,10 +62,15 @@ Describe 'Set-CIPPPerUserMFA' {
                         [pscustomobject]@{ id = 1; status = 204; body = @{} }
                     )
                 } else {
-                    # GET verification response
+                    # Batched GET verification responses
                     @(
                         [pscustomobject]@{
                             id     = 0
+                            status = 200
+                            body   = [pscustomobject]@{ perUserMfaState = 'enabled' }
+                        }
+                        [pscustomobject]@{
+                            id     = 1
                             status = 200
                             body   = [pscustomobject]@{ perUserMfaState = 'enabled' }
                         }
@@ -152,7 +157,7 @@ Describe 'Set-CIPPPerUserMFA' {
             
             { Set-CIPPPerUserMFA -TenantFilter 'olumc.org' -userId 'ryanadmin@olumc.org' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'did not change' }
-            Should -Invoke Start-Sleep -Times 3
+            Should -Invoke Start-Sleep -Times 2
         }
         
         It 'retries verification multiple times before failing' {
@@ -205,7 +210,7 @@ Describe 'Set-CIPPPerUserMFA' {
                     )
                 } else {
                     $script:VerifyCallCount++
-                    # Second verification returns correct state
+                    # Second verification batch returns correct state
                     @(
                         [pscustomobject]@{
                             id     = 0
@@ -245,7 +250,7 @@ Describe 'Set-CIPPPerUserMFA' {
                         }
                     )
                 } else {
-                    # GET verification for the successful one
+                    # Batched GET verification for the successful one
                     @(
                         [pscustomobject]@{
                             id     = 0
@@ -261,6 +266,22 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result.Count | Should -Be 2
             $Result[0] | Should -Match 'Successfully.*user@contoso.com'
             $Result[1] | Should -Match 'Failed.*admin@contoso.com.*403'
+        }
+        
+        It 'handles unexpected response IDs gracefully' {
+            Mock New-GraphBulkRequest {
+                # Return response with ID out of bounds
+                @(
+                    [pscustomobject]@{
+                        id     = 99
+                        status = 204
+                        body   = @{}
+                    }
+                )
+            }
+            
+            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
+            Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'unexpected response ID 99' }
         }
     }
 }
