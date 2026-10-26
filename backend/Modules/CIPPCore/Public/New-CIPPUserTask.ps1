@@ -286,7 +286,7 @@ function New-CIPPUserTask {
             }
         }
     } catch {
-        Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message "Failed to set per-user MFA. Error:$($_.Exception.Message)" -Sev 'Error'
+        Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message "Failed to set per-user MFA for $($CreationResults.Username). Error:$($_.Exception.Message)" -Sev 'Error'
         $Results.Add("Failed to set per-user MFA: $($_.Exception.Message)")
     }
 

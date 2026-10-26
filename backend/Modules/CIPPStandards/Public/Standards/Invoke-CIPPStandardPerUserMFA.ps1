@@ -85,7 +85,8 @@ function Invoke-CIPPStandardPerUserMFA {
                 }
             } catch {
                 $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
-                Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for all users: $ErrorMessage" -sev Error
+                $UserList = $UsersWithoutMFA.userPrincipalName -join ', '
+                Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for users ($UserList): $ErrorMessage" -sev Error
             }
 
             # Refresh user cache after remediation only if changes were made
