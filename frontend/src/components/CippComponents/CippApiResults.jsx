@@ -617,17 +617,6 @@ export const CippApiResults = (props) => {
       extractAllResults(item, jobIgnoreKeys).map((r) => ({ ...r, groupIndex })),
     );
 
-    // Check for 207 Multi-Status (partial failure) and upgrade severity to warning/error for failed items
-    const statusCode = apiObject?.data?.status || apiObject?.error?.response?.status;
-    if (statusCode === 207) {
-      apiResults.forEach((result) => {
-        // If the message indicates failure, ensure it's marked as error not success
-        if (result.severity === "success" && /^Failed:/i.test(result.text)) {
-          result.severity = "error";
-        }
-      });
-    }
-
     // Also extract error results if there's an error
     if (apiObject.isError && apiObject.error) {
       const errorData = apiObject.error?.response?.data;

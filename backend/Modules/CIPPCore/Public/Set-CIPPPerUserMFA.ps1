@@ -81,7 +81,7 @@ function Set-CIPPPerUserMFA {
             # Check if PATCH succeeded
             if ($StatusCode -lt 200 -or $StatusCode -ge 300) {
                 $ErrorMsg = if ($Response.body.error.message) { $Response.body.error.message } else { "HTTP $StatusCode" }
-                $FailureMessage = "Failed to set MFA State to $State for $TargetUserId. Graph API returned status $StatusCode : $ErrorMsg"
+                $FailureMessage = "Failed: Could not set MFA State to $State for $TargetUserId. Graph API returned status $StatusCode : $ErrorMsg"
                 $ResultsByIndex[$RequestIndex] = $FailureMessage
                 Write-LogMessage -headers $Headers -API $APIName -message $FailureMessage -Sev Error -tenant $TenantFilter
             } else {
@@ -186,7 +186,7 @@ function Set-CIPPPerUserMFA {
                 # If verification throws, keep the per-user results collected so far
                 $VerifyException = Get-CippException -Exception $_
                 foreach ($Item in $ToVerify) {
-                    $VerifyErrorMsg = "Failed to verify MFA State for $($Item.UserId). Error: $($VerifyException.NormalizedError)"
+                    $VerifyErrorMsg = "Failed: Could not verify MFA State for $($Item.UserId). Error: $($VerifyException.NormalizedError)"
                     $ResultsByIndex[$Item.Index] = $VerifyErrorMsg
                     Write-LogMessage -headers $Headers -API $APIName -message $VerifyErrorMsg -Sev Error -tenant $TenantFilter
                 }
@@ -198,7 +198,8 @@ function Set-CIPPPerUserMFA {
         for ($i = 0; $i -lt $userId.Count; $i++) {
             if ($ResultsByIndex.ContainsKey($i)) {
                 $Message = $ResultsByIndex[$i]
-                $IsSuccess = $Message -match '^Successfully'
+                # All failure messages start with 'Failed:', so derive success from structured prefix
+                $IsSuccess = $Message -notmatch '^Failed:'
                 $FinalResults.Add([PSCustomObject]@{
                         UserId  = $userId[$i]
                         Success = $IsSuccess
@@ -209,18 +210,10 @@ function Set-CIPPPerUserMFA {
         
         return $FinalResults
     } catch {
+        # Unexpected infrastructure exception - log once and throw for 500
         $ErrorMessage = Get-CippException -Exception $_
-        $Result = "Failed to set MFA State to $State. Error: $($ErrorMessage.NormalizedError)"
+        $Result = "Failed: Unexpected error setting MFA State. Error: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev Error -tenant $TenantFilter -LogData $ErrorMessage
-        
-        # Return structured failure for all users
-        $FailureResults = foreach ($id in $userId) {
-            [PSCustomObject]@{
-                UserId  = $id
-                Success = $false
-                Message = $Result
-            }
-        }
-        return $FailureResults
+        throw $Result
     }
 }

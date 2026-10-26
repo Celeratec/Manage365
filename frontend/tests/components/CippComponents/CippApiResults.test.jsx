@@ -217,33 +217,4 @@ describe('CippApiResults', () => {
     renderWithProviders(<CippApiResults apiObject={apiObject} />)
     expect(screen.getByText('Authorization error occurred')).toBeInTheDocument()
   })
-
-  it('treats 207 Multi-Status as partial failure with error severity for "Failed:" messages', () => {
-    const apiObject = {
-      data: {
-        status: 207,
-        Results: [
-          'Successfully set Per user MFA State to disabled for user1@contoso.com',
-          'Failed: MFA State for user2@contoso.com did not change to disabled after PATCH',
-          'Successfully set Per user MFA State to disabled for user3@contoso.com',
-        ],
-      },
-      isFetching: false,
-      isSuccess: true,
-      isError: false,
-      error: null,
-    }
-    renderWithProviders(<CippApiResults apiObject={apiObject} />)
-    
-    // All messages should be displayed
-    expect(screen.getByText(/Successfully.*user1@contoso.com/)).toBeInTheDocument()
-    expect(screen.getByText(/Failed.*user2@contoso.com/)).toBeInTheDocument()
-    expect(screen.getByText(/Successfully.*user3@contoso.com/)).toBeInTheDocument()
-    
-    // Summary should show partial failure
-    expect(screen.getByText('1 of 3 actions failed, 2 succeeded')).toBeInTheDocument()
-    
-    // Get Help button should be present for errors
-    expect(screen.getByText('Get Help')).toBeInTheDocument()
-  })
 })
