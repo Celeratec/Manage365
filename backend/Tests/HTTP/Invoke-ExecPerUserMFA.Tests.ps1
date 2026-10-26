@@ -93,4 +93,60 @@ Describe 'Invoke-ExecPerUserMFA' {
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results[0] | Should -Be 'Failed: No users were processed. Please check the request parameters.'
     }
+    
+    It 'prefers userId (GUID) over userPrincipalName when userId is a valid GUID' {
+        $script:CapturedUserId = $null
+        Mock Set-CIPPPerUserMFA {
+            $script:CapturedUserId = $userId
+            @([PSCustomObject]@{
+                UserId = $userId
+                Success = $true
+                Message = 'Success'
+            })
+        } -ModuleName CIPPHTTP
+        
+        $Request = [PSCustomObject]@{
+            Headers = @{ Authorization = 'Bearer token' }
+            Params  = @{ CIPPEndpoint = 'ExecPerUserMFA' }
+            Body    = @{
+                userId            = '020b75aa-9718-4e83-93ff-2a5bced7ef7f'
+                userPrincipalName = 'ryanadmin@olumc.org'
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                State             = 'disabled'
+            }
+        }
+        
+        $Response = Invoke-ExecPerUserMFA -Request $Request
+        
+        $Response.StatusCode | Should -Be 200
+        $script:CapturedUserId | Should -Be '020b75aa-9718-4e83-93ff-2a5bced7ef7f'
+    }
+    
+    It 'uses userPrincipalName when userId is not a valid GUID' {
+        $script:CapturedUserId = $null
+        Mock Set-CIPPPerUserMFA {
+            $script:CapturedUserId = $userId
+            @([PSCustomObject]@{
+                UserId = $userId
+                Success = $true
+                Message = 'Success'
+            })
+        } -ModuleName CIPPHTTP
+        
+        $Request = [PSCustomObject]@{
+            Headers = @{ Authorization = 'Bearer token' }
+            Params  = @{ CIPPEndpoint = 'ExecPerUserMFA' }
+            Body    = @{
+                userId            = 'not-a-guid'
+                userPrincipalName = 'user@contoso.com'
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                State             = 'disabled'
+            }
+        }
+        
+        $Response = Invoke-ExecPerUserMFA -Request $Request
+        
+        $Response.StatusCode | Should -Be 200
+        $script:CapturedUserId | Should -Be 'user@contoso.com'
+    }
 }

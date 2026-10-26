@@ -15,8 +15,12 @@ function Invoke-ExecPerUserMFA {
     $Messages = @()
     $StatusCode = [HttpStatusCode]::OK
 
-    # Guest user handling
-    $UserId = $Request.Body.userPrincipalName -match '#EXT#' ? $Request.Body.userId : $Request.Body.userPrincipalName
+    # Prefer object ID (GUID) over UPN when available
+    $UserId = if ($Request.Body.userId -and $Request.Body.userId -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+        $Request.Body.userId
+    } else {
+        $Request.Body.userPrincipalName
+    }
     $TenantFilter = $Request.Body.tenantFilter
     $State = $Request.Body.State.value ?  $Request.Body.State.value : $Request.Body.State
 
