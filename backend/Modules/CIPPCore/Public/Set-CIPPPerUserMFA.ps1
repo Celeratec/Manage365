@@ -34,6 +34,14 @@ function Set-CIPPPerUserMFA {
     )
 
     try {
+        # Filter out empty entries
+        $userId = @($userId | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+        
+        # If all entries were empty, return empty array
+        if ($userId.Count -eq 0) {
+            return @()
+        }
+        
         $int = 0
         $Body = @{
             perUserMfaState = $State

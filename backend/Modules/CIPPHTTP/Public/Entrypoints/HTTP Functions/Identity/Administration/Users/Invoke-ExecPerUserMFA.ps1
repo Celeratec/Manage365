@@ -32,11 +32,15 @@ function Invoke-ExecPerUserMFA {
         try {
             $Results = @(Set-CIPPPerUserMFA @Request)
             
-
-            # Check structured results for success/failure
-            $SuccessCount = 0
-            $FailureCount = 0
-            $Messages = foreach ($Result in $Results) {
+            # Check for zero results
+            if ($Results.Count -eq 0) {
+                $Messages = @("Failed: No users were processed. Please check the request parameters.")
+                $StatusCode = [HttpStatusCode]::BadRequest
+            } else {
+                # Check structured results for success/failure
+                $SuccessCount = 0
+                $FailureCount = 0
+                $Messages = foreach ($Result in $Results) {
                 if ($Result.Success) {
                     $SuccessCount++
                 } else {
@@ -55,6 +59,7 @@ function Invoke-ExecPerUserMFA {
             } else {
                 # All succeeded
                 $StatusCode = [HttpStatusCode]::OK
+            }
             }
         } catch {
             $ErrorData = Get-CippException -Exception $_

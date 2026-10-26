@@ -384,6 +384,9 @@ Describe 'Set-CIPPPerUserMFA' {
         }
         
         It 'throws for infrastructure exceptions instead of returning structured failures' {
+            # Reset shared state to make test deterministic
+            $script:GraphCalls = [System.Collections.Generic.List[PSCustomObject]]::new()
+            
             Mock New-GraphBulkRequest {
                 throw "Unexpected network error"
             }
@@ -586,6 +589,38 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result[1].Success | Should -Be $true
             $Result[2].UserId | Should -Be 'user2@contoso.com'
             $Result[2].Success | Should -Be $true
+        }
+        
+        It 'returns empty array when userId contains only empty entries' {
+            Mock New-GraphBulkRequest { }
+            Mock Start-Sleep { }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('', '   ', $null) -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 0
+            Should -Invoke New-GraphBulkRequest -Times 0
+        }
+        
+        It 'filters empty entries from userId array' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                    })
+                }
+            }
+            Mock Start-Sleep { }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user@contoso.com', '', '   ') -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].UserId | Should -Be 'user@contoso.com'
+            $Results[0].Success | Should -Be $true
         }
     }
 }
