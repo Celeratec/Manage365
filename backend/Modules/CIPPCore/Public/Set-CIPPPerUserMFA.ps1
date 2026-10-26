@@ -55,9 +55,8 @@ function Set-CIPPPerUserMFA {
         # Execute PATCH requests
         $PatchResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests @($PatchRequests) -asapp $true
         
-        # Track results and users to verify
-        $Results = [System.Collections.Generic.List[string]]::new()
-        $Errors = [System.Collections.Generic.List[string]]::new()
+        # Track results by index to preserve userId order
+        $ResultsByIndex = @{}
         $ToVerify = [System.Collections.Generic.List[PSCustomObject]]::new()
         
         # Track which requests received responses
@@ -71,7 +70,7 @@ function Set-CIPPPerUserMFA {
             # Safely get the user ID - handle unexpected response IDs
             if ($RequestIndex -lt 0 -or $RequestIndex -ge $userId.Count) {
                 $ErrorMsg = "Received unexpected response ID $RequestIndex (expected 0-$($userId.Count - 1))"
-                $Errors.Add($ErrorMsg)
+                $ResultsByIndex[$RequestIndex] = $ErrorMsg
                 Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
                 continue
             }
@@ -83,7 +82,7 @@ function Set-CIPPPerUserMFA {
             if ($StatusCode -lt 200 -or $StatusCode -ge 300) {
                 $ErrorMsg = if ($Response.body.error.message) { $Response.body.error.message } else { "HTTP $StatusCode" }
                 $FailureMessage = "Failed to set MFA State to $State for $TargetUserId. Graph API returned status $StatusCode : $ErrorMsg"
-                $Errors.Add($FailureMessage)
+                $ResultsByIndex[$RequestIndex] = $FailureMessage
                 Write-LogMessage -headers $Headers -API $APIName -message $FailureMessage -Sev Error -tenant $TenantFilter
             } else {
                 # Queue for verification
@@ -98,7 +97,7 @@ function Set-CIPPPerUserMFA {
         for ($i = 0; $i -lt $userId.Count; $i++) {
             if (-not $ReceivedIndices.Contains($i)) {
                 $MissingMsg = "No response received for $($userId[$i]) (request ID $i)"
-                $Errors.Add($MissingMsg)
+                $ResultsByIndex[$i] = $MissingMsg
                 Write-LogMessage -headers $Headers -API $APIName -message $MissingMsg -Sev Error -tenant $TenantFilter
             }
         }
@@ -150,12 +149,12 @@ function Set-CIPPPerUserMFA {
                         if ($VerifyStatus -eq 200 -and $ActualState -eq $State) {
                             # Verified successfully
                             $SuccessMessage = "Successfully set Per user MFA State to $State for $($Item.UserId)"
-                            $Results.Add($SuccessMessage)
+                            $ResultsByIndex[$Item.Index] = $SuccessMessage
                             Write-LogMessage -headers $Headers -API $APIName -message $SuccessMessage -Sev Info -tenant $TenantFilter
                         } elseif ($Retry -eq ($MaxRetries - 1)) {
                             # Final retry failed
                             $VerificationError = "MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
-                            $Errors.Add($VerificationError)
+                            $ResultsByIndex[$Item.Index] = $VerificationError
                             Write-LogMessage -headers $Headers -API $APIName -message $VerificationError -Sev Error -tenant $TenantFilter
                         } else {
                             # Queue for retry
@@ -168,7 +167,7 @@ function Set-CIPPPerUserMFA {
                         foreach ($Item in $ToVerify) {
                             if (-not $VerifiedIndices.Contains($Item.Index)) {
                                 $MissingVerifyMsg = "No verification response received for $($Item.UserId) (request ID $($Item.Index))"
-                                $Errors.Add($MissingVerifyMsg)
+                                $ResultsByIndex[$Item.Index] = $MissingVerifyMsg
                                 Write-LogMessage -headers $Headers -API $APIName -message $MissingVerifyMsg -Sev Error -tenant $TenantFilter
                             }
                         }
@@ -183,20 +182,37 @@ function Set-CIPPPerUserMFA {
                 $VerifyException = Get-CippException -Exception $_
                 foreach ($Item in $ToVerify) {
                     $VerifyErrorMsg = "Failed to verify MFA State for $($Item.UserId). Error: $($VerifyException.NormalizedError)"
-                    $Errors.Add($VerifyErrorMsg)
+                    $ResultsByIndex[$Item.Index] = $VerifyErrorMsg
                     Write-LogMessage -headers $Headers -API $APIName -message $VerifyErrorMsg -Sev Error -tenant $TenantFilter
                 }
             }
         }
         
-        # Return results or throw if all failed
-        if ($Errors.Count -gt 0 -and $Results.Count -eq 0) {
-            throw ($Errors -join '; ')
-        } elseif ($Errors.Count -gt 0) {
-            return @($Results) + @($Errors)
-        } else {
-            return $Results
+        # Build final results array in userId order
+        $FinalResults = [System.Collections.Generic.List[string]]::new()
+        for ($i = 0; $i -lt $userId.Count; $i++) {
+            if ($ResultsByIndex.ContainsKey($i)) {
+                $FinalResults.Add($ResultsByIndex[$i])
+            }
         }
+        
+        # Check if all failed
+        $HasFailures = $false
+        $HasSuccesses = $false
+        foreach ($Message in $FinalResults) {
+            if ($Message -match '^Failed|^No response|^Received unexpected|did not change') {
+                $HasFailures = $true
+            } elseif ($Message -match '^Successfully') {
+                $HasSuccesses = $true
+            }
+        }
+        
+        # Throw if all failed
+        if ($HasFailures -and -not $HasSuccesses) {
+            throw ($FinalResults -join '; ')
+        }
+        
+        return $FinalResults
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to set MFA State to $State. Error: $($ErrorMessage.NormalizedError)"
