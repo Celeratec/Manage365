@@ -56,7 +56,6 @@ function Invoke-ExecPerUserMFA {
                 # All succeeded
                 $StatusCode = [HttpStatusCode]::OK
             }
-        }
         } catch {
             $ErrorData = Get-CippException -Exception $_
             $ErrorMessage = "Failed to set per-user MFA for $UserId in $TenantFilter. Error: $($ErrorData.NormalizedError)"
