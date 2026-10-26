@@ -17,21 +17,22 @@ function Invoke-ExecPerUserMFA {
     $TenantFilter = $Request.Body.tenantFilter
     $State = $Request.Body.State.value ?  $Request.Body.State.value : $Request.Body.State
 
-    $Request = @{
-        userId       = $UserId
-        TenantFilter = $TenantFilter
-        State        = $State
-        Headers      = $Headers
-        APIName      = $APIName
-    }
-    try {
-        $Results = @(Set-CIPPPerUserMFA @Request)
-        
-        # Check for zero results
-        if ($Results.Count -eq 0) {
-            $Messages = @("Failed: No users were processed. Please check the request parameters.")
-            $StatusCode = [HttpStatusCode]::BadRequest
-        } else {
+    # Check for empty input before calling Set-CIPPPerUserMFA
+    if ([string]::IsNullOrWhiteSpace($UserId)) {
+        $Messages = @("Failed: No users were processed. Please check the request parameters.")
+        $StatusCode = [HttpStatusCode]::BadRequest
+    } else {
+        $Request = @{
+            userId       = $UserId
+            TenantFilter = $TenantFilter
+            State        = $State
+            Headers      = $Headers
+            APIName      = $APIName
+        }
+        try {
+            $Results = @(Set-CIPPPerUserMFA @Request)
+            
+
             # Check structured results for success/failure
             $SuccessCount = 0
             $FailureCount = 0
@@ -56,12 +57,13 @@ function Invoke-ExecPerUserMFA {
                 $StatusCode = [HttpStatusCode]::OK
             }
         }
-    } catch {
-        $ErrorData = Get-CippException -Exception $_
-        $ErrorMessage = "Failed to set per-user MFA for $UserId in $TenantFilter. Error: $($ErrorData.NormalizedError)"
-        Write-LogMessage -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev Error -headers $Headers -LogData $ErrorData
-        $Messages = @($_.Exception.Message)
-        $StatusCode = [HttpStatusCode]::InternalServerError
+        } catch {
+            $ErrorData = Get-CippException -Exception $_
+            $ErrorMessage = "Failed to set per-user MFA for $UserId in $TenantFilter. Error: $($ErrorData.NormalizedError)"
+            Write-LogMessage -API $APIName -tenant $TenantFilter -message $ErrorMessage -Sev Error -headers $Headers -LogData $ErrorData
+            $Messages = @($_.Exception.Message)
+            $StatusCode = [HttpStatusCode]::InternalServerError
+        }
     }
 
     return ([HttpResponseContext]@{

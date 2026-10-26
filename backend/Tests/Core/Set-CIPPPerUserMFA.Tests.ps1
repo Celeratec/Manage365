@@ -388,9 +388,11 @@ Describe 'Set-CIPPPerUserMFA' {
                 throw "Unexpected network error"
             }
             Mock Start-Sleep { }
+            Mock Get-CippException { [PSCustomObject]@{ NormalizedError = 'Unexpected network error' } }
             
             # Infrastructure exceptions throw without logging (callers will log)
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw -ExpectedMessage '*Unexpected error setting MFA State*'
+            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw -ExpectedMessage 'Failed: Unexpected error setting MFA State. Error: Unexpected network error'
+            Should -Invoke Write-LogMessage -Times 0
         }
         
         It 'success path: message does NOT start with "Failed:" and Success=$true' {
