@@ -18,7 +18,7 @@ BeforeAll {
 
 Describe 'Invoke-ExecPerUserMFA' {
     BeforeEach {
-        Mock Set-CIPPPerUserMFA { }
+        Mock Set-CIPPPerUserMFA { } -ModuleName CIPPHTTP
     }
 
     It 'returns 400 when userPrincipalName is null' {
@@ -36,7 +36,7 @@ Describe 'Invoke-ExecPerUserMFA' {
         
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results[0] | Should -Be 'Failed: No users were processed. Please check the request parameters.'
-        Should -Invoke Set-CIPPPerUserMFA -Times 0
+        Should -Invoke Set-CIPPPerUserMFA -Times 0 -ModuleName CIPPHTTP
     }
 
     It 'returns 400 when userPrincipalName is empty string' {
@@ -54,7 +54,7 @@ Describe 'Invoke-ExecPerUserMFA' {
         
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results[0] | Should -Be 'Failed: No users were processed. Please check the request parameters.'
-        Should -Invoke Set-CIPPPerUserMFA -Times 0
+        Should -Invoke Set-CIPPPerUserMFA -Times 0 -ModuleName CIPPHTTP
     }
 
     It 'returns 400 when userPrincipalName is whitespace' {
@@ -72,12 +72,11 @@ Describe 'Invoke-ExecPerUserMFA' {
         
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results[0] | Should -Be 'Failed: No users were processed. Please check the request parameters.'
-        Should -Invoke Set-CIPPPerUserMFA -Times 0
+        Should -Invoke Set-CIPPPerUserMFA -Times 0 -ModuleName CIPPHTTP
     }
     
-    It 'returns 400 when Set-CIPPPerUserMFA returns zero results' -Skip {
-        Mock Set-CIPPPerUserMFA { , @() }
-        Mock Get-CippException { [PSCustomObject]@{ NormalizedError = 'test error' } }
+    It 'returns 400 when Set-CIPPPerUserMFA returns zero results' {
+        Mock Set-CIPPPerUserMFA { Write-Output @() } -ModuleName CIPPHTTP
         
         $Request = [PSCustomObject]@{
             Headers = @{ Authorization = 'Bearer token' }
