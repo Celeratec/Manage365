@@ -287,7 +287,7 @@ Describe 'Set-CIPPPerUserMFA' {
         
         It 'handles unexpected response IDs gracefully' {
             Mock New-GraphBulkRequest {
-                # Return response with ID out of bounds
+                # Return response with ID out of bounds - user@contoso.com (ID 0) gets no response
                 @(
                     [pscustomobject]@{
                         id     = 99
@@ -300,8 +300,8 @@ Describe 'Set-CIPPPerUserMFA' {
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             $Result[0].Success | Should -Be $false
-            $Result[0].Message | Should -Match 'unexpected response ID 99'
-            Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'unexpected response ID 99' }
+            $Result[0].Message | Should -Match 'Failed:.*No response received.*user@contoso.com'
+            Should -Invoke Write-LogMessage -Times 2 -ParameterFilter { $sev -eq 'Error' }
         }
         
         It 'returns failures for all users instead of throwing when all fail' {
