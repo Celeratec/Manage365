@@ -221,11 +221,20 @@ function Set-CIPPPerUserMFA {
             }
         }
         
-        # Build final results array in userId order
+        # Build final results array in userId order, then add any out-of-range results
         $FinalResults = [System.Collections.Generic.List[PSCustomObject]]::new()
+        
+        # First, add results for valid user indices in order
         for ($i = 0; $i -lt $userId.Count; $i++) {
             if ($ResultsByIndex.ContainsKey($i)) {
                 $FinalResults.Add($ResultsByIndex[$i])
+            }
+        }
+        
+        # Then, add any out-of-range results (e.g., unexpected response IDs)
+        foreach ($Key in $ResultsByIndex.Keys) {
+            if ($Key -lt 0 -or $Key -ge $userId.Count) {
+                $FinalResults.Add($ResultsByIndex[$Key])
             }
         }
         

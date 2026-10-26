@@ -62,7 +62,7 @@ function Invoke-CIPPStandardPerUserMFA {
         $UpdateDB = $false
         if (($UsersWithoutMFA | Measure-Object).Count -gt 0) {
             try {
-                $MFAResults = @(Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced')
+                $MFAResults = @(Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced' -APIName 'Standards')
                 
                 # Parse structured results to detect successes and failures (logging is done by Set-CIPPPerUserMFA)
                 $SuccessCount = 0

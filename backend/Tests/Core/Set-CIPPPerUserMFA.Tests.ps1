@@ -434,17 +434,27 @@ Describe 'Set-CIPPPerUserMFA' {
             
             # Path 4: Unexpected response ID (also need a valid response to avoid "no response" message)
             Mock New-GraphBulkRequest {
-                @(
-                    [pscustomobject]@{ id = -1; status = 204; body = @{} }
-                    [pscustomobject]@{ id = 0; status = 204; body = @{} }
-                )
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    # PATCH responses: one out-of-range, one valid
+                    @(
+                        [pscustomobject]@{ id = -1; status = 204; body = @{} }
+                        [pscustomobject]@{ id = 0; status = 204; body = @{} }
+                    )
+                } else {
+                    # Verify response: valid user verified successfully
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                    })
+                }
             }
-            Mock Start-Sleep { }
             
             $Result4 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user4@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            # The unexpected ID result should be at index -1 but userId is at index 0
-            # Since -1 is out of bounds, it gets assigned "Unknown" as UserId
-            # We need to check for the result that has the unexpected ID error
+            # Should have 2 results: one for the unexpected ID, one for the successful user
+            $Result4.Count | Should -Be 2
+            # The unexpected ID result
             $UnexpectedResult = $Result4 | Where-Object { $_.Message -match 'unexpected response ID' } | Select-Object -First 1
             $UnexpectedResult | Should -Not -BeNullOrEmpty
             $UnexpectedResult.Message | Should -Match '^Failed:'
