@@ -432,15 +432,24 @@ Describe 'Set-CIPPPerUserMFA' {
             $Result3[0].Message | Should -Match 'No response received'
             $Result3[0].Success | Should -Be $false
             
-            # Path 4: Unexpected response ID
+            # Path 4: Unexpected response ID (also need a valid response to avoid "no response" message)
             Mock New-GraphBulkRequest {
-                @([pscustomobject]@{ id = -1; status = 204; body = @{} })
+                @(
+                    [pscustomobject]@{ id = -1; status = 204; body = @{} }
+                    [pscustomobject]@{ id = 0; status = 204; body = @{} }
+                )
             }
+            Mock Start-Sleep { }
             
             $Result4 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user4@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result4[0].Message | Should -Match '^Failed:'
-            $Result4[0].Message | Should -Match 'unexpected response ID'
-            $Result4[0].Success | Should -Be $false
+            # The unexpected ID result should be at index -1 but userId is at index 0
+            # Since -1 is out of bounds, it gets assigned "Unknown" as UserId
+            # We need to check for the result that has the unexpected ID error
+            $UnexpectedResult = $Result4 | Where-Object { $_.Message -match 'unexpected response ID' } | Select-Object -First 1
+            $UnexpectedResult | Should -Not -BeNullOrEmpty
+            $UnexpectedResult.Message | Should -Match '^Failed:'
+            $UnexpectedResult.Message | Should -Match 'unexpected response ID'
+            $UnexpectedResult.Success | Should -Be $false
             
             # Path 5: State did not change after PATCH
             Mock New-GraphBulkRequest {
