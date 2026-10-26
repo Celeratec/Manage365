@@ -49,8 +49,9 @@ function Set-CIPPPerUserMFA {
         
         for ($i = 0; $i -lt $userId.Count; $i++) {
             $id = $userId[$i]
-            # Check if it's a GUID (8-4-4-4-12 format)
-            if ($id -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+            # Check if it's a GUID using TryParse
+            $parsedGuid = [guid]::Empty
+            if ([guid]::TryParse($id, [ref]$parsedGuid)) {
                 # Already a GUID, use directly
                 $ResolvedUsers.Add([PSCustomObject]@{
                     Index = $i
@@ -79,17 +80,24 @@ function Set-CIPPPerUserMFA {
         # Resolve UPNs to GUIDs in bulk
         if ($UPNsToResolve.Count -gt 0) {
             $ResolveRequests = foreach ($Item in $UPNsToResolve) {
+                # Sanitize UPN for OData filter: double single quotes, then URL-encode
+                $SafeUPN = $Item.UPN -replace "'", "''"
+                $EncodedUPN = [uri]::EscapeDataString($SafeUPN)
                 @{
                     id     = $Item.Index
                     method = 'GET'
-                    url    = "users?`$filter=userPrincipalName eq '$($Item.UPN)'&`$select=id"
+                    url    = "users?`$filter=userPrincipalName eq '$EncodedUPN'&`$select=id,userPrincipalName"
                 }
             }
             
             $ResolveResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests $ResolveRequests -asapp $true
             
+            # Track which UPNs got responses
+            $ReceivedResolveIndices = [System.Collections.Generic.HashSet[int]]::new()
+            
             foreach ($Response in $ResolveResponses) {
                 $ResolveIndex = [int]$Response.id
+                $null = $ReceivedResolveIndices.Add($ResolveIndex)
                 $Item = $UPNsToResolve | Where-Object { $_.Index -eq $ResolveIndex } | Select-Object -First 1
                 
                 if (-not $Item) {
@@ -120,12 +128,41 @@ function Set-CIPPPerUserMFA {
                         })
                         Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
                     } else {
-                        # Single match - success
-                        $ResolvedUsers.Add([PSCustomObject]@{
-                            Index = $Item.Index
-                            ObjectId = $MatchedUsers[0].id
-                            DisplayIdentifier = $Item.UPN
-                        })
+                        # Single match - verify exact UPN match (case-insensitive) before accepting
+                        $ReturnedUPN = $MatchedUsers[0].userPrincipalName
+                        if ($ReturnedUPN -ieq $Item.UPN) {
+                            # Exact match - verify returned ID is a GUID
+                            $ReturnedId = $MatchedUsers[0].id
+                            $parsedGuid = [guid]::Empty
+                            if ([guid]::TryParse($ReturnedId, [ref]$parsedGuid)) {
+                                # Valid GUID - success
+                                $ResolvedUsers.Add([PSCustomObject]@{
+                                    Index = $Item.Index
+                                    ObjectId = $ReturnedId
+                                    DisplayIdentifier = $Item.UPN
+                                })
+                            } else {
+                                # Invalid GUID returned
+                                $ErrorMsg = "Failed: Graph returned invalid object ID for UPN $($Item.UPN)"
+                                $ResolvedUsers.Add([PSCustomObject]@{
+                                    Index = $Item.Index
+                                    ObjectId = $null
+                                    DisplayIdentifier = $Item.UPN
+                                    Error = $ErrorMsg
+                                })
+                                Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                            }
+                        } else {
+                            # UPN mismatch - potential proxyAddresses match
+                            $ErrorMsg = "Failed: UPN mismatch for $($Item.UPN) (Graph returned $ReturnedUPN). The user may have matching proxyAddresses."
+                            $ResolvedUsers.Add([PSCustomObject]@{
+                                Index = $Item.Index
+                                ObjectId = $null
+                                DisplayIdentifier = $Item.UPN
+                                Error = $ErrorMsg
+                            })
+                            Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
+                        }
                     }
                 } else {
                     # Graph error during resolution
@@ -138,6 +175,20 @@ function Set-CIPPPerUserMFA {
                         Error = $FailureMessage
                     })
                     Write-LogMessage -headers $Headers -API $APIName -message $FailureMessage -Sev Error -tenant $TenantFilter
+                }
+            }
+            
+            # Handle UPNs that got no response in the resolve batch
+            foreach ($Item in $UPNsToResolve) {
+                if (-not $ReceivedResolveIndices.Contains($Item.Index)) {
+                    $ErrorMsg = "Failed: No resolution response received for UPN $($Item.UPN)"
+                    $ResolvedUsers.Add([PSCustomObject]@{
+                        Index = $Item.Index
+                        ObjectId = $null
+                        DisplayIdentifier = $Item.UPN
+                        Error = $ErrorMsg
+                    })
+                    Write-LogMessage -headers $Headers -API $APIName -message $ErrorMsg -Sev Error -tenant $TenantFilter
                 }
             }
         }

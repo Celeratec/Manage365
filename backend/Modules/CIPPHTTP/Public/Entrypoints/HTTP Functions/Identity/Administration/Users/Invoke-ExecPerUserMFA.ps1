@@ -16,7 +16,8 @@ function Invoke-ExecPerUserMFA {
     $StatusCode = [HttpStatusCode]::OK
 
     # Prefer object ID (GUID) over UPN when available
-    $UserId = if ($Request.Body.userId -and $Request.Body.userId -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+    $parsedGuid = [guid]::Empty
+    $UserId = if ($Request.Body.userId -and [guid]::TryParse($Request.Body.userId, [ref]$parsedGuid)) {
         $Request.Body.userId
     } else {
         $Request.Body.userPrincipalName

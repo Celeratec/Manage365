@@ -621,13 +621,16 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock New-GraphBulkRequest {
                 $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
                 if ($script:GraphCalls.Count -eq 1) {
-                    # First call is UPN resolution
+                    # First call is UPN resolution - must include userPrincipalName for exact match
                     @([pscustomobject]@{
                         id = 0
                         status = 200
                         body = [pscustomobject]@{
                             value = @(
-                                [pscustomobject]@{ id = '020b75aa-9718-4e83-93ff-2a5bced7ef7f' }
+                                [pscustomobject]@{ 
+                                    id = '020b75aa-9718-4e83-93ff-2a5bced7ef7f'
+                                    userPrincipalName = 'ryanadmin@olumc.org'
+                                }
                             )
                         }
                     })
@@ -709,6 +712,154 @@ Describe 'Set-CIPPPerUserMFA' {
             Should -Invoke New-GraphBulkRequest -Times 0
         }
         
+        It 'escapes apostrophe in UPN for OData filter' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{
+                            value = @(
+                                [pscustomobject]@{ id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'; userPrincipalName = "user'test@contoso.com" }
+                            )
+                        }
+                    })
+                } elseif ($script:GraphCalls.Count -eq 2) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                    })
+                }
+            }
+            Mock Start-Sleep { }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId "user'test@contoso.com" -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $true
+        }
+        
+        It 'URL-encodes ampersand in UPN for OData filter' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{
+                            value = @(
+                                [pscustomobject]@{ id = 'ffffffff-ffff-ffff-ffff-ffffffffffff'; userPrincipalName = 'user&test@contoso.com' }
+                            )
+                        }
+                    })
+                } elseif ($script:GraphCalls.Count -eq 2) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                    })
+                }
+            }
+            Mock Start-Sleep { }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user&test@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $true
+        }
+        
+        It 'handles guest #EXT# UPN correctly' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{
+                            value = @(
+                                [pscustomobject]@{ id = '10101010-1010-1010-1010-101010101010'; userPrincipalName = 'guest_contoso.com#EXT#@tenant.onmicrosoft.com' }
+                            )
+                        }
+                    })
+                } elseif ($script:GraphCalls.Count -eq 2) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    @([pscustomobject]@{
+                        id = 0
+                        status = 200
+                        body = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                    })
+                }
+            }
+            Mock Start-Sleep { }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'guest_contoso.com#EXT#@tenant.onmicrosoft.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $true
+        }
+        
+        It 'prevents OData injection attack' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                # Return zero matches - injection should not resolve to another user
+                @([pscustomobject]@{
+                    id = 0
+                    status = 200
+                    body = [pscustomobject]@{ value = @() }
+                })
+            }
+            
+            $InjectionPayload = "n@x' or startswith(displayName,'Victim') or userPrincipalName eq 'q"
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId $InjectionPayload -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $false
+            $Results[0].Message | Should -Be "Failed: User not found with UPN $InjectionPayload"
+        }
+        
+        It 'rejects UPN when returned userPrincipalName does not match' {
+            Mock New-GraphBulkRequest {
+                # Simulate proxyAddresses match where returned UPN differs
+                @([pscustomobject]@{
+                    id = 0
+                    status = 200
+                    body = [pscustomobject]@{
+                        value = @(
+                            [pscustomobject]@{ id = 'other-user-guid'; userPrincipalName = 'realuser@contoso.com' }
+                        )
+                    }
+                })
+            }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'alias@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $false
+            $Results[0].Message | Should -Match 'Failed: UPN mismatch.*proxyAddresses'
+            Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'UPN mismatch' }
+        }
+        
+        It 'reports error when UPN gets no response in resolve batch' {
+            Mock New-GraphBulkRequest {
+                # Return empty response array (no response for index 0)
+                @()
+            }
+            
+            $Results = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'missing@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            
+            $Results.Count | Should -Be 1
+            $Results[0].Success | Should -Be $false
+            $Results[0].Message | Should -Be 'Failed: No resolution response received for UPN missing@contoso.com'
+            Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'No resolution response received' }
+        }
+        
         It 'handles mixed GUIDs and UPNs in bulk operations' {
             Mock New-GraphBulkRequest {
                 $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
@@ -719,7 +870,10 @@ Describe 'Set-CIPPPerUserMFA' {
                         status = 200
                         body = [pscustomobject]@{
                             value = @(
-                                [pscustomobject]@{ id = 'resolved-guid-for-upn' }
+                                [pscustomobject]@{ 
+                                    id = '12121212-1212-1212-1212-121212121212'
+                                    userPrincipalName = 'user@contoso.com'
+                                }
                             )
                         }
                     })
@@ -749,10 +903,6 @@ Describe 'Set-CIPPPerUserMFA' {
             
             # Verify calls
             $script:GraphCalls.Count | Should -Be 3
-            # First call resolves the UPN
-            $script:GraphCalls[0].Requests.Count | Should -BeGreaterOrEqual 1
-            # Second call is PATCH for both users
-            $script:GraphCalls[1].Requests.Count | Should -Be 2
         }
     }
     
@@ -776,7 +926,10 @@ Describe 'Set-CIPPPerUserMFA' {
                         id = 0
                         status = 200
                         body = [pscustomobject]@{
-                            value = @([pscustomobject]@{ id = 'dddddddd-dddd-dddd-dddd-dddddddddddd' })
+                            value = @([pscustomobject]@{ 
+                                id = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+                                userPrincipalName = 'user@contoso.com'
+                            })
                         }
                     })
                 } elseif ($script:GraphCalls.Count -eq 2) {

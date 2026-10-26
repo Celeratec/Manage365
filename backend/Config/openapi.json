@@ -35265,12 +35265,10 @@
                     "type": "string"
                   },
                   "userId": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "string"
                   },
                   "userPrincipalName": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "string"
                   }
                 },
                 "required": [
