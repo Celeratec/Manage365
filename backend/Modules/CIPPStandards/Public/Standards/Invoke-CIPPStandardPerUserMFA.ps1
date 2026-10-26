@@ -62,9 +62,31 @@ function Invoke-CIPPStandardPerUserMFA {
         $UpdateDB = $false
         if (($UsersWithoutMFA | Measure-Object).Count -gt 0) {
             try {
-                $MFAMessage = Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced'
-                Write-LogMessage -API 'Standards' -tenant $tenant -message $MFAMessage -sev Info
-                $UpdateDB = $true
+                $MFAResults = @(Set-CIPPPerUserMFA -TenantFilter $Tenant -UserId @($UsersWithoutMFA.userPrincipalName) -State 'enforced')
+                
+                # Parse results to detect successes and failures
+                $SuccessCount = 0
+                $FailureCount = 0
+                foreach ($ResultMessage in $MFAResults) {
+                    if ($ResultMessage -match '^Successfully') {
+                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Info
+                        $SuccessCount++
+                    } elseif ($ResultMessage -match '^Failed|^No response|^Received unexpected|did not change') {
+                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Error
+                        $FailureCount++
+                    } else {
+                        Write-LogMessage -API 'Standards' -tenant $tenant -message $ResultMessage -sev Warning
+                    }
+                }
+                
+                # Only update DB if at least one user succeeded
+                if ($SuccessCount -gt 0) {
+                    $UpdateDB = $true
+                }
+                
+                if ($FailureCount -gt 0) {
+                    Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for $FailureCount of $($MFAResults.Count) users" -sev Warning
+                }
             } catch {
                 $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
                 Write-LogMessage -API 'Standards' -tenant $tenant -message "Failed to enforce MFA for all users: $ErrorMessage" -sev Error

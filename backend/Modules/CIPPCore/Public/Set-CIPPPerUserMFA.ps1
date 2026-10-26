@@ -60,9 +60,13 @@ function Set-CIPPPerUserMFA {
         $Errors = [System.Collections.Generic.List[string]]::new()
         $ToVerify = [System.Collections.Generic.List[PSCustomObject]]::new()
         
+        # Track which requests received responses
+        $ReceivedIndices = [System.Collections.Generic.HashSet[int]]::new()
+        
         # Check PATCH responses and queue successful ones for verification
         foreach ($Response in $PatchResponses) {
             $RequestIndex = [int]$Response.id
+            $null = $ReceivedIndices.Add($RequestIndex)
             
             # Safely get the user ID - handle unexpected response IDs
             if ($RequestIndex -lt 0 -or $RequestIndex -ge $userId.Count) {
@@ -90,62 +94,98 @@ function Set-CIPPPerUserMFA {
             }
         }
         
-        # Batch verify all successful PATCHes
+        # Report users missing from batch response
+        for ($i = 0; $i -lt $userId.Count; $i++) {
+            if (-not $ReceivedIndices.Contains($i)) {
+                $MissingMsg = "No response received for $($userId[$i]) (request ID $i)"
+                $Errors.Add($MissingMsg)
+                Write-LogMessage -headers $Headers -API $APIName -message $MissingMsg -Sev Error -tenant $TenantFilter
+            }
+        }
+        
+        # Batch verify all successful PATCHes with bounded wait time
         if ($ToVerify.Count -gt 0) {
-            $MaxRetries = 3
-            $RetryDelay = 1
-            
-            for ($Retry = 0; $Retry -lt $MaxRetries; $Retry++) {
-                if ($Retry -gt 0) {
-                    Start-Sleep -Seconds $RetryDelay
-                    $RetryDelay *= 2
-                }
+            try {
+                # Limit retries to stay well under 5-minute Azure Function timeout
+                # Initial attempt + 2 retries with 2s and 4s delays = max 6s wait time
+                $MaxRetries = 3
+                $RetryDelay = 2
                 
-                # Build bulk verification requests
-                $VerifyRequests = foreach ($Item in $ToVerify) {
-                    @{
-                        id     = $Item.Index
-                        method = 'GET'
-                        url    = "users/$($Item.UserId)/authentication/requirements"
-                    }
-                }
-                
-                $VerifyResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests $VerifyRequests -asapp $true
-                
-                # Check verification results
-                $StillToVerify = [System.Collections.Generic.List[PSCustomObject]]::new()
-                
-                foreach ($VerifyResponse in $VerifyResponses) {
-                    $VerifyIndex = [int]$VerifyResponse.id
-                    $Item = $ToVerify | Where-Object { $_.Index -eq $VerifyIndex } | Select-Object -First 1
-                    
-                    if (-not $Item) {
-                        Write-LogMessage -headers $Headers -API $APIName -message "Received unexpected verification response ID $VerifyIndex" -Sev Warning -tenant $TenantFilter
-                        continue
+                for ($Retry = 0; $Retry -lt $MaxRetries; $Retry++) {
+                    if ($Retry -gt 0) {
+                        Start-Sleep -Seconds $RetryDelay
+                        $RetryDelay *= 2
                     }
                     
-                    $VerifyStatus = [int]$VerifyResponse.status
-                    $ActualState = $VerifyResponse.body.perUserMfaState
-                    
-                    if ($VerifyStatus -eq 200 -and $ActualState -eq $State) {
-                        # Verified successfully
-                        $SuccessMessage = "Successfully set Per user MFA State to $State for $($Item.UserId)"
-                        $Results.Add($SuccessMessage)
-                        Write-LogMessage -headers $Headers -API $APIName -message $SuccessMessage -Sev Info -tenant $TenantFilter
-                    } elseif ($Retry -eq ($MaxRetries - 1)) {
-                        # Final retry failed
-                        $VerificationError = "MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
-                        $Errors.Add($VerificationError)
-                        Write-LogMessage -headers $Headers -API $APIName -message $VerificationError -Sev Error -tenant $TenantFilter
-                    } else {
-                        # Queue for retry
-                        $StillToVerify.Add($Item)
+                    # Build bulk verification requests
+                    $VerifyRequests = foreach ($Item in $ToVerify) {
+                        @{
+                            id     = $Item.Index
+                            method = 'GET'
+                            url    = "users/$($Item.UserId)/authentication/requirements"
+                        }
                     }
+                    
+                    $VerifyResponses = New-GraphBulkRequest -tenantid $TenantFilter -scope 'https://graph.microsoft.com/.default' -Requests $VerifyRequests -asapp $true
+                    
+                    # Track which verification requests received responses
+                    $VerifiedIndices = [System.Collections.Generic.HashSet[int]]::new()
+                    
+                    # Check verification results
+                    $StillToVerify = [System.Collections.Generic.List[PSCustomObject]]::new()
+                    
+                    foreach ($VerifyResponse in $VerifyResponses) {
+                        $VerifyIndex = [int]$VerifyResponse.id
+                        $null = $VerifiedIndices.Add($VerifyIndex)
+                        $Item = $ToVerify | Where-Object { $_.Index -eq $VerifyIndex } | Select-Object -First 1
+                        
+                        if (-not $Item) {
+                            Write-LogMessage -headers $Headers -API $APIName -message "Received unexpected verification response ID $VerifyIndex" -Sev Warning -tenant $TenantFilter
+                            continue
+                        }
+                        
+                        $VerifyStatus = [int]$VerifyResponse.status
+                        $ActualState = $VerifyResponse.body.perUserMfaState
+                        
+                        if ($VerifyStatus -eq 200 -and $ActualState -eq $State) {
+                            # Verified successfully
+                            $SuccessMessage = "Successfully set Per user MFA State to $State for $($Item.UserId)"
+                            $Results.Add($SuccessMessage)
+                            Write-LogMessage -headers $Headers -API $APIName -message $SuccessMessage -Sev Info -tenant $TenantFilter
+                        } elseif ($Retry -eq ($MaxRetries - 1)) {
+                            # Final retry failed
+                            $VerificationError = "MFA State for $($Item.UserId) did not change to $State after PATCH (status: $ActualState). The user may require special privileges or permissions."
+                            $Errors.Add($VerificationError)
+                            Write-LogMessage -headers $Headers -API $APIName -message $VerificationError -Sev Error -tenant $TenantFilter
+                        } else {
+                            # Queue for retry
+                            $StillToVerify.Add($Item)
+                        }
+                    }
+                    
+                    # Report users missing from verification response (only on final retry)
+                    if ($Retry -eq ($MaxRetries - 1)) {
+                        foreach ($Item in $ToVerify) {
+                            if (-not $VerifiedIndices.Contains($Item.Index)) {
+                                $MissingVerifyMsg = "No verification response received for $($Item.UserId) (request ID $($Item.Index))"
+                                $Errors.Add($MissingVerifyMsg)
+                                Write-LogMessage -headers $Headers -API $APIName -message $MissingVerifyMsg -Sev Error -tenant $TenantFilter
+                            }
+                        }
+                    }
+                    
+                    # Update the list for next retry
+                    $ToVerify = $StillToVerify
+                    if ($ToVerify.Count -eq 0) { break }
                 }
-                
-                # Update the list for next retry
-                $ToVerify = $StillToVerify
-                if ($ToVerify.Count -eq 0) { break }
+            } catch {
+                # If verification throws, keep the per-user results collected so far
+                $VerifyException = Get-CippException -Exception $_
+                foreach ($Item in $ToVerify) {
+                    $VerifyErrorMsg = "Failed to verify MFA State for $($Item.UserId). Error: $($VerifyException.NormalizedError)"
+                    $Errors.Add($VerifyErrorMsg)
+                    Write-LogMessage -headers $Headers -API $APIName -message $VerifyErrorMsg -Sev Error -tenant $TenantFilter
+                }
             }
         }
         

@@ -43,7 +43,7 @@ Describe 'Set-CIPPPerUserMFA' {
                 }
             }
             
-            $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' }
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             
             $Result | Should -Not -BeNullOrEmpty
             $Result[0] | Should -Match 'Successfully set Per user MFA State to disabled for user@contoso.com'
@@ -101,6 +101,7 @@ Describe 'Set-CIPPPerUserMFA' {
                     }
                 )
             }
+            Mock Start-Sleep { }
             
             { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'admin@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match '403' }
@@ -120,8 +121,9 @@ Describe 'Set-CIPPPerUserMFA' {
                     }
                 )
             }
+            Mock Start-Sleep { }
             
-            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'invalid' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw -ExpectedMessage '*400*Invalid request*'
+            { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw -ExpectedMessage '*400*Invalid request*'
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' }
         }
     }
@@ -224,7 +226,7 @@ Describe 'Set-CIPPPerUserMFA' {
             }
             Mock Start-Sleep { }
             
-            $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' }
+            $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             $Result[0] | Should -Match 'Successfully'
             $script:VerifyCallCount | Should -Be 2
         }
@@ -279,9 +281,51 @@ Describe 'Set-CIPPPerUserMFA' {
                     }
                 )
             }
+            Mock Start-Sleep { }
             
             { Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' } } | Should -Throw
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'unexpected response ID 99' }
+        }
+        
+        It 'handles out-of-order batch responses correctly' {
+            Mock New-GraphBulkRequest {
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                
+                if ($script:GraphCalls.Count -eq 1) {
+                    # PATCH responses for 3 users, returned out of order
+                    @(
+                        [pscustomobject]@{ id = 2; status = 204; body = @{} }
+                        [pscustomobject]@{ id = 0; status = 204; body = @{} }
+                        [pscustomobject]@{ id = 1; status = 204; body = @{} }
+                    )
+                } else {
+                    # Verification responses also out of order
+                    @(
+                        [pscustomobject]@{
+                            id     = 1
+                            status = 200
+                            body   = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                        }
+                        [pscustomobject]@{
+                            id     = 2
+                            status = 200
+                            body   = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                        }
+                        [pscustomobject]@{
+                            id     = 0
+                            status = 200
+                            body   = [pscustomobject]@{ perUserMfaState = 'disabled' }
+                        }
+                    )
+                }
+            }
+            
+            $Result = Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId @('user0@contoso.com', 'user1@contoso.com', 'user2@contoso.com') -State 'disabled' -Headers @{ Authorization = 'Bearer token' }
+            
+            $Result.Count | Should -Be 3
+            $Result[0] | Should -Match 'user0@contoso.com'
+            $Result[1] | Should -Match 'user1@contoso.com'
+            $Result[2] | Should -Match 'user2@contoso.com'
         }
     }
 }

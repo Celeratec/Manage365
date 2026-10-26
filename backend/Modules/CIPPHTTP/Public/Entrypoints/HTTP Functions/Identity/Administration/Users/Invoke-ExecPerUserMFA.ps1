@@ -25,15 +25,37 @@ function Invoke-ExecPerUserMFA {
         APIName      = $APIName
     }
     try {
-        $Result = Set-CIPPPerUserMFA @Request
-        $StatusCode = [HttpStatusCode]::OK
+        $Result = @(Set-CIPPPerUserMFA @Request)
+        
+        # Check if any results indicate failure
+        $HasFailures = $false
+        $HasSuccesses = $false
+        foreach ($Message in $Result) {
+            if ($Message -match '^Failed|^No response|^Received unexpected|did not change') {
+                $HasFailures = $true
+            } elseif ($Message -match '^Successfully') {
+                $HasSuccesses = $true
+            }
+        }
+        
+        # Set status code based on results
+        if ($HasFailures -and -not $HasSuccesses) {
+            # All failed
+            $StatusCode = [HttpStatusCode]::BadRequest
+        } elseif ($HasFailures -and $HasSuccesses) {
+            # Partial failure
+            $StatusCode = [HttpStatusCode]::MultiStatus
+        } else {
+            # All succeeded
+            $StatusCode = [HttpStatusCode]::OK
+        }
     } catch {
-        $Result = $_.Exception.Message
+        $Result = @($_.Exception.Message)
         $StatusCode = [HttpStatusCode]::InternalServerError
     }
 
     return ([HttpResponseContext]@{
             StatusCode = $StatusCode
-            Body       = @{ 'Results' = @($Result) }
+            Body       = @{ 'Results' = $Result }
         })
 }

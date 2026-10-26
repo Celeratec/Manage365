@@ -279,8 +279,14 @@ function New-CIPPUserTask {
 
     try {
         if ($UserObj.perUserMfa -eq $true) {
-            $MfaResult = Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.Username -State 'enforced' -Headers $Headers -APIName $APIName
-            $Results.Add($MfaResult)
+            $MfaResults = @(Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.Username -State 'enforced' -Headers $Headers -APIName $APIName)
+            foreach ($MfaMessage in $MfaResults) {
+                $Results.Add($MfaMessage)
+                # Log failures at Error level
+                if ($MfaMessage -match '^Failed|^No response|^Received unexpected|did not change') {
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message $MfaMessage -Sev 'Error'
+                }
+            }
         }
     } catch {
         Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message "Failed to set per-user MFA. Error:$($_.Exception.Message)" -Sev 'Error'
