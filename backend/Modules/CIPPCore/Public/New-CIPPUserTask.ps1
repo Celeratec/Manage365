@@ -282,10 +282,7 @@ function New-CIPPUserTask {
             $MfaResults = @(Set-CIPPPerUserMFA -TenantFilter $UserObj.tenantFilter -userId $CreationResults.Username -State 'enforced' -Headers $Headers -APIName $APIName)
             foreach ($Result in $MfaResults) {
                 $Results.Add($Result.Message)
-                # Log failures at Error level
-                if (-not $Result.Success) {
-                    Write-LogMessage -headers $Headers -API $APIName -tenant $($UserObj.tenantFilter) -message $Result.Message -Sev 'Error'
-                }
+                # Logging is done by Set-CIPPPerUserMFA
             }
         }
     } catch {

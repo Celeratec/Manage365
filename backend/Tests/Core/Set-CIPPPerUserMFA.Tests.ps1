@@ -393,8 +393,8 @@ Describe 'Set-CIPPPerUserMFA' {
             Should -Invoke Write-LogMessage -Times 1 -ParameterFilter { $sev -eq 'Error' -and $message -match 'Unexpected error' }
         }
         
-        It 'all failure messages start with exactly "Failed:" prefix' {
-            # Test Graph error
+        It 'all failure messages start with "Failed:" and Success is explicitly false on all 7 failure paths' {
+            # Path 1: Graph API error (403)
             Mock New-GraphBulkRequest {
                 @([pscustomobject]@{
                     id = 0
@@ -406,8 +406,43 @@ Describe 'Set-CIPPPerUserMFA' {
             
             $Result1 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user1@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             $Result1[0].Message | Should -Match '^Failed:'
+            $Result1[0].Success | Should -Be $false
             
-            # Test verification failure
+            # Path 2: Graph API error (400)
+            Mock New-GraphBulkRequest {
+                @([pscustomobject]@{
+                    id = 0
+                    status = 400
+                    body = [pscustomobject]@{ error = [pscustomobject]@{ message = 'Bad request' } }
+                })
+            }
+            
+            $Result2 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user2@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result2[0].Message | Should -Match '^Failed:'
+            $Result2[0].Message | Should -Match 'Could not set'
+            $Result2[0].Success | Should -Be $false
+            
+            # Path 3: No response received for user
+            Mock New-GraphBulkRequest {
+                @([pscustomobject]@{ id = 99; status = 204; body = @{} })
+            }
+            
+            $Result3 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user3@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result3[0].Message | Should -Match '^Failed:'
+            $Result3[0].Message | Should -Match 'No response received'
+            $Result3[0].Success | Should -Be $false
+            
+            # Path 4: Unexpected response ID
+            Mock New-GraphBulkRequest {
+                @([pscustomobject]@{ id = -1; status = 204; body = @{} })
+            }
+            
+            $Result4 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user4@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result4[0].Message | Should -Match '^Failed:'
+            $Result4[0].Message | Should -Match 'unexpected response ID'
+            $Result4[0].Success | Should -Be $false
+            
+            # Path 5: State did not change after PATCH
             Mock New-GraphBulkRequest {
                 $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
                 if ($script:GraphCalls.Count -eq 1) {
@@ -421,17 +456,41 @@ Describe 'Set-CIPPPerUserMFA' {
                 }
             }
             
-            $Result2 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user2@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result2[0].Message | Should -Match '^Failed:'
-            $Result2[0].Message | Should -Match 'did not change'
+            $Result5 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user5@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result5[0].Message | Should -Match '^Failed:'
+            $Result5[0].Message | Should -Match 'did not change'
+            $Result5[0].Success | Should -Be $false
             
-            # Test missing response
+            # Path 6: No verification response received
             Mock New-GraphBulkRequest {
-                @([pscustomobject]@{ id = 99; status = 204; body = @{} })
+                $script:GraphCalls.Add([pscustomobject]@{ Requests = $Requests })
+                if ($script:GraphCalls.Count -eq 1) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    @([pscustomobject]@{ id = 99; status = 200; body = [pscustomobject]@{ perUserMfaState = 'disabled' } })
+                }
             }
             
-            $Result3 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user3@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result3[0].Message | Should -Match '^Failed:'
+            $Result6 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user6@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result6[0].Message | Should -Match '^Failed:'
+            $Result6[0].Message | Should -Match 'No verification response'
+            $Result6[0].Success | Should -Be $false
+            
+            # Path 7: Could not verify (verification exception)
+            $script:VerifyCallCount = 0
+            Mock New-GraphBulkRequest {
+                $script:VerifyCallCount++
+                if ($script:VerifyCallCount -eq 1) {
+                    @([pscustomobject]@{ id = 0; status = 204; body = @{} })
+                } else {
+                    throw "Network error"
+                }
+            }
+            
+            $Result7 = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user7@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
+            $Result7[0].Message | Should -Match '^Failed:'
+            $Result7[0].Message | Should -Match 'Could not verify'
+            $Result7[0].Success | Should -Be $false
         }
         
         It 'handles out-of-order batch responses correctly' {
