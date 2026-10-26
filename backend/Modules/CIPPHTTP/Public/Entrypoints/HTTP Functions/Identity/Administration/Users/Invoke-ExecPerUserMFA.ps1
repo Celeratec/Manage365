@@ -29,7 +29,7 @@ function Invoke-ExecPerUserMFA {
         
         # Check for zero results
         if ($Results.Count -eq 0) {
-            $Messages = @("No users were processed. Please check the request parameters.")
+            $Messages = @("Failed: No users were processed. Please check the request parameters.")
             $StatusCode = [HttpStatusCode]::BadRequest
         } else {
             # Check structured results for success/failure

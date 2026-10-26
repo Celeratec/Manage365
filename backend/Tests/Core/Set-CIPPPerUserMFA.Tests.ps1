@@ -411,7 +411,7 @@ Describe 'Set-CIPPPerUserMFA' {
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'success@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             $Result[0].Message | Should -Not -Match '^Failed:'
-            $Result[0].Message | Should -Match '^Successfully'
+            $Result[0].Message | Should -Be 'Successfully set Per user MFA State to disabled for success@contoso.com'
             $Result[0].Success | Should -Be $true
         }
         
@@ -426,7 +426,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user1@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
+            $Result[0].Message | Should -Be 'Failed: Could not set MFA State to disabled for user1@contoso.com. Graph API returned status 403 : Access denied'
             $Result[0].Success | Should -Be $false
         }
         
@@ -441,8 +441,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user2@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
-            $Result[0].Message | Should -Match 'Could not set'
+            $Result[0].Message | Should -Be 'Failed: Could not set MFA State to disabled for user2@contoso.com. Graph API returned status 400 : Bad request'
             $Result[0].Success | Should -Be $false
         }
         
@@ -453,8 +452,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user3@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
-            $Result[0].Message | Should -Match 'No response received'
+            $Result[0].Message | Should -Be 'Failed: No response received for user3@contoso.com (request ID 0)'
             $Result[0].Success | Should -Be $false
         }
         
@@ -478,10 +476,16 @@ Describe 'Set-CIPPPerUserMFA' {
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user4@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
             $Result.Count | Should -Be 2
+            # Check out-of-range result
             $UnexpectedResult = $Result | Where-Object { $_.Message -match 'unexpected response ID' } | Select-Object -First 1
             $UnexpectedResult | Should -Not -BeNullOrEmpty
-            $UnexpectedResult.Message | Should -Match '^Failed:'
+            $UnexpectedResult.Message | Should -Be 'Failed: Received unexpected response ID -1 (expected 0-0)'
             $UnexpectedResult.Success | Should -Be $false
+            # Check successful result
+            $SuccessResult = $Result | Where-Object { $_.Success -eq $true } | Select-Object -First 1
+            $SuccessResult | Should -Not -BeNullOrEmpty
+            $SuccessResult.Message | Should -Be 'Successfully set Per user MFA State to disabled for user4@contoso.com'
+            $SuccessResult.Success | Should -Be $true
         }
         
         It 'failure path 5: State did not change has "Failed:" prefix and Success=$false' {
@@ -500,8 +504,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user5@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
-            $Result[0].Message | Should -Match 'did not change'
+            $Result[0].Message | Should -Be 'Failed: MFA State for user5@contoso.com did not change to disabled after PATCH (status: enforced). The user may require special privileges or permissions.'
             $Result[0].Success | Should -Be $false
         }
         
@@ -517,8 +520,7 @@ Describe 'Set-CIPPPerUserMFA' {
             Mock Start-Sleep { }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user6@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
-            $Result[0].Message | Should -Match 'No verification response'
+            $Result[0].Message | Should -Be 'Failed: No verification response received for user6@contoso.com (request ID 0)'
             $Result[0].Success | Should -Be $false
         }
         
@@ -533,10 +535,10 @@ Describe 'Set-CIPPPerUserMFA' {
                 }
             }
             Mock Start-Sleep { }
+            Mock Get-CippException { [PSCustomObject]@{ NormalizedError = 'Network error' } }
             
             $Result = @(Set-CIPPPerUserMFA -TenantFilter 'contoso.onmicrosoft.com' -userId 'user7@contoso.com' -State 'disabled' -Headers @{ Authorization = 'Bearer token' })
-            $Result[0].Message | Should -Match '^Failed:'
-            $Result[0].Message | Should -Match 'Could not verify'
+            $Result[0].Message | Should -Be 'Failed: Could not verify MFA State for user7@contoso.com. Error: Network error'
             $Result[0].Success | Should -Be $false
         }
         
