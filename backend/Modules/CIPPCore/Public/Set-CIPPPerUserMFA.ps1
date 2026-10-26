@@ -240,10 +240,9 @@ function Set-CIPPPerUserMFA {
         
         return $FinalResults
     } catch {
-        # Unexpected infrastructure exception - log once and throw for 500
+        # Unexpected infrastructure exception - throw for 500 (callers will log)
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed: Unexpected error setting MFA State. Error: $($ErrorMessage.NormalizedError)"
-        Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev Error -tenant $TenantFilter -LogData $ErrorMessage
         throw $Result
     }
 }

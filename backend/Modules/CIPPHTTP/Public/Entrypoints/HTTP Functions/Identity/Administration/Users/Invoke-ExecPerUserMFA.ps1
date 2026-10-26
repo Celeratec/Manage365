@@ -27,28 +27,34 @@ function Invoke-ExecPerUserMFA {
     try {
         $Results = @(Set-CIPPPerUserMFA @Request)
         
-        # Check structured results for success/failure
-        $SuccessCount = 0
-        $FailureCount = 0
-        $Messages = foreach ($Result in $Results) {
-            if ($Result.Success) {
-                $SuccessCount++
-            } else {
-                $FailureCount++
-            }
-            $Result.Message
-        }
-        
-        # Set status code based on results
-        if ($FailureCount -gt 0 -and $SuccessCount -eq 0) {
-            # All failed
+        # Check for zero results
+        if ($Results.Count -eq 0) {
+            $Messages = @("No users were processed. Please check the request parameters.")
             $StatusCode = [HttpStatusCode]::BadRequest
-        } elseif ($FailureCount -gt 0 -and $SuccessCount -gt 0) {
-            # Partial failure
-            $StatusCode = [HttpStatusCode]::MultiStatus
         } else {
-            # All succeeded
-            $StatusCode = [HttpStatusCode]::OK
+            # Check structured results for success/failure
+            $SuccessCount = 0
+            $FailureCount = 0
+            $Messages = foreach ($Result in $Results) {
+                if ($Result.Success) {
+                    $SuccessCount++
+                } else {
+                    $FailureCount++
+                }
+                $Result.Message
+            }
+            
+            # Set status code based on results
+            if ($FailureCount -gt 0 -and $SuccessCount -eq 0) {
+                # All failed
+                $StatusCode = [HttpStatusCode]::BadRequest
+            } elseif ($FailureCount -gt 0 -and $SuccessCount -gt 0) {
+                # Partial failure
+                $StatusCode = [HttpStatusCode]::MultiStatus
+            } else {
+                # All succeeded
+                $StatusCode = [HttpStatusCode]::OK
+            }
         }
     } catch {
         $Messages = @($_.Exception.Message)
