@@ -74,6 +74,8 @@ Describe 'Invoke-ExecPerUserMFA' {
     
     It 'returns 400 when Set-CIPPPerUserMFA returns zero results' {
         Mock Set-CIPPPerUserMFA { @() }
+        Mock Write-LogMessage { }
+        Mock Get-CippException { [PSCustomObject]@{ NormalizedError = 'test error' } }
         
         $Request = [PSCustomObject]@{
             Headers = @{ Authorization = 'Bearer token' }

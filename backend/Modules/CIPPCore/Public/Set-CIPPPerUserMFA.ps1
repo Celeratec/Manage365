@@ -26,6 +26,7 @@ function Set-CIPPPerUserMFA {
         [Parameter(Mandatory = $true)]
         [string]$TenantFilter,
         [Parameter(Mandatory = $true)]
+        [AllowEmptyString()]
         [string[]]$userId,
         [ValidateSet('enabled', 'disabled', 'enforced')]
         $State = 'enabled',
