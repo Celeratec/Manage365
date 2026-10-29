@@ -486,6 +486,20 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.IsValid | Should -BeFalse
         }
         
+        It 'Detects overlap between two CIDR ranges' {
+            Mock New-ExoRequest {
+                , @(
+                    @{
+                        Name              = 'TestInbound'
+                        SenderIPAddresses = @('10.0.0.0/16')
+                    }
+                )
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('10.0.5.0/24')
+            $Result.IsValid | Should -BeFalse
+        }
+        
         It 'Allows non-overlapping CIDR' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.1.0/24')
             $Result.IsValid | Should -BeTrue
