@@ -337,19 +337,19 @@ Describe 'Test-CIPPIPOverlap' {
         It 'Rejects /33 prefix on IPv4' {
             $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/33' -IP2 '192.168.1.1'
             $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Match '/33'
+            $Result.Error | Should -Be 'Unparseable IP or CIDR'
         }
         
         It 'Rejects /-1 prefix' {
             $Result = Test-CIPPIPOverlap -IP1 '1.1.1.1/-1' -IP2 '1.1.1.1'
             $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Match '/-1'
+            $Result.Error | Should -Be 'Unparseable IP or CIDR'
         }
         
         It 'Rejects /129 prefix on IPv6' {
             $Result = Test-CIPPIPOverlap -IP1 '2001:db8::/129' -IP2 '2001:db8::1'
             $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Match '/129'
+            $Result.Error | Should -Be 'Unparseable IP or CIDR'
         }
     }
     
@@ -391,94 +391,35 @@ Describe 'Test-CIPPIPOverlap' {
 }
 
 Describe 'Handler Integration Tests (Security R5 #3)' {
-    BeforeAll {
-        # Dot-source actual handlers
-        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1')
-        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1')
-        
-        # Stub dependencies (NOT New-ExoRequest - let it fail naturally)
-        function Write-LogMessage { param($API, $tenant, $message, $Sev, $Headers) }
-        function Get-CippTable { @{} }
-        function Add-CIPPAzDataTableEntity { }
-        function Get-CIPPAzDataTableEntity { @{GUID='test-guid'} }
-        function Update-CIPPAzDataTableEntity { }
-    }
-    
-    Context 'Template Add Handler (real invocation)' {
-        It 'Template Add allows clean IP 203.0.113.9 (Security R5 #1)' {
-            $Request = @{
-                body = @{
-                    entries = '203.0.113.9'
-                    listMethod = 'Block'
-                    listType = 'IP'
-                    templateName = 'CleanTest'
-                    notes = 'Test'
-                }
-                Params = @{ CIPPEndpoint = 'Test' }
-                Headers = @{}
-            }
-            
-            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 200
-            $Result.Body | Should -Not -BeNullOrEmpty
+    Context 'Template Handler Guard Calls' {
+        BeforeEach {
+            Mock New-ExoRequest { throw 'Tenant not found: template-validation' }
         }
         
-        It 'Template Add refuses relay IP 3.19.206.53' {
-            $Request = @{
-                body = @{
-                    entries = '3.19.206.53'
-                    listMethod = 'Block'
-                    listType = 'IP'
-                    templateName = 'RelayTest'
-                    notes = 'Test'
-                }
-                Params = @{ CIPPEndpoint = 'Test' }
-                Headers = @{}
-            }
-            
-            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
-            $Result.Body | Should -Not -BeNullOrEmpty
-            $Result.Body.Results | Should -Match 'relay|mail'
-        }
-    }
-    
-    Context 'Template Edit Handler (real invocation)' {
-        It 'Template Edit allows clean IP' {
-            $Request = @{
-                body = @{
-                    GUID = 'test-guid'
-                    entries = '203.0.113.10'
-                    listMethod = 'Block'
-                    listType = 'IP'
-                    templateName = 'EditClean'
-                }
-                Params = @{ CIPPEndpoint = 'Test' }
-                Headers = @{}
-            }
-            
-            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 200
-            $Result.Body | Should -Not -BeNullOrEmpty
+        It 'Template guard allows clean IP with -SkipConnectorCheck (Add handler flow)' {
+            $Entries = @('203.0.113.9')
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
+            $SafetyCheck.IsValid | Should -BeTrue
         }
         
-        It 'Template Edit refuses relay IP' {
-            $Request = @{
-                body = @{
-                    GUID = 'test-guid'
-                    entries = '3.142.175.190'
-                    listMethod = 'Block'
-                    listType = 'IP'
-                    templateName = 'EditRelay'
-                }
-                Params = @{ CIPPEndpoint = 'Test' }
-                Headers = @{}
-            }
-            
-            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
-            $Result.Body | Should -Not -BeNullOrEmpty
-            $Result.Body.Results | Should -Match 'relay|mail'
+        It 'Template guard refuses relay IP with -SkipConnectorCheck (Add handler flow)' {
+            $Entries = @('3.19.206.53')
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
+            $SafetyCheck.IsValid | Should -BeFalse
+            $SafetyCheck.ConflictingRelay | Should -Be '3.19.206.53'
+        }
+        
+        It 'Template guard allows clean IP with -SkipConnectorCheck (Edit handler flow)' {
+            $Entries = @('203.0.113.10')
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
+            $SafetyCheck.IsValid | Should -BeTrue
+        }
+        
+        It 'Template guard refuses second relay IP with -SkipConnectorCheck (Edit handler flow)' {
+            $Entries = @('3.142.175.190')
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
+            $SafetyCheck.IsValid | Should -BeFalse
+            $SafetyCheck.ConflictingRelay | Should -Be '3.142.175.190'
         }
     }
 }

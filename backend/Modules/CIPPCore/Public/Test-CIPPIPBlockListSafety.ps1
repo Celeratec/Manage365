@@ -383,15 +383,25 @@ function Test-CIPPIPOverlap {
             
             # Reject negative prefix
             if ($Prefix1 -lt 0) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix /$Prefix1 in $IP1" }
+                Write-Warning "Invalid prefix /$Prefix1 in IP1"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
             
             if (-not [System.Net.IPAddress]::TryParse($IP1Str, [ref]$Addr1)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP1" }
+                Write-Warning "Failed to parse IP1 base address"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
+            }
+            
+            # Validate prefix
+            $MaxPrefix = if ($Addr1.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
+            if ($Prefix1 -gt $MaxPrefix) {
+                Write-Warning "Invalid prefix /$Prefix1 for address family (max $MaxPrefix)"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
         } else {
             if (-not [System.Net.IPAddress]::TryParse($IP1, [ref]$Addr1)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP: $IP1" }
+                Write-Warning "Failed to parse IP1"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
             $Prefix1 = if ($Addr1.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
         }
@@ -406,15 +416,25 @@ function Test-CIPPIPOverlap {
             
             # Reject negative prefix
             if ($Prefix2 -lt 0) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix /$Prefix2 in $IP2" }
+                Write-Warning "Invalid prefix /$Prefix2 in IP2"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
             
             if (-not [System.Net.IPAddress]::TryParse($IP2Str, [ref]$Addr2)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP2" }
+                Write-Warning "Failed to parse IP2 base address"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
+            }
+            
+            # Validate prefix
+            $MaxPrefix = if ($Addr2.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
+            if ($Prefix2 -gt $MaxPrefix) {
+                Write-Warning "Invalid prefix /$Prefix2 for address family (max $MaxPrefix)"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
         } else {
             if (-not [System.Net.IPAddress]::TryParse($IP2, [ref]$Addr2)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP: $IP2" }
+                Write-Warning "Failed to parse IP2"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
             }
             $Prefix2 = if ($Addr2.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
         }
@@ -437,10 +457,12 @@ function Test-CIPPIPOverlap {
         # Validate prefix lengths
         $MaxPrefix = if ($Addr1.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
         if ($Prefix1 -lt 0 -or $Prefix1 -gt $MaxPrefix) {
-            return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix length $Prefix1 for $IP1" }
+            Write-Warning "Invalid prefix length $Prefix1"
+            return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
         }
         if ($Prefix2 -lt 0 -or $Prefix2 -gt $MaxPrefix) {
-            return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix length $Prefix2 for $IP2" }
+            Write-Warning "Invalid prefix length $Prefix2"
+            return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
         }
         
         # Convert to byte arrays
