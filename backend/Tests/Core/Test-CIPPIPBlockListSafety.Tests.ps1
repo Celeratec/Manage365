@@ -29,14 +29,22 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
             $IPs | Should -Contain '3.142.175.190'
         }
         
-        It 'Uses CIPPRootPath when set (QA #2)' {
+        It 'Uses CIPPRootPath against real temp file (QA #3)' {
+            $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+            $ConfigDir = New-Item -ItemType Directory -Path (Join-Path $TempDir 'Config')
+            $ConfigPath = Join-Path $ConfigDir 'KnownMailRelayIPs.json'
+            '{"KnownMailRelayIPs":["203.0.113.99"]}' | Set-Content $ConfigPath
+            
             $OrigPath = $env:CIPPRootPath
-            $env:CIPPRootPath = $BackendRoot
+            $env:CIPPRootPath = $TempDir.FullName
             
-            $IPs = Get-CIPPKnownMailRelayIPs
-            $IPs | Should -Contain '3.19.206.53'
-            
-            $env:CIPPRootPath = $OrigPath
+            try {
+                $IPs = Get-CIPPKnownMailRelayIPs
+                $IPs | Should -Contain '203.0.113.99'
+            } finally {
+                $env:CIPPRootPath = $OrigPath
+                Remove-Item $TempDir -Recurse -Force
+            }
         }
         
         It 'Throws when config file is missing' {
@@ -154,6 +162,11 @@ Describe 'Test-CIPPIPBlockListSafety' {
         
         It 'Allows IP that does not match known relays' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('203.0.113.1')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows pure IPv6 ranges that do not overlap (QA #2 - kills M18)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('2001:db8::/32')
             $Result.IsValid | Should -BeTrue
         }
         
@@ -384,13 +397,13 @@ Describe 'Test-CIPPIPOverlap' {
         It 'Does not leak exception in Error (Security R5 #2)' {
             $Result = Test-CIPPIPOverlap -IP1 'INTERNAL_SECRET_KEY' -IP2 '192.168.1.1'
             $Result.Valid | Should -BeFalse
+            $Result.Error | Should -Be 'Unparseable IP or CIDR'
             $Result.Error | Should -Not -Match 'INTERNAL_SECRET_KEY'
-            $Result.Error | Should -BeLike 'Unparseable IP or CIDR*'
         }
     }
 }
 
-Describe 'Handler Integration Tests (Security R5 #3)' {
+Describe 'Template guard tests (QA #1 - renamed)' {
     Context 'Template Handler Guard Calls' {
         BeforeEach {
             Mock New-ExoRequest { throw 'Tenant not found: template-validation' }
@@ -420,6 +433,185 @@ Describe 'Handler Integration Tests (Security R5 #3)' {
             $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
             $SafetyCheck.IsValid | Should -BeFalse
             $SafetyCheck.ConflictingRelay | Should -Be '3.142.175.190'
+        }
+    }
+}
+
+Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
+    BeforeAll {
+        # Add Azure Functions types as stubs
+        if (-not ('HttpStatusCode' -as [type])) {
+            Add-Type -TypeDefinition @'
+                public enum HttpStatusCode {
+                    OK = 200,
+                    BadRequest = 400,
+                    MultiStatus = 207
+                }
+'@
+        }
+        
+        if (-not ('HttpResponseContext' -as [type])) {
+            Add-Type -TypeDefinition @'
+                public class HttpResponseContext {
+                    public int StatusCode { get; set; }
+                    public object Body { get; set; }
+                }
+'@
+        }
+        
+        # Import actual handlers and dependencies
+        . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/GraphHelper/Get-NormalizedError.ps1')
+        . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/GraphHelper/Get-CippException.ps1')
+        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1')
+        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1')
+    }
+    
+    BeforeEach {
+        # Stub external I/O (scoped for each test)
+        Mock Write-LogMessage {}
+        Mock Get-CippTable { @{} }
+        Mock Add-CIPPAzDataTableEntity {}
+        Mock Get-CIPPAzDataTableEntity { 
+            @{
+                GUID='test-guid'
+                listMethod='Block'
+                listType='IP'
+                PartitionKey='TenantAllowBlockListTemplate'
+                RowKey='test-guid'
+                entries='old-entry'
+                templateName='Test'
+            }
+        }
+        Mock Update-CIPPAzDataTableEntity {}
+        Mock New-ExoRequest { , @() }
+    }
+    
+    Context 'Invoke-AddTenantAllowBlockListTemplate' {
+        It 'Returns 200 and saves for clean IP' {
+            $Request = @{
+                body = @{
+                    entries = '203.0.113.9'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'CleanTest'
+                    notes = 'Test'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 200
+            $Result.body | Should -Not -BeNullOrEmpty
+        }
+        
+        It 'Returns 400 and does not save for relay IP 3.19.206.53' {
+            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
+            
+            $Request = @{
+                body = @{
+                    entries = '3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'RelayTest'
+                    notes = 'Test'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+            $Result.body.Results | Should -Match 'relay|mail'
+        }
+        
+        It 'Returns 400 and does not save for 3.19.206.0/24' {
+            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
+            
+            $Request = @{
+                body = @{
+                    entries = '3.19.206.0/24'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 and does not save for ::ffff:3.19.206.53' {
+            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
+            
+            $Request = @{
+                body = @{
+                    entries = '::ffff:3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 and does not save for invalid input' {
+            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
+            
+            $Request = @{
+                body = @{
+                    entries = 'not-an-ip'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+        }
+    }
+    
+    Context 'Invoke-EditTenantAllowBlockListTemplate' {
+        It 'Returns 200 and saves for clean IP' {
+            $Request = @{
+                body = @{
+                    GUID = 'test-guid'
+                    entries = '203.0.113.10'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'EditTest'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 200
+        }
+        
+        It 'Returns 400 and does not save for relay IP' {
+            Mock Update-CIPPAzDataTableEntity { throw 'Should not save' }
+            
+            $Request = @{
+                body = @{
+                    GUID = 'test-guid'
+                    entries = '3.142.175.190'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'EditRelay'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
         }
     }
 }

@@ -82,6 +82,10 @@ function Test-CIPPIPBlockListSafety {
     - ConflictingSource: 'InboundConnector', 'OutboundConnector', or 'KnownRelay'
     - ConflictingRelay: The specific relay IP that matched (for KnownRelay)
     
+    .PARAMETER SkipConnectorCheck
+    When set, skips the inbound and outbound connector lookups. Use for template validation only,
+    where no real tenant exists. Standard and Baseline executors must NOT pass this flag.
+    
     .EXAMPLE
     Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.1.1', '10.0.0.0/24')
     #>
@@ -125,7 +129,7 @@ function Test-CIPPIPBlockListSafety {
             if ($trimmed.Length -gt 50) {
                 return @{
                     IsValid              = $false
-                    Reason               = "IP entry '$($trimmed.Substring(0,50))...' exceeds maximum length of 50 characters."
+                    Reason               = "IP entry '$($trimmed.Substring(0,50))' exceeds maximum length of 50 characters."
                     ConflictingIP        = $trimmed.Substring(0, 50)
                     ConflictingConnector = $null
                     ConflictingSource    = 'ValidationError'
