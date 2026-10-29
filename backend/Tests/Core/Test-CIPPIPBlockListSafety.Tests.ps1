@@ -17,10 +17,7 @@ BeforeAll {
     # Import CIPPCore module - handler tests use real module, internal function tests use InModuleScope
     Import-Module "$BackendRoot/Modules/CIPPCore/CIPPCore.psd1" -Force -WarningAction SilentlyContinue 3>$null
     
-    # Import CIPPHTTP module to load handlers (production uses module import, not dot-sourcing)
-    Import-Module "$BackendRoot/Modules/CIPPHTTP/CIPPHTTP.psd1" -Force -WarningAction SilentlyContinue 3>$null
-    
-    # Stub storage and helper functions at module level (handlers loaded via module need module-scoped mocks)
+    # Mock CIPPCore helper functions at module level (intercepts calls from within CIPPCore)
     Mock -ModuleName CIPPCore Get-CIPPTable { @{} }
     Mock -ModuleName CIPPCore Add-CIPPAzDataTableEntity { $script:Saved++ }
     Mock -ModuleName CIPPCore Get-CIPPAzDataTableEntity { $script:TplEntity }
@@ -30,10 +27,25 @@ BeforeAll {
     Mock -ModuleName CIPPCore Get-Tenants { param($TriggerMetadata) @(@{defaultDomainName='contoso.onmicrosoft.com'; customerId='test-tenant-id'}) }
     Mock -ModuleName CIPPCore ConvertTo-CIPPODataFilterValue { param($Value,$Type) $Value }
     Mock -ModuleName CIPPCore Write-LogMessage { }
-    Mock -ModuleName CIPPCore New-ExoRequest { , @() }
     
-    # Test-scope stubs for Azure Functions runtime (not in any module)
+    # Test-scope function stubs (handlers find these when dot-sourced)
+    function Get-CippTable { param($tablename) @{} }
+    function Add-CIPPAzDataTableEntity { param([switch]$Force, $Entity, $Context) $script:Saved++ }
+    function Get-CIPPAzDataTableEntity { param($Filter, $Property, $Context) $script:TplEntity }
+    function Update-CIPPAzDataTableEntity { param($Entity, $Context) $script:Updated++ }
+    function Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
+    function ConvertTo-CIPPODataFilterValue { param($Value,$Type) $Value }
+    function Get-NormalizedError { param($Message) $Message }
+    function Get-Tenants { param($TriggerMetadata) @(@{defaultDomainName='contoso.onmicrosoft.com'; customerId='test-tenant-id'}) }
     function Push-OutputBinding { param($Name, $Value) }
+    function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+    
+    # Dot-source handlers (ScriptBlock::Create pattern ensures proper scope)
+    $H = "$BackendRoot/Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange"
+    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-AddTenantAllowBlockList.ps1" -Raw)))
+    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1" -Raw)))
+    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1" -Raw)))
+    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Transport/Invoke-AddConnectionFilter.ps1" -Raw)))
 }
 
 Describe 'Get-CIPPKnownMailRelayIPs' {
