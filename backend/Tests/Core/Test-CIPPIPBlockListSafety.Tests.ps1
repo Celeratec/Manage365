@@ -120,12 +120,10 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
 }
 
 Describe 'Test-CIPPIPBlockListSafety' {
-    BeforeEach {
-        Mock New-ExoRequest -ModuleName CIPPCore { , @() }
-        Mock -ModuleName CIPPCore New-ExoRequest { , @() }
-    }
-    
     Context 'SkipConnectorCheck for Templates (Security R5 #1)' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
         It 'Template validation allows clean IP with -SkipConnectorCheck' {
             Mock New-ExoRequest -ModuleName CIPPCore { throw 'No such tenant' }
             
@@ -143,6 +141,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'No-Connector Scenarios (Security R4 #1)' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Allows clean IP when connectors return $null' {
             Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
@@ -169,6 +171,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Known Relay IP Checks' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Blocks exact match of known relay IP' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
             $Result.IsValid | Should -BeFalse
@@ -243,6 +249,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Inbound Connector Checks' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Blocks IP that matches inbound connector' {
             Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.5') })
@@ -309,6 +319,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Outbound Connector Checks' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Blocks IP matching outbound connector SmartHost' {
             Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest -ModuleName CIPPCore {
@@ -362,6 +376,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Fail Closed Behavior' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Fails closed when inbound lookup throws' {
             Mock New-ExoRequest -ModuleName CIPPCore { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -421,6 +439,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Input Validation' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Handles comma-separated IP string' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1, 198.51.100.2')
             $Result.IsValid | Should -BeTrue
@@ -481,6 +503,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'CIDR and IPv6' {
+        BeforeEach {
+            Mock -ModuleName CIPPCore New-ExoRequest { , @() }
+        }
+        
         It 'Detects overlap with /24 CIDR' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.0/24')
             $Result.IsValid | Should -BeFalse
@@ -724,6 +750,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             [int]$Result.StatusCode | Should -Be 200
             $script:Saved | Should -Be 1
             Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP 3.19.206.53' {
@@ -816,6 +843,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 200
             Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP (3.142.175.190)' {
