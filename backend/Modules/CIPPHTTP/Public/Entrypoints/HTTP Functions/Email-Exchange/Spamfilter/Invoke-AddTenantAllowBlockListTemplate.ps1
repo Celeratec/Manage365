@@ -12,15 +12,16 @@ function Invoke-AddTenantAllowBlockListTemplate {
     $Headers = $Request.Headers
 
     try {
-        # Validate Block+IP template entries against known relay list at save time
+        # Validate Block+IP template entries at save time
         if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
             # Load known relay IPs using shared loader (fails closed)
             try {
                 $KnownRelayIPs = Get-CIPPKnownMailRelayIPs
             } catch {
+                Write-LogMessage -Headers $Headers -API $APIName -message "Failed to load relay IP config: $_" -Sev Error
                 return ([HttpResponseContext]@{
                         StatusCode = [HttpStatusCode]::BadRequest
-                        Body       = @{ Results = "Failed to load known relay IP configuration: $($_.Exception.Message)" }
+                        Body       = @{ Results = "Failed to load known relay IP configuration. Please contact support." }
                     })
             }
             
@@ -29,7 +30,7 @@ function Invoke-AddTenantAllowBlockListTemplate {
             # Sanitize entries for logging (remove control chars, cap length)
             $SanitizedEntries = @($Entries | ForEach-Object {
                     $c = $_ -replace '[\x00-\x1F\x7F]', ''
-                    $c.Substring(0, [Math]::Min($c.Length, 200))
+                    $c.Substring(0, [Math]::Min($c.Length, 50))
                 })
             
             # Check each entry against known relays using Test-CIPPIPOverlap

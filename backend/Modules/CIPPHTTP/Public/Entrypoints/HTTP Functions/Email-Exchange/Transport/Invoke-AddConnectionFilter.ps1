@@ -61,7 +61,7 @@ Function Invoke-AddConnectionFilter {
     }
 
     return ([HttpResponseContext]@{
-            StatusCode = Get-CippBulkStatusCode -Total @($Tenants).Count -Failed $Failed
+            StatusCode = if ($Failed -eq @($Tenants).Count) { [HttpStatusCode]::BadRequest } else { Get-CippBulkStatusCode -Total @($Tenants).Count -Failed $Failed }
             Body       = @{Results = @($Refusals) + @($Result) }
         })
 

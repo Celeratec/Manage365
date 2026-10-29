@@ -94,48 +94,72 @@ function Test-CIPPIPBlockListSafety {
             throw "Failed to load known relay IP configuration: $_"
         }
         
-        # Sanitize and validate input IPs
-        $CleanedIPs = @()
-        foreach ($IP in $IPsToCheck) {
-            if ([string]::IsNullOrWhiteSpace($IP)) { continue }
+    # Sanitize and validate input IPs - split FIRST, then cap per-token
+    $CleanedIPs = @()
+    foreach ($IP in $IPsToCheck) {
+        if ([string]::IsNullOrWhiteSpace($IP)) { continue }
+        
+        # Remove control characters first
+        $cleaned = $IP -replace '[\x00-\x1F\x7F]', ''
+        
+        # Split by comma, semicolon, or whitespace
+        $SplitIPs = $cleaned -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+        
+        foreach ($token in $SplitIPs) {
+            $trimmed = $token.Trim()
             
-            # Remove control characters, trim, cap at 200 chars
-            $c = $IP -replace '[\x00-\x1F\x7F]', ''
-            $c = $c.Substring(0, [Math]::Min($c.Length, 200)).Trim()
-            
-            if ([string]::IsNullOrWhiteSpace($c)) { continue }
-            
-            # Split by comma, semicolon, or whitespace
-            $SplitIPs = $c -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
-            
-            foreach ($SplitIP in $SplitIPs) {
-                # Block IP range notation (a-b) - fail closed
-                if ($SplitIP -match '-') {
-                    return @{
-                        IsValid              = $false
-                        Reason               = "Exchange IP range notation '$SplitIP' is not supported. Please enter individual IPs or CIDR ranges."
-                        ConflictingIP        = $SplitIP
-                        ConflictingConnector = $null
-                        ConflictingSource    = 'ValidationError'
-                        ConflictingRelay     = $null
-                    }
+            # Refuse any single token longer than 50 chars (fail closed)
+            if ($trimmed.Length -gt 50) {
+                return @{
+                    IsValid              = $false
+                    Reason               = "IP entry '$($trimmed.Substring(0,50))...' exceeds maximum length of 50 characters."
+                    ConflictingIP        = $trimmed.Substring(0, 50)
+                    ConflictingConnector = $null
+                    ConflictingSource    = 'ValidationError'
+                    ConflictingRelay     = $null
                 }
-                
-                # Block leading zeros (010.0.0.1)
-                if ($SplitIP -match '(^|\.)0\d') {
-                    return @{
-                        IsValid              = $false
-                        Reason               = "IP address '$SplitIP' contains leading zeros, which are not allowed."
-                        ConflictingIP        = $SplitIP
-                        ConflictingConnector = $null
-                        ConflictingSource    = 'ValidationError'
-                        ConflictingRelay     = $null
-                    }
-                }
-                
-                $CleanedIPs += $SplitIP
             }
+            
+            if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+            # Block IP range notation (a-b) - fail closed
+            if ($trimmed -match '-') {
+                return @{
+                    IsValid              = $false
+                    Reason               = "Exchange IP range notation '$trimmed' is not supported. Please enter individual IPs or CIDR ranges."
+                    ConflictingIP        = $trimmed
+                    ConflictingConnector = $null
+                    ConflictingSource    = 'ValidationError'
+                    ConflictingRelay     = $null
+                }
+            }
+            
+            # Block leading zeros (010.0.0.1)
+            if ($trimmed -match '(^|\.)0\d') {
+                return @{
+                    IsValid              = $false
+                    Reason               = "IP address '$trimmed' contains leading zeros, which are not allowed."
+                    ConflictingIP        = $trimmed
+                    ConflictingConnector = $null
+                    ConflictingSource    = 'ValidationError'
+                    ConflictingRelay     = $null
+                }
+            }
+            
+            # Require full dotted-quad for IPv4 (reject 3.19.206)
+            if ($trimmed -match '^[0-9./:]+$' -and $trimmed -notmatch '^(\d{1,3}\.){3}\d{1,3}(/\d+)?$' -and $trimmed -notmatch ':') {
+                return @{
+                    IsValid              = $false
+                    Reason               = "IP address '$trimmed' is not a valid format. IPv4 requires four octets (e.g., 192.168.1.1)."
+                    ConflictingIP        = $trimmed
+                    ConflictingConnector = $null
+                    ConflictingSource    = 'ValidationError'
+                    ConflictingRelay     = $null
+                }
+            }
+            
+            $CleanedIPs += $trimmed
         }
+    }
         
         if ($CleanedIPs.Count -eq 0) {
             return @{
@@ -310,9 +334,16 @@ function Test-CIPPIPOverlap {
         # Parse IP1
         $Addr1 = $null
         $Prefix1 = 0
-        if ($IP1 -match '^(.+?)/(\d+)$') {
+        if ($IP1 -match '^(.+?)/(-?\d+)$') {
             $IP1Str = $Matches[1]
-            $Prefix1 = [int]$Matches[2]
+            $PrefixStr = $Matches[2]
+            $Prefix1 = [int]$PrefixStr
+            
+            # Reject negative prefix
+            if ($Prefix1 -lt 0) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix /$Prefix1 in $IP1" }
+            }
+            
             if (-not [System.Net.IPAddress]::TryParse($IP1Str, [ref]$Addr1)) {
                 return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP1" }
             }
@@ -326,9 +357,16 @@ function Test-CIPPIPOverlap {
         # Parse IP2
         $Addr2 = $null
         $Prefix2 = 0
-        if ($IP2 -match '^(.+?)/(\d+)$') {
+        if ($IP2 -match '^(.+?)/(-?\d+)$') {
             $IP2Str = $Matches[1]
-            $Prefix2 = [int]$Matches[2]
+            $PrefixStr = $Matches[2]
+            $Prefix2 = [int]$PrefixStr
+            
+            # Reject negative prefix
+            if ($Prefix2 -lt 0) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix /$Prefix2 in $IP2" }
+            }
+            
             if (-not [System.Net.IPAddress]::TryParse($IP2Str, [ref]$Addr2)) {
                 return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP2" }
             }
