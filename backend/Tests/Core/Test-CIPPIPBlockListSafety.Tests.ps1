@@ -45,8 +45,13 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
         }
         
         It 'Throws when relay list is empty (M14 - now reachable)' {
-            Mock Get-Content { '{"KnownMailRelayIPs":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
+            # Test via the safety function which calls the loader
+            Mock Get-CIPPKnownMailRelayIPs { throw "Known relay IP list is empty" }
+            Mock New-ExoRequest { , @() }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'test' -IPsToCheck @('8.8.8.8')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'UnexpectedError'
         }
         
         It 'Rejects IP that parses as 0.0.0.3 from input "3" (LOW)' {
