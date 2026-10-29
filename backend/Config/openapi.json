@@ -7286,12 +7286,10 @@
                     "type": "string"
                   },
                   "listMethod": {
-                    "type": "string",
-                    "description": "Validate Block+IP template entries at save time"
+                    "type": "string"
                   },
                   "listType": {
-                    "type": "string",
-                    "description": "Validate Block+IP template entries at save time"
+                    "type": "string"
                   },
                   "NoExpiration": {
                     "type": "boolean"
@@ -12231,12 +12229,10 @@
                     "type": "string"
                   },
                   "listMethod": {
-                    "type": "string",
-                    "description": "Validate Block+IP template entries at save time"
+                    "type": "string"
                   },
                   "listType": {
-                    "type": "string",
-                    "description": "Validate Block+IP template entries at save time"
+                    "type": "string"
                   },
                   "NoExpiration": {
                     "type": "boolean"
