@@ -34,43 +34,19 @@ function Invoke-EditTenantAllowBlockListTemplate {
 
         # Validate Block+IP template entries at save time
         if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
-            # Load known relay IPs using shared loader (fails closed)
-            try {
-                $KnownRelayIPs = Get-CIPPKnownMailRelayIPs
-            } catch {
-                Write-LogMessage -Headers $Headers -API $APIName -message "Failed to load relay IP config: $_" -Sev Error
-                return ([HttpResponseContext]@{
-                        StatusCode = [HttpStatusCode]::BadRequest
-                        Body       = @{ Results = "Failed to load known relay IP configuration. Please contact support." }
-                    })
-            }
-            
             $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
             
-            # Sanitize entries for logging (remove control chars, cap length)
-            $SanitizedEntries = @($Entries | ForEach-Object {
-                    $c = $_ -replace '[\x00-\x1F\x7F]', ''
-                    $c.Substring(0, [Math]::Min($c.Length, 50))
-                })
-            
-            # Check each entry against known relays using Test-CIPPIPOverlap
-            $Refusals = @()
-            foreach ($Entry in $Entries) {
-                $CleanedEntry = $Entry -replace '[\x00-\x1F\x7F]', ''
-                $SanitizedEntry = $CleanedEntry.Substring(0, [Math]::Min($CleanedEntry.Length, 50))
-                foreach ($KnownIP in $KnownRelayIPs) {
-                    $OverlapResult = Test-CIPPIPOverlap -IP1 $Entry -IP2 $KnownIP
-                    if ($OverlapResult.Overlaps) {
-                        $Refusals += "Entry '$SanitizedEntry' overlaps with known mail relay IP '$KnownIP'"
-                    }
-                }
-            }
-            
-            if ($Refusals.Count -gt 0) {
-                Write-LogMessage -Headers $Headers -API $APIName -Message "Refused Block+IP template edit: $($Refusals -join '; '). Entries: $($SanitizedEntries -join ', ')" -Sev 'Warning'
+            # Use the exported guard function
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries
+            if (-not $SafetyCheck.IsValid) {
+                $SanitizedEntries = @($Entries | ForEach-Object {
+                        $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                        $c.Substring(0, [Math]::Min($c.Length, 50))
+                    })
+                Write-LogMessage -Headers $Headers -API $APIName -Message "Refused Block+IP template edit: $($SafetyCheck.Reason). Entries: $($SanitizedEntries -join ', ')" -Sev 'Warning'
                 return ([HttpResponseContext]@{
                         StatusCode = [HttpStatusCode]::BadRequest
-                        Body       = @{ Results = "Cannot update template: $($Refusals -join ' '). Blocking these IPs would disrupt mail relay services." }
+                        Body       = @{ Results = "Cannot update template: $($SafetyCheck.Reason). Blocking these IPs would disrupt mail relay services." }
                     })
             }
         }

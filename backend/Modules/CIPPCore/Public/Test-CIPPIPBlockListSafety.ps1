@@ -10,8 +10,13 @@ function Get-CIPPKnownMailRelayIPs {
     [CmdletBinding()]
     param()
     
-    # Resolve config path from this script (backend/Modules/CIPPCore/Public) up to backend/Config
-    $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    # Resolve config path from CIPPRootPath environment variable (set in production)
+    # Falls back to script location for local development
+    if ($env:CIPPRootPath) {
+        $BackendRoot = $env:CIPPRootPath
+    } else {
+        $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    }
     $ConfigPath = Join-Path $BackendRoot 'Config/KnownMailRelayIPs.json'
     
     if (-not (Test-Path $ConfigPath)) {
@@ -24,7 +29,7 @@ function Get-CIPPKnownMailRelayIPs {
         throw "Failed to parse known relay IP config file: $_"
     }
     
-    if (-not $ConfigData.KnownMailRelayIPs) {
+    if (-not ($ConfigData.PSObject.Properties.Name -contains 'KnownMailRelayIPs')) {
         throw "Config file missing KnownMailRelayIPs property"
     }
     

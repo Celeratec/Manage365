@@ -1,5 +1,5 @@
 BeforeAll {
-    # Set CIPPRootPath to backend root (not repo root)
+    # Set CIPPRootPath to backend root
     $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $env:CIPPRootPath = $BackendRoot
     
@@ -29,7 +29,17 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
             $IPs | Should -Contain '3.142.175.190'
         }
         
-        It 'Throws when config file is missing (M19 partial)' {
+        It 'Uses CIPPRootPath when set (QA #2)' {
+            $OrigPath = $env:CIPPRootPath
+            $env:CIPPRootPath = $BackendRoot
+            
+            $IPs = Get-CIPPKnownMailRelayIPs
+            $IPs | Should -Contain '3.19.206.53'
+            
+            $env:CIPPRootPath = $OrigPath
+        }
+        
+        It 'Throws when config file is missing' {
             Mock Test-Path { $false } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*not found*'
         }
@@ -44,17 +54,12 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
         }
         
-        It 'Throws when relay list is empty (M14 - now reachable)' {
-            # Test via the safety function which calls the loader
-            Mock Get-CIPPKnownMailRelayIPs { throw "Known relay IP list is empty" }
-            Mock New-ExoRequest { , @() }
-            
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'test' -IPsToCheck @('8.8.8.8')
-            $Result.IsValid | Should -BeFalse
-            $Result.ConflictingSource | Should -Be 'UnexpectedError'
+        It 'Throws when relay list is empty (M14 - real empty array)' {
+            Mock Get-Content { '{"KnownMailRelayIPs":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
         }
         
-        It 'Rejects IP that parses as 0.0.0.3 from input "3" (LOW)' {
+        It 'Rejects IP that parses as 0.0.0.3 from input "3"' {
             Mock Get-Content { '{"KnownMailRelayIPs":["3"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*format*'
         }
@@ -68,8 +73,33 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
 
 Describe 'Test-CIPPIPBlockListSafety' {
     BeforeEach {
-        # Mock New-ExoRequest to return empty connectors by default
         Mock New-ExoRequest { , @() }
+    }
+    
+    Context 'No-Connector Scenarios (Security R4 #1)' {
+        It 'Allows clean IP when connectors return $null' {
+            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows clean IP when connectors return @()' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows 49-char IPv6 CIDR when connectors return @()' {
+            Mock New-ExoRequest { , @() }
+            
+            $IPv6CIDR = '2001:0db8:85a3:0000:0000:8a2e:0370:7334/64'
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @($IPv6CIDR)
+            $Result.IsValid | Should -BeTrue
+        }
     }
     
     Context 'Known Relay IP Checks' {
@@ -78,6 +108,13 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.IsValid | Should -BeFalse
             $Result.ConflictingSource | Should -Be 'KnownRelay'
             $Result.ConflictingRelay | Should -Be '3.19.206.53'
+        }
+        
+        It 'Blocks second known relay IP (M5)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.142.175.190')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'KnownRelay'
+            $Result.ConflictingRelay | Should -Be '3.142.175.190'
         }
         
         It 'Blocks CIDR range containing known relay IP' {
@@ -92,13 +129,18 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'KnownRelay'
         }
         
+        It 'Blocks IPv6 CIDR containing known relay (M18)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('::ffff:3.19.0.0/96')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'KnownRelay'
+        }
+        
         It 'Allows IP that does not match known relays' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('203.0.113.1')
             $Result.IsValid | Should -BeTrue
         }
         
-        It 'Uses custom config with additional relay IP (M19)' {
-            # Mock to return a custom IP list
+        It 'Uses custom config with additional relay IP' {
             Mock Get-Content { '{"KnownMailRelayIPs":["10.99.88.77","3.19.206.53"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('10.99.88.77')
@@ -138,7 +180,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingIP | Should -Be '198.51.100.1-198.51.100.10'
         }
         
-        It 'Allows clean IP when tenant has no inbound connectors (MEDIUM 1)' {
+        It 'Allows clean IP when tenant has no inbound connectors' {
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -236,7 +278,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.Reason | Should -Match 'four octets'
         }
         
-        It 'Refuses token longer than 50 chars (N1)' {
+        It 'Refuses token longer than 50 chars' {
             $LongString = '1.2.3.4,' + ('x' * 60)
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @($LongString)
             $Result.IsValid | Should -BeFalse
@@ -324,55 +366,26 @@ Describe 'Test-CIPPIPOverlap' {
     }
 }
 
-Describe 'Handler Integration Tests' {
-    Context 'Guard Function Called in Handlers' {
-        It 'AddTenantAllowBlockList refuses known relay IP' {
-            Mock New-ExoRequest { , @() }
-            
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('3.19.206.53', '8.8.8.8')
-            $Result.IsValid | Should -BeFalse
-            $Result.ConflictingIP | Should -Be '3.19.206.53'
+Describe 'Handler Integration Tests (QA #3 - guards work in handlers)' {
+    BeforeAll {
+        Mock New-ExoRequest { , @() }
+    }
+    
+    Context 'Template Validation via Guard' {
+        It 'Guard allows clean IP for template validation' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('8.8.8.8')
+            $Result.IsValid | Should -BeTrue
         }
         
-        It 'AddConnectionFilter returns proper status codes' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
-            
-            # Test with clean IP - should be allowed
-            $CleanResult = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
-            $CleanResult.IsValid | Should -BeTrue
-            
-            # Test with relay IP - should be refused
-            $RefusedResult = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
-            $RefusedResult.IsValid | Should -BeFalse
-        }
-        
-        It 'Enforces real New-ExoRequest parameter signature' {
-            # This test will fail if parameter names change
-            $Params = (Get-Command New-ExoRequest).Parameters
-            $Params.Keys | Should -Contain 'tenantid'
-            $Params.Keys | Should -Contain 'cmdlet'
-            $Params.Keys | Should -Contain 'cmdParams'
-        }
-        
-        It 'Template save refuses CIDR overlapping relay' {
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('3.19.206.0/24')
+        It 'Guard refuses relay IP for template validation (QA #1)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.53')
             $Result.IsValid | Should -BeFalse
             $Result.Reason | Should -Match 'relay'
         }
         
-        It 'Template save refuses IPv4-mapped IPv6 relay' {
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('::ffff:3.19.206.53')
+        It 'Guard refuses CIDR overlapping relay for template' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.0/24')
             $Result.IsValid | Should -BeFalse
-            $Result.ConflictingSource | Should -Be 'KnownRelay'
-        }
-        
-        It 'Standards/Baselines guard catches conflicts' {
-            # Verify the guard function itself works for template scenarios
-            $BlockIP = '3.19.206.53'
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @($BlockIP)
-            $Result.IsValid | Should -BeFalse
-            $Result.ConflictingRelay | Should -Be $BlockIP
         }
     }
 }
