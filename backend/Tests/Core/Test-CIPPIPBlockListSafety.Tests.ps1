@@ -1,23 +1,42 @@
 BeforeAll {
+    # QA's proven approach for Azure Functions types
+    if (-not ('HttpStatusCode' -as [type])) {
+        ([PSObject].Assembly.GetType('System.Management.Automation.TypeAccelerators')).GetMethod('Add').Invoke($null, @('HttpStatusCode', [System.Net.HttpStatusCode]))
+    }
+    
+    # HttpResponseContext as simple class
+    class HttpResponseContext {
+        [object]$StatusCode
+        [object]$Body
+    }
+    
     # Set CIPPRootPath to backend root
     $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $env:CIPPRootPath = $BackendRoot
     
-    # Import the guard function
-    . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1')
+    # Import CIPPCore module to get all dependencies
+    Import-Module "$BackendRoot/Modules/CIPPCore/CIPPCore.psd1" -Force -WarningAction SilentlyContinue 3>$null
     
-    # Define stub function matching real New-ExoRequest signature
-    function New-ExoRequest { 
-        param(
-            [string]$tenantid,
-            [string]$cmdlet,
-            $cmdParams,
-            [string]$Select,
-            [string]$Anchor,
-            [bool]$useSystemMailbox,
-            [bool]$NoAuthCheck
-        )
-    }
+    # Dot-source the guard function file to make internal helpers available for testing
+    . "$BackendRoot/Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1"
+    
+    # Import handlers
+    $H = "$BackendRoot/Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange"
+    . "$H/Spamfilter/Invoke-AddTenantAllowBlockList.ps1"
+    . "$H/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1"
+    . "$H/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1"
+    . "$H/Transport/Invoke-AddConnectionFilter.ps1"
+    
+    # Stub storage and helper functions (QA's approach)
+    function Get-CippTable { @{} }
+    function Add-CIPPAzDataTableEntity { $script:Saved++ }
+    function Get-CIPPAzDataTableEntity { $script:TplEntity }
+    function Update-CIPPAzDataTableEntity { $script:Updated++ }
+    function Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
+    function ConvertTo-CIPPODataFilterValue { param($Value,$Type) $Value }
+    function Get-NormalizedError { param($Message) $Message }
+    function Get-Tenants { param($TriggerMetadata) @(@{defaultDomainName='contoso.onmicrosoft.com'; customerId='test-tenant-id'}) }
+    function Push-OutputBinding { param($Name, $Value) }
 }
 
 Describe 'Get-CIPPKnownMailRelayIPs' {
@@ -67,6 +86,11 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
         }
         
+        It 'Throws when config file is empty' {
+            Mock Get-Content { '' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
+        }
+        
         It 'Rejects IP that parses as 0.0.0.3 from input "3"' {
             Mock Get-Content { '{"KnownMailRelayIPs":["3"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*format*'
@@ -82,6 +106,7 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
 Describe 'Test-CIPPIPBlockListSafety' {
     BeforeEach {
         Mock New-ExoRequest { , @() }
+        Mock -ModuleName CIPPCore New-ExoRequest { , @() }
     }
     
     Context 'SkipConnectorCheck for Templates (Security R5 #1)' {
@@ -142,6 +167,13 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingRelay | Should -Be '3.142.175.190'
         }
         
+        It 'Blocks both configured known relay IPs' {
+            $Result1 = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
+            $Result2 = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.142.175.190')
+            $Result1.IsValid | Should -BeFalse
+            $Result2.IsValid | Should -BeFalse
+        }
+        
         It 'Blocks CIDR range containing known relay IP' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.0/24')
             $Result.IsValid | Should -BeFalse
@@ -152,6 +184,11 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('::ffff:3.19.206.53')
             $Result.IsValid | Should -BeFalse
             $Result.ConflictingSource | Should -Be 'KnownRelay'
+        }
+        
+        It 'Blocks IPv4-mapped IPv6 of known relay (::ffff:3.19.206.53)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('::ffff:3.19.206.53')
+            $Result.IsValid | Should -BeFalse
         }
         
         It 'Blocks IPv6 CIDR containing known relay (M18)' {
@@ -167,6 +204,16 @@ Describe 'Test-CIPPIPBlockListSafety' {
         
         It 'Allows pure IPv6 ranges that do not overlap (QA #2 - kills M18)' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('2001:db8::/32')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows IP that does not conflict with any source' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.100')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows multiple IPs when none conflict' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1', '198.51.100.2', '198.51.100.3')
             $Result.IsValid | Should -BeTrue
         }
         
@@ -190,7 +237,25 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'InboundConnector'
         }
         
+        It 'Blocks IP that matches inbound connector SenderIPAddress' {
+            Mock New-ExoRequest {
+                , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.5') })
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.5')
+            $Result.IsValid | Should -BeFalse
+        }
+        
         It 'Blocks CIDR overlapping with inbound connector' {
+            Mock New-ExoRequest {
+                , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.10') })
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.0/24')
+            $Result.IsValid | Should -BeFalse
+        }
+        
+        It 'Blocks CIDR range that overlaps with inbound connector IP' {
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.10') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
@@ -210,7 +275,15 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingIP | Should -Be '198.51.100.1-198.51.100.10'
         }
         
-        It 'Allows clean IP when tenant has no inbound connectors' {
+        It 'Allows IP when no inbound connectors exist' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Allows IP when tenant has no inbound connectors' {
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -231,6 +304,16 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'OutboundConnector'
         }
         
+        It 'Blocks IP that matches outbound connector SmartHost' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest {
+                , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.20') })
+            } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.20')
+            $Result.IsValid | Should -BeFalse
+        }
+        
         It 'Skips hostname SmartHosts' {
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest {
@@ -239,6 +322,26 @@ Describe 'Test-CIPPIPBlockListSafety' {
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.20')
             $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Skips hostname SmartHosts (does not block)' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest {
+                , @(@{ Name = 'TestOutbound'; SmartHosts = @('mail.example.com') })
+            } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.20')
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Blocks CIDR range that overlaps with outbound connector SmartHost' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest {
+                , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.25') })
+            } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.0/24')
+            $Result.IsValid | Should -BeFalse
         }
     }
     
@@ -251,6 +354,13 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'ConnectorLookupFailure'
         }
         
+        It 'Fails closed when inbound connector lookup fails' {
+            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
+            $Result.IsValid | Should -BeFalse
+        }
+        
         It 'Fails closed when outbound lookup throws' {
             Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
@@ -258,6 +368,22 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
             $Result.ConflictingSource | Should -Be 'ConnectorLookupFailure'
+        }
+        
+        It 'Fails closed when outbound connector lookup fails' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
+            $Result.IsValid | Should -BeFalse
+        }
+        
+        It 'Fails closed when inbound connector lookup returns null' {
+            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
+            $Result.IsValid | Should -BeTrue
         }
         
         It 'Fails closed on unexpected error (M13b)' {
@@ -279,6 +405,11 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
     
     Context 'Input Validation' {
+        It 'Handles comma-separated IP string' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1, 198.51.100.2')
+            $Result.IsValid | Should -BeTrue
+        }
+        
         It 'Handles empty IP list' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @()
             $Result.IsValid | Should -BeTrue
@@ -298,6 +429,12 @@ Describe 'Test-CIPPIPBlockListSafety' {
         
         It 'Rejects leading-zero octets' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('010.0.0.1')
+            $Result.IsValid | Should -BeFalse
+            $Result.Reason | Should -Match 'leading zero'
+        }
+        
+        It 'Rejects another leading-zero format' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.001.1')
             $Result.IsValid | Should -BeFalse
             $Result.Reason | Should -Match 'leading zero'
         }
@@ -330,6 +467,17 @@ Describe 'Test-CIPPIPBlockListSafety' {
     Context 'CIDR and IPv6' {
         It 'Detects overlap with /24 CIDR' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.0/24')
+            $Result.IsValid | Should -BeFalse
+        }
+        
+        It 'Detects overlap when checking /24 against specific IP' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.0/24')
+            $Result.IsValid | Should -BeFalse
+        }
+        
+        It 'Detects overlap when checking specific IP against /24' {
+            Mock Get-Content { '{"KnownMailRelayIPs":["3.19.206.0/24"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
             $Result.IsValid | Should -BeFalse
         }
         
@@ -400,97 +548,97 @@ Describe 'Test-CIPPIPOverlap' {
             $Result.Error | Should -Be 'Unparseable IP or CIDR'
             $Result.Error | Should -Not -Match 'INTERNAL_SECRET_KEY'
         }
-    }
-}
-
-Describe 'Template guard tests (QA #1 - renamed)' {
-    Context 'Template Handler Guard Calls' {
-        BeforeEach {
-            Mock New-ExoRequest { throw 'Tenant not found: template-validation' }
+        
+        # Restored from original tests (deleted in 5d56f881d)
+        It 'Returns Overlaps=false when IP is outside CIDR range' {
+            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.1' -IP2 '192.168.1.0/24'
+            $Result.Overlaps | Should -BeFalse
+            $Result.Valid | Should -BeTrue
         }
         
-        It 'Template guard allows clean IP with -SkipConnectorCheck (Add handler flow)' {
-            $Entries = @('203.0.113.9')
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
-            $SafetyCheck.IsValid | Should -BeTrue
+        It 'Returns Overlaps=true for overlapping CIDR ranges' {
+            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.0/16' -IP2 '10.0.5.0/24'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
         }
         
-        It 'Template guard refuses relay IP with -SkipConnectorCheck (Add handler flow)' {
-            $Entries = @('3.19.206.53')
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
-            $SafetyCheck.IsValid | Should -BeFalse
-            $SafetyCheck.ConflictingRelay | Should -Be '3.19.206.53'
+        It 'Returns Overlaps=false for non-overlapping CIDR ranges' {
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/24' -IP2 '10.0.0.0/8'
+            $Result.Overlaps | Should -BeFalse
+            $Result.Valid | Should -BeTrue
         }
         
-        It 'Template guard allows clean IP with -SkipConnectorCheck (Edit handler flow)' {
-            $Entries = @('203.0.113.10')
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
-            $SafetyCheck.IsValid | Should -BeTrue
+        It 'Handles /32 CIDR notation' {
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1/32' -IP2 '192.168.1.1'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
         }
         
-        It 'Template guard refuses second relay IP with -SkipConnectorCheck (Edit handler flow)' {
-            $Entries = @('3.142.175.190')
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
-            $SafetyCheck.IsValid | Should -BeFalse
-            $SafetyCheck.ConflictingRelay | Should -Be '3.142.175.190'
+        It 'Returns Overlaps=true for identical IPv6 addresses' {
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::1'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Returns Overlaps=false for different IPv6 addresses' {
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::2'
+            $Result.Overlaps | Should -BeFalse
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Returns Overlaps=true when IPv6 is in CIDR range' {
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::100' -IP2 '2001:db8::/64'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Returns Overlaps=false for IPv4 vs IPv6' {
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
+            $Result.Overlaps | Should -BeFalse
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Handles IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)' {
+            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '::ffff:192.168.1.1'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Handles IPv4-mapped IPv6 against CIDR' {
+            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.10' -IP2 '192.168.1.0/24'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Handles /0 CIDR (matches all)' {
+            $Result = Test-CIPPIPOverlap -IP1 '0.0.0.0/0' -IP2 '192.168.1.1'
+            $Result.Overlaps | Should -BeTrue
+            $Result.Valid | Should -BeTrue
+        }
+        
+        It 'Returns Valid=false for invalid IP' {
+            $Result = Test-CIPPIPOverlap -IP1 'not-an-ip' -IP2 '192.168.1.1'
+            $Result.Valid | Should -BeFalse
         }
     }
 }
 
 Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
-    BeforeAll {
-        # Add Azure Functions types as stubs
-        if (-not ('HttpStatusCode' -as [type])) {
-            Add-Type -TypeDefinition @'
-                public enum HttpStatusCode {
-                    OK = 200,
-                    BadRequest = 400,
-                    MultiStatus = 207
-                }
-'@
-        }
-        
-        if (-not ('HttpResponseContext' -as [type])) {
-            Add-Type -TypeDefinition @'
-                public class HttpResponseContext {
-                    public int StatusCode { get; set; }
-                    public object Body { get; set; }
-                }
-'@
-        }
-        
-        # Import actual handlers and dependencies
-        . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/GraphHelper/Get-NormalizedError.ps1')
-        . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/GraphHelper/Get-CippException.ps1')
-        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1')
-        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1')
-    }
-    
     BeforeEach {
-        # Stub external I/O (scoped for each test)
-        Mock Write-LogMessage {}
-        Mock Get-CippTable { @{} }
-        Mock Add-CIPPAzDataTableEntity {}
-        Mock Get-CIPPAzDataTableEntity { 
-            @{
-                GUID='test-guid'
-                listMethod='Block'
-                listType='IP'
-                PartitionKey='TenantAllowBlockListTemplate'
-                RowKey='test-guid'
-                entries='old-entry'
-                templateName='Test'
-            }
-        }
-        Mock Update-CIPPAzDataTableEntity {}
-        Mock New-ExoRequest { , @() }
+        $script:Saved = 0
+        $script:Updated = 0
+        $script:Adds = [System.Collections.Generic.List[object]]::new()
+        Mock -ModuleName CIPPCore New-ExoRequest { if ($cmdlet -and $cmdlet -notlike 'Get-*') { $script:Adds.Add(@($tenantid,$cmdlet)) } ; , @() }
+        Mock New-ExoRequest { if ($cmdlet -and $cmdlet -notlike 'Get-*') { $script:Adds.Add(@($tenantid,$cmdlet)) } ; , @() }
+        Mock Write-LogMessage { }
+        Mock -ModuleName CIPPCore Write-LogMessage { }
     }
     
     Context 'Invoke-AddTenantAllowBlockListTemplate' {
-        It 'Returns 200 and saves for clean IP' {
+        It 'Returns 200 and saves for clean IP (8.8.8.8)' {
             $Request = @{
-                body = @{
-                    entries = '203.0.113.9'
+                body = [pscustomobject]@{
+                    entries = '8.8.8.8'
                     listMethod = 'Block'
                     listType = 'IP'
                     templateName = 'CleanTest'
@@ -501,15 +649,13 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 200
-            $Result.body | Should -Not -BeNullOrEmpty
+            [int]$Result.StatusCode | Should -Be 200
+            $script:Saved | Should -Be 1
         }
         
         It 'Returns 400 and does not save for relay IP 3.19.206.53' {
-            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
-            
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     entries = '3.19.206.53'
                     listMethod = 'Block'
                     listType = 'IP'
@@ -521,15 +667,14 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
-            $Result.body.Results | Should -Match 'relay|mail'
+            [int]$Result.StatusCode | Should -Be 400
+            $Result.Body.Results | Should -Match 'overlaps'
+            $script:Saved | Should -Be 0
         }
         
         It 'Returns 400 and does not save for 3.19.206.0/24' {
-            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
-            
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     entries = '3.19.206.0/24'
                     listMethod = 'Block'
                     listType = 'IP'
@@ -539,14 +684,13 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
+            [int]$Result.StatusCode | Should -Be 400
+            $script:Saved | Should -Be 0
         }
         
         It 'Returns 400 and does not save for ::ffff:3.19.206.53' {
-            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
-            
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     entries = '::ffff:3.19.206.53'
                     listMethod = 'Block'
                     listType = 'IP'
@@ -556,14 +700,13 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
+            [int]$Result.StatusCode | Should -Be 400
+            $script:Saved | Should -Be 0
         }
         
         It 'Returns 400 and does not save for invalid input' {
-            Mock Add-CIPPAzDataTableEntity { throw 'Should not save' }
-            
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     entries = 'not-an-ip'
                     listMethod = 'Block'
                     listType = 'IP'
@@ -573,16 +716,18 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
+            [int]$Result.StatusCode | Should -Be 400
+            $script:Saved | Should -Be 0
         }
     }
     
     Context 'Invoke-EditTenantAllowBlockListTemplate' {
         It 'Returns 200 and saves for clean IP' {
+            $script:TplEntity = @{ RowKey='test-guid' }
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     GUID = 'test-guid'
-                    entries = '203.0.113.10'
+                    entries = '8.8.8.8'
                     listMethod = 'Block'
                     listType = 'IP'
                     templateName = 'EditTest'
@@ -592,14 +737,13 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 200
+            [int]$Result.StatusCode | Should -Be 200
         }
         
-        It 'Returns 400 and does not save for relay IP' {
-            Mock Update-CIPPAzDataTableEntity { throw 'Should not save' }
-            
+        It 'Returns 400 and does not save for relay IP (3.142.175.190)' {
+            $script:TplEntity = @{ RowKey='test-guid' }
             $Request = @{
-                body = @{
+                body = [pscustomobject]@{
                     GUID = 'test-guid'
                     entries = '3.142.175.190'
                     listMethod = 'Block'
@@ -611,7 +755,214 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             }
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
-            $Result.StatusCode | Should -Be 400
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for ::ffff:3.19.206.53' {
+            $script:TplEntity = @{ RowKey='test-guid' }
+            $Request = @{
+                body = [pscustomobject]@{
+                    GUID = 'test-guid'
+                    entries = '::ffff:3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for relay CIDR 3.19.206.0/24' {
+            $script:TplEntity = @{ RowKey='test-guid' }
+            $Request = @{
+                body = [pscustomobject]@{
+                    GUID = 'test-guid'
+                    entries = '3.19.206.0/24'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for invalid input' {
+            $script:TplEntity = @{ RowKey='test-guid' }
+            $Request = @{
+                body = [pscustomobject]@{
+                    GUID = 'test-guid'
+                    entries = 'invalid-ip'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            [int]$Result.StatusCode | Should -Be 400
+        }
+    }
+    
+    Context 'Invoke-AddTenantAllowBlockList' {
+        It 'Returns 200 for clean IP (8.8.8.8)' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    tenantID = 'contoso.onmicrosoft.com'
+                    entries = '8.8.8.8'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 200
+        }
+        
+        It 'Returns 400 for relay IP 3.19.206.53' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    tenantID = 'contoso.onmicrosoft.com'
+                    entries = '3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+            $script:Adds.Count | Should -Be 0
+        }
+        
+        It 'Returns 400 for 3.19.206.0/24' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    tenantID = 'contoso.onmicrosoft.com'
+                    entries = '3.19.206.0/24'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for IPv6-wrapped relay ::ffff:3.19.206.53' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    tenantID = 'contoso.onmicrosoft.com'
+                    entries = '::ffff:3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for invalid input' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    tenantID = 'contoso.onmicrosoft.com'
+                    entries = 'invalid-ip'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+        }
+    }
+    
+    Context 'Invoke-AddConnectionFilter' {
+        It 'Returns 200 for clean IP' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    selectedTenants = @(@{value='contoso.onmicrosoft.com'})
+                    PowerShellCommand = (@{name='Default';IPBlockList='8.8.8.8'}|ConvertTo-Json)
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -BeIn @(200, 207)
+        }
+        
+        It 'Returns 400 for relay IP in IPBlockList' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    selectedTenants = @(@{value='contoso.onmicrosoft.com'})
+                    PowerShellCommand = (@{name='Default';IPBlockList='3.19.206.53'}|ConvertTo-Json)
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+            @($script:Adds | ? { $_[1] -eq 'Set-HostedConnectionFilterPolicy' }).Count | Should -Be 0
+        }
+        
+        It 'Returns 400 for 3.19.206.0/24' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    selectedTenants = @(@{value='contoso.onmicrosoft.com'})
+                    PowerShellCommand = (@{name='Default';IPBlockList='3.19.206.0/24'}|ConvertTo-Json)
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for IPv6-wrapped relay ::ffff:3.19.206.53' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    selectedTenants = @(@{value='contoso.onmicrosoft.com'})
+                    PowerShellCommand = (@{name='Default';IPBlockList='::ffff:3.19.206.53'}|ConvertTo-Json)
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
+        }
+        
+        It 'Returns 400 for invalid input' {
+            $Request = @{
+                body = [pscustomobject]@{
+                    selectedTenants = @(@{value='contoso.onmicrosoft.com'})
+                    PowerShellCommand = (@{name='Default';IPBlockList='not-ip'}|ConvertTo-Json)
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
+            [int]$Result.StatusCode | Should -Be 400
         }
     }
 }
