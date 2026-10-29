@@ -93,7 +93,7 @@ function Invoke-CIPPStandardTenantAllowBlockListTemplate {
                     continue
                 }
                 
-                # Guard against blocking mail relay IPs (only for Block + IP)
+                # Validate Block+IP operations to prevent mail disruption
                 if ($TemplateData.listMethod -eq 'Block' -and $ListType -eq 'IP') {
                     $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $NewEntries
                     if (-not $SafetyCheck.IsValid) {

@@ -34,6 +34,8 @@ function Test-CIPPIPBlockListSafety {
         [string]$TenantFilter,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [AllowEmptyString()]
         [string[]]$IPsToCheck
     )
 
@@ -41,14 +43,18 @@ function Test-CIPPIPBlockListSafety {
         # Load known relay IPs from config, with fallback defaults
         $KnownRelayIPs = @('3.19.206.53', '3.142.175.190')
         try {
-            # Resolve path from module root reliably (PSScriptRoot may not work when dot-sourced)
-            $ModuleRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-            $ConfigPath = Join-Path $ModuleRoot 'Config/KnownMailRelayIPs.json'
+            # Use CIPPRootPath environment variable for reliable path resolution
+            if ([string]::IsNullOrWhiteSpace($env:CIPPRootPath)) {
+                $env:CIPPRootPath = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+            }
+            $ConfigPath = Join-Path $env:CIPPRootPath 'Config/KnownMailRelayIPs.json'
             if (Test-Path $ConfigPath) {
-                $KnownRelayConfig = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
-                if ($null -ne $KnownRelayConfig.KnownMailRelayIPs) {
+                $KnownRelayConfig = Get-Content -Path $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json
+                if ($null -ne $KnownRelayConfig.KnownMailRelayIPs -and @($KnownRelayConfig.KnownMailRelayIPs).Count -gt 0) {
                     $KnownRelayIPs = @($KnownRelayConfig.KnownMailRelayIPs)
                 }
+            } else {
+                Write-Warning "Known relay IP config file not found at $ConfigPath - using fallback defaults"
             }
         } catch {
             Write-Warning "Failed to load known relay IPs from config, using defaults: $_"
@@ -74,11 +80,11 @@ function Test-CIPPIPBlockListSafety {
             $SplitIPs = $IP -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
             
             foreach ($SplitIP in $SplitIPs) {
-                # Block IP range notation (a-b) - fail closed
+                # Block IP range notation (a-b) used by Exchange - fail closed
                 if ($SplitIP -match '-') {
                     return @{
                         IsValid    = $false
-                        Reason     = "IP range notation '$SplitIP' is not supported. The operation has been blocked as a safety precaution."
+                        Reason     = "Exchange IP range notation '$SplitIP' is not supported. Please enter individual IPs or CIDR ranges. The operation has been blocked as a safety precaution."
                         ConflictingIP = $SplitIP
                         ConflictingConnector = $null
                         ConflictingSource = 'InvalidFormat'
@@ -99,7 +105,8 @@ function Test-CIPPIPBlockListSafety {
                 $NormalizedIPs += $SplitIP
             }
         }
-
+        
+        # If no valid IPs remain after normalization, allow (nothing to block)
         if ($NormalizedIPs.Count -eq 0) {
             return @{
                 IsValid    = $true
@@ -115,7 +122,8 @@ function Test-CIPPIPBlockListSafety {
         # Check against known relay IPs first (no API call needed)
         foreach ($IPToCheck in $NormalizedIPs) {
             foreach ($KnownRelay in $KnownRelayIPs) {
-                if (Test-IPOverlap -IP1 $IPToCheck -IP2 $KnownRelay) {
+                $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $KnownRelay
+                if ($OverlapResult.Overlaps) {
                     $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
                     return @{
                         IsValid    = $false
@@ -124,6 +132,15 @@ function Test-CIPPIPBlockListSafety {
                         ConflictingConnector = $null
                         ConflictingSource = 'KnownRelay'
                         ConflictingRelay = $KnownRelay
+                    }
+                } elseif (-not $OverlapResult.Valid) {
+                    $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
+                    return @{
+                        IsValid    = $false
+                        Reason     = "Invalid IP address or CIDR range: '$SafeIP'. $($OverlapResult.Error)"
+                        ConflictingIP = $SafeIP
+                        ConflictingConnector = $null
+                        ConflictingSource = 'InvalidFormat'
                     }
                 }
             }
@@ -157,8 +174,20 @@ function Test-CIPPIPBlockListSafety {
         foreach ($Connector in @($InboundConnectors)) {
             if ($null -ne $Connector.SenderIPAddresses -and $Connector.SenderIPAddresses.Count -gt 0) {
                 foreach ($ConnectorIP in $Connector.SenderIPAddresses) {
+                    # Skip Exchange range notation (a-b) as unsupported - fail closed
+                    if ($ConnectorIP -match '-') {
+                        return @{
+                            IsValid    = $false
+                            Reason     = "Unable to verify IP safety: Inbound connector '$($Connector.Name)' uses Exchange range notation ('$ConnectorIP') which is not supported. The operation has been blocked as a safety precaution."
+                            ConflictingIP = $null
+                            ConflictingConnector = $Connector.Name
+                            ConflictingSource = 'ConnectorValidationFailure'
+                        }
+                    }
+                    
                     foreach ($IPToCheck in $NormalizedIPs) {
-                        if (Test-IPOverlap -IP1 $IPToCheck -IP2 $ConnectorIP) {
+                        $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $ConnectorIP
+                        if ($OverlapResult.Overlaps) {
                             $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
                             $SafeConnectorIP = $ConnectorIP.Substring(0, [Math]::Min($ConnectorIP.Length, 50))
                             $SafeConnectorName = $Connector.Name.Substring(0, [Math]::Min($Connector.Name.Length, 100))
@@ -208,7 +237,8 @@ function Test-CIPPIPBlockListSafety {
                     $ParsedIP = $null
                     if ([System.Net.IPAddress]::TryParse($SmartHostIP, [ref]$ParsedIP)) {
                         foreach ($IPToCheck in $NormalizedIPs) {
-                            if (Test-IPOverlap -IP1 $IPToCheck -IP2 $SmartHost) {
+                            $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $SmartHost
+                            if ($OverlapResult.Overlaps) {
                                 $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
                                 $SafeSmartHost = $SmartHost.Substring(0, [Math]::Min($SmartHost.Length, 50))
                                 $SafeConnectorName = $Connector.Name.Substring(0, [Math]::Min($Connector.Name.Length, 100))
@@ -278,14 +308,14 @@ function Test-CIPPIPBlockListSafetyCached {
     return $script:IPBlockListSafetyCache[$TenantFilter]
 }
 
-function Test-IPOverlap {
+function Test-CIPPIPOverlap {
     <#
     .SYNOPSIS
         Tests if two IPs or CIDR ranges overlap
 
     .DESCRIPTION
         Compares two IP addresses or CIDR ranges to determine if they overlap.
-        Handles both IPv4 and IPv6 addresses.
+        Handles both IPv4 and IPv6 addresses with comprehensive validation.
 
     .PARAMETER IP1
         First IP or CIDR range
@@ -294,7 +324,10 @@ function Test-IPOverlap {
         Second IP or CIDR range
 
     .OUTPUTS
-        Returns $true if the IPs overlap, $false otherwise
+        Returns a hashtable with:
+        - Overlaps: $true if the IPs overlap, $false otherwise
+        - Valid: $true if inputs are valid, $false if parse error
+        - Error: Error message if Valid is $false
     #>
     [CmdletBinding()]
     param(
@@ -309,15 +342,28 @@ function Test-IPOverlap {
         # Parse IP1
         $IP1Address = $null
         $IP1Prefix = 32
-        if ($IP1 -match '^(.+)/(\d+)$') {
-            $IP1Address = [System.Net.IPAddress]::Parse($Matches[1])
+        
+        if ($IP1 -match '^(.+)/(-?\d+)$') {
+            $IP1String = $Matches[1]
             $IP1Prefix = [int]$Matches[2]
+            
+            # Validate prefix bounds before parsing
+            if (-not [System.Net.IPAddress]::TryParse($IP1String, [ref]$IP1Address)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP1String' as an IP address" }
+            }
+            
+            $MaxPrefix = if ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
+            if ($IP1Prefix -lt 0 -or $IP1Prefix -gt $MaxPrefix) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Prefix /$IP1Prefix is invalid for address family (valid range: 0-$MaxPrefix)" }
+            }
         } else {
-            $IP1Address = [System.Net.IPAddress]::Parse($IP1)
+            if (-not [System.Net.IPAddress]::TryParse($IP1, [ref]$IP1Address)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP1' as an IP address" }
+            }
             $IP1Prefix = if ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
         }
         
-        # Map IPv4-mapped IPv6 to IPv4
+        # Normalize IPv4-mapped IPv6 to IPv4
         if ($IP1Address.IsIPv4MappedToIPv6) {
             $IP1Address = $IP1Address.MapToIPv4()
             $IP1Prefix = [Math]::Max(0, $IP1Prefix - 96)
@@ -326,15 +372,27 @@ function Test-IPOverlap {
         # Parse IP2
         $IP2Address = $null
         $IP2Prefix = 32
-        if ($IP2 -match '^(.+)/(\d+)$') {
-            $IP2Address = [System.Net.IPAddress]::Parse($Matches[1])
+        
+        if ($IP2 -match '^(.+)/(-?\d+)$') {
+            $IP2String = $Matches[1]
             $IP2Prefix = [int]$Matches[2]
+            
+            if (-not [System.Net.IPAddress]::TryParse($IP2String, [ref]$IP2Address)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP2String' as an IP address" }
+            }
+            
+            $MaxPrefix = if ($IP2Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
+            if ($IP2Prefix -lt 0 -or $IP2Prefix -gt $MaxPrefix) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Prefix /$IP2Prefix is invalid for address family (valid range: 0-$MaxPrefix)" }
+            }
         } else {
-            $IP2Address = [System.Net.IPAddress]::Parse($IP2)
+            if (-not [System.Net.IPAddress]::TryParse($IP2, [ref]$IP2Address)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP2' as an IP address" }
+            }
             $IP2Prefix = if ($IP2Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
         }
         
-        # Map IPv4-mapped IPv6 to IPv4
+        # Normalize IPv4-mapped IPv6 to IPv4
         if ($IP2Address.IsIPv4MappedToIPv6) {
             $IP2Address = $IP2Address.MapToIPv4()
             $IP2Prefix = [Math]::Max(0, $IP2Prefix - 96)
@@ -342,7 +400,7 @@ function Test-IPOverlap {
 
         # Check if address families match
         if ($IP1Address.AddressFamily -ne $IP2Address.AddressFamily) {
-            return $false
+            return @{ Overlaps = $false; Valid = $true; Error = $null }
         }
 
         # For IPv4, use bitwise comparison
@@ -369,7 +427,9 @@ function Test-IPOverlap {
             }
 
             # Compare network portions
-            return (($IP1Int -band $Mask) -eq ($IP2Int -band $Mask))
+            $Overlaps = (($IP1Int -band $Mask) -eq ($IP2Int -band $Mask))
+            return @{ Overlaps = $Overlaps; Valid = $true; Error = $null }
+            
         } elseif ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
             # For IPv6, compare byte by byte
             $IP1Bytes = $IP1Address.GetAddressBytes()
@@ -382,7 +442,7 @@ function Test-IPOverlap {
             $FullBytes = [Math]::Floor($MinPrefix / 8)
             for ($i = 0; $i -lt $FullBytes; $i++) {
                 if ($IP1Bytes[$i] -ne $IP2Bytes[$i]) {
-                    return $false
+                    return @{ Overlaps = $false; Valid = $true; Error = $null }
                 }
             }
 
@@ -391,19 +451,19 @@ function Test-IPOverlap {
             if ($RemainingBits -gt 0) {
                 $Mask = [byte](0xFF -shl (8 - $RemainingBits))
                 if (($IP1Bytes[$FullBytes] -band $Mask) -ne ($IP2Bytes[$FullBytes] -band $Mask)) {
-                    return $false
+                    return @{ Overlaps = $false; Valid = $true; Error = $null }
                 }
             }
 
-            return $true
+            return @{ Overlaps = $true; Valid = $true; Error = $null }
         }
 
-        return $false
+        return @{ Overlaps = $false; Valid = $true; Error = $null }
 
     } catch {
         $ErrorDetail = "$($_.Exception.GetType().Name)"
         Write-Warning "Error comparing IPs '$IP1' and '$IP2': $ErrorDetail"
-        # If we can't parse, assume they might overlap (fail safe)
-        return $true
+        # If we can't parse, return invalid (don't assume overlap)
+        return @{ Overlaps = $false; Valid = $false; Error = "Unexpected error: $ErrorDetail" }
     }
 }

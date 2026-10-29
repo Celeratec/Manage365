@@ -40,34 +40,23 @@ function Invoke-AddTenantAllowBlockList {
                 })
         }
 
-        # Guard against blocking mail relay IPs (only for Block list and IP type)
+        # Validate Block+IP operations against guard to prevent mail disruption
+        $SafetyChecks = @{}
         if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
             foreach ($Tenant in $Tenants) {
-                $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
-                if (-not $SafetyCheck.IsValid) {
-                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyCheck.Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($Entries -join ', ')"
+                $SafetyChecks[$Tenant] = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
+                if (-not $SafetyChecks[$Tenant].IsValid) {
+                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyChecks[$Tenant].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($Entries -join ', ')"
                     Write-LogMessage -headers $Headers -API $APIName -tenant $Tenant -message $AuditMessage -Sev 'Warning'
-                    $Results.Add("Operation blocked for tenant $Tenant : $($SafetyCheck.Reason)")
-                    continue
+                    $Results.Add("Operation blocked for tenant $Tenant : $($SafetyChecks[$Tenant].Reason)")
                 }
-            }
-            # If all tenants were blocked, return early
-            if ($Results.Count -eq $Tenants.Count) {
-                return ([HttpResponseContext]@{
-                        StatusCode = [HttpStatusCode]::BadRequest
-                        Body       = @{ 'Results' = @($Results) }
-                    })
             }
         }
 
         foreach ($Tenant in $Tenants) {
-            # Skip tenant if it was blocked by the safety check
-            if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
-                $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
-                if (-not $SafetyCheck.IsValid) {
-                    # Already logged above, just skip
-                    continue
-                }
+            # Skip tenant if guard check failed
+            if ($SafetyChecks.ContainsKey($Tenant) -and -not $SafetyChecks[$Tenant].IsValid) {
+                continue
             }
 
             try {
@@ -110,8 +99,22 @@ function Invoke-AddTenantAllowBlockList {
         Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev 'Error' -LogData $ErrorMessage
     }
 
+    # Determine appropriate status code based on results
+    $StatusCode = [HttpStatusCode]::OK
+    $SuccessCount = @($Results | Where-Object { $_ -match '^Successfully' }).Count
+    $BlockedCount = @($Results | Where-Object { $_ -match '^Operation blocked' }).Count
+    $FailedCount = @($Results | Where-Object { $_ -match '^Failed' }).Count
+    
+    if ($SuccessCount -eq 0 -and ($BlockedCount -gt 0 -or $FailedCount -gt 0)) {
+        # All operations blocked or failed
+        $StatusCode = [HttpStatusCode]::BadRequest
+    } elseif ($SuccessCount -gt 0 -and ($BlockedCount -gt 0 -or $FailedCount -gt 0)) {
+        # Partial success
+        $StatusCode = [HttpStatusCode]::MultiStatus
+    }
+
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = @{
                 'Results' = @($Results)
             }

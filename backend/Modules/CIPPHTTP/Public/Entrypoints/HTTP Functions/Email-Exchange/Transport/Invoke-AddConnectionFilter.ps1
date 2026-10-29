@@ -19,18 +19,26 @@ Function Invoke-AddConnectionFilter {
 
     $Tenants = ($Request.Body.selectedTenants).value
     $Failed = 0
+    $Refusals = [System.Collections.Generic.List[string]]::new()
 
-    $Result = foreach ($TenantFilter in $Tenants) {
-        # Guard against blocking mail relay IPs (only if IPBlockList is being set)
-        if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
-            if (-not $SafetyCheck.IsValid) {
-                $AuditMessage = "BLOCKED connection filter IPBlockList add for tenant $TenantFilter - Reason: $($SafetyCheck.Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($RequestParams.IPBlockList -join ', ')"
+    # Run guard once per tenant for IPBlockList and cache results
+    $SafetyChecks = @{}
+    if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
+        foreach ($TenantFilter in $Tenants) {
+            $SafetyChecks[$TenantFilter] = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
+            if (-not $SafetyChecks[$TenantFilter].IsValid) {
+                $AuditMessage = "BLOCKED connection filter IPBlockList add for tenant $TenantFilter - Reason: $($SafetyChecks[$TenantFilter].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($RequestParams.IPBlockList -join ', ')"
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Warning'
                 $Failed++
-                "Operation blocked for tenant $TenantFilter : $($SafetyCheck.Reason)"
-                continue
+                $Refusals.Add("Operation blocked for tenant $TenantFilter : $($SafetyChecks[$TenantFilter].Reason)")
             }
+        }
+    }
+
+    $Result = foreach ($TenantFilter in $Tenants) {
+        # Skip if guard check failed
+        if ($SafetyChecks.ContainsKey($TenantFilter) -and -not $SafetyChecks[$TenantFilter].IsValid) {
+            continue
         }
 
         try {
@@ -47,7 +55,7 @@ Function Invoke-AddConnectionFilter {
 
     return ([HttpResponseContext]@{
             StatusCode = Get-CippBulkStatusCode -Total @($Tenants).Count -Failed $Failed
-            Body       = @{Results = @($Result) }
+            Body       = @{Results = @($Refusals) + @($Result) }
         })
 
 }

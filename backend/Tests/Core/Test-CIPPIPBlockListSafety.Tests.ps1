@@ -1,17 +1,18 @@
 BeforeAll {
-    $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+    # Set CIPPRootPath for config loading
+    $env:CIPPRootPath = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
     
-    # Import the module
-    Import-Module (Join-Path $RepoRoot 'backend/Modules/CIPPCore/CIPPCore.psm1') -Force
+    # Import the guard function directly
+    . (Join-Path $env:CIPPRootPath 'backend/Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1')
     
-    # Mock New-ExoRequest globally
+    # Stub New-ExoRequest
     function New-ExoRequest { }
 }
 
 Describe 'Test-CIPPIPBlockListSafety' {
     BeforeEach {
         # Reset mocks before each test
-        Mock New-ExoRequest -ModuleName CIPPCore
+        Mock New-ExoRequest
     }
 
     Context 'Known Relay IP Checks' {
@@ -49,7 +50,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Allows IP that does not match known relays' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 return @()
             }
             
@@ -70,7 +71,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'Inbound Connector Checks' {
         It 'Blocks IP that matches inbound connector SenderIPAddress' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -92,7 +93,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Blocks CIDR range that overlaps with inbound connector IP' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -111,7 +112,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Allows IP when no inbound connectors exist' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 return @()
             }
             
@@ -122,7 +123,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'Outbound Connector Checks' {
         It 'Blocks IP that matches outbound connector SmartHost' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @()
@@ -147,7 +148,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Skips hostname SmartHosts (does not block)' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @()
@@ -168,7 +169,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Blocks CIDR range that overlaps with outbound connector SmartHost' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @()
@@ -192,7 +193,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'Connector Lookup Failure (Fail Closed)' {
         It 'Fails closed when inbound connector lookup fails' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     throw 'Network error'
@@ -207,7 +208,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Fails closed when outbound connector lookup fails' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @()
@@ -225,7 +226,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Handles null result from New-ExoRequest (fail closed)' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return $null
@@ -240,7 +241,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'Clean IP Allowed' {
         It 'Allows IP that does not conflict with any source' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -270,7 +271,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Allows multiple IPs when none conflict' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 return @()
             }
             
@@ -281,7 +282,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'Input Handling' {
         It 'Handles comma-separated IP string' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 return @()
             }
             
@@ -295,7 +296,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Handles whitespace-only entries' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 return @()
             }
             
@@ -331,7 +332,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
 
     Context 'CIDR Overlap Detection' {
         It 'Detects overlap when checking /24 against specific IP' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -350,7 +351,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Detects overlap when checking specific IP against /24' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -368,7 +369,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Detects overlap between two CIDR ranges' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -386,7 +387,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
 
         It 'Does not detect false overlap for different networks' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -404,7 +405,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Detects overlap with 3.0.0.0/8' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -422,7 +423,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Detects overlap with 0.0.0.0/0 (entire IPv4)' {
-            Mock New-ExoRequest -ModuleName CIPPCore {
+            Mock New-ExoRequest {
                 param($tenantid, $cmdlet)
                 if ($cmdlet -eq 'Get-InboundConnector') {
                     return @(
@@ -441,86 +442,86 @@ Describe 'Test-CIPPIPBlockListSafety' {
     }
 }
 
-Describe 'Test-IPOverlap' {
+Describe 'Test-CIPPIPOverlap' {
     Context 'Exact IP Matches' {
         It 'Returns true for identical IPv4 addresses' {
-            $Result = Test-IPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.1'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.1'
             $Result | Should -BeTrue
         }
 
         It 'Returns false for different IPv4 addresses' {
-            $Result = Test-IPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.2'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.2'
             $Result | Should -BeFalse
         }
     }
 
     Context 'CIDR Range Overlaps' {
         It 'Returns true when IP is in CIDR range' {
-            $Result = Test-IPOverlap -IP1 '192.168.1.100' -IP2 '192.168.1.0/24'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.100' -IP2 '192.168.1.0/24'
             $Result | Should -BeTrue
         }
 
         It 'Returns false when IP is outside CIDR range' {
-            $Result = Test-IPOverlap -IP1 '192.168.2.100' -IP2 '192.168.1.0/24'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.2.100' -IP2 '192.168.1.0/24'
             $Result | Should -BeFalse
         }
 
         It 'Returns true for overlapping CIDR ranges' {
-            $Result = Test-IPOverlap -IP1 '10.0.0.0/16' -IP2 '10.0.5.0/24'
+            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.0/16' -IP2 '10.0.5.0/24'
             $Result | Should -BeTrue
         }
 
         It 'Returns false for non-overlapping CIDR ranges' {
-            $Result = Test-IPOverlap -IP1 '10.0.0.0/24' -IP2 '10.1.0.0/24'
+            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.0/24' -IP2 '10.1.0.0/24'
             $Result | Should -BeFalse
         }
 
         It 'Handles /32 CIDR notation' {
-            $Result = Test-IPOverlap -IP1 '192.168.1.1/32' -IP2 '192.168.1.1'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1/32' -IP2 '192.168.1.1'
             $Result | Should -BeTrue
         }
     }
 
     Context 'IPv6 Support' {
         It 'Returns true for identical IPv6 addresses' {
-            $Result = Test-IPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::1'
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::1'
             $Result | Should -BeTrue
         }
 
         It 'Returns false for different IPv6 addresses' {
-            $Result = Test-IPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::2'
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::2'
             $Result | Should -BeFalse
         }
 
         It 'Returns true when IPv6 is in CIDR range' {
-            $Result = Test-IPOverlap -IP1 '2001:db8::100' -IP2 '2001:db8::/64'
+            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::100' -IP2 '2001:db8::/64'
             $Result | Should -BeTrue
         }
 
         It 'Returns false for IPv4 vs IPv6' {
-            $Result = Test-IPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
+            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
             $Result | Should -BeFalse
         }
         
         It 'Handles IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)' {
-            $Result = Test-IPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '192.168.1.1'
+            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '192.168.1.1'
             $Result | Should -BeTrue
         }
         
         It 'Handles IPv4-mapped IPv6 against CIDR' {
-            $Result = Test-IPOverlap -IP1 '::ffff:192.168.1.100' -IP2 '192.168.1.0/24'
+            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.100' -IP2 '192.168.1.0/24'
             $Result | Should -BeTrue
         }
     }
 
     Context 'Edge Cases' {
         It 'Handles /0 CIDR (matches all)' {
-            $Result = Test-IPOverlap -IP1 '1.2.3.4' -IP2 '0.0.0.0/0'
+            $Result = Test-CIPPIPOverlap -IP1 '1.2.3.4' -IP2 '0.0.0.0/0'
             $Result | Should -BeTrue
         }
 
         It 'Handles invalid IP gracefully (fails safe)' {
-            $Result = Test-IPOverlap -IP1 'invalid' -IP2 '192.168.1.1'
+            $Result = Test-CIPPIPOverlap -IP1 'invalid' -IP2 '192.168.1.1'
             $Result | Should -BeTrue
         }
     }
