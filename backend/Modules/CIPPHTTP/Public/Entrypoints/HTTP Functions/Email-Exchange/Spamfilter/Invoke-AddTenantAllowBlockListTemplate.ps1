@@ -12,6 +12,39 @@ function Invoke-AddTenantAllowBlockListTemplate {
     $Headers = $Request.Headers
 
     try {
+        # Validate Block + IP entries against known relay IPs at save time
+        if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
+            $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
+            
+            # Load known relay IPs (same logic as the guard function, using defaults as fallback)
+            $KnownRelayIPs = @('3.19.206.53', '3.142.175.190')
+            try {
+                # Try to load from config, but don't fail if it doesn't exist
+                $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
+                $ConfigPath = Join-Path $RepoRoot 'backend/Config/KnownMailRelayIPs.json'
+                if (Test-Path $ConfigPath) {
+                    $KnownRelayConfig = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
+                    if ($null -ne $KnownRelayConfig.KnownMailRelayIPs) {
+                        $KnownRelayIPs = @($KnownRelayConfig.KnownMailRelayIPs)
+                    }
+                }
+            } catch {
+                # Use defaults
+            }
+            
+            # Check entries against known relays
+            foreach ($Entry in $Entries) {
+                foreach ($KnownRelay in $KnownRelayIPs) {
+                    if ($Entry -eq $KnownRelay) {
+                        return ([HttpResponseContext]@{
+                                StatusCode = [HttpStatusCode]::BadRequest
+                                Body       = @{ Results = "Cannot create template: IP '$Entry' matches known mail relay IP. Blocking this IP would disrupt mail relay services." }
+                            })
+                    }
+                }
+            }
+        }
+        
         $GUID = (New-Guid).GUID
         $JSON = @{
             entries      = $Request.body.entries
@@ -35,8 +68,9 @@ function Invoke-AddTenantAllowBlockListTemplate {
         $StatusCode = [HttpStatusCode]::OK
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
-        Write-LogMessage -Headers $Headers -API $APIName -message "Failed to create Tenant Allow/Block List Template: $($ErrorMessage.NormalizedError)" -Sev Error -LogData $ErrorMessage
-        $body = [pscustomobject]@{ 'Results' = "Failed to create Tenant Allow/Block List Template: $($ErrorMessage.NormalizedError)" }
+        $ErrorDetail = "$($ErrorMessage.NormalizedError)"
+        Write-LogMessage -Headers $Headers -API $APIName -message "Failed to create Tenant Allow/Block List Template: $ErrorDetail" -Sev Error -LogData $ErrorMessage
+        $body = [pscustomobject]@{ 'Results' = "Failed to create Tenant Allow/Block List Template." }
         $StatusCode = [HttpStatusCode]::InternalServerError
     }
 

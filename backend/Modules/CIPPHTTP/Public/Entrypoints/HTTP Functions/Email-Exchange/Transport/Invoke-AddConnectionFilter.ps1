@@ -20,25 +20,15 @@ Function Invoke-AddConnectionFilter {
     $Tenants = ($Request.Body.selectedTenants).value
     $Failed = 0
 
-    # Guard against blocking mail relay IPs (only if IPBlockList is being set)
-    if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
-        foreach ($TenantFilter in $Tenants) {
+    $Result = foreach ($TenantFilter in $Tenants) {
+        # Guard against blocking mail relay IPs (only if IPBlockList is being set)
+        if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
             $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
             if (-not $SafetyCheck.IsValid) {
                 $AuditMessage = "BLOCKED connection filter IPBlockList add for tenant $TenantFilter - Reason: $($SafetyCheck.Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($RequestParams.IPBlockList -join ', ')"
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Warning'
                 $Failed++
                 "Operation blocked for tenant $TenantFilter : $($SafetyCheck.Reason)"
-                continue
-            }
-        }
-    }
-
-    $Result = foreach ($TenantFilter in $Tenants) {
-        # Skip if already failed in safety check
-        if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
-            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
-            if (-not $SafetyCheck.IsValid) {
                 continue
             }
         }

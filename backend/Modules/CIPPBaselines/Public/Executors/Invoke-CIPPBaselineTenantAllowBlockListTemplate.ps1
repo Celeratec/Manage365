@@ -29,6 +29,15 @@ function Invoke-CIPPBaselineTenantAllowBlockListTemplate {
     if ($ListMethod -notin @('Allow', 'Block')) {
         throw "Tenant Allow/Block List template '$($Template.templateName)' has an invalid list method '$ListMethod'."
     }
+    
+    # Guard against blocking mail relay IPs (only for Block + IP)
+    if ($ListMethod -eq 'Block' -and $Template.listType -eq 'IP') {
+        $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $Missing
+        if (-not $SafetyCheck.IsValid) {
+            Write-LogMessage -API 'Baselines' -tenant $TenantFilter -message "BLOCKED baseline IP block list add - Reason: $($SafetyCheck.Reason) - Template: $($Template.templateName) - IPs: $($Missing -join ', ')" -Sev 'Warning'
+            return
+        }
+    }
 
     $CmdParams = @{
         Entries     = @($Missing)

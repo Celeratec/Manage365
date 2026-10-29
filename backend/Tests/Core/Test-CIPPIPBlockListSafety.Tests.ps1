@@ -41,6 +41,12 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result2.IsValid | Should -BeFalse
             $Result2.ConflictingRelay | Should -Be '3.142.175.190'
         }
+        
+        It 'Blocks IPv4-mapped IPv6 of known relay (::ffff:3.19.206.53)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('::ffff:3.19.206.53')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'KnownRelay'
+        }
 
         It 'Allows IP that does not match known relays' {
             Mock New-ExoRequest -ModuleName CIPPCore {
@@ -49,6 +55,16 @@ Describe 'Test-CIPPIPBlockListSafety' {
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
             $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Loads known relay IPs from real config file' {
+            # This test validates the config file can be loaded
+            $ConfigPath = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))) 'backend/Config/KnownMailRelayIPs.json'
+            Test-Path $ConfigPath | Should -BeTrue
+            
+            $Config = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
+            $Config.KnownMailRelayIPs | Should -Not -BeNullOrEmpty
+            $Config.KnownMailRelayIPs.Count | Should -BeGreaterThan 0
         }
     }
 
@@ -207,6 +223,19 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'ConnectorLookupFailure'
             $Result.Reason | Should -Match 'Failed to fetch outbound connectors'
         }
+        
+        It 'Handles null result from New-ExoRequest (fail closed)' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                param($tenantid, $cmdlet)
+                if ($cmdlet -eq 'Get-InboundConnector') {
+                    return $null
+                }
+                return @()
+            }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
+            $Result.IsValid | Should -BeTrue
+        }
     }
 
     Context 'Clean IP Allowed' {
@@ -272,6 +301,31 @@ Describe 'Test-CIPPIPBlockListSafety' {
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('  ', '', '1.2.3.4')
             $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Rejects IP range notation (a-b)' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('10.0.0.1-10.0.0.50')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'InvalidFormat'
+            $Result.Reason | Should -Match 'range notation'
+        }
+        
+        It 'Rejects leading-zero octets' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.001.1')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'InvalidFormat'
+            $Result.Reason | Should -Match 'leading-zero'
+        }
+        
+        It 'Rejects another leading-zero format' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('010.0.0.1')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'InvalidFormat'
+        }
+        
+        It 'Handles invalid IP gracefully' {
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('not-an-ip')
+            $Result.IsValid | Should -BeFalse
         }
     }
 
@@ -348,6 +402,42 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.2.0/24')
             $Result.IsValid | Should -BeTrue
         }
+        
+        It 'Detects overlap with 3.0.0.0/8' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                param($tenantid, $cmdlet)
+                if ($cmdlet -eq 'Get-InboundConnector') {
+                    return @(
+                        @{
+                            Name = 'Large Network'
+                            SenderIPAddresses = @('3.19.206.53')
+                        }
+                    )
+                }
+                return @()
+            }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.0.0.0/8')
+            $Result.IsValid | Should -BeFalse
+        }
+        
+        It 'Detects overlap with 0.0.0.0/0 (entire IPv4)' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                param($tenantid, $cmdlet)
+                if ($cmdlet -eq 'Get-InboundConnector') {
+                    return @(
+                        @{
+                            Name = 'Any Connector'
+                            SenderIPAddresses = @('1.2.3.4')
+                        }
+                    )
+                }
+                return @()
+            }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('0.0.0.0/0')
+            $Result.IsValid | Should -BeFalse
+        }
     }
 }
 
@@ -410,6 +500,16 @@ Describe 'Test-IPOverlap' {
         It 'Returns false for IPv4 vs IPv6' {
             $Result = Test-IPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
             $Result | Should -BeFalse
+        }
+        
+        It 'Handles IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)' {
+            $Result = Test-IPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '192.168.1.1'
+            $Result | Should -BeTrue
+        }
+        
+        It 'Handles IPv4-mapped IPv6 against CIDR' {
+            $Result = Test-IPOverlap -IP1 '::ffff:192.168.1.100' -IP2 '192.168.1.0/24'
+            $Result | Should -BeTrue
         }
     }
 
