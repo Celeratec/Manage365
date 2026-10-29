@@ -93,7 +93,10 @@ function Test-CIPPIPBlockListSafety {
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
         [AllowEmptyString()]
-        [string[]]$IPsToCheck
+        [string[]]$IPsToCheck,
+        
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipConnectorCheck
     )
     
     try {
@@ -209,6 +212,19 @@ function Test-CIPPIPBlockListSafety {
                         ConflictingRelay     = $KnownIP
                     }
                 }
+            }
+        }
+        
+        # Skip connector checks if requested (for template validation only)
+        if ($SkipConnectorCheck) {
+            # All checks passed (only known relay IPs were checked)
+            return @{
+                IsValid              = $true
+                Reason               = $null
+                ConflictingIP        = $null
+                ConflictingConnector = $null
+                ConflictingSource    = $null
+                ConflictingRelay     = $null
             }
         }
         
@@ -443,6 +459,7 @@ function Test-CIPPIPOverlap {
         
         return @{ Overlaps = $true; Valid = $true; Error = $null }
     } catch {
-        return @{ Overlaps = $false; Valid = $false; Error = $_.Exception.Message }
+        Write-Warning "Overlap check error: $($_.Exception.Message)"
+        return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP or CIDR' }
     }
 }

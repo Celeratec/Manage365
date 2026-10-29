@@ -76,6 +76,23 @@ Describe 'Test-CIPPIPBlockListSafety' {
         Mock New-ExoRequest { , @() }
     }
     
+    Context 'SkipConnectorCheck for Templates (Security R5 #1)' {
+        It 'Template validation allows clean IP with -SkipConnectorCheck' {
+            Mock New-ExoRequest { throw 'No such tenant' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('203.0.113.9') -SkipConnectorCheck
+            $Result.IsValid | Should -BeTrue
+        }
+        
+        It 'Template validation refuses relay IP even with -SkipConnectorCheck' {
+            Mock New-ExoRequest { throw 'No such tenant' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.53') -SkipConnectorCheck
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingRelay | Should -Be '3.19.206.53'
+        }
+    }
+    
     Context 'No-Connector Scenarios (Security R4 #1)' {
         It 'Allows clean IP when connectors return $null' {
             Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
@@ -363,29 +380,118 @@ Describe 'Test-CIPPIPOverlap' {
             $Result = Test-CIPPIPOverlap -IP1 '999.999.999.999' -IP2 '192.168.1.1'
             $Result.Valid | Should -BeFalse
         }
+        
+        It 'Does not leak exception in Error (Security R5 #2)' {
+            $Result = Test-CIPPIPOverlap -IP1 'INTERNAL_SECRET_KEY' -IP2 '192.168.1.1'
+            $Result.Valid | Should -BeFalse
+            $Result.Error | Should -Not -Match 'INTERNAL_SECRET_KEY'
+            $Result.Error | Should -BeLike 'Unparseable IP or CIDR*'
+        }
     }
 }
 
-Describe 'Handler Integration Tests (QA #3 - guards work in handlers)' {
+Describe 'Handler Integration Tests (Security R5 #3)' {
     BeforeAll {
-        Mock New-ExoRequest { , @() }
+        # Dot-source actual handlers
+        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1')
+        . (Join-Path $BackendRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1')
+        
+        # Stub dependencies (NOT New-ExoRequest - let it fail naturally)
+        function Write-LogMessage { param($API, $tenant, $message, $Sev, $Headers) }
+        function Get-CippTable { @{} }
+        function Add-CIPPAzDataTableEntity { }
+        function Get-CIPPAzDataTableEntity { @{GUID='test-guid'} }
+        function Update-CIPPAzDataTableEntity { }
     }
     
-    Context 'Template Validation via Guard' {
-        It 'Guard allows clean IP for template validation' {
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('8.8.8.8')
-            $Result.IsValid | Should -BeTrue
+    Context 'Template Add Handler (real invocation)' {
+        It 'Template Add allows clean IP 203.0.113.9 (Security R5 #1)' {
+            $Request = @{
+                body = @{
+                    entries = '203.0.113.9'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'CleanTest'
+                    notes = 'Test'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 200
+            $Result.Body | Should -Not -BeNullOrEmpty
         }
         
-        It 'Guard refuses relay IP for template validation (QA #1)' {
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.53')
-            $Result.IsValid | Should -BeFalse
-            $Result.Reason | Should -Match 'relay'
+        It 'Template Add refuses relay IP 3.19.206.53' {
+            $Request = @{
+                body = @{
+                    entries = '3.19.206.53'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'RelayTest'
+                    notes = 'Test'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+            $Result.Body | Should -Not -BeNullOrEmpty
+            $Result.Body.Results | Should -Match 'relay|mail'
+        }
+    }
+    
+    Context 'Template Edit Handler (real invocation)' {
+        It 'Template Edit allows clean IP' {
+            $Request = @{
+                body = @{
+                    GUID = 'test-guid'
+                    entries = '203.0.113.10'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'EditClean'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 200
+            $Result.Body | Should -Not -BeNullOrEmpty
         }
         
-        It 'Guard refuses CIDR overlapping relay for template' {
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.0/24')
-            $Result.IsValid | Should -BeFalse
+        It 'Template Edit refuses relay IP' {
+            $Request = @{
+                body = @{
+                    GUID = 'test-guid'
+                    entries = '3.142.175.190'
+                    listMethod = 'Block'
+                    listType = 'IP'
+                    templateName = 'EditRelay'
+                }
+                Params = @{ CIPPEndpoint = 'Test' }
+                Headers = @{}
+            }
+            
+            $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
+            $Result.StatusCode | Should -Be 400
+            $Result.Body | Should -Not -BeNullOrEmpty
+            $Result.Body.Results | Should -Match 'relay|mail'
         }
+    }
+}
+
+Describe 'New-ExoRequest Signature (Security R5 #3 - real AST parsing)' {
+    It 'Real New-ExoRequest.ps1 has correct parameters' {
+        $RealPath = Join-Path $BackendRoot 'Modules/CIPPCore/Public/GraphHelper/New-ExoRequest.ps1'
+        $AST = [System.Management.Automation.Language.Parser]::ParseFile($RealPath, [ref]$null, [ref]$null)
+        $ParamAsts = $AST.FindAll({$args[0] -is [System.Management.Automation.Language.ParameterAst]}, $true)
+        $ParamNames = $ParamAsts.Name.VariablePath.UserPath
+        
+        $ParamNames | Should -Contain 'tenantid'
+        $ParamNames | Should -Contain 'cmdlet'
+        $ParamNames | Should -Contain 'cmdParams'
     }
 }
