@@ -36,10 +36,11 @@ function Invoke-AddTenantAllowBlockListTemplate {
             # Check each entry against known relays using Test-CIPPIPOverlap
             $Refusals = @()
             foreach ($Entry in $Entries) {
+                $SanitizedEntry = ($Entry -replace '[\x00-\x1F\x7F]', '').Substring(0, [Math]::Min($Entry.Length, 50))
                 foreach ($KnownIP in $KnownRelayIPs) {
                     $OverlapResult = Test-CIPPIPOverlap -IP1 $Entry -IP2 $KnownIP
                     if ($OverlapResult.Overlaps) {
-                        $Refusals += "Entry '$Entry' overlaps with known mail relay IP '$KnownIP'"
+                        $Refusals += "Entry '$SanitizedEntry' overlaps with known mail relay IP '$KnownIP'"
                     }
                 }
             }

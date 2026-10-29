@@ -25,10 +25,10 @@ Function Invoke-AddConnectionFilter {
     $SafetyChecks = @{}
     $SanitizedIPBlockList = @()
     if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
-        # Sanitize IP list for logging
+        # Sanitize IP list for logging (cap at 50 chars)
         $SanitizedIPBlockList = @($RequestParams.IPBlockList | ForEach-Object {
                 $c = $_ -replace '[\x00-\x1F\x7F]', ''
-                $c.Substring(0, [Math]::Min($c.Length, 200))
+                $c.Substring(0, [Math]::Min($c.Length, 50))
             })
         
         foreach ($TenantFilter in $Tenants) {

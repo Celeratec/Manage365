@@ -6,8 +6,18 @@ BeforeAll {
     # Import the guard function
     . (Join-Path $BackendRoot 'Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1')
     
-    # Define stub function for New-ExoRequest
-    function New-ExoRequest { param($TenantFilter, $CommandName) }
+    # Define stub function matching real New-ExoRequest signature
+    function New-ExoRequest { 
+        param(
+            [string]$tenantid,
+            [string]$cmdlet,
+            $cmdParams,
+            [string]$Select,
+            [string]$Anchor,
+            [bool]$useSystemMailbox,
+            [bool]$NoAuthCheck
+        )
+    }
 }
 
 Describe 'Get-CIPPKnownMailRelayIPs' {
@@ -35,9 +45,13 @@ Describe 'Get-CIPPKnownMailRelayIPs' {
         }
         
         It 'Throws when relay list is empty (M14 - now reachable)' {
-            # Use InModuleScope or mock the entire function
-            Mock Get-CIPPKnownMailRelayIPs { throw "Known relay IP list is empty" }
+            Mock Get-Content { '{"KnownMailRelayIPs":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
+        }
+        
+        It 'Rejects IP that parses as 0.0.0.3 from input "3" (LOW)' {
+            Mock Get-Content { '{"KnownMailRelayIPs":["3"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*format*'
         }
         
         It 'Throws when config contains invalid IP' {
@@ -92,7 +106,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         It 'Blocks IP that matches inbound connector' {
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.5') })
-            } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.5')
             $Result.IsValid | Should -BeFalse
@@ -102,7 +116,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         It 'Blocks CIDR overlapping with inbound connector' {
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.10') })
-            } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.0/24')
             $Result.IsValid | Should -BeFalse
@@ -111,21 +125,29 @@ Describe 'Test-CIPPIPBlockListSafety' {
         It 'Fails closed when inbound connector uses range notation (M15)' {
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.1-198.51.100.10') })
-            } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
             $Result.IsValid | Should -BeFalse
             $Result.ConflictingSource | Should -Be 'InboundConnector'
             $Result.ConflictingIP | Should -Be '198.51.100.1-198.51.100.10'
         }
+        
+        It 'Allows clean IP when tenant has no inbound connectors (MEDIUM 1)' {
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
+            $Result.IsValid | Should -BeTrue
+        }
     }
     
     Context 'Outbound Connector Checks' {
         It 'Blocks IP matching outbound connector SmartHost' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.20') })
-            } -ParameterFilter { $CommandName -eq 'Get-OutboundConnector' }
+            } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.20')
             $Result.IsValid | Should -BeFalse
@@ -133,10 +155,10 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Skips hostname SmartHosts' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('mail.example.com') })
-            } -ParameterFilter { $CommandName -eq 'Get-OutboundConnector' }
+            } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.20')
             $Result.IsValid | Should -BeTrue
@@ -145,7 +167,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
     
     Context 'Fail Closed Behavior' {
         It 'Fails closed when inbound lookup throws' {
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
@@ -153,8 +175,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Fails closed when outbound lookup throws' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $CommandName -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
@@ -162,7 +184,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Fails closed when inbound returns null' {
-            Mock New-ExoRequest { return $null } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
@@ -307,8 +329,8 @@ Describe 'Handler Integration Tests' {
         }
         
         It 'AddConnectionFilter returns proper status codes' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $CommandName -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { , @() } -ParameterFilter { $CommandName -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             # Test with clean IP - should be allowed
             $CleanResult = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
@@ -317,6 +339,14 @@ Describe 'Handler Integration Tests' {
             # Test with relay IP - should be refused
             $RefusedResult = Test-CIPPIPBlockListSafety -TenantFilter 'tenant1.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
             $RefusedResult.IsValid | Should -BeFalse
+        }
+        
+        It 'Enforces real New-ExoRequest parameter signature' {
+            # This test will fail if parameter names change
+            $Params = (Get-Command New-ExoRequest).Parameters
+            $Params.Keys | Should -Contain 'tenantid'
+            $Params.Keys | Should -Contain 'cmdlet'
+            $Params.Keys | Should -Contain 'cmdParams'
         }
         
         It 'Template save refuses CIDR overlapping relay' {

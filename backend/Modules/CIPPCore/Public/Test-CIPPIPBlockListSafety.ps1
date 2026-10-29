@@ -33,8 +33,13 @@ function Get-CIPPKnownMailRelayIPs {
         throw "Known relay IP list is empty"
     }
     
-    # Validate all IPs parse
+    # Validate all IPs parse correctly
     foreach ($IP in $KnownRelayIPs) {
+        # Require dotted-quad IPv4 or colon for IPv6 before TryParse
+        if ($IP -notmatch '^\d{1,3}(\.\d{1,3}){3}$' -and $IP -notmatch ':') {
+            throw "Invalid IP address format in config: $IP"
+        }
+        
         $TestAddr = $null
         if (-not [System.Net.IPAddress]::TryParse($IP, [ref]$TestAddr)) {
             throw "Invalid IP address in config: $IP"
@@ -204,7 +209,7 @@ function Test-CIPPIPBlockListSafety {
         
         # Fetch inbound connectors
         try {
-            $InboundConnectors = New-ExoRequest -TenantFilter $TenantFilter -CommandName 'Get-InboundConnector' -ErrorAction Stop
+            $InboundConnectors = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -ErrorAction Stop
         } catch {
             Write-Warning "Failed to fetch inbound connectors for tenant $TenantFilter : $($_.Exception.GetType().Name)"
             return @{
@@ -267,7 +272,7 @@ function Test-CIPPIPBlockListSafety {
         
         # Fetch outbound connectors
         try {
-            $OutboundConnectors = New-ExoRequest -TenantFilter $TenantFilter -CommandName 'Get-OutboundConnector' -ErrorAction Stop
+            $OutboundConnectors = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-OutboundConnector' -ErrorAction Stop
         } catch {
             Write-Warning "Failed to fetch outbound connectors for tenant $TenantFilter : $($_.Exception.GetType().Name)"
             return @{
@@ -279,6 +284,21 @@ function Test-CIPPIPBlockListSafety {
                 ConflictingRelay     = $null
             }
         }
+        
+        # Handle null outbound result (fail closed)
+        if ($null -eq $OutboundConnectors) {
+            return @{
+                IsValid              = $false
+                Reason               = 'Outbound connector lookup returned null. The operation has been blocked as a safety precaution.'
+                ConflictingIP        = $null
+                ConflictingConnector = $null
+                ConflictingSource    = 'ConnectorLookupFailure'
+                ConflictingRelay     = $null
+            }
+        }
+        
+        # Empty array is OK
+        $OutboundConnectors = @($OutboundConnectors)
         
         # Check against outbound connector SmartHosts (IPs only)
         if ($OutboundConnectors) {

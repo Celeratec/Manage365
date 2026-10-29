@@ -44,10 +44,10 @@ function Invoke-AddTenantAllowBlockList {
         $SafetyChecks = @{}
         $SanitizedEntries = @()
         if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
-            # Sanitize entries for logging
+            # Sanitize entries for logging (cap at 50 chars)
             $SanitizedEntries = @($Entries | ForEach-Object {
                     $c = $_ -replace '[\x00-\x1F\x7F]', ''
-                    $c.Substring(0, [Math]::Min($c.Length, 200))
+                    $c.Substring(0, [Math]::Min($c.Length, 50))
                 })
             
             foreach ($Tenant in $Tenants) {

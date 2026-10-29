@@ -97,7 +97,8 @@ function Invoke-CIPPStandardTenantAllowBlockListTemplate {
                 if ($TemplateData.listMethod -eq 'Block' -and $ListType -eq 'IP') {
                     $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $NewEntries
                     if (-not $SafetyCheck.IsValid) {
-                        Write-LogMessage -API 'Standards' -tenant $Tenant -message "BLOCKED standard IP block list add - Reason: $($SafetyCheck.Reason) - Template: $($TemplateData.templateName) - IPs: $($NewEntries -join ', ')" -Sev 'Warning'
+                        $SanitizedNewEntries = @($NewEntries | ForEach-Object { $_.Substring(0, [Math]::Min($_.Length, 50)) })
+                        Write-LogMessage -API 'Standards' -tenant $Tenant -message "BLOCKED standard IP block list add - Reason: $($SafetyCheck.Reason) - Template: $($TemplateData.templateName) - IPs: $($SanitizedNewEntries -join ', ')" -Sev 'Warning'
                         continue
                     }
                 }
