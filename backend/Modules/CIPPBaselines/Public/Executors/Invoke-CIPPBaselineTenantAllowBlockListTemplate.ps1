@@ -34,7 +34,10 @@ function Invoke-CIPPBaselineTenantAllowBlockListTemplate {
     if ($ListMethod -eq 'Block' -and $Template.listType -eq 'IP') {
         $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $Missing
         if (-not $SafetyCheck.IsValid) {
-            $SanitizedMissing = @($Missing | ForEach-Object { $_.Substring(0, [Math]::Min($_.Length, 50)) })
+            $SanitizedMissing = @($Missing | ForEach-Object {
+                $c = "$_" -replace '[\x00-\x1F\x7F]', ''
+                $c.Substring(0, [Math]::Min($c.Length, 50))
+            })
             Write-LogMessage -API 'Baselines' -tenant $TenantFilter -message "BLOCKED baseline IP block list add - Reason: $($SafetyCheck.Reason) - Template: $($Template.templateName) - IPs: $($SanitizedMissing -join ', ')" -Sev 'Warning'
             return
         }

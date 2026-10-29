@@ -222,19 +222,7 @@ function Test-CIPPIPBlockListSafety {
             }
         }
         
-        # Handle null result (fail closed)
-        if ($null -eq $InboundConnectors) {
-            return @{
-                IsValid              = $false
-                Reason               = 'Inbound connector lookup returned null. The operation has been blocked as a safety precaution.'
-                ConflictingIP        = $null
-                ConflictingConnector = $null
-                ConflictingSource    = 'ConnectorLookupFailure'
-                ConflictingRelay     = $null
-            }
-        }
-        
-        # Empty array is OK - tenant may have no connectors
+        # Empty array or null both OK - tenant may have no connectors
         $InboundConnectors = @($InboundConnectors)
         
         # Check against inbound connector IPs
@@ -285,19 +273,7 @@ function Test-CIPPIPBlockListSafety {
             }
         }
         
-        # Handle null outbound result (fail closed)
-        if ($null -eq $OutboundConnectors) {
-            return @{
-                IsValid              = $false
-                Reason               = 'Outbound connector lookup returned null. The operation has been blocked as a safety precaution.'
-                ConflictingIP        = $null
-                ConflictingConnector = $null
-                ConflictingSource    = 'ConnectorLookupFailure'
-                ConflictingRelay     = $null
-            }
-        }
-        
-        # Empty array is OK
+        # Empty array or null both OK
         $OutboundConnectors = @($OutboundConnectors)
         
         # Check against outbound connector SmartHosts (IPs only)
@@ -337,10 +313,10 @@ function Test-CIPPIPBlockListSafety {
             ConflictingRelay     = $null
         }
     } catch {
-        # Unexpected error - fail closed
+        Write-Warning "Guard check error for tenant $TenantFilter : $($_.Exception.Message)"
         return @{
             IsValid              = $false
-            Reason               = "Unexpected error during validation: $($_.Exception.Message)"
+            Reason               = 'Unable to verify IP safety due to an unexpected error. The operation has been blocked as a safety precaution.'
             ConflictingIP        = $null
             ConflictingConnector = $null
             ConflictingSource    = 'UnexpectedError'

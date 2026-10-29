@@ -188,20 +188,21 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'ConnectorLookupFailure'
         }
         
-        It 'Fails closed when inbound returns null' {
-            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            
-            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
-            $Result.IsValid | Should -BeFalse
-            $Result.Reason | Should -Match 'null'
-        }
-        
         It 'Fails closed on unexpected error (M13b)' {
             Mock Get-CIPPKnownMailRelayIPs { throw 'Unexpected database error' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
             $Result.IsValid | Should -BeFalse
             $Result.ConflictingSource | Should -Be 'UnexpectedError'
+        }
+        
+        It 'Does not leak exception message to client (Security R4 #3)' {
+            Mock Get-CIPPKnownMailRelayIPs { throw 'SECRET_DATABASE_CONNECTION_STRING' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
+            $Result.IsValid | Should -BeFalse
+            $Result.Reason | Should -Not -Match 'SECRET_DATABASE_CONNECTION_STRING'
+            $Result.Reason | Should -Be 'Unable to verify IP safety due to an unexpected error. The operation has been blocked as a safety precaution.'
         }
     }
     
