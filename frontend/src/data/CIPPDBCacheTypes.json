@@ -402,6 +402,11 @@
     "description": "Per-application install status rollup (failed/installed/pending device counts) from the AppInstallStatusAggregate report"
   },
   {
+    "type": "IntuneNonCompliantSettings",
+    "friendlyName": "Intune Non-Compliant Settings",
+    "description": "Every failing compliance setting on every non-compliant device from the NoncompliantDevicesAndSettingsV3 report"
+  },
+  {
     "type": "HVEAccounts",
     "friendlyName": "HVE Accounts",
     "description": "High Volume Email accounts"
