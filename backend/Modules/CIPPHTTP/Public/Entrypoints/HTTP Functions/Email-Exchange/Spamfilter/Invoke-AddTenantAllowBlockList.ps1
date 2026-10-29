@@ -40,7 +40,36 @@ function Invoke-AddTenantAllowBlockList {
                 })
         }
 
+        # Guard against blocking mail relay IPs (only for Block list and IP type)
+        if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
+            foreach ($Tenant in $Tenants) {
+                $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
+                if (-not $SafetyCheck.IsValid) {
+                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyCheck.Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($Entries -join ', ')"
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $Tenant -message $AuditMessage -Sev 'Warning'
+                    $Results.Add("Operation blocked for tenant $Tenant : $($SafetyCheck.Reason)")
+                    continue
+                }
+            }
+            # If all tenants were blocked, return early
+            if ($Results.Count -eq $Tenants.Count) {
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::BadRequest
+                        Body       = @{ 'Results' = @($Results) }
+                    })
+            }
+        }
+
         foreach ($Tenant in $Tenants) {
+            # Skip tenant if it was blocked by the safety check
+            if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
+                $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
+                if (-not $SafetyCheck.IsValid) {
+                    # Already logged above, just skip
+                    continue
+                }
+            }
+
             try {
                 $ExoRequest = @{
                     tenantid  = $Tenant
