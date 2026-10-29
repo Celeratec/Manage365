@@ -14,13 +14,10 @@ BeforeAll {
     $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $env:CIPPRootPath = $BackendRoot
     
-    # Import CIPPCore module to get all dependencies
+    # Import CIPPCore module - handler tests use real module, internal function tests use InModuleScope
     Import-Module "$BackendRoot/Modules/CIPPCore/CIPPCore.psd1" -Force -WarningAction SilentlyContinue 3>$null
     
-    # Dot-source the guard function file to make internal helpers available for testing
-    . "$BackendRoot/Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1"
-    
-    # Import handlers
+    # Import handlers for integration tests
     $H = "$BackendRoot/Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange"
     . "$H/Spamfilter/Invoke-AddTenantAllowBlockList.ps1"
     . "$H/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1"
@@ -42,83 +39,101 @@ BeforeAll {
 Describe 'Get-CIPPKnownMailRelayIPs' {
     Context 'Config file loading' {
         It 'Loads the real config file successfully' {
-            $IPs = Get-CIPPKnownMailRelayIPs
-            $IPs | Should -Not -BeNullOrEmpty
-            $IPs | Should -Contain '3.19.206.53'
-            $IPs | Should -Contain '3.142.175.190'
+            InModuleScope CIPPCore {
+                $IPs = Get-CIPPKnownMailRelayIPs
+                $IPs | Should -Not -BeNullOrEmpty
+                $IPs | Should -Contain '3.19.206.53'
+                $IPs | Should -Contain '3.142.175.190'
+            }
         }
         
         It 'Uses CIPPRootPath against real temp file (QA #3)' {
-            $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
-            $ConfigDir = New-Item -ItemType Directory -Path (Join-Path $TempDir 'Config')
-            $ConfigPath = Join-Path $ConfigDir 'KnownMailRelayIPs.json'
-            '{"KnownMailRelayIPs":["203.0.113.99"]}' | Set-Content $ConfigPath
-            
-            $OrigPath = $env:CIPPRootPath
-            $env:CIPPRootPath = $TempDir.FullName
-            
-            try {
-                $IPs = Get-CIPPKnownMailRelayIPs
-                $IPs | Should -Contain '203.0.113.99'
-            } finally {
-                $env:CIPPRootPath = $OrigPath
-                Remove-Item $TempDir -Recurse -Force
+            InModuleScope CIPPCore {
+                $TempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+                $ConfigDir = New-Item -ItemType Directory -Path (Join-Path $TempDir 'Config')
+                $ConfigPath = Join-Path $ConfigDir 'KnownMailRelayIPs.json'
+                '{"KnownMailRelayIPs":["203.0.113.99"]}' | Set-Content $ConfigPath
+                
+                $OrigPath = $env:CIPPRootPath
+                $env:CIPPRootPath = $TempDir.FullName
+                
+                try {
+                    $IPs = Get-CIPPKnownMailRelayIPs
+                    $IPs | Should -Contain '203.0.113.99'
+                } finally {
+                    $env:CIPPRootPath = $OrigPath
+                    Remove-Item $TempDir -Recurse -Force
+                }
             }
         }
         
         It 'Throws when config file is missing' {
-            Mock Test-Path { $false } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*not found*'
+            InModuleScope CIPPCore {
+                Mock Test-Path { $false } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*not found*'
+            }
         }
         
         It 'Throws when config JSON is invalid' {
-            Mock Get-Content { '{invalid json' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*parse*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '{invalid json' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*parse*'
+            }
         }
         
         It 'Throws when config missing KnownMailRelayIPs property' {
-            Mock Get-Content { '{"OtherProperty":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '{"OtherProperty":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
+            }
         }
         
         It 'Throws when relay list is empty (M14 - real empty array)' {
-            Mock Get-Content { '{"KnownMailRelayIPs":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '{"KnownMailRelayIPs":[]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*empty*'
+            }
         }
         
         It 'Throws when config file is empty' {
-            Mock Get-Content { '' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*missing*'
+            }
         }
         
         It 'Rejects IP that parses as 0.0.0.3 from input "3"' {
-            Mock Get-Content { '{"KnownMailRelayIPs":["3"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*format*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '{"KnownMailRelayIPs":["3"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*format*'
+            }
         }
         
         It 'Throws when config contains invalid IP' {
-            Mock Get-Content { '{"KnownMailRelayIPs":["999.999.999.999"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
-            { Get-CIPPKnownMailRelayIPs } | Should -Throw '*Invalid IP*'
+            InModuleScope CIPPCore {
+                Mock Get-Content -ModuleName CIPPCore { '{"KnownMailRelayIPs":["999.999.999.999"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+                { Get-CIPPKnownMailRelayIPs } | Should -Throw '*Invalid IP*'
+            }
         }
     }
 }
 
 Describe 'Test-CIPPIPBlockListSafety' {
     BeforeEach {
-        Mock New-ExoRequest { , @() }
+        Mock New-ExoRequest -ModuleName CIPPCore { , @() }
         Mock -ModuleName CIPPCore New-ExoRequest { , @() }
     }
     
     Context 'SkipConnectorCheck for Templates (Security R5 #1)' {
         It 'Template validation allows clean IP with -SkipConnectorCheck' {
-            Mock New-ExoRequest { throw 'No such tenant' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'No such tenant' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('203.0.113.9') -SkipConnectorCheck
             $Result.IsValid | Should -BeTrue
         }
         
         It 'Template validation refuses relay IP even with -SkipConnectorCheck' {
-            Mock New-ExoRequest { throw 'No such tenant' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'No such tenant' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck @('3.19.206.53') -SkipConnectorCheck
             $Result.IsValid | Should -BeFalse
@@ -128,23 +143,23 @@ Describe 'Test-CIPPIPBlockListSafety' {
     
     Context 'No-Connector Scenarios (Security R4 #1)' {
         It 'Allows clean IP when connectors return $null' {
-            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
             $Result.IsValid | Should -BeTrue
         }
         
         It 'Allows clean IP when connectors return @()' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('1.2.3.4')
             $Result.IsValid | Should -BeTrue
         }
         
         It 'Allows 49-char IPv6 CIDR when connectors return @()' {
-            Mock New-ExoRequest { , @() }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() }
             
             $IPv6CIDR = '2001:0db8:85a3:0000:0000:8a2e:0370:7334/64'
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @($IPv6CIDR)
@@ -218,7 +233,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Uses custom config with additional relay IP' {
-            Mock Get-Content { '{"KnownMailRelayIPs":["10.99.88.77","3.19.206.53"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            Mock Get-Content -ModuleName CIPPCore { '{"KnownMailRelayIPs":["10.99.88.77","3.19.206.53"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('10.99.88.77')
             $Result.IsValid | Should -BeFalse
@@ -228,7 +243,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
     
     Context 'Inbound Connector Checks' {
         It 'Blocks IP that matches inbound connector' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.5') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -238,7 +253,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Blocks IP that matches inbound connector SenderIPAddress' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.5') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -247,7 +262,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Blocks CIDR overlapping with inbound connector' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.10') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -256,7 +271,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Blocks CIDR range that overlaps with inbound connector IP' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.10') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -265,7 +280,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Fails closed when inbound connector uses range notation (M15)' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestInbound'; SenderIPAddresses = @('198.51.100.1-198.51.100.10') })
             } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
@@ -276,16 +291,16 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Allows IP when no inbound connectors exist' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeTrue
         }
         
         It 'Allows IP when tenant has no inbound connectors' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeTrue
@@ -294,8 +309,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
     
     Context 'Outbound Connector Checks' {
         It 'Blocks IP matching outbound connector SmartHost' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.20') })
             } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -305,8 +320,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Blocks IP that matches outbound connector SmartHost' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.20') })
             } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -315,8 +330,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Skips hostname SmartHosts' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('mail.example.com') })
             } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -325,8 +340,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Skips hostname SmartHosts (does not block)' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('mail.example.com') })
             } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -335,8 +350,8 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Blocks CIDR range that overlaps with outbound connector SmartHost' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(@{ Name = 'TestOutbound'; SmartHosts = @('198.51.100.25') })
             } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -347,7 +362,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
     
     Context 'Fail Closed Behavior' {
         It 'Fails closed when inbound lookup throws' {
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
@@ -355,15 +370,15 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Fails closed when inbound connector lookup fails' {
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
         }
         
         It 'Fails closed when outbound lookup throws' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
@@ -371,23 +386,23 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Fails closed when outbound connector lookup fails' {
-            Mock New-ExoRequest { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { throw 'Connection timeout' } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeFalse
         }
         
         It 'Treats null connector result as no connectors' {
-            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
-            Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('198.51.100.1')
             $Result.IsValid | Should -BeTrue
         }
         
         It 'Fails closed on unexpected error (M13b)' {
-            Mock Get-CIPPKnownMailRelayIPs { throw 'Unexpected database error' }
+            Mock Get-CIPPKnownMailRelayIPs -ModuleName CIPPCore { throw 'Unexpected database error' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
             $Result.IsValid | Should -BeFalse
@@ -395,7 +410,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Does not leak exception message to client (Security R4 #3)' {
-            Mock Get-CIPPKnownMailRelayIPs { throw 'SECRET_DATABASE_CONNECTION_STRING' }
+            Mock Get-CIPPKnownMailRelayIPs -ModuleName CIPPCore { throw 'SECRET_DATABASE_CONNECTION_STRING' }
             
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
             $Result.IsValid | Should -BeFalse
@@ -476,7 +491,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Detects overlap when checking specific IP against /24' {
-            Mock Get-Content { '{"KnownMailRelayIPs":["3.19.206.0/24"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
+            Mock Get-Content -ModuleName CIPPCore { '{"KnownMailRelayIPs":["3.19.206.0/24"]}' } -ParameterFilter { $Path -like '*KnownMailRelayIPs.json' }
             $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('3.19.206.53')
             $Result.IsValid | Should -BeFalse
         }
@@ -487,7 +502,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
         }
         
         It 'Detects overlap between two CIDR ranges' {
-            Mock New-ExoRequest {
+            Mock New-ExoRequest -ModuleName CIPPCore {
                 , @(
                     @{
                         Name              = 'TestInbound'
@@ -510,129 +525,171 @@ Describe 'Test-CIPPIPBlockListSafety' {
 Describe 'Test-CIPPIPOverlap' {
     Context 'Prefix Validation (M9)' {
         It 'Rejects /33 prefix on IPv4' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/33' -IP2 '192.168.1.1'
-            $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/33' -IP2 '192.168.1.1'
+                $Result.Valid | Should -BeFalse
+                $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            }
         }
         
         It 'Rejects /-1 prefix' {
-            $Result = Test-CIPPIPOverlap -IP1 '1.1.1.1/-1' -IP2 '1.1.1.1'
-            $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '1.1.1.1/-1' -IP2 '1.1.1.1'
+                $Result.Valid | Should -BeFalse
+                $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            }
         }
         
         It 'Rejects /129 prefix on IPv6' {
-            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::/129' -IP2 '2001:db8::1'
-            $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '2001:db8::/129' -IP2 '2001:db8::1'
+                $Result.Valid | Should -BeFalse
+                $Result.Error | Should -Be 'Unparseable IP or CIDR'
+            }
         }
     }
     
     Context 'Overlap Detection' {
         It 'Returns Overlaps=true for identical IPs' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.1'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.1'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=false for different IPs' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.2'
-            $Result.Overlaps | Should -BeFalse
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '192.168.1.2'
+                $Result.Overlaps | Should -BeFalse
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Detects IP in CIDR range' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.100' -IP2 '192.168.1.0/24'
-            $Result.Overlaps | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.100' -IP2 '192.168.1.0/24'
+                $Result.Overlaps | Should -BeTrue
+            }
         }
         
         It 'Handles IPv4-mapped IPv6' {
-            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '192.168.1.1'
-            $Result.Overlaps | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '192.168.1.1'
+                $Result.Overlaps | Should -BeTrue
+            }
         }
         
         It 'Returns Valid=false for unparseable IP' {
-            $Result = Test-CIPPIPOverlap -IP1 '999.999.999.999' -IP2 '192.168.1.1'
-            $Result.Valid | Should -BeFalse
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '999.999.999.999' -IP2 '192.168.1.1'
+                $Result.Valid | Should -BeFalse
+            }
         }
         
         It 'Does not leak exception in Error (Security R5 #2)' {
-            $Result = Test-CIPPIPOverlap -IP1 'INTERNAL_SECRET_KEY' -IP2 '192.168.1.1'
-            $Result.Valid | Should -BeFalse
-            $Result.Error | Should -Be 'Unparseable IP or CIDR'
-            $Result.Error | Should -Not -Match 'INTERNAL_SECRET_KEY'
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 'INTERNAL_SECRET_KEY' -IP2 '192.168.1.1'
+                $Result.Valid | Should -BeFalse
+                $Result.Error | Should -Be 'Unparseable IP or CIDR'
+                $Result.Error | Should -Not -Match 'INTERNAL_SECRET_KEY'
+            }
         }
         
         # Restored from original tests (deleted in 5d56f881d)
         It 'Returns Overlaps=false when IP is outside CIDR range' {
-            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.1' -IP2 '192.168.1.0/24'
-            $Result.Overlaps | Should -BeFalse
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '10.0.0.1' -IP2 '192.168.1.0/24'
+                $Result.Overlaps | Should -BeFalse
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=true for overlapping CIDR ranges' {
-            $Result = Test-CIPPIPOverlap -IP1 '10.0.0.0/16' -IP2 '10.0.5.0/24'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '10.0.0.0/16' -IP2 '10.0.5.0/24'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=false for non-overlapping CIDR ranges' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/24' -IP2 '10.0.0.0/8'
-            $Result.Overlaps | Should -BeFalse
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.0/24' -IP2 '10.0.0.0/8'
+                $Result.Overlaps | Should -BeFalse
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Handles /32 CIDR notation' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1/32' -IP2 '192.168.1.1'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1/32' -IP2 '192.168.1.1'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=true for identical IPv6 addresses' {
-            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::1'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::1'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=false for different IPv6 addresses' {
-            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::2'
-            $Result.Overlaps | Should -BeFalse
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '2001:db8::1' -IP2 '2001:db8::2'
+                $Result.Overlaps | Should -BeFalse
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=true when IPv6 is in CIDR range' {
-            $Result = Test-CIPPIPOverlap -IP1 '2001:db8::100' -IP2 '2001:db8::/64'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '2001:db8::100' -IP2 '2001:db8::/64'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Overlaps=false for IPv4 vs IPv6' {
-            $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
-            $Result.Overlaps | Should -BeFalse
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '192.168.1.1' -IP2 '2001:db8::1'
+                $Result.Overlaps | Should -BeFalse
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Handles IPv4-mapped IPv6 addresses (::ffff:192.168.1.1)' {
-            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '::ffff:192.168.1.1'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.1' -IP2 '::ffff:192.168.1.1'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Handles IPv4-mapped IPv6 against CIDR' {
-            $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.10' -IP2 '192.168.1.0/24'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '::ffff:192.168.1.10' -IP2 '192.168.1.0/24'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Handles /0 CIDR (matches all)' {
-            $Result = Test-CIPPIPOverlap -IP1 '0.0.0.0/0' -IP2 '192.168.1.1'
-            $Result.Overlaps | Should -BeTrue
-            $Result.Valid | Should -BeTrue
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 '0.0.0.0/0' -IP2 '192.168.1.1'
+                $Result.Overlaps | Should -BeTrue
+                $Result.Valid | Should -BeTrue
+            }
         }
         
         It 'Returns Valid=false for invalid IP' {
-            $Result = Test-CIPPIPOverlap -IP1 'not-an-ip' -IP2 '192.168.1.1'
-            $Result.Valid | Should -BeFalse
+            InModuleScope CIPPCore {
+                $Result = Test-CIPPIPOverlap -IP1 'not-an-ip' -IP2 '192.168.1.1'
+                $Result.Valid | Should -BeFalse
+            }
         }
     }
 }
@@ -665,7 +722,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 200
             $script:Saved | Should -Be 1
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP 3.19.206.53' {
@@ -685,7 +742,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             [int]$Result.StatusCode | Should -Be 400
             $Result.Body.Results | Should -Match 'overlaps'
             $script:Saved | Should -Be 0
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for 3.19.206.0/24' {
@@ -702,7 +759,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for ::ffff:3.19.206.53' {
@@ -719,7 +776,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for invalid input' {
@@ -736,7 +793,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
@@ -757,7 +814,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 200
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP (3.142.175.190)' {
@@ -776,7 +833,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for ::ffff:3.19.206.53' {
@@ -794,7 +851,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for relay CIDR 3.19.206.0/24' {
@@ -812,7 +869,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for invalid input' {
@@ -830,7 +887,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
@@ -849,7 +906,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
             [int]$Result.StatusCode | Should -Be 200
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
         }
         
         It 'Returns 400 for relay IP 3.19.206.53' {
@@ -931,7 +988,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
             [int]$Result.StatusCode | Should -BeIn @(200, 207)
-            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
         }
         
         It 'Returns 400 for relay IP in IPBlockList' {
