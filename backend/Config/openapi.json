@@ -7207,7 +7207,10 @@
                 "type": "object",
                 "properties": {
                   "entries": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "listMethod": {
                     "type": "string"
@@ -7242,6 +7245,9 @@
                 }
               }
             }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
           },
           "400": {
             "description": "Bad request - missing required field or invalid input"
@@ -7279,10 +7285,12 @@
                     "type": "string"
                   },
                   "listMethod": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Validate Block + IP entries against known relay IPs at save time"
                   },
                   "listType": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Validate Block + IP entries against known relay IPs at save time"
                   },
                   "NoExpiration": {
                     "type": "boolean"
@@ -7317,6 +7325,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -12219,10 +12230,12 @@
                     "type": "string"
                   },
                   "listMethod": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Validate Block + IP entries against known relay IPs at save time"
                   },
                   "listType": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Validate Block + IP entries against known relay IPs at save time"
                   },
                   "NoExpiration": {
                     "type": "boolean"
