@@ -12,11 +12,10 @@ function Invoke-AddTenantAllowBlockListTemplate {
     $Headers = $Request.Headers
 
     try {
-        # Validate Block+IP template entries at save time
         if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
             $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
             
-            # Use the exported guard function with -SkipConnectorCheck (template validation doesn't need real tenant)
+            # Call guard to refuse Block+IP templates containing relay IPs
             $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
             if (-not $SafetyCheck.IsValid) {
                 $SanitizedEntries = @($Entries | ForEach-Object {
