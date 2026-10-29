@@ -176,6 +176,19 @@ function Test-CIPPIPBlockListSafety {
         foreach ($IPToCheck in $CleanedIPs) {
             foreach ($KnownIP in $KnownRelayIPs) {
                 $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $KnownIP
+                
+                # Fail closed if either IP is unparseable
+                if (-not $OverlapResult.Valid) {
+                    return @{
+                        IsValid              = $false
+                        Reason               = "IP '$IPToCheck' is not valid: $($OverlapResult.Error)"
+                        ConflictingIP        = $IPToCheck
+                        ConflictingConnector = $null
+                        ConflictingSource    = 'ValidationError'
+                        ConflictingRelay     = $null
+                    }
+                }
+                
                 if ($OverlapResult.Overlaps) {
                     return @{
                         IsValid              = $false
@@ -223,6 +236,18 @@ function Test-CIPPIPBlockListSafety {
         foreach ($Connector in $InboundConnectors) {
             if ($Connector.SenderIPAddresses) {
                 foreach ($ConnectorIP in $Connector.SenderIPAddresses) {
+                    # Fail closed if connector uses range notation (a-b)
+                    if ($ConnectorIP -match '-') {
+                        return @{
+                            IsValid              = $false
+                            Reason               = "Inbound connector '$($Connector.Name)' uses range notation '$ConnectorIP'. Cannot safely validate. The operation has been blocked."
+                            ConflictingIP        = $ConnectorIP
+                            ConflictingConnector = $Connector.Name
+                            ConflictingSource    = 'InboundConnector'
+                            ConflictingRelay     = $null
+                        }
+                    }
+                    
                     foreach ($IPToCheck in $CleanedIPs) {
                         $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $ConnectorIP
                         if ($OverlapResult.Overlaps) {
