@@ -17,35 +17,24 @@ BeforeAll {
     # Import CIPPCore module - handler tests use real module, internal function tests use InModuleScope
     Import-Module "$BackendRoot/Modules/CIPPCore/CIPPCore.psd1" -Force -WarningAction SilentlyContinue 3>$null
     
-    # Mock CIPPCore helper functions at module level (intercepts calls from within CIPPCore)
-    Mock -ModuleName CIPPCore Get-CIPPTable { @{} }
-    Mock -ModuleName CIPPCore Add-CIPPAzDataTableEntity { $script:Saved++ }
-    Mock -ModuleName CIPPCore Get-CIPPAzDataTableEntity { $script:TplEntity }
-    Mock -ModuleName CIPPCore Update-CIPPAzDataTableEntity { $script:Updated++ }
-    Mock -ModuleName CIPPCore Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
-    Mock -ModuleName CIPPCore Get-NormalizedError { param($Message) $Message }
-    Mock -ModuleName CIPPCore Get-Tenants { param($TriggerMetadata) @(@{defaultDomainName='contoso.onmicrosoft.com'; customerId='test-tenant-id'}) }
-    Mock -ModuleName CIPPCore ConvertTo-CIPPODataFilterValue { param($Value,$Type) $Value }
-    Mock -ModuleName CIPPCore Write-LogMessage { }
+    # Import handlers for integration tests
+    $H = "$BackendRoot/Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange"
+    . "$H/Spamfilter/Invoke-AddTenantAllowBlockList.ps1"
+    . "$H/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1"
+    . "$H/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1"
+    . "$H/Transport/Invoke-AddConnectionFilter.ps1"
     
-    # Test-scope function stubs (handlers find these when dot-sourced)
-    function Get-CippTable { param($tablename) @{} }
-    function Add-CIPPAzDataTableEntity { param([switch]$Force, $Entity, $Context) $script:Saved++ }
-    function Get-CIPPAzDataTableEntity { param($Filter, $Property, $Context) $script:TplEntity }
-    function Update-CIPPAzDataTableEntity { param($Entity, $Context) $script:Updated++ }
+    # Stub storage and helper functions (QA's approach)
+    function Get-CippTable { @{} }
+    function Add-CIPPAzDataTableEntity { $script:Saved++ }
+    function Get-CIPPAzDataTableEntity { $script:TplEntity }
+    function Update-CIPPAzDataTableEntity { $script:Updated++ }
     function Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
     function ConvertTo-CIPPODataFilterValue { param($Value,$Type) $Value }
     function Get-NormalizedError { param($Message) $Message }
     function Get-Tenants { param($TriggerMetadata) @(@{defaultDomainName='contoso.onmicrosoft.com'; customerId='test-tenant-id'}) }
-    function Push-OutputBinding { param($Name, $Value) }
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
-    
-    # Dot-source handlers (ScriptBlock::Create pattern ensures proper scope)
-    $H = "$BackendRoot/Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange"
-    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-AddTenantAllowBlockList.ps1" -Raw)))
-    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-AddTenantAllowBlockListTemplate.ps1" -Raw)))
-    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Spamfilter/Invoke-EditTenantAllowBlockListTemplate.ps1" -Raw)))
-    . ([ScriptBlock]::Create("using namespace System.Net`n" + (Get-Content -LiteralPath "$H/Transport/Invoke-AddConnectionFilter.ps1" -Raw)))
+    function Push-OutputBinding { param($Name, $Value) }
 }
 
 Describe 'Get-CIPPKnownMailRelayIPs' {
@@ -712,6 +701,8 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
         $script:Updated = 0
         $script:Adds = [System.Collections.Generic.List[object]]::new()
         Mock -ModuleName CIPPCore New-ExoRequest { if ($cmdlet -and $cmdlet -notlike 'Get-*') { $script:Adds.Add(@($tenantid,$cmdlet)) } ; , @() }
+        Mock New-ExoRequest { if ($cmdlet -and $cmdlet -notlike 'Get-*') { $script:Adds.Add(@($tenantid,$cmdlet)) } ; , @() }
+        Mock Write-LogMessage { }
         Mock -ModuleName CIPPCore Write-LogMessage { }
     }
     
@@ -752,6 +743,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             [int]$Result.StatusCode | Should -Be 400
             $Result.Body.Results | Should -Match 'overlaps'
             $script:Saved | Should -Be 0
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for 3.19.206.0/24' {
@@ -768,6 +760,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for ::ffff:3.19.206.53' {
@@ -784,6 +777,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for invalid input' {
@@ -800,6 +794,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
@@ -839,6 +834,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for ::ffff:3.19.206.53' {
@@ -856,6 +852,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for relay CIDR 3.19.206.0/24' {
@@ -873,6 +870,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for invalid input' {
@@ -890,6 +888,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke -ModuleName CIPPCore New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
