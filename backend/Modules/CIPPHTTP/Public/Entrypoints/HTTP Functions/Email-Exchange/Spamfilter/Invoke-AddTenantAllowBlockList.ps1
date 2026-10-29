@@ -40,7 +40,32 @@ function Invoke-AddTenantAllowBlockList {
                 })
         }
 
+        # Validate Block+IP operations against guard to prevent mail disruption
+        $SafetyChecks = @{}
+        $SanitizedEntries = @()
+        if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
+            # Sanitize entries for logging (cap at 50 chars)
+            $SanitizedEntries = @($Entries | ForEach-Object {
+                    $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                    $c.Substring(0, [Math]::Min($c.Length, 50))
+                })
+            
+            foreach ($Tenant in $Tenants) {
+                $SafetyChecks[$Tenant] = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
+                if (-not $SafetyChecks[$Tenant].IsValid) {
+                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyChecks[$Tenant].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($SanitizedEntries -join ', ')"
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $Tenant -message $AuditMessage -Sev 'Warning'
+                    $Results.Add("Operation blocked for tenant $Tenant : $($SafetyChecks[$Tenant].Reason)")
+                }
+            }
+        }
+
         foreach ($Tenant in $Tenants) {
+            # Skip tenant if guard check failed
+            if ($SafetyChecks.ContainsKey($Tenant) -and -not $SafetyChecks[$Tenant].IsValid) {
+                continue
+            }
+
             try {
                 $ExoRequest = @{
                     tenantid  = $Tenant
@@ -81,8 +106,22 @@ function Invoke-AddTenantAllowBlockList {
         Write-LogMessage -headers $Headers -API $APIName -message $Result -Sev 'Error' -LogData $ErrorMessage
     }
 
+    # Determine appropriate status code based on results
+    $StatusCode = [HttpStatusCode]::OK
+    $SuccessCount = @($Results | Where-Object { $_ -match '^Successfully' }).Count
+    $BlockedCount = @($Results | Where-Object { $_ -match '^Operation blocked' }).Count
+    $FailedCount = @($Results | Where-Object { $_ -match '^Failed' }).Count
+    
+    if ($SuccessCount -eq 0 -and ($BlockedCount -gt 0 -or $FailedCount -gt 0)) {
+        # All operations blocked or failed
+        $StatusCode = [HttpStatusCode]::BadRequest
+    } elseif ($SuccessCount -gt 0 -and ($BlockedCount -gt 0 -or $FailedCount -gt 0)) {
+        # Partial success
+        $StatusCode = [HttpStatusCode]::MultiStatus
+    }
+
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = @{
                 'Results' = @($Results)
             }

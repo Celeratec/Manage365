@@ -12,6 +12,24 @@ function Invoke-AddTenantAllowBlockListTemplate {
     $Headers = $Request.Headers
 
     try {
+        if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
+            $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
+            
+            # Call guard to refuse Block+IP templates containing relay IPs
+            $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter 'template-validation' -IPsToCheck $Entries -SkipConnectorCheck
+            if (-not $SafetyCheck.IsValid) {
+                $SanitizedEntries = @($Entries | ForEach-Object {
+                        $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                        $c.Substring(0, [Math]::Min($c.Length, 50))
+                    })
+                Write-LogMessage -Headers $Headers -API $APIName -Message "Refused Block+IP template save: $($SafetyCheck.Reason). Entries: $($SanitizedEntries -join ', ')" -Sev 'Warning'
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::BadRequest
+                        Body       = @{ Results = "Cannot create template: $($SafetyCheck.Reason)" }
+                    })
+            }
+        }
+        
         $GUID = (New-Guid).GUID
         $JSON = @{
             entries      = $Request.body.entries
@@ -35,8 +53,9 @@ function Invoke-AddTenantAllowBlockListTemplate {
         $StatusCode = [HttpStatusCode]::OK
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
-        Write-LogMessage -Headers $Headers -API $APIName -message "Failed to create Tenant Allow/Block List Template: $($ErrorMessage.NormalizedError)" -Sev Error -LogData $ErrorMessage
-        $body = [pscustomobject]@{ 'Results' = "Failed to create Tenant Allow/Block List Template: $($ErrorMessage.NormalizedError)" }
+        $ErrorDetail = "$($ErrorMessage.NormalizedError)"
+        Write-LogMessage -Headers $Headers -API $APIName -message "Failed to create Tenant Allow/Block List Template: $ErrorDetail" -Sev Error -LogData $ErrorMessage
+        $body = [pscustomobject]@{ 'Results' = "Failed to create Tenant Allow/Block List Template." }
         $StatusCode = [HttpStatusCode]::InternalServerError
     }
 

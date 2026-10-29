@@ -68,7 +68,7 @@ function Invoke-CIPPStandardTenantAllowBlockListTemplate {
 
         foreach ($TemplateData in $ResolvedTemplates) {
             try {
-                $Entries = @($TemplateData.entries -split '[,;]' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
+                $Entries = @($TemplateData.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
                 $ListType = [string]$TemplateData.listType
 
                 # Get existing entries to avoid duplicate errors that block the entire batch
@@ -91,6 +91,19 @@ function Invoke-CIPPStandardTenantAllowBlockListTemplate {
                 if ($NewEntries.Count -eq 0) {
                     Write-LogMessage -API 'Standards' -tenant $Tenant -message "All entries from Tenant Allow/Block List template '$($TemplateData.templateName)' already exist for $Tenant" -sev 'Info'
                     continue
+                }
+                
+                # Validate Block+IP operations to prevent mail disruption
+                if ($TemplateData.listMethod -eq 'Block' -and $ListType -eq 'IP') {
+                    $SafetyCheck = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $NewEntries
+                    if (-not $SafetyCheck.IsValid) {
+                        $SanitizedNewEntries = @($NewEntries | ForEach-Object {
+                            $c = "$_" -replace '[\x00-\x1F\x7F]', ''
+                            $c.Substring(0, [Math]::Min($c.Length, 50))
+                        })
+                        Write-LogMessage -API 'Standards' -tenant $Tenant -message "BLOCKED standard IP block list add - Reason: $($SafetyCheck.Reason) - Template: $($TemplateData.templateName) - IPs: $($SanitizedNewEntries -join ', ')" -Sev 'Warning'
+                        continue
+                    }
                 }
 
                 $ExoParams = @{
