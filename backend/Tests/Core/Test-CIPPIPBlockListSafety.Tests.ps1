@@ -378,7 +378,7 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.IsValid | Should -BeFalse
         }
         
-        It 'Fails closed when inbound connector lookup returns null' {
+        It 'Treats null connector result as no connectors' {
             Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
             Mock New-ExoRequest { return $null } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
             
@@ -651,6 +651,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 200
             $script:Saved | Should -Be 1
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP 3.19.206.53' {
@@ -670,6 +671,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             [int]$Result.StatusCode | Should -Be 400
             $Result.Body.Results | Should -Match 'overlaps'
             $script:Saved | Should -Be 0
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for 3.19.206.0/24' {
@@ -686,6 +688,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for ::ffff:3.19.206.53' {
@@ -702,6 +705,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for invalid input' {
@@ -718,6 +722,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             $Result = Invoke-AddTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
             $script:Saved | Should -Be 0
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
@@ -738,6 +743,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 200
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 and does not save for relay IP (3.142.175.190)' {
@@ -756,6 +762,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for ::ffff:3.19.206.53' {
@@ -773,6 +780,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for relay CIDR 3.19.206.0/24' {
@@ -790,6 +798,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
         
         It 'Returns 400 for invalid input' {
@@ -807,6 +816,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-EditTenantAllowBlockListTemplate -Request $Request
             [int]$Result.StatusCode | Should -Be 400
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 0 -Exactly
         }
     }
     
@@ -825,6 +835,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-AddTenantAllowBlockList -Request $Request -TriggerMetadata @{}
             [int]$Result.StatusCode | Should -Be 200
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
         }
         
         It 'Returns 400 for relay IP 3.19.206.53' {
@@ -906,6 +917,7 @@ Describe 'Handler Integration Tests (QA #1 - real handler invocations)' {
             
             $Result = Invoke-AddConnectionFilter -Request $Request -TriggerMetadata @{}
             [int]$Result.StatusCode | Should -BeIn @(200, 207)
+            Should -Invoke New-ExoRequest -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' } -Times 1 -Exactly
         }
         
         It 'Returns 400 for relay IP in IPBlockList' {

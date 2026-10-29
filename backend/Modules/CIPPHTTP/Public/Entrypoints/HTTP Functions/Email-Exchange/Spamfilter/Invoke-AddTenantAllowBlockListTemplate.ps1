@@ -26,7 +26,7 @@ function Invoke-AddTenantAllowBlockListTemplate {
                 Write-LogMessage -Headers $Headers -API $APIName -Message "Refused Block+IP template save: $($SafetyCheck.Reason). Entries: $($SanitizedEntries -join ', ')" -Sev 'Warning'
                 return ([HttpResponseContext]@{
                         StatusCode = [HttpStatusCode]::BadRequest
-                        Body       = @{ Results = "Cannot create template: $($SafetyCheck.Reason). Blocking these IPs would disrupt mail relay services." }
+                        Body       = @{ Results = "Cannot create template: $($SafetyCheck.Reason)" }
                     })
             }
         }
