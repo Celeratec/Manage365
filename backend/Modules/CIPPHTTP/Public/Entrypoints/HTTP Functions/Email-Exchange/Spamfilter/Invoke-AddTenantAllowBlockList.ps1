@@ -42,11 +42,18 @@ function Invoke-AddTenantAllowBlockList {
 
         # Validate Block+IP operations against guard to prevent mail disruption
         $SafetyChecks = @{}
+        $SanitizedEntries = @()
         if ($ListMethod -eq 'Block' -and $BlockListObject.listType -eq 'IP') {
+            # Sanitize entries for logging
+            $SanitizedEntries = @($Entries | ForEach-Object {
+                    $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                    $c.Substring(0, [Math]::Min($c.Length, 200))
+                })
+            
             foreach ($Tenant in $Tenants) {
                 $SafetyChecks[$Tenant] = Test-CIPPIPBlockListSafety -TenantFilter $Tenant -IPsToCheck $Entries
                 if (-not $SafetyChecks[$Tenant].IsValid) {
-                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyChecks[$Tenant].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($Entries -join ', ')"
+                    $AuditMessage = "BLOCKED IP block list add for tenant $Tenant - Reason: $($SafetyChecks[$Tenant].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($SanitizedEntries -join ', ')"
                     Write-LogMessage -headers $Headers -API $APIName -tenant $Tenant -message $AuditMessage -Sev 'Warning'
                     $Results.Add("Operation blocked for tenant $Tenant : $($SafetyChecks[$Tenant].Reason)")
                 }

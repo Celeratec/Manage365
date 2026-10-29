@@ -1,253 +1,255 @@
+function Get-CIPPKnownMailRelayIPs {
+    <#
+    .SYNOPSIS
+    Loads known mail relay IPs from config file.
+    
+    .DESCRIPTION
+    Resolves backend/Config/KnownMailRelayIPs.json from $PSScriptRoot and fails closed:
+    throws if the file is missing, unreadable, JSON is bad, list is empty, or any IP fails to parse.
+    #>
+    [CmdletBinding()]
+    param()
+    
+    # Resolve config path from this script (backend/Modules/CIPPCore/Public) up to backend/Config
+    $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
+    $ConfigPath = Join-Path $BackendRoot 'Config/KnownMailRelayIPs.json'
+    
+    if (-not (Test-Path $ConfigPath)) {
+        throw "Known relay IP config file not found at $ConfigPath"
+    }
+    
+    try {
+        $ConfigData = Get-Content -Path $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        throw "Failed to parse known relay IP config file: $_"
+    }
+    
+    if (-not $ConfigData.KnownMailRelayIPs) {
+        throw "Config file missing KnownMailRelayIPs property"
+    }
+    
+    $KnownRelayIPs = @($ConfigData.KnownMailRelayIPs)
+    if ($KnownRelayIPs.Count -eq 0) {
+        throw "Known relay IP list is empty"
+    }
+    
+    # Validate all IPs parse
+    foreach ($IP in $KnownRelayIPs) {
+        $TestAddr = $null
+        if (-not [System.Net.IPAddress]::TryParse($IP, [ref]$TestAddr)) {
+            throw "Invalid IP address in config: $IP"
+        }
+    }
+    
+    return $KnownRelayIPs
+}
+
 function Test-CIPPIPBlockListSafety {
     <#
     .SYNOPSIS
-        Guards against blocking tenant mail relay IPs
-
+    Guards against blocking tenant mail relay IPs.
+    
     .DESCRIPTION
-        Validates that an IP or CIDR range does not overlap with:
-        1. Tenant's inbound connector IPs (SenderIPAddresses)
-        2. Tenant's outbound connector SmartHosts (IPs only)
-        3. Known mail relay IPs (configured in KnownMailRelayIPs.json)
-
-        Fails closed if connector lookup fails.
-
+    Validates that an IP or CIDR range does not overlap with:
+    1. Tenant's inbound connector IPs (SenderIPAddresses)
+    2. Tenant's outbound connector SmartHosts (IPs only)
+    3. Known mail relay IPs (from backend/Config/KnownMailRelayIPs.json)
+    
+    Fails closed if connector lookup fails or config cannot be loaded.
+    
     .PARAMETER TenantFilter
-        The tenant ID to check connectors for
-
+    The tenant domain (e.g., contoso.onmicrosoft.com).
+    
     .PARAMETER IPsToCheck
-        Array of IPs or CIDR ranges to validate
-
+    Array of IPs or CIDR ranges to validate.
+    
     .OUTPUTS
-        Returns a hashtable with:
-        - IsValid: $true if safe to block, $false if conflicts found
-        - Reason: Error message if IsValid is $false
-        - ConflictingIP: The IP that caused the conflict
-        - ConflictingConnector: The connector name that contains the IP (if applicable)
-        - ConflictingSource: 'InboundConnector', 'OutboundConnector', or 'KnownRelay'
-
+    Returns a hashtable with:
+    - IsValid: $true if safe to block, $false if conflicts found
+    - Reason: Error message if IsValid is $false
+    - ConflictingIP: The IP that caused the conflict
+    - ConflictingConnector: The connector name (if applicable)
+    - ConflictingSource: 'InboundConnector', 'OutboundConnector', or 'KnownRelay'
+    - ConflictingRelay: The specific relay IP that matched (for KnownRelay)
+    
     .EXAMPLE
-        Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.1.1', '10.0.0.0/24')
+    Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('192.168.1.1', '10.0.0.0/24')
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$TenantFilter,
-
+        
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
         [AllowEmptyString()]
         [string[]]$IPsToCheck
     )
-
+    
     try {
-        # Load known relay IPs from config, with fallback defaults
-        $KnownRelayIPs = @('3.19.206.53', '3.142.175.190')
+        # Load known relay IPs from config (fails closed)
         try {
-            # Use CIPPRootPath environment variable for reliable path resolution
-            if ([string]::IsNullOrWhiteSpace($env:CIPPRootPath)) {
-                $env:CIPPRootPath = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))
-            }
-            $ConfigPath = Join-Path $env:CIPPRootPath 'Config/KnownMailRelayIPs.json'
-            if (Test-Path $ConfigPath) {
-                $KnownRelayConfig = Get-Content -Path $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json
-                if ($null -ne $KnownRelayConfig.KnownMailRelayIPs -and @($KnownRelayConfig.KnownMailRelayIPs).Count -gt 0) {
-                    $KnownRelayIPs = @($KnownRelayConfig.KnownMailRelayIPs)
-                }
-            } else {
-                Write-Warning "Known relay IP config file not found at $ConfigPath - using fallback defaults"
-            }
+            $KnownRelayIPs = Get-CIPPKnownMailRelayIPs
         } catch {
-            Write-Warning "Failed to load known relay IPs from config, using defaults: $_"
+            throw "Failed to load known relay IP configuration: $_"
         }
-
-        # Fail closed if no known relay IPs are configured
-        if (@($KnownRelayIPs).Count -eq 0) {
-            throw 'No known mail relay IPs configured. Cannot validate IP block list safety.'
-        }
-
-        Write-Verbose "Loaded $($KnownRelayIPs.Count) known relay IPs"
-
-        # Normalize IPs to check - split by common delimiters and strip control characters
-        $NormalizedIPs = @()
+        
+        # Sanitize and validate input IPs
+        $CleanedIPs = @()
         foreach ($IP in $IPsToCheck) {
-            if ([string]::IsNullOrWhiteSpace($IP)) {
-                continue
-            }
-            # Strip control characters and cap length
-            $IP = ($IP -replace '[\x00-\x1F\x7F]', '').Substring(0, [Math]::Min($IP.Length, 200))
+            if ([string]::IsNullOrWhiteSpace($IP)) { continue }
             
-            # Split by comma, semicolon, or whitespace and trim
-            $SplitIPs = $IP -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
+            # Remove control characters, trim, cap at 200 chars
+            $c = $IP -replace '[\x00-\x1F\x7F]', ''
+            $c = $c.Substring(0, [Math]::Min($c.Length, 200)).Trim()
+            
+            if ([string]::IsNullOrWhiteSpace($c)) { continue }
+            
+            # Split by comma, semicolon, or whitespace
+            $SplitIPs = $c -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() }
             
             foreach ($SplitIP in $SplitIPs) {
-                # Block IP range notation (a-b) used by Exchange - fail closed
+                # Block IP range notation (a-b) - fail closed
                 if ($SplitIP -match '-') {
                     return @{
-                        IsValid    = $false
-                        Reason     = "Exchange IP range notation '$SplitIP' is not supported. Please enter individual IPs or CIDR ranges. The operation has been blocked as a safety precaution."
-                        ConflictingIP = $SplitIP
+                        IsValid              = $false
+                        Reason               = "Exchange IP range notation '$SplitIP' is not supported. Please enter individual IPs or CIDR ranges."
+                        ConflictingIP        = $SplitIP
                         ConflictingConnector = $null
-                        ConflictingSource = 'InvalidFormat'
+                        ConflictingSource    = 'ValidationError'
+                        ConflictingRelay     = $null
                     }
                 }
                 
-                # Reject leading-zero octets (parsed as octal by .NET)
+                # Block leading zeros (010.0.0.1)
                 if ($SplitIP -match '(^|\.)0\d') {
                     return @{
-                        IsValid    = $false
-                        Reason     = "IP '$SplitIP' contains leading-zero octets which are ambiguous. The operation has been blocked as a safety precaution."
-                        ConflictingIP = $SplitIP
+                        IsValid              = $false
+                        Reason               = "IP address '$SplitIP' contains leading zeros, which are not allowed."
+                        ConflictingIP        = $SplitIP
                         ConflictingConnector = $null
-                        ConflictingSource = 'InvalidFormat'
+                        ConflictingSource    = 'ValidationError'
+                        ConflictingRelay     = $null
                     }
                 }
                 
-                $NormalizedIPs += $SplitIP
+                $CleanedIPs += $SplitIP
             }
         }
         
-        # If no valid IPs remain after normalization, allow (nothing to block)
-        if ($NormalizedIPs.Count -eq 0) {
+        if ($CleanedIPs.Count -eq 0) {
             return @{
-                IsValid    = $true
-                Reason     = $null
-                ConflictingIP = $null
+                IsValid              = $true
+                Reason               = 'No IPs to check'
+                ConflictingIP        = $null
                 ConflictingConnector = $null
-                ConflictingSource = $null
+                ConflictingSource    = $null
+                ConflictingRelay     = $null
             }
         }
-
-        Write-Verbose "Checking $($NormalizedIPs.Count) IPs: $($NormalizedIPs -join ', ')"
-
-        # Check against known relay IPs first (no API call needed)
-        foreach ($IPToCheck in $NormalizedIPs) {
-            foreach ($KnownRelay in $KnownRelayIPs) {
-                $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $KnownRelay
+        
+        # Check each IP against known relay IPs
+        foreach ($IPToCheck in $CleanedIPs) {
+            foreach ($KnownIP in $KnownRelayIPs) {
+                $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $KnownIP
                 if ($OverlapResult.Overlaps) {
-                    $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
                     return @{
-                        IsValid    = $false
-                        Reason     = "The IP '$SafeIP' matches known mail relay IP. Blocking this IP would disrupt mail relay services."
-                        ConflictingIP = $SafeIP
+                        IsValid              = $false
+                        Reason               = "IP '$IPToCheck' overlaps with known mail relay IP '$KnownIP'. Blocking this IP would break mail delivery."
+                        ConflictingIP        = $IPToCheck
                         ConflictingConnector = $null
-                        ConflictingSource = 'KnownRelay'
-                        ConflictingRelay = $KnownRelay
-                    }
-                } elseif (-not $OverlapResult.Valid) {
-                    $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
-                    return @{
-                        IsValid    = $false
-                        Reason     = "Invalid IP address or CIDR range: '$SafeIP'. $($OverlapResult.Error)"
-                        ConflictingIP = $SafeIP
-                        ConflictingConnector = $null
-                        ConflictingSource = 'InvalidFormat'
+                        ConflictingSource    = 'KnownRelay'
+                        ConflictingRelay     = $KnownIP
                     }
                 }
             }
         }
-
+        
         # Fetch inbound connectors
-        $InboundConnectors = $null
         try {
-            Write-Verbose "Fetching inbound connectors for tenant $TenantFilter"
-            $InboundConnectors = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -ErrorAction Stop
-            Write-Verbose "Retrieved $((@($InboundConnectors)).Count) inbound connectors"
+            $InboundConnectors = New-ExoRequest -TenantFilter $TenantFilter -CommandName 'Get-InboundConnector' -ErrorAction Stop
         } catch {
-            # Fail closed - if we can't get connectors, refuse the operation
-            $ErrorDetail = "$($_.Exception.GetType().Name)"
-            Write-Warning "Failed to fetch inbound connectors for tenant $TenantFilter : $ErrorDetail"
+            Write-Warning "Failed to fetch inbound connectors for tenant $TenantFilter : $($_.Exception.GetType().Name)"
             return @{
-                IsValid    = $false
-                Reason     = "Unable to verify IP safety: Failed to fetch inbound connectors. The operation has been blocked as a safety precaution."
-                ConflictingIP = $null
+                IsValid              = $false
+                Reason               = "Failed to verify inbound connectors. The operation has been blocked as a safety precaution."
+                ConflictingIP        = $null
                 ConflictingConnector = $null
-                ConflictingSource = 'ConnectorLookupFailure'
+                ConflictingSource    = 'ConnectorLookupFailure'
+                ConflictingRelay     = $null
             }
         }
         
-        # Handle null result from New-ExoRequest (fail closed)
+        # Handle null result (fail closed)
         if ($null -eq $InboundConnectors) {
-            $InboundConnectors = @()
+            return @{
+                IsValid              = $false
+                Reason               = 'Inbound connector lookup returned null. The operation has been blocked as a safety precaution.'
+                ConflictingIP        = $null
+                ConflictingConnector = $null
+                ConflictingSource    = 'ConnectorLookupFailure'
+                ConflictingRelay     = $null
+            }
         }
-
+        
+        # Empty array is OK - tenant may have no connectors
+        $InboundConnectors = @($InboundConnectors)
+        
         # Check against inbound connector IPs
-        foreach ($Connector in @($InboundConnectors)) {
-            if ($null -ne $Connector.SenderIPAddresses -and $Connector.SenderIPAddresses.Count -gt 0) {
+        foreach ($Connector in $InboundConnectors) {
+            if ($Connector.SenderIPAddresses) {
                 foreach ($ConnectorIP in $Connector.SenderIPAddresses) {
-                    # Skip Exchange range notation (a-b) as unsupported - fail closed
-                    if ($ConnectorIP -match '-') {
-                        return @{
-                            IsValid    = $false
-                            Reason     = "Unable to verify IP safety: Inbound connector '$($Connector.Name)' uses Exchange range notation ('$ConnectorIP') which is not supported. The operation has been blocked as a safety precaution."
-                            ConflictingIP = $null
-                            ConflictingConnector = $Connector.Name
-                            ConflictingSource = 'ConnectorValidationFailure'
-                        }
-                    }
-                    
-                    foreach ($IPToCheck in $NormalizedIPs) {
+                    foreach ($IPToCheck in $CleanedIPs) {
                         $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $ConnectorIP
                         if ($OverlapResult.Overlaps) {
-                            $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
-                            $SafeConnectorIP = $ConnectorIP.Substring(0, [Math]::Min($ConnectorIP.Length, 50))
-                            $SafeConnectorName = $Connector.Name.Substring(0, [Math]::Min($Connector.Name.Length, 100))
                             return @{
-                                IsValid    = $false
-                                Reason     = "The IP '$SafeIP' overlaps with inbound connector '$SafeConnectorName' IP '$SafeConnectorIP'. Blocking this IP would disrupt inbound mail."
-                                ConflictingIP = $SafeIP
-                                ConflictingConnector = $SafeConnectorName
-                                ConflictingSource = 'InboundConnector'
+                                IsValid              = $false
+                                Reason               = "IP '$IPToCheck' overlaps with inbound connector '$($Connector.Name)' SenderIPAddress '$ConnectorIP'. Blocking this IP would break mail delivery."
+                                ConflictingIP        = $IPToCheck
+                                ConflictingConnector = $Connector.Name
+                                ConflictingSource    = 'InboundConnector'
+                                ConflictingRelay     = $null
                             }
                         }
                     }
                 }
             }
         }
-
+        
         # Fetch outbound connectors
-        $OutboundConnectors = $null
         try {
-            Write-Verbose "Fetching outbound connectors for tenant $TenantFilter"
-            $OutboundConnectors = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-OutboundConnector' -ErrorAction Stop
-            Write-Verbose "Retrieved $((@($OutboundConnectors)).Count) outbound connectors"
+            $OutboundConnectors = New-ExoRequest -TenantFilter $TenantFilter -CommandName 'Get-OutboundConnector' -ErrorAction Stop
         } catch {
-            # Fail closed - if we can't get connectors, refuse the operation
-            $ErrorDetail = "$($_.Exception.GetType().Name)"
-            Write-Warning "Failed to fetch outbound connectors for tenant $TenantFilter : $ErrorDetail"
+            Write-Warning "Failed to fetch outbound connectors for tenant $TenantFilter : $($_.Exception.GetType().Name)"
             return @{
-                IsValid    = $false
-                Reason     = "Unable to verify IP safety: Failed to fetch outbound connectors. The operation has been blocked as a safety precaution."
-                ConflictingIP = $null
+                IsValid              = $false
+                Reason               = "Failed to verify outbound connectors. The operation has been blocked as a safety precaution."
+                ConflictingIP        = $null
                 ConflictingConnector = $null
-                ConflictingSource = 'ConnectorLookupFailure'
+                ConflictingSource    = 'ConnectorLookupFailure'
+                ConflictingRelay     = $null
             }
         }
         
-        # Handle null result from New-ExoRequest (fail closed)
-        if ($null -eq $OutboundConnectors) {
-            $OutboundConnectors = @()
-        }
-
-        # Check against outbound connector SmartHosts (only IPs, not hostnames)
-        foreach ($Connector in @($OutboundConnectors)) {
-            if ($null -ne $Connector.SmartHosts -and $Connector.SmartHosts.Count -gt 0) {
-                foreach ($SmartHost in $Connector.SmartHosts) {
-                    # Use TryParse to validate if SmartHost is an IP (before any CIDR notation)
-                    $SmartHostIP = if ($SmartHost -match '^(.+)/\d+$') { $Matches[1] } else { $SmartHost }
-                    $ParsedIP = $null
-                    if ([System.Net.IPAddress]::TryParse($SmartHostIP, [ref]$ParsedIP)) {
-                        foreach ($IPToCheck in $NormalizedIPs) {
-                            $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $SmartHost
-                            if ($OverlapResult.Overlaps) {
-                                $SafeIP = $IPToCheck.Substring(0, [Math]::Min($IPToCheck.Length, 50))
-                                $SafeSmartHost = $SmartHost.Substring(0, [Math]::Min($SmartHost.Length, 50))
-                                $SafeConnectorName = $Connector.Name.Substring(0, [Math]::Min($Connector.Name.Length, 100))
-                                return @{
-                                    IsValid    = $false
-                                    Reason     = "The IP '$SafeIP' overlaps with outbound connector '$SafeConnectorName' SmartHost '$SafeSmartHost'. Blocking this IP would disrupt outbound mail."
-                                    ConflictingIP = $SafeIP
-                                    ConflictingConnector = $SafeConnectorName
-                                    ConflictingSource = 'OutboundConnector'
+        # Check against outbound connector SmartHosts (IPs only)
+        if ($OutboundConnectors) {
+            foreach ($Connector in $OutboundConnectors) {
+                if ($Connector.SmartHosts) {
+                    foreach ($SmartHost in $Connector.SmartHosts) {
+                        # Only check IPs, skip hostnames
+                        $SmartHostIP = $null
+                        if ([System.Net.IPAddress]::TryParse($SmartHost, [ref]$SmartHostIP)) {
+                            foreach ($IPToCheck in $CleanedIPs) {
+                                $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $SmartHost
+                                if ($OverlapResult.Overlaps) {
+                                    return @{
+                                        IsValid              = $false
+                                        Reason               = "IP '$IPToCheck' overlaps with outbound connector '$($Connector.Name)' SmartHost '$SmartHost'. Blocking this IP would break mail delivery."
+                                        ConflictingIP        = $IPToCheck
+                                        ConflictingConnector = $Connector.Name
+                                        ConflictingSource    = 'OutboundConnector'
+                                        ConflictingRelay     = $null
+                                    }
                                 }
                             }
                         }
@@ -255,215 +257,128 @@ function Test-CIPPIPBlockListSafety {
                 }
             }
         }
-
+        
         # All checks passed
         return @{
-            IsValid    = $true
-            Reason     = $null
-            ConflictingIP = $null
+            IsValid              = $true
+            Reason               = $null
+            ConflictingIP        = $null
             ConflictingConnector = $null
-            ConflictingSource = $null
+            ConflictingSource    = $null
+            ConflictingRelay     = $null
         }
-
     } catch {
         # Unexpected error - fail closed
-        $ErrorDetail = "$($_.Exception.GetType().Name)"
-        Write-Warning "Unexpected error in Test-CIPPIPBlockListSafety: $ErrorDetail"
         return @{
-            IsValid    = $false
-            Reason     = "Unable to verify IP safety due to an unexpected error. The operation has been blocked as a safety precaution."
-            ConflictingIP = $null
+            IsValid              = $false
+            Reason               = "Unexpected error during validation: $($_.Exception.Message)"
+            ConflictingIP        = $null
             ConflictingConnector = $null
-            ConflictingSource = 'UnexpectedError'
+            ConflictingSource    = 'UnexpectedError'
+            ConflictingRelay     = $null
         }
     }
-}
-
-function Test-CIPPIPBlockListSafetyCached {
-    <#
-    .SYNOPSIS
-        Cached wrapper for Test-CIPPIPBlockListSafety
-    
-    .DESCRIPTION
-        Performs the same validation as Test-CIPPIPBlockListSafety but caches results per tenant
-        to avoid redundant connector lookups within a single execution context.
-    #>
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$TenantFilter,
-
-        [Parameter(Mandatory = $true)]
-        [string[]]$IPsToCheck
-    )
-    
-    if ($null -eq $script:IPBlockListSafetyCache) {
-        $script:IPBlockListSafetyCache = @{}
-    }
-    
-    if (-not $script:IPBlockListSafetyCache.ContainsKey($TenantFilter)) {
-        $script:IPBlockListSafetyCache[$TenantFilter] = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $IPsToCheck
-    }
-    
-    return $script:IPBlockListSafetyCache[$TenantFilter]
 }
 
 function Test-CIPPIPOverlap {
     <#
     .SYNOPSIS
-        Tests if two IPs or CIDR ranges overlap
-
-    .DESCRIPTION
-        Compares two IP addresses or CIDR ranges to determine if they overlap.
-        Handles both IPv4 and IPv6 addresses with comprehensive validation.
-
+    Tests whether two IPs or CIDR ranges overlap.
+    
     .PARAMETER IP1
-        First IP or CIDR range
-
+    First IP or CIDR range.
+    
     .PARAMETER IP2
-        Second IP or CIDR range
-
+    Second IP or CIDR range.
+    
     .OUTPUTS
-        Returns a hashtable with:
-        - Overlaps: $true if the IPs overlap, $false otherwise
-        - Valid: $true if inputs are valid, $false if parse error
-        - Error: Error message if Valid is $false
+    Returns a hashtable with:
+    - Overlaps: $true if the IPs/ranges overlap, $false otherwise
+    - Valid: $true if both inputs are valid, $false if either is invalid
+    - Error: Error message if inputs are invalid
     #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$IP1,
-
+        
         [Parameter(Mandatory = $true)]
         [string]$IP2
     )
-
+    
     try {
         # Parse IP1
-        $IP1Address = $null
-        $IP1Prefix = 32
-        
-        if ($IP1 -match '^(.+)/(-?\d+)$') {
-            $IP1String = $Matches[1]
-            $IP1Prefix = [int]$Matches[2]
-            
-            # Validate prefix bounds before parsing
-            if (-not [System.Net.IPAddress]::TryParse($IP1String, [ref]$IP1Address)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP1String' as an IP address" }
-            }
-            
-            $MaxPrefix = if ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
-            if ($IP1Prefix -lt 0 -or $IP1Prefix -gt $MaxPrefix) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Prefix /$IP1Prefix is invalid for address family (valid range: 0-$MaxPrefix)" }
+        $Addr1 = $null
+        $Prefix1 = 0
+        if ($IP1 -match '^(.+?)/(\d+)$') {
+            $IP1Str = $Matches[1]
+            $Prefix1 = [int]$Matches[2]
+            if (-not [System.Net.IPAddress]::TryParse($IP1Str, [ref]$Addr1)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP1" }
             }
         } else {
-            if (-not [System.Net.IPAddress]::TryParse($IP1, [ref]$IP1Address)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP1' as an IP address" }
+            if (-not [System.Net.IPAddress]::TryParse($IP1, [ref]$Addr1)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP: $IP1" }
             }
-            $IP1Prefix = if ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
+            $Prefix1 = if ($Addr1.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
         }
         
-        # Normalize IPv4-mapped IPv6 to IPv4
-        if ($IP1Address.IsIPv4MappedToIPv6) {
-            $IP1Address = $IP1Address.MapToIPv4()
-            $IP1Prefix = [Math]::Max(0, $IP1Prefix - 96)
-        }
-
         # Parse IP2
-        $IP2Address = $null
-        $IP2Prefix = 32
-        
-        if ($IP2 -match '^(.+)/(-?\d+)$') {
-            $IP2String = $Matches[1]
-            $IP2Prefix = [int]$Matches[2]
-            
-            if (-not [System.Net.IPAddress]::TryParse($IP2String, [ref]$IP2Address)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP2String' as an IP address" }
-            }
-            
-            $MaxPrefix = if ($IP2Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
-            if ($IP2Prefix -lt 0 -or $IP2Prefix -gt $MaxPrefix) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Prefix /$IP2Prefix is invalid for address family (valid range: 0-$MaxPrefix)" }
+        $Addr2 = $null
+        $Prefix2 = 0
+        if ($IP2 -match '^(.+?)/(\d+)$') {
+            $IP2Str = $Matches[1]
+            $Prefix2 = [int]$Matches[2]
+            if (-not [System.Net.IPAddress]::TryParse($IP2Str, [ref]$Addr2)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP in $IP2" }
             }
         } else {
-            if (-not [System.Net.IPAddress]::TryParse($IP2, [ref]$IP2Address)) {
-                return @{ Overlaps = $false; Valid = $false; Error = "Cannot parse '$IP2' as an IP address" }
+            if (-not [System.Net.IPAddress]::TryParse($IP2, [ref]$Addr2)) {
+                return @{ Overlaps = $false; Valid = $false; Error = "Invalid IP: $IP2" }
             }
-            $IP2Prefix = if ($IP2Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) { 128 } else { 32 }
+            $Prefix2 = if ($Addr2.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
         }
         
-        # Normalize IPv4-mapped IPv6 to IPv4
-        if ($IP2Address.IsIPv4MappedToIPv6) {
-            $IP2Address = $IP2Address.MapToIPv4()
-            $IP2Prefix = [Math]::Max(0, $IP2Prefix - 96)
+        # Normalize IPv4-mapped IPv6 addresses
+        if ($Addr1.IsIPv4MappedToIPv6) {
+            $Addr1 = $Addr1.MapToIPv4()
+            if ($Prefix1 -ge 96) { $Prefix1 = $Prefix1 - 96 }
         }
-
-        # Check if address families match
-        if ($IP1Address.AddressFamily -ne $IP2Address.AddressFamily) {
+        if ($Addr2.IsIPv4MappedToIPv6) {
+            $Addr2 = $Addr2.MapToIPv4()
+            if ($Prefix2 -ge 96) { $Prefix2 = $Prefix2 - 96 }
+        }
+        
+        # Different address families don't overlap
+        if ($Addr1.AddressFamily -ne $Addr2.AddressFamily) {
             return @{ Overlaps = $false; Valid = $true; Error = $null }
         }
-
-        # For IPv4, use bitwise comparison
-        if ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) {
-            # Convert to bytes and then to uint32
-            $IP1Bytes = $IP1Address.GetAddressBytes()
-            $IP2Bytes = $IP2Address.GetAddressBytes()
-
-            # Reverse for little-endian systems
-            [Array]::Reverse($IP1Bytes)
-            [Array]::Reverse($IP2Bytes)
-
-            $IP1Int = [BitConverter]::ToUInt32($IP1Bytes, 0)
-            $IP2Int = [BitConverter]::ToUInt32($IP2Bytes, 0)
-
-            # Determine the smaller prefix length (more specific)
-            $MinPrefix = [Math]::Min($IP1Prefix, $IP2Prefix)
-
-            # Create mask for the minimum prefix
-            if ($MinPrefix -eq 0) {
-                $Mask = 0
-            } else {
-                $Mask = [uint32]([uint32]::MaxValue -shl (32 - $MinPrefix))
-            }
-
-            # Compare network portions
-            $Overlaps = (($IP1Int -band $Mask) -eq ($IP2Int -band $Mask))
-            return @{ Overlaps = $Overlaps; Valid = $true; Error = $null }
-            
-        } elseif ($IP1Address.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetworkV6) {
-            # For IPv6, compare byte by byte
-            $IP1Bytes = $IP1Address.GetAddressBytes()
-            $IP2Bytes = $IP2Address.GetAddressBytes()
-
-            # Determine the smaller prefix length
-            $MinPrefix = [Math]::Min($IP1Prefix, $IP2Prefix)
-
-            # Compare full bytes
-            $FullBytes = [Math]::Floor($MinPrefix / 8)
-            for ($i = 0; $i -lt $FullBytes; $i++) {
-                if ($IP1Bytes[$i] -ne $IP2Bytes[$i]) {
-                    return @{ Overlaps = $false; Valid = $true; Error = $null }
-                }
-            }
-
-            # Compare remaining bits
-            $RemainingBits = $MinPrefix % 8
-            if ($RemainingBits -gt 0) {
-                $Mask = [byte](0xFF -shl (8 - $RemainingBits))
-                if (($IP1Bytes[$FullBytes] -band $Mask) -ne ($IP2Bytes[$FullBytes] -band $Mask)) {
-                    return @{ Overlaps = $false; Valid = $true; Error = $null }
-                }
-            }
-
-            return @{ Overlaps = $true; Valid = $true; Error = $null }
+        
+        # Validate prefix lengths
+        $MaxPrefix = if ($Addr1.AddressFamily -eq [System.Net.Sockets.AddressFamily]::InterNetwork) { 32 } else { 128 }
+        if ($Prefix1 -lt 0 -or $Prefix1 -gt $MaxPrefix) {
+            return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix length $Prefix1 for $IP1" }
         }
-
-        return @{ Overlaps = $false; Valid = $true; Error = $null }
-
+        if ($Prefix2 -lt 0 -or $Prefix2 -gt $MaxPrefix) {
+            return @{ Overlaps = $false; Valid = $false; Error = "Invalid prefix length $Prefix2 for $IP2" }
+        }
+        
+        # Convert to byte arrays
+        $Bytes1 = $Addr1.GetAddressBytes()
+        $Bytes2 = $Addr2.GetAddressBytes()
+        
+        # Check overlap: compare bits up to the shorter prefix
+        $CheckBits = [Math]::Min($Prefix1, $Prefix2)
+        for ($i = 0; $i -lt $CheckBits; $i++) {
+            $ByteIndex = [Math]::Floor($i / 8)
+            $BitMask = 1 -shl (7 - ($i % 8))
+            if (($Bytes1[$ByteIndex] -band $BitMask) -ne ($Bytes2[$ByteIndex] -band $BitMask)) {
+                return @{ Overlaps = $false; Valid = $true; Error = $null }
+            }
+        }
+        
+        return @{ Overlaps = $true; Valid = $true; Error = $null }
     } catch {
-        $ErrorDetail = "$($_.Exception.GetType().Name)"
-        Write-Warning "Error comparing IPs '$IP1' and '$IP2': $ErrorDetail"
-        # If we can't parse, return invalid (don't assume overlap)
-        return @{ Overlaps = $false; Valid = $false; Error = "Unexpected error: $ErrorDetail" }
+        return @{ Overlaps = $false; Valid = $false; Error = $_.Exception.Message }
     }
 }

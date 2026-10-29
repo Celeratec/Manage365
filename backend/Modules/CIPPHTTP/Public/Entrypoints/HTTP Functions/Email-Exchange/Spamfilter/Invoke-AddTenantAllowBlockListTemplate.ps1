@@ -12,36 +12,43 @@ function Invoke-AddTenantAllowBlockListTemplate {
     $Headers = $Request.Headers
 
     try {
-        # Validate Block + IP entries against known relay IPs at save time
+        # Validate Block+IP template entries against known relay list at save time
         if ($Request.body.listMethod -eq 'Block' -and $Request.body.listType -eq 'IP') {
-            $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
-            
-            # Load known relay IPs (same logic as the guard function, using defaults as fallback)
-            $KnownRelayIPs = @('3.19.206.53', '3.142.175.190')
+            # Load known relay IPs using shared loader (fails closed)
             try {
-                # Try to load from config, but don't fail if it doesn't exist
-                $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSScriptRoot))))
-                $ConfigPath = Join-Path $RepoRoot 'backend/Config/KnownMailRelayIPs.json'
-                if (Test-Path $ConfigPath) {
-                    $KnownRelayConfig = Get-Content -Path $ConfigPath -Raw | ConvertFrom-Json
-                    if ($null -ne $KnownRelayConfig.KnownMailRelayIPs) {
-                        $KnownRelayIPs = @($KnownRelayConfig.KnownMailRelayIPs)
-                    }
-                }
+                $KnownRelayIPs = Get-CIPPKnownMailRelayIPs
             } catch {
-                # Use defaults
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::BadRequest
+                        Body       = @{ Results = "Failed to load known relay IP configuration: $($_.Exception.Message)" }
+                    })
             }
             
-            # Check entries against known relays
+            $Entries = @($Request.body.entries -split '[,;\s]+' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | ForEach-Object { $_.Trim() })
+            
+            # Sanitize entries for logging (remove control chars, cap length)
+            $SanitizedEntries = @($Entries | ForEach-Object {
+                    $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                    $c.Substring(0, [Math]::Min($c.Length, 200))
+                })
+            
+            # Check each entry against known relays using Test-CIPPIPOverlap
+            $Refusals = @()
             foreach ($Entry in $Entries) {
-                foreach ($KnownRelay in $KnownRelayIPs) {
-                    if ($Entry -eq $KnownRelay) {
-                        return ([HttpResponseContext]@{
-                                StatusCode = [HttpStatusCode]::BadRequest
-                                Body       = @{ Results = "Cannot create template: IP '$Entry' matches known mail relay IP. Blocking this IP would disrupt mail relay services." }
-                            })
+                foreach ($KnownIP in $KnownRelayIPs) {
+                    $OverlapResult = Test-CIPPIPOverlap -IP1 $Entry -IP2 $KnownIP
+                    if ($OverlapResult.Overlaps) {
+                        $Refusals += "Entry '$Entry' overlaps with known mail relay IP '$KnownIP'"
                     }
                 }
+            }
+            
+            if ($Refusals.Count -gt 0) {
+                Write-LogMessage -Headers $Headers -API $APIName -Message "Refused Block+IP template save: $($Refusals -join '; '). Entries: $($SanitizedEntries -join ', ')" -Sev 'Warning'
+                return ([HttpResponseContext]@{
+                        StatusCode = [HttpStatusCode]::BadRequest
+                        Body       = @{ Results = "Cannot create template: $($Refusals -join ' '). Blocking these IPs would disrupt mail relay services." }
+                    })
             }
         }
         
