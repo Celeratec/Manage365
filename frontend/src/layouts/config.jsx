@@ -573,6 +573,17 @@ export const nativeMenuItems = [
             ],
           },
           {
+            title: 'Enrollment Restrictions',
+            path: '/endpoint/autopilot/enrollment-restrictions',
+            permissions: ['Endpoint.Autopilot.*'],
+          },
+          {
+            title: 'Enrollment Restriction Templates',
+            path: '/endpoint/autopilot/enrollment-restriction-templates',
+            permissions: ['Endpoint.Autopilot.*'],
+            scope: 'global',
+          },
+          {
             title: 'Status Pages',
             path: '/endpoint/autopilot/list-status-pages',
             permissions: [
