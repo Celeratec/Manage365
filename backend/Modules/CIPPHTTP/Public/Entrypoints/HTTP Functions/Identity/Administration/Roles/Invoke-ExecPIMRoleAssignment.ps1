@@ -97,7 +97,7 @@ function Invoke-ExecPIMRoleAssignment {
             if (-not [string]::IsNullOrWhiteSpace($Duration)) { $Window.Duration = $Duration }
             if ($null -ne $EndDateTime) { $Window.EndDateTime = $EndDateTime }
             if ($null -ne $StartDateTime) { $Window.StartDateTime = $StartDateTime }
-            $null = New-CIPPPIMScheduleRequest @Window
+            $null = New-CIPPPIMScheduleRequest @Window  # PIM-VALIDATION-ONLY: pre-check parameters before delegate
         } catch {
             return (& $Fail $_.Exception.Message)
         }

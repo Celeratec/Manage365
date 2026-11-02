@@ -71,12 +71,33 @@ Describe 'PIM secure-direction invariants' {
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
         # The endpoint and the standards must delegate; they may not post schedule requests directly.
-        # Pattern matches actual invocations (with parens or pipeline), not doc comments or validation-only checks.
-        $Pattern = [regex]'New-CIPPPIMScheduleRequest\s*[\(\|@]'
+        # Exempts lines with PIM-VALIDATION-ONLY marker (parameter validation, not actual posting).
+        $Pattern = [regex]'New-CIPPPIMScheduleRequest\b'
         $Direct = @($script:Sources | Where-Object {
-                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1', 'Invoke-ExecPIMRoleAssignment.ps1') -and
+                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') -and
                 $Pattern.IsMatch($_.Text)
-            } | ForEach-Object { $_.Name })
+            } | ForEach-Object {
+                # Exempt lines with the validation marker
+                $Lines = $_.Text -split "`r?`n"
+                $HasUnmarkedCall = $false
+                foreach ($Line in $Lines) {
+                    if ($Line -match 'New-CIPPPIMScheduleRequest\b' -and $Line -notmatch 'PIM-VALIDATION-ONLY') {
+                        $HasUnmarkedCall = $true
+                        break
+                    }
+                }
+                if ($HasUnmarkedCall) { $_.Name }
+            })
         $Direct | Should -BeNullOrEmpty
+    }
+
+    It 'detects named-parameter calls to the schedule request builder' {
+        # Prove the \b pattern catches '-Kind' and other named invocations
+        $TestSource = [pscustomobject]@{ 
+            Name = 'TestFile.ps1'
+            Text = 'New-CIPPPIMScheduleRequest -Kind adminAssign' 
+        }
+        $Pattern = [regex]'New-CIPPPIMScheduleRequest\b'
+        $Pattern.IsMatch($TestSource.Text) | Should -BeTrue
     }
 }

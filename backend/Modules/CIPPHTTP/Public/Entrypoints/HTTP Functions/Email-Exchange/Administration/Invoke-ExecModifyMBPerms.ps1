@@ -256,12 +256,15 @@ function Invoke-ExecModifyMBPerms {
                         } else {
                             Write-LogMessage -headers $Headers -API $APIName -message "Could not map result to operation. GUID: $operationGuid, Available GUIDs: $($GuidToMetadataMap.Keys -join ', ')" -sev 'Warning' -tenant $TenantFilter
 
-                            # Fallback for unmapped results
+                            # Fallback for unmapped results - count them correctly to avoid false 207/500
                             if ($result.error) {
                                 $ErrorMessage = try { (Get-CippException -Exception $result.error).NormalizedError } catch { $result.error }
                                 $null = $Results.Add("Error in $cmdletName`: $ErrorMessage")
+                                # Don't add to SuccessfulOps - this is a failure
                             } else {
                                 $null = $Results.Add("Completed $cmdletName operation")
+                                # Count as success even though we can't map it to a specific operation
+                                $null = $SuccessfulOps.Add([pscustomobject]@{ Unmapped = $true })
                             }
                         }
                     }

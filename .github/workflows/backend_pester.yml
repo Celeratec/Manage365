@@ -34,7 +34,7 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser -SkipPublisherCheck
+          Install-Module -Name Pester -RequiredVersion 5.6.1 -Force -Scope CurrentUser
       # The tests dot-source the function under test and stub its dependencies, so nothing
       # has to be built or hosted first - no ModuleBuilder, no Azurite, no Craft.
       # -CI adds the NUnit result file; the exit code is the failed-test count regardless.
@@ -129,7 +129,7 @@ jobs:
         shell: pwsh
         run: |
           Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
-          Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser -SkipPublisherCheck
+          Install-Module -Name Pester -RequiredVersion 5.6.1 -Force -Scope CurrentUser
       - name: Run image optimizer tests
         shell: pwsh
         run: |

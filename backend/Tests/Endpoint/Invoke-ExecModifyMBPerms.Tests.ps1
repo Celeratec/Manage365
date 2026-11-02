@@ -250,6 +250,23 @@ Describe 'Invoke-ExecModifyMBPerms' {
             ($response.Body.Results -join "`n") | Should -Match 'Could not find user ghost@contoso.com'
             $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::MultiStatus)
         }
+
+        It 'counts unmapped results correctly to avoid false 207/500' {
+            # When a bulk result can't be matched to its operation, success vs. failure must still
+            # be tracked correctly so the overall status code reflects the actual outcome.
+            $script:BulkResults = @(
+                @{ OperationGuid = 'mismatched-guid'; error = $null }  # Unmapped success
+                @{ OperationGuid = $GUID1; error = $null }              # Mapped success
+            )
+            $req = New-ModifyRequest -Mailboxes @(
+                (New-Mailbox -Permissions @(New-Perm -Level 'FullAccess' -Modification 'Add'))
+            )
+
+            $response = Invoke-ExecModifyMBPerms -Request $req -TriggerMetadata $null
+
+            # Both operations succeeded, so status should be 200 OK
+            $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        }
     }
 
     Context 'Cache sync' {
