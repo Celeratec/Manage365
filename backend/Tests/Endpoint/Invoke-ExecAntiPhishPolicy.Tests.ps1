@@ -99,7 +99,12 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
                     RecommendedPolicyType = 'Custom'
                 }
             }
-            if ($cmdlet -eq 'Get-AntiPhishRule') { return @() }
+            if ($cmdlet -eq 'Get-AntiPhishRule') {
+                return [pscustomobject]@{
+                    Identity = 'TestPolicy'
+                    AntiPhishPolicyName = 'TestPolicy'
+                }
+            }
             $true 
         }
 
@@ -120,9 +125,9 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         # Assert rule is removed before policy
         $removeRuleIndex = ($script:ExoRequestHistory | ForEach-Object { $i = 0 } { if ($_.Cmdlet -eq 'Remove-AntiPhishRule') { $i }; $i++ }) | Select-Object -First 1
         $removePolicyIndex = ($script:ExoRequestHistory | ForEach-Object { $i = 0 } { if ($_.Cmdlet -eq 'Remove-AntiPhishPolicy') { $i }; $i++ }) | Select-Object -First 1
-        if ($removeRuleIndex -ne $null -and $removePolicyIndex -ne $null) {
-            $removeRuleIndex | Should -BeLessThan $removePolicyIndex
-        }
+        $removeRuleIndex | Should -Not -BeNullOrEmpty
+        $removePolicyIndex | Should -Not -BeNullOrEmpty
+        $removeRuleIndex | Should -BeLessThan $removePolicyIndex
         
         ($script:ExoRequestHistory | Where-Object { $_.Cmdlet -eq 'Remove-AntiPhishPolicy' }).CmdParams.Confirm | Should -Be $false
     }

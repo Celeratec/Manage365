@@ -153,4 +153,57 @@ Describe 'SecurityPolicy Endpoint RBAC Tests' {
             $Included | Should -Be $true -Because "editor role should grant SpamFilter.ReadWrite"
         }
     }
+
+    Context 'Real Test-CIPPAccess Integration' {
+        BeforeAll {
+            # Dot-source the REAL Test-CIPPAccess function
+            $TestCIPPAccessPath = Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/Authentication/Test-CIPPAccess.ps1'
+            . $TestCIPPAccessPath
+            
+            # Also load any dependencies Test-CIPPAccess needs
+            $CippRolesPath = Join-Path $PSScriptRoot '../../Config/cipp-roles.json'
+        }
+
+        It 'editor role is denied access to SecurityPolicy endpoint (ExecEnhancedFiltering)' {
+            # Create mock request with editor role
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'editor'
+                }
+            }
+            
+            # Create mock endpoint with SecurityPolicy role requirement
+            $SecurityPolicyEndpointPath = Join-Path $PSScriptRoot '../../Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Transport/Invoke-ExecEnhancedFiltering.ps1'
+            
+            # Call REAL Test-CIPPAccess (no mocks)
+            $Result = Test-CIPPAccess -Request $Request -TenantFilter 'contoso.onmicrosoft.com' -RequiredRoles @('Exchange.SecurityPolicy.ReadWrite')
+            
+            # Verify editor is denied
+            $Result | Should -Be $false -Because "editor role must not have Exchange.SecurityPolicy.ReadWrite access"
+        }
+
+        It 'readonly role is denied access to SecurityPolicy endpoint (ExecRemoveAntiSpamPolicy)' {
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'readonly'
+                }
+            }
+            
+            $Result = Test-CIPPAccess -Request $Request -TenantFilter 'contoso.onmicrosoft.com' -RequiredRoles @('Exchange.SecurityPolicy.ReadWrite')
+            
+            $Result | Should -Be $false -Because "readonly role must not have Exchange.SecurityPolicy.ReadWrite access"
+        }
+
+        It 'admin role is allowed access to SecurityPolicy endpoint' {
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'admin'
+                }
+            }
+            
+            $Result = Test-CIPPAccess -Request $Request -TenantFilter 'contoso.onmicrosoft.com' -RequiredRoles @('Exchange.SecurityPolicy.ReadWrite')
+            
+            $Result | Should -Be $true -Because "admin role should have full access including SecurityPolicy"
+        }
+    }
 }
