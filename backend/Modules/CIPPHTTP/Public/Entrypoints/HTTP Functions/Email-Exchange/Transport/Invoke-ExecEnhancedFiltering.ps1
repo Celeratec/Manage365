@@ -105,8 +105,12 @@ function Invoke-ExecEnhancedFiltering {
                     }
                 }
                 
-                # Send validated, normalized (trimmed) values to Exchange
-                $NormalizedIPs = $EFSkipIPs | ForEach-Object { $_.Trim() }
+                # Send validated, normalized (trimmed, inner spaces stripped) values to Exchange
+                $NormalizedIPs = $EFSkipIPs | ForEach-Object { 
+                    $ip = $_.Trim()
+                    # Strip spaces around dashes in ranges (e.g., '8.8.8.1 - 8.8.8.9' becomes '8.8.8.1-8.8.8.9')
+                    $ip -replace '\s*-\s*', '-'
+                }
                 $ConnectorParams.EFSkipIPs = $NormalizedIPs
             } else {
                 # Clear the setting

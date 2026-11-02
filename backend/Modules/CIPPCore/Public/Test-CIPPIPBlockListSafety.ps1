@@ -581,6 +581,11 @@ function Test-CIPPIPOverlap {
             if ($IsRange1) {
                 $Start1 = ConvertTo-IPInt $Addr1
                 $End1 = ConvertTo-IPInt $Addr1End
+                # Refuse reversed ranges (this check is redundant with input validation but defends against edge cases)
+                if ($Start1 -gt $End1) {
+                    Write-Warning "Reversed range detected in IP1 during overlap check"
+                    return @{ Overlaps = $false; Valid = $false; Error = 'Reversed IP range (start > end)' }
+                }
             } else {
                 # Convert CIDR/single IP to range
                 $Start1 = ConvertTo-IPInt $Addr1
@@ -597,6 +602,11 @@ function Test-CIPPIPOverlap {
             if ($IsRange2) {
                 $Start2 = ConvertTo-IPInt $Addr2
                 $End2 = ConvertTo-IPInt $Addr2End
+                # Refuse reversed ranges in existing policy entries
+                if ($Start2 -gt $End2) {
+                    Write-Warning "Reversed range detected in existing policy (IP2)"
+                    return @{ Overlaps = $false; Valid = $false; Error = 'Reversed IP range in existing policy (start > end)' }
+                }
             } else {
                 # Convert CIDR/single IP to range
                 $Start2 = ConvertTo-IPInt $Addr2

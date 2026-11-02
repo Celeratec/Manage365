@@ -572,4 +572,59 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'dotted-quad notation'
     }
+
+    It 'refuses when policy contains reversed range (6.6.6.20-6.6.6.1)' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @('6.6.6.20-6.6.6.1'); IPBlockList = @(); Name = 'Default' }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('6.6.6.10') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Reversed IP range in existing policy'
+    }
+
+    It 'strips inner spaces from ranges before sending to Exchange' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:LastExoRequest = @{
+                TenantId = $tenantid
+                Cmdlet = $cmdlet
+                CmdParams = $cmdParams
+            }
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @(); IPBlockList = @(); Name = 'Default' }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('8.8.8.1 - 8.8.8.9', '9.9.9.1  -  9.9.9.9') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        
+        # Verify spaces around dashes were stripped
+        $setConnectorCall = $script:LastExoRequest | Where-Object { $_.Cmdlet -eq 'Set-InboundConnector' }
+        $setConnectorCall.CmdParams.EFSkipIPs[0] | Should -Be '8.8.8.1-8.8.8.9'
+        $setConnectorCall.CmdParams.EFSkipIPs[1] | Should -Be '9.9.9.1-9.9.9.9'
+    }
 }
