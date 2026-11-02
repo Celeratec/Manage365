@@ -11,8 +11,9 @@ BeforeAll {
     function Get-Tenants { param($TenantFilter) }
     function New-GraphGetRequest { param($uri, $tenantid, $AsApp) }
     function New-GraphBulkRequest { param($tenantid, $Requests) }
+    function New-ExoRequest { param($tenantid, $cmdlet, $cmdParams) }
 
-    foreach ($Name in 'Get-CIPPRiskyPermissionCatalog.ps1', 'Get-CIPPVendorTenantMap.ps1', 'ConvertFrom-CIPPCredentialAuditEvent.ps1', 'ConvertFrom-CIPPRoleAuditEvent.ps1', 'ConvertFrom-CIPPGrantAuditEvent.ps1', 'Get-CIPPAppPermissionExposure.ps1') {
+    foreach ($Name in 'Get-CIPPRiskyPermissionCatalog.ps1', 'Get-CIPPVendorTenantMap.ps1', 'ConvertFrom-CIPPCredentialAuditEvent.ps1', 'ConvertFrom-CIPPRoleAuditEvent.ps1', 'ConvertFrom-CIPPGrantAuditEvent.ps1', 'Get-CIPPExoAppRoleAssignment.ps1', 'Get-CIPPExoApplicationAccessPolicy.ps1', 'Get-CIPPAppPermissionExposure.ps1') {
         . (Get-ChildItem -Path (Join-Path $RepoRoot 'Modules') -Recurse -Filter $Name -File | Select-Object -First 1 -ExpandProperty FullName)
     }
 
@@ -1169,6 +1170,79 @@ Describe 'Get-CIPPAppPermissionExposure' {
             Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $uri -like '*appRoleAssignedTo*' }
             # the sign-in activity reports are too slow to call while a page waits: read from the cache even live
             Should -Invoke Get-CIPPDbItem -Times 0 -ParameterFilter { $Type -notin 'ServicePrincipalSignInActivities', 'AppCredentialSignInActivities' }
+        }
+
+        It 'reads Exchange application roles from Exchange, with the filter of their management scope' {
+            Mock New-GraphGetRequest {
+                switch -Wildcard ($uri) {
+                    '*/servicePrincipals?*' {
+                        script:New-Sp -Id 'res-graph' -AppId $script:GraphAppId -Name 'Microsoft Graph' -Owner $script:MicrosoftTenant
+                        script:New-Sp -Id 'sp-exo' -AppId 'app-exo' -Name 'Exo App' -Publisher 'Verified Co'
+                    }
+                    default { }
+                }
+            }
+            Mock New-GraphBulkRequest { }
+            Mock New-ExoRequest {
+                switch ($cmdlet) {
+                    'Get-ServicePrincipal' { [pscustomobject]@{ Identity = 'exo-sp-1'; Name = 'exo-sp-1'; AppId = 'app-exo'; ObjectId = 'sp-exo'; DisplayName = 'Exo App' } }
+                    'Get-ManagementRoleAssignment' {
+                        [pscustomobject]@{ Guid = 'ra-1'; Role = 'Application Mail.Send'; RoleAssignee = 'exo-sp-1'; Enabled = $true; CustomResourceScope = 'Finance'; WhenCreatedUTC = [datetime]::UtcNow.AddDays(-100) }
+                        [pscustomobject]@{ Guid = 'ra-2'; Role = 'Mail Recipients'; RoleAssignee = 'Organization Management'; Enabled = $true }
+                    }
+                    'Get-ManagementScope' { [pscustomobject]@{ Name = 'Finance'; RecipientFilter = "Department -eq 'Finance'" } }
+                }
+            }
+
+            $Row = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -Live)[0]
+
+            $Row.ServicePrincipalId | Should -BeExactly 'sp-exo'
+            $Row.PermissionDetails[0].Name | Should -BeExactly 'Application Mail.Send'
+            $Row.PermissionDetails[0].ScopeFilter | Should -BeExactly "Department -eq 'Finance'"
+            $Row.HighestImpact | Should -BeExactly 'High'
+            Should -Invoke Get-CIPPDbItem -Times 0 -ParameterFilter { $Type -eq 'ExoAppRoleAssignments' }
+        }
+
+        It 'covers what Entra shows when Exchange cannot be read' {
+            Mock New-GraphGetRequest {
+                switch -Wildcard ($uri) {
+                    '*/servicePrincipals?*' {
+                        script:New-Sp -Id 'res-graph' -AppId $script:GraphAppId -Name 'Microsoft Graph' -Owner $script:MicrosoftTenant
+                        script:New-Sp -Id 'sp-backup' -AppId 'app-backup' -Name 'Backup Vendor'
+                    }
+                    '*/servicePrincipals/res-graph/appRoleAssignedTo*' { script:New-Assignment -PrincipalId 'sp-backup' -AppRoleId $script:Ids.MailRead }
+                    default { }
+                }
+            }
+            Mock New-GraphBulkRequest { }
+            Mock New-ExoRequest { throw 'Exchange unavailable' }
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -Live)
+
+            $Rows.AppId | Should -Be @('app-backup')
+        }
+
+        It 'reads application access policies from Exchange' {
+            Mock New-GraphGetRequest {
+                switch -Wildcard ($uri) {
+                    '*/servicePrincipals?*' {
+                        script:New-Sp -Id 'res-graph' -AppId $script:GraphAppId -Name 'Microsoft Graph' -Owner $script:MicrosoftTenant
+                        script:New-Sp -Id 'sp-backup' -AppId 'app-backup' -Name 'Backup Vendor'
+                    }
+                    '*/servicePrincipals/res-graph/appRoleAssignedTo*' { script:New-Assignment -PrincipalId 'sp-backup' -AppRoleId $script:Ids.MailRead }
+                    default { }
+                }
+            }
+            Mock New-GraphBulkRequest { }
+            Mock New-ExoRequest {
+                if ($cmdlet -eq 'Get-ApplicationAccessPolicy') { [pscustomobject]@{ Identity = 'contoso\pol-1'; AppId = 'app-backup'; AccessRight = 'RestrictAccess'; ScopeName = 'Backup Scope'; IsValid = $true } }
+            }
+
+            $Row = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -Live)[0]
+
+            $Row.PermissionDetails[0].AccessPolicy | Should -BeExactly 'RestrictAccess'
+            $Row.HighestImpact | Should -BeExactly 'High'
+            Should -Invoke Get-CIPPDbItem -Times 0 -ParameterFilter { $Type -eq 'ExoApplicationAccessPolicies' }
         }
 
         It 'reads sign-in activity from the cache instead of calling the slow report endpoint' {
