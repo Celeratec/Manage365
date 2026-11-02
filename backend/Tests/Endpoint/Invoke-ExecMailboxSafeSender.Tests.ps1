@@ -19,8 +19,19 @@ BeforeAll {
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
     function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
+    function Test-CippExchangeInputValidation { 
+        param($EmailAddress, $Domain)
+        @{ IsValid = $true; Errors = @() }
+    }
+    
+    $script:LastExoRequest = $null
     function New-ExoRequest { 
         param($tenantid, $cmdlet, $cmdParams) 
+        $script:LastExoRequest = @{
+            TenantId  = $tenantid
+            Cmdlet    = $cmdlet
+            CmdParams = $cmdParams
+        }
         # Validate the fix: TrustedSendersAndDomains should have GenericHashTable with Add
         if ($cmdlet -eq 'Set-MailboxJunkEmailConfiguration') {
             if ($cmdParams.TrustedSendersAndDomains) {
@@ -56,5 +67,12 @@ Describe 'Invoke-ExecMailboxSafeSender' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Added sender@example.com'
+        
+        # Assert the correct cmdlet and parameters were used
+        $script:LastExoRequest | Should -Not -BeNullOrEmpty
+        $script:LastExoRequest.Cmdlet | Should -Be 'Set-MailboxJunkEmailConfiguration'
+        $script:LastExoRequest.CmdParams.Identity | Should -Be 'user@contoso.com'
+        $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.'@odata.type' | Should -Be '#Exchange.GenericHashTable'
+        $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.Add | Should -Be 'sender@example.com'
     }
 }

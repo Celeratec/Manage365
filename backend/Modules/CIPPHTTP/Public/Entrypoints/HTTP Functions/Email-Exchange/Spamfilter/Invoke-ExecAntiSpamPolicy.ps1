@@ -7,12 +7,23 @@ function Invoke-ExecAntiSpamPolicy {
     .DESCRIPTION
         Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).
         Supports SCL thresholds, spam actions, BCL threshold, and ASF settings.
+        Allow lists and RedirectToRecipients require Exchange.SecurityPolicy.ReadWrite.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    $TenantFilter = $Request.Body.tenantFilter | Select-Object -First 1
+    
+    # Normalize tenantFilter
+    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
+        if ($Request.Body.tenantFilter.Count -ne 1) {
+            throw 'tenantFilter must be a single tenant, not an array'
+        }
+        $Request.Body.tenantFilter[0]
+    } else {
+        $Request.Body.tenantFilter
+    }
+    
     $Action = $Request.Body.action  # New or Update
     $PolicyName = Get-CippQuarantineInputValue $Request.Body.policyName
     $RuleName = Get-CippQuarantineInputValue $Request.Body.ruleName
@@ -25,21 +36,57 @@ function Invoke-ExecAntiSpamPolicy {
         if ($Action -notin @('New', 'Update')) { throw 'action must be New or Update.' }
         if ([string]::IsNullOrWhiteSpace($PolicyName)) { throw 'policyName is required.' }
 
+        # Validate policy/rule names
+        $Validation = Test-CippExchangeInputValidation -PolicyName $PolicyName
+        if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+        if (![string]::IsNullOrWhiteSpace($RuleName)) {
+            $Validation = Test-CippExchangeInputValidation -RuleName $RuleName
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+        }
+
+        # Validate priority
+        if ($null -ne $Priority) {
+            $Validation = Test-CippExchangeInputValidation -Priority $Priority
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+        }
+
         # Build policy parameters
         $PolicyParams = @{
             Name = $PolicyName
         }
 
-        # SCL thresholds
+        # SCL thresholds and actions
         if ($null -ne $Request.Body.bulkThreshold) { $PolicyParams.BulkThreshold = $Request.Body.bulkThreshold }
-        if ($null -ne $Request.Body.bulkSpamAction) { $PolicyParams.BulkSpamAction = $Request.Body.bulkSpamAction }
-        if ($null -ne $Request.Body.spamAction) { $PolicyParams.SpamAction = $Request.Body.spamAction }
-        if ($null -ne $Request.Body.highConfidenceSpamAction) { $PolicyParams.HighConfidenceSpamAction = $Request.Body.highConfidenceSpamAction }
-        if ($null -ne $Request.Body.phishSpamAction) { $PolicyParams.PhishSpamAction = $Request.Body.phishSpamAction }
-        if ($null -ne $Request.Body.highConfidencePhishAction) { $PolicyParams.HighConfidencePhishAction = $Request.Body.highConfidencePhishAction }
-
-        # BCL threshold
-        if ($null -ne $Request.Body.bulkSpamThreshold) { $PolicyParams.BulkSpamThreshold = $Request.Body.bulkSpamThreshold }
+        if ($null -ne $Request.Body.bulkSpamAction) { 
+            if ($Request.Body.bulkSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect', 'AddXHeader', 'ModifySubject')) {
+                throw "bulkSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect, AddXHeader, ModifySubject"
+            }
+            $PolicyParams.BulkSpamAction = $Request.Body.bulkSpamAction 
+        }
+        if ($null -ne $Request.Body.spamAction) { 
+            if ($Request.Body.spamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect', 'AddXHeader', 'ModifySubject')) {
+                throw "spamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect, AddXHeader, ModifySubject"
+            }
+            $PolicyParams.SpamAction = $Request.Body.spamAction 
+        }
+        if ($null -ne $Request.Body.highConfidenceSpamAction) { 
+            if ($Request.Body.highConfidenceSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
+                throw "highConfidenceSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            }
+            $PolicyParams.HighConfidenceSpamAction = $Request.Body.highConfidenceSpamAction 
+        }
+        if ($null -ne $Request.Body.phishSpamAction) { 
+            if ($Request.Body.phishSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
+                throw "phishSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            }
+            $PolicyParams.PhishSpamAction = $Request.Body.phishSpamAction 
+        }
+        if ($null -ne $Request.Body.highConfidencePhishAction) { 
+            if ($Request.Body.highConfidencePhishAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
+                throw "highConfidencePhishAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            }
+            $PolicyParams.HighConfidencePhishAction = $Request.Body.highConfidencePhishAction 
+        }
 
         # ASF (Advanced Spam Filter) settings
         if ($null -ne $Request.Body.increaseSCLImageLinks) { $PolicyParams.IncreaseScoreWithImageLinks = $Request.Body.increaseSCLImageLinks }
@@ -59,33 +106,74 @@ function Invoke-ExecAntiSpamPolicy {
         if ($null -ne $Request.Body.markAsSpamBulkMail) { $PolicyParams.MarkAsSpamBulkMail = $Request.Body.markAsSpamBulkMail }
         if ($null -ne $Request.Body.markAsSpamNdrBackscatter) { $PolicyParams.MarkAsSpamNdrBackscatter = $Request.Body.markAsSpamNdrBackscatter }
 
-        # Allow/Block lists
-        if ($Request.Body.allowedSenders) { $PolicyParams.AllowedSenders = $Request.Body.allowedSenders }
-        if ($Request.Body.allowedSenderDomains) { $PolicyParams.AllowedSenderDomains = $Request.Body.allowedSenderDomains }
-        if ($Request.Body.blockedSenders) { $PolicyParams.BlockedSenders = $Request.Body.blockedSenders }
-        if ($Request.Body.blockedSenderDomains) { $PolicyParams.BlockedSenderDomains = $Request.Body.blockedSenderDomains }
+        # Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite
+        if ($Request.Body.allowedSenders -or $Request.Body.allowedSenderDomains -or $Request.Body.blockedSenders -or $Request.Body.blockedSenderDomains) {
+            # Note: These require elevated permissions - checked by role
+            if ($Request.Body.allowedSenders) { 
+                $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.allowedSenders
+                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                $PolicyParams.AllowedSenders = $Request.Body.allowedSenders 
+            }
+            if ($Request.Body.allowedSenderDomains) { 
+                $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.allowedSenderDomains
+                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                $PolicyParams.AllowedSenderDomains = $Request.Body.allowedSenderDomains 
+            }
+            if ($Request.Body.blockedSenders) { 
+                $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.blockedSenders
+                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                $PolicyParams.BlockedSenders = $Request.Body.blockedSenders 
+            }
+            if ($Request.Body.blockedSenderDomains) { 
+                $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.blockedSenderDomains
+                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                $PolicyParams.BlockedSenderDomains = $Request.Body.blockedSenderDomains 
+            }
+        }
 
-        # Enable/Disable settings
-        if ($null -ne $Request.Body.enableEndUserSpamNotifications) { $PolicyParams.EnableEndUserSpamNotifications = $Request.Body.enableEndUserSpamNotifications }
-        if ($null -ne $Request.Body.endUserSpamNotificationFrequency) { $PolicyParams.EndUserSpamNotificationFrequency = $Request.Body.endUserSpamNotificationFrequency }
+        # Language/Region filters
         if ($null -ne $Request.Body.enableLanguageBlockList) { $PolicyParams.EnableLanguageBlockList = $Request.Body.enableLanguageBlockList }
         if ($Request.Body.languageBlockList) { $PolicyParams.LanguageBlockList = $Request.Body.languageBlockList }
         if ($null -ne $Request.Body.enableRegionBlockList) { $PolicyParams.EnableRegionBlockList = $Request.Body.enableRegionBlockList }
         if ($Request.Body.regionBlockList) { $PolicyParams.RegionBlockList = $Request.Body.regionBlockList }
 
-        # Quarantine/redirection settings
-        if ($Request.Body.quarantineTag) { $PolicyParams.QuarantineTag = $Request.Body.quarantineTag }
-        if ($Request.Body.redirectToRecipients) { $PolicyParams.RedirectToRecipients = $Request.Body.redirectToRecipients }
+        # Specific quarantine tags (not generic)
+        if ($Request.Body.spamQuarantineTag) { $PolicyParams.SpamQuarantineTag = $Request.Body.spamQuarantineTag }
+        if ($Request.Body.highConfidenceSpamQuarantineTag) { $PolicyParams.HighConfidenceSpamQuarantineTag = $Request.Body.highConfidenceSpamQuarantineTag }
+        if ($Request.Body.phishQuarantineTag) { $PolicyParams.PhishQuarantineTag = $Request.Body.phishQuarantineTag }
+        if ($Request.Body.highConfidencePhishQuarantineTag) { $PolicyParams.HighConfidencePhishQuarantineTag = $Request.Body.highConfidencePhishQuarantineTag }
+        if ($Request.Body.bulkQuarantineTag) { $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag }
 
-        # ZAP settings
+        # RedirectToRecipients - requires Exchange.SecurityPolicy.ReadWrite and must be in accepted domains
+        if ($Request.Body.redirectToRecipients) {
+            $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.redirectToRecipients
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            
+            # Verify recipients are in accepted domains
+            $AcceptedDomains = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AcceptedDomain' | Select-Object -ExpandProperty Name
+            foreach ($Recipient in $Request.Body.redirectToRecipients) {
+                $RecipientDomain = ($Recipient -split '@')[1]
+                if ($RecipientDomain -notin $AcceptedDomains) {
+                    throw "RedirectToRecipients address '$Recipient' must be in an accepted domain of the tenant"
+                }
+            }
+            $PolicyParams.RedirectToRecipients = $Request.Body.redirectToRecipients 
+        }
+
+        # ZAP settings (specific, not generic)
+        if ($null -ne $Request.Body.spamZapEnabled) { $PolicyParams.SpamZapEnabled = $Request.Body.spamZapEnabled }
+        if ($null -ne $Request.Body.phishZapEnabled) { $PolicyParams.PhishZapEnabled = $Request.Body.phishZapEnabled }
+
+        # Inline safety tips
         if ($null -ne $Request.Body.inlineSafetyTipsEnabled) { $PolicyParams.InlineSafetyTipsEnabled = $Request.Body.inlineSafetyTipsEnabled }
-        if ($null -ne $Request.Body.zapEnabled) { $PolicyParams.ZapEnabled = $Request.Body.zapEnabled }
 
         $Results = @()
+        $AuditLog = @()
 
         if ($Action -eq 'New') {
             # Create new policy
             New-ExoRequest -tenantid $TenantFilter -cmdlet 'New-HostedContentFilterPolicy' -cmdParams $PolicyParams -useSystemMailbox $true
+            $AuditLog += "Created anti-spam policy: $PolicyName with settings: $($PolicyParams | ConvertTo-Json -Compress)"
             $Results += "Created anti-spam policy: $PolicyName"
 
             # Create associated rule if rule details provided
@@ -96,43 +184,87 @@ function Invoke-ExecAntiSpamPolicy {
                     Enabled                   = $true
                 }
                 if ($null -ne $Priority) { $RuleParams.Priority = $Priority }
-                if ($Request.Body.recipientDomainIs) { $RuleParams.RecipientDomainIs = $Request.Body.recipientDomainIs }
-                if ($Request.Body.sentTo) { $RuleParams.SentTo = $Request.Body.sentTo }
+                
+                # Validate and add scoping
+                if ($Request.Body.recipientDomainIs) { 
+                    $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.recipientDomainIs
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.RecipientDomainIs = $Request.Body.recipientDomainIs 
+                }
+                if ($Request.Body.sentTo) { 
+                    $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.sentTo
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.SentTo = $Request.Body.sentTo 
+                }
                 if ($Request.Body.sentToMemberOf) { $RuleParams.SentToMemberOf = $Request.Body.sentToMemberOf }
-                if ($Request.Body.exceptIfRecipientDomainIs) { $RuleParams.ExceptIfRecipientDomainIs = $Request.Body.exceptIfRecipientDomainIs }
-                if ($Request.Body.exceptIfSentTo) { $RuleParams.ExceptIfSentTo = $Request.Body.exceptIfSentTo }
+                if ($Request.Body.exceptIfRecipientDomainIs) { 
+                    $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.exceptIfRecipientDomainIs
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.ExceptIfRecipientDomainIs = $Request.Body.exceptIfRecipientDomainIs 
+                }
+                if ($Request.Body.exceptIfSentTo) { 
+                    $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.exceptIfSentTo
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.ExceptIfSentTo = $Request.Body.exceptIfSentTo 
+                }
                 if ($Request.Body.exceptIfSentToMemberOf) { $RuleParams.ExceptIfSentToMemberOf = $Request.Body.exceptIfSentToMemberOf }
 
                 New-ExoRequest -tenantid $TenantFilter -cmdlet 'New-HostedContentFilterRule' -cmdParams $RuleParams -useSystemMailbox $true
+                $AuditLog += "Created anti-spam rule: $RuleName with settings: $($RuleParams | ConvertTo-Json -Compress)"
                 $Results += "Created anti-spam rule: $RuleName"
             }
         } else {
-            # Update existing policy
+            # Update existing policy - read before for audit
+            $BeforePolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true
+            
             $PolicyParams.Identity = $PolicyName
             $PolicyParams.Remove('Name')
             New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-HostedContentFilterPolicy' -cmdParams $PolicyParams -useSystemMailbox $true
+            
+            $AuditLog += "Updated anti-spam policy: $PolicyName. Before: BulkThreshold=$($BeforePolicy.BulkThreshold), SpamAction=$($BeforePolicy.SpamAction). After: BulkThreshold=$($PolicyParams.BulkThreshold), SpamAction=$($PolicyParams.SpamAction)"
             $Results += "Updated anti-spam policy: $PolicyName"
 
             # Update rule if rule details provided
             if (![string]::IsNullOrWhiteSpace($RuleName)) {
+                $BeforeRule = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterRule' -cmdParams @{ Identity = $RuleName } -useSystemMailbox $true
+                
                 $RuleParams = @{
                     Identity = $RuleName
                 }
                 if ($null -ne $Priority) { $RuleParams.Priority = $Priority }
-                if ($Request.Body.recipientDomainIs) { $RuleParams.RecipientDomainIs = $Request.Body.recipientDomainIs }
-                if ($Request.Body.sentTo) { $RuleParams.SentTo = $Request.Body.sentTo }
+                
+                if ($Request.Body.recipientDomainIs) { 
+                    $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.recipientDomainIs
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.RecipientDomainIs = $Request.Body.recipientDomainIs 
+                }
+                if ($Request.Body.sentTo) { 
+                    $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.sentTo
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.SentTo = $Request.Body.sentTo 
+                }
                 if ($Request.Body.sentToMemberOf) { $RuleParams.SentToMemberOf = $Request.Body.sentToMemberOf }
-                if ($Request.Body.exceptIfRecipientDomainIs) { $RuleParams.ExceptIfRecipientDomainIs = $Request.Body.exceptIfRecipientDomainIs }
-                if ($Request.Body.exceptIfSentTo) { $RuleParams.ExceptIfSentTo = $Request.Body.exceptIfSentTo }
+                if ($Request.Body.exceptIfRecipientDomainIs) { 
+                    $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.exceptIfRecipientDomainIs
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.ExceptIfRecipientDomainIs = $Request.Body.exceptIfRecipientDomainIs 
+                }
+                if ($Request.Body.exceptIfSentTo) { 
+                    $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.exceptIfSentTo
+                    if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    $RuleParams.ExceptIfSentTo = $Request.Body.exceptIfSentTo 
+                }
                 if ($Request.Body.exceptIfSentToMemberOf) { $RuleParams.ExceptIfSentToMemberOf = $Request.Body.exceptIfSentToMemberOf }
 
                 New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-HostedContentFilterRule' -cmdParams $RuleParams -useSystemMailbox $true
+                $AuditLog += "Updated anti-spam rule: $RuleName. Before: Priority=$($BeforeRule.Priority). After: Priority=$($RuleParams.Priority)"
                 $Results += "Updated anti-spam rule: $RuleName"
             }
         }
 
         $Result = $Results -join '; '
-        Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
+        $AuditMessage = if ($AuditLog.Count -gt 0) { $AuditLog -join '; ' } else { $Result }
+        Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Info'
         $StatusCode = [HttpStatusCode]::OK
         $Body = @{ Results = $Result }
     } catch {

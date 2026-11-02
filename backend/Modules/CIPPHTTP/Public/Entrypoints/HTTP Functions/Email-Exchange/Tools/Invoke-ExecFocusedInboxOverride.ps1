@@ -11,7 +11,17 @@ function Invoke-ExecFocusedInboxOverride {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    $TenantFilter = $Request.Body.tenantFilter | Select-Object -First 1
+    
+    # Normalize tenantFilter
+    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
+        if ($Request.Body.tenantFilter.Count -ne 1) {
+            throw 'tenantFilter must be a single tenant, not an array'
+        }
+        $Request.Body.tenantFilter[0]
+    } else {
+        $Request.Body.tenantFilter
+    }
+    
     $UserPrincipalName = Get-CippQuarantineInputValue $Request.Body.userPrincipalName
     $Action = $Request.Body.action  # Add, Remove, or List
     $SenderEmailAddress = Get-CippQuarantineInputValue $Request.Body.senderEmailAddress
@@ -24,12 +34,23 @@ function Invoke-ExecFocusedInboxOverride {
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
         if ($Action -notin @('Add', 'Remove', 'List')) { throw 'action must be Add, Remove, or List.' }
         
+        # Validate UPN (email or GUID)
+        $Validation = Test-CippExchangeInputValidation -UserPrincipalName $UserPrincipalName
+        if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+        
+        # URL-encode the UPN to prevent path injection
+        $EncodedUPN = [uri]::EscapeDataString($UserPrincipalName)
+        
         if ($Action -eq 'Add') {
             if ([string]::IsNullOrWhiteSpace($SenderEmailAddress)) { throw 'senderEmailAddress is required for Add action.' }
             if ([string]::IsNullOrWhiteSpace($ClassifyAs)) { throw 'classifyAs is required for Add action.' }
             if ($ClassifyAs -notin @('focused', 'other')) { throw 'classifyAs must be focused or other.' }
+            
+            # Validate sender email address
+            $Validation = Test-CippExchangeInputValidation -EmailAddress $SenderEmailAddress
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
 
-            # Add override via Graph API
+            # Add override via Graph API (requires Mail.ReadWrite permission)
             $Body = @{
                 senderEmailAddress = @{
                     name    = $SenderEmailAddress
@@ -38,7 +59,7 @@ function Invoke-ExecFocusedInboxOverride {
                 classifyAs         = $ClassifyAs
             } | ConvertTo-Json -Compress
 
-            $GraphRequest = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/users/$UserPrincipalName/inferenceClassification/overrides" -tenantid $TenantFilter -body $Body -type POST
+            $GraphRequest = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/users/$EncodedUPN/inferenceClassification/overrides" -tenantid $TenantFilter -body $Body -type POST
 
             $Result = "Added Focused Inbox override: $SenderEmailAddress will be classified as '$ClassifyAs' for $UserPrincipalName"
             Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
@@ -46,9 +67,13 @@ function Invoke-ExecFocusedInboxOverride {
             $Body = @{ Results = $Result; Override = $GraphRequest }
         } elseif ($Action -eq 'Remove') {
             if ([string]::IsNullOrWhiteSpace($SenderEmailAddress)) { throw 'senderEmailAddress is required for Remove action.' }
+            
+            # Validate sender email address
+            $Validation = Test-CippExchangeInputValidation -EmailAddress $SenderEmailAddress
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
 
             # List overrides to find the ID
-            $Overrides = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/users/$UserPrincipalName/inferenceClassification/overrides" -tenantid $TenantFilter
+            $Overrides = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/users/$EncodedUPN/inferenceClassification/overrides" -tenantid $TenantFilter
 
             $OverrideToRemove = $Overrides | Where-Object { $_.senderEmailAddress.address -eq $SenderEmailAddress } | Select-Object -First 1
 
@@ -57,7 +82,7 @@ function Invoke-ExecFocusedInboxOverride {
             }
 
             # Remove override
-            $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/users/$UserPrincipalName/inferenceClassification/overrides/$($OverrideToRemove.id)" -tenantid $TenantFilter -type DELETE
+            $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/v1.0/users/$EncodedUPN/inferenceClassification/overrides/$($OverrideToRemove.id)" -tenantid $TenantFilter -type DELETE
 
             $Result = "Removed Focused Inbox override for $SenderEmailAddress from $UserPrincipalName"
             Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
@@ -65,7 +90,7 @@ function Invoke-ExecFocusedInboxOverride {
             $Body = @{ Results = $Result }
         } else {
             # List overrides
-            $Overrides = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/users/$UserPrincipalName/inferenceClassification/overrides" -tenantid $TenantFilter
+            $Overrides = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/users/$EncodedUPN/inferenceClassification/overrides" -tenantid $TenantFilter
 
             $Result = "Retrieved $($Overrides.Count) Focused Inbox override(s) for $UserPrincipalName"
             Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'

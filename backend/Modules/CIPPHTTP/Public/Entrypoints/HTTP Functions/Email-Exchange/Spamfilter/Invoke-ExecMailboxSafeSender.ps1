@@ -11,19 +11,38 @@ function Invoke-ExecMailboxSafeSender {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    $TenantFilter = $Request.Body.tenantFilter | Select-Object -First 1
+    
+    # Normalize tenantFilter: reject arrays, take single value
+    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
+        if ($Request.Body.tenantFilter.Count -ne 1) {
+            throw 'tenantFilter must be a single tenant, not an array'
+        }
+        $Request.Body.tenantFilter[0]
+    } else {
+        $Request.Body.tenantFilter
+    }
+    
     $Mailbox = Get-CippQuarantineInputValue $Request.Body.mailbox
     $Sender = Get-CippQuarantineInputValue $Request.Body.sender
 
     try {
+        if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Mailbox)) { throw 'mailbox is required.' }
         if ([string]::IsNullOrWhiteSpace($Sender)) { throw 'sender is required.' }
 
+        # Validate sender as email or domain
+        $Validation = Test-CippExchangeInputValidation -EmailAddress $Sender
+        if (-not $Validation.IsValid) {
+            # Try as domain
+            $Validation = Test-CippExchangeInputValidation -Domain $Sender
+            if (-not $Validation.IsValid) {
+                throw "Sender must be a valid email address or domain"
+            }
+        }
+
         New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
-            Identity                = $Mailbox
+            Identity                 = $Mailbox
             TrustedSendersAndDomains = @{'@odata.type' = '#Exchange.GenericHashTable'; Add = $Sender }
-            TrustedListsOnly        = $false
-            ContactsTrusted         = $false
         }
 
         $Result = "Added $Sender to the safe senders list for $Mailbox."

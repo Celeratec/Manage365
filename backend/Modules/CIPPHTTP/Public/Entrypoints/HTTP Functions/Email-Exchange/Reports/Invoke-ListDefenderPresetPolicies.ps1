@@ -39,7 +39,7 @@ function Invoke-ListDefenderPresetPolicies {
         $ErrorMessage = Get-CippException -Exception $_
         Write-LogMessage -headers $Request.Headers -API 'ListDefenderPresetPolicies' -tenant $TenantFilter -message "Failed to list Defender preset policies: $($ErrorMessage.NormalizedError)" -Sev 'Error'
         return ([HttpResponseContext]@{
-                StatusCode = [HttpStatusCode]::InternalServerError
+                StatusCode = [HttpStatusCode]::OK
                 Body       = @{ Results = "Failed to retrieve preset policies: $($ErrorMessage.NormalizedError)" }
             })
     }

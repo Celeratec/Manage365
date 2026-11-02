@@ -3,16 +3,26 @@ function Invoke-ExecEnhancedFiltering {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Exchange.Connector.ReadWrite
+        Exchange.SecurityPolicy.ReadWrite
     .DESCRIPTION
         Configure Enhanced Filtering for Connectors on an inbound connector.
-        Manages EFSkipIPs, EFSkipLastIP, and EFUsers settings.
+        Manages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    $TenantFilter = $Request.Body.tenantFilter | Select-Object -First 1
+    
+    # Normalize tenantFilter
+    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
+        if ($Request.Body.tenantFilter.Count -ne 1) {
+            throw 'tenantFilter must be a single tenant, not an array'
+        }
+        $Request.Body.tenantFilter[0]
+    } else {
+        $Request.Body.tenantFilter
+    }
+    
     $ConnectorIdentity = Get-CippQuarantineInputValue $Request.Body.connectorIdentity
 
     try {
@@ -20,42 +30,51 @@ function Invoke-ExecEnhancedFiltering {
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }
 
+        # Read current connector for audit
+        $CurrentConnector = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -cmdParams @{ Identity = $ConnectorIdentity } -useSystemMailbox $true | Select-Object -First 1
+        if (-not $CurrentConnector) {
+            throw "Inbound connector '$ConnectorIdentity' not found"
+        }
+
+        $BeforeSettings = @{
+            EFSkipIPs     = $CurrentConnector.EFSkipIPs ?? @()
+            EFSkipLastIP  = $CurrentConnector.EFSkipLastIP
+            EFUsers       = $CurrentConnector.EFUsers ?? @()
+        }
+
         # Build connector parameters
         $ConnectorParams = @{
             Identity = $ConnectorIdentity
         }
 
-        # EFSkipIPs - IP addresses to skip (validate as IPs/CIDRs)
+        # EFSkipIPs - IP addresses to skip (validate as IPs/CIDRs/ranges)
         if ($null -ne $Request.Body.efSkipIPs) {
             $EFSkipIPs = $Request.Body.efSkipIPs
-            if ($EFSkipIPs -is [array] -and $EFSkipIPs.Count -gt 0) {
-                # Validate IPs/CIDRs
-                foreach ($IP in $EFSkipIPs) {
-                    $IPString = [string]$IP
-                    # Check if it's a CIDR
-                    if ($IPString -match '^(.+)/(\d+)$') {
-                        $IPAddr = $matches[1]
-                        $PrefixLength = [int]$matches[2]
-                        # Validate IP address
-                        $TestAddr = $null
-                        if (-not [System.Net.IPAddress]::TryParse($IPAddr, [ref]$TestAddr)) {
-                            throw "Invalid IP address in CIDR notation: $IPString"
-                        }
-                        # Validate prefix length
-                        $MaxPrefix = if ($TestAddr.AddressFamily -eq 'InterNetwork') { 32 } else { 128 }
-                        if ($PrefixLength -lt 0 -or $PrefixLength -gt $MaxPrefix) {
-                            throw "Invalid CIDR prefix length: $IPString"
-                        }
-                    } else {
-                        # Validate standalone IP
-                        $TestAddr = $null
-                        if (-not [System.Net.IPAddress]::TryParse($IPString, [ref]$TestAddr)) {
-                            throw "Invalid IP address: $IPString"
-                        }
-                    }
+            
+            # Reject if it's a single string (not an array)
+            if ($EFSkipIPs -is [string]) {
+                throw 'efSkipIPs must be an array, not a single string'
+            }
+            
+            # Ensure it's an array
+            if ($EFSkipIPs -isnot [array]) {
+                throw 'efSkipIPs must be an array'
+            }
+
+            if ($EFSkipIPs.Count -gt 0) {
+                # Validate count cap (50 entries)
+                if ($EFSkipIPs.Count -gt 50) {
+                    throw "efSkipIPs exceeds maximum of 50 entries (received $($EFSkipIPs.Count))"
                 }
+
+                # Validate each IP/CIDR/range with strict mode
+                $Validation = Test-CippExchangeInputValidation -IPAddresses $EFSkipIPs -StrictIPValidation -MaxIPCount 50
+                if (-not $Validation.IsValid) {
+                    throw ($Validation.Errors -join '; ')
+                }
+                
                 $ConnectorParams.EFSkipIPs = $EFSkipIPs
-            } elseif ($EFSkipIPs -eq $null -or ($EFSkipIPs -is [array] -and $EFSkipIPs.Count -eq 0)) {
+            } else {
                 # Clear the setting
                 $ConnectorParams.EFSkipIPs = @()
             }
@@ -63,7 +82,13 @@ function Invoke-ExecEnhancedFiltering {
 
         # EFSkipLastIP - Skip the last IP (boolean)
         if ($null -ne $Request.Body.efSkipLastIP) {
-            $ConnectorParams.EFSkipLastIP = [bool]$Request.Body.efSkipLastIP
+            $EFSkipLastIP = [bool]$Request.Body.efSkipLastIP
+            $ConnectorParams.EFSkipLastIP = $EFSkipLastIP
+            
+            # Warn if EFSkipIPs is being set along with EFSkipLastIP=$true
+            if ($EFSkipLastIP -eq $true -and $ConnectorParams.ContainsKey('EFSkipIPs') -and $ConnectorParams.EFSkipIPs.Count -gt 0) {
+                Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message "Warning: EFSkipIPs is being set along with EFSkipLastIP=`$true. This combination may cause unexpected behavior - typically use one or the other." -Sev 'Warning'
+            }
         }
 
         # EFUsers - Email addresses to enable Enhanced Filtering for
@@ -71,11 +96,9 @@ function Invoke-ExecEnhancedFiltering {
             $EFUsers = $Request.Body.efUsers
             if ($EFUsers -is [array] -and $EFUsers.Count -gt 0) {
                 # Validate email addresses
-                foreach ($Email in $EFUsers) {
-                    $EmailString = [string]$Email
-                    if ($EmailString -notmatch '^[^@]+@[^@]+\.[^@]+$') {
-                        throw "Invalid email address: $EmailString"
-                    }
+                $Validation = Test-CippExchangeInputValidation -EmailAddresses $EFUsers
+                if (-not $Validation.IsValid) {
+                    throw ($Validation.Errors -join '; ')
                 }
                 $ConnectorParams.EFUsers = $EFUsers
             } elseif ($EFUsers -eq $null -or ($EFUsers -is [array] -and $EFUsers.Count -eq 0)) {
@@ -84,32 +107,64 @@ function Invoke-ExecEnhancedFiltering {
             }
         }
 
-        # Update the connector
-        New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-InboundConnector' -cmdParams $ConnectorParams -useSystemMailbox $true
-
-        $SettingsApplied = @()
+        # Check if anything changed
+        $Changed = $false
         if ($ConnectorParams.ContainsKey('EFSkipIPs')) {
-            if ($ConnectorParams.EFSkipIPs.Count -eq 0) {
-                $SettingsApplied += 'EFSkipIPs cleared'
-            } else {
-                $SettingsApplied += "EFSkipIPs set to $($ConnectorParams.EFSkipIPs.Count) IP(s)"
+            if (($ConnectorParams.EFSkipIPs -join ',') -ne (($BeforeSettings.EFSkipIPs ?? @()) -join ',')) {
+                $Changed = $true
             }
         }
         if ($ConnectorParams.ContainsKey('EFSkipLastIP')) {
-            $SettingsApplied += "EFSkipLastIP set to $($ConnectorParams.EFSkipLastIP)"
+            if ($ConnectorParams.EFSkipLastIP -ne $BeforeSettings.EFSkipLastIP) {
+                $Changed = $true
+            }
         }
         if ($ConnectorParams.ContainsKey('EFUsers')) {
-            if ($ConnectorParams.EFUsers.Count -eq 0) {
-                $SettingsApplied += 'EFUsers cleared'
-            } else {
-                $SettingsApplied += "EFUsers set to $($ConnectorParams.EFUsers.Count) user(s)"
+            if (($ConnectorParams.EFUsers -join ',') -ne (($BeforeSettings.EFUsers ?? @()) -join ',')) {
+                $Changed = $true
             }
         }
 
-        $Result = "Enhanced Filtering configured for connector '$ConnectorIdentity': $($SettingsApplied -join ', ')"
-        Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
-        $StatusCode = [HttpStatusCode]::OK
-        $Body = @{ Results = $Result }
+        if (-not $Changed) {
+            $Result = "No changes to Enhanced Filtering for connector '$ConnectorIdentity' (already matches requested settings)"
+            Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
+            $StatusCode = [HttpStatusCode]::OK
+            $Body = @{ Results = $Result }
+        } else {
+            # Update the connector
+            New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-InboundConnector' -cmdParams $ConnectorParams -useSystemMailbox $true
+
+            $SettingsApplied = @()
+            if ($ConnectorParams.ContainsKey('EFSkipIPs')) {
+                if ($ConnectorParams.EFSkipIPs.Count -eq 0) {
+                    $SettingsApplied += 'EFSkipIPs cleared'
+                } else {
+                    $SettingsApplied += "EFSkipIPs set to: $($ConnectorParams.EFSkipIPs -join ', ')"
+                }
+            }
+            if ($ConnectorParams.ContainsKey('EFSkipLastIP')) {
+                $SettingsApplied += "EFSkipLastIP set to $($ConnectorParams.EFSkipLastIP)"
+            }
+            if ($ConnectorParams.ContainsKey('EFUsers')) {
+                if ($ConnectorParams.EFUsers.Count -eq 0) {
+                    $SettingsApplied += 'EFUsers cleared'
+                } else {
+                    $SettingsApplied += "EFUsers set to: $($ConnectorParams.EFUsers -join ', ')"
+                }
+            }
+
+            $AfterSettings = @{
+                EFSkipIPs    = $ConnectorParams.EFSkipIPs ?? $BeforeSettings.EFSkipIPs
+                EFSkipLastIP = $ConnectorParams.EFSkipLastIP ?? $BeforeSettings.EFSkipLastIP
+                EFUsers      = $ConnectorParams.EFUsers ?? $BeforeSettings.EFUsers
+            }
+
+            $AuditMessage = "Enhanced Filtering configured for connector '$ConnectorIdentity': $($SettingsApplied -join ', '). Before: $($BeforeSettings | ConvertTo-Json -Compress), After: $($AfterSettings | ConvertTo-Json -Compress)"
+            $Result = "Enhanced Filtering configured for connector '$ConnectorIdentity': $($SettingsApplied -join ', ')"
+            Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Info'
+            $StatusCode = [HttpStatusCode]::OK
+            $Body = @{ Results = $Result }
+        }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to configure Enhanced Filtering for connector '$ConnectorIdentity' in $TenantFilter`: $($ErrorMessage.NormalizedError)"

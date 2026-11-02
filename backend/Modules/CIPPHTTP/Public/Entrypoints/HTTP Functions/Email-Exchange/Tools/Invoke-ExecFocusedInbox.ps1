@@ -11,7 +11,17 @@ function Invoke-ExecFocusedInbox {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    $TenantFilter = $Request.Body.tenantFilter | Select-Object -First 1
+    
+    # Normalize tenantFilter
+    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
+        if ($Request.Body.tenantFilter.Count -ne 1) {
+            throw 'tenantFilter must be a single tenant, not an array'
+        }
+        $Request.Body.tenantFilter[0]
+    } else {
+        $Request.Body.tenantFilter
+    }
+    
     $UserPrincipalName = Get-CippQuarantineInputValue $Request.Body.userPrincipalName
     $Action = $Request.Body.action  # Get, Enable, or Disable
 
@@ -21,6 +31,10 @@ function Invoke-ExecFocusedInbox {
         if ([string]::IsNullOrWhiteSpace($UserPrincipalName)) { throw 'userPrincipalName is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
         if ($Action -notin @('Get', 'Enable', 'Disable')) { throw 'action must be Get, Enable, or Disable.' }
+        
+        # Validate UPN
+        $Validation = Test-CippExchangeInputValidation -UserPrincipalName $UserPrincipalName
+        if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
 
         if ($Action -eq 'Get') {
             # Get current Focused Inbox state
