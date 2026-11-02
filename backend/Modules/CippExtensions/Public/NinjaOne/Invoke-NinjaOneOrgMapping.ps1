@@ -27,17 +27,37 @@ function Invoke-NinjaOneOrgMapping {
     $MappedOrgIds = [System.Collections.Generic.HashSet[string]]::new([string[]]@($Mappings.IntegrationId))
 
     # Helper: Parse Retry-After header (seconds or HTTP-date) and cap it
+    # Handles both HttpResponseHeaders (.RetryAfter.Delta/.Date) and hashtable forms
     $ParseRetryAfter = {
-        param($Header)
-        if (!$Header) { return 60 }
+        param($Headers)
+        if (!$Headers) { return 60 }
+        
+        # Try HttpResponseHeaders form first (production: .Headers.RetryAfter)
+        if ($Headers.RetryAfter) {
+            if ($Headers.RetryAfter.Delta) {
+                return [Math]::Max(0, [Math]::Min($Headers.RetryAfter.Delta.TotalSeconds, 120))
+            }
+            if ($Headers.RetryAfter.Date) {
+                $WaitSeconds = [Math]::Max(0, ($Headers.RetryAfter.Date.UtcDateTime - [datetime]::UtcNow).TotalSeconds)
+                return [Math]::Min($WaitSeconds, 120)
+            }
+        }
+        
+        # Fall back to hashtable form (test mocks): $Headers['Retry-After']
+        $HeaderValue = $null
+        if ($Headers -is [hashtable] -or $Headers -is [System.Collections.IDictionary]) {
+            $HeaderValue = $Headers['Retry-After']
+        }
+        if (!$HeaderValue) { return 60 }
+        
         # Try parsing as integer (seconds)
         $Seconds = 0
-        if ([int]::TryParse($Header, [ref]$Seconds)) {
+        if ([int]::TryParse($HeaderValue, [ref]$Seconds)) {
             return [Math]::Max(0, [Math]::Min($Seconds, 120))
         }
         # Try parsing as HTTP-date (compare in UTC)
         $Date = [datetime]::MinValue
-        if ([datetime]::TryParse($Header, [ref]$Date)) {
+        if ([datetime]::TryParse($HeaderValue, [ref]$Date)) {
             # Ensure comparison in UTC
             $DateUtc = if ($Date.Kind -eq [System.DateTimeKind]::Utc) { $Date } else { $Date.ToUniversalTime() }
             $WaitSeconds = [Math]::Max(0, ($DateUtc - [datetime]::UtcNow).TotalSeconds)
@@ -61,7 +81,7 @@ function Invoke-NinjaOneOrgMapping {
                 break
             } catch {
                 if ($_.Exception.Response.StatusCode -eq 429 -and $RetryCount -lt $MaxRetries) {
-                    $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers['Retry-After']
+                    $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers
                     Write-Information "NinjaOne rate limit hit on organizations endpoint, waiting $RetryAfter seconds (attempt $($RetryCount + 1)/$MaxRetries)"
                     Start-Sleep -Seconds $RetryAfter
                     $RetryCount++
@@ -132,7 +152,7 @@ function Invoke-NinjaOneOrgMapping {
                 } catch {
                     if ($_.Exception.Response.StatusCode -eq 429 -and $RetryCount -lt $MaxRetries) {
                         # Rate limited - parse Retry-After (seconds or HTTP-date) and cap it
-                        $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers['Retry-After']
+                        $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers
                         Write-Information "NinjaOne rate limit hit on devices endpoint, waiting $RetryAfter seconds (attempt $($RetryCount + 1)/$MaxRetries)"
                         Start-Sleep -Seconds $RetryAfter
                         $RetryCount++
@@ -185,8 +205,11 @@ function Invoke-NinjaOneOrgMapping {
             $TotalDevices = 0
             foreach ($Row in $Rows) {
                 if ($Row.RowKey -like '*-Count') { continue }
+                $IntuneDevice = [CIPP.CippJson]::ConvertFromJson($Row.Data, [string[]]@('deviceName', 'serialNumber', 'operatingSystem'))
+                # Exclude phones and tablets (iOS/Android) from majority count
+                $OS = "$($IntuneDevice.operatingSystem)".ToLowerInvariant()
+                if ($OS -match 'ios|android') { continue }
                 $TotalDevices++
-                $IntuneDevice = [CIPP.CippJson]::ConvertFromJson($Row.Data, [string[]]@('deviceName', 'serialNumber'))
                 $OrgId = if ($IntuneDevice.serialNumber -and $OrgBySerial[$IntuneDevice.serialNumber]) { $OrgBySerial[$IntuneDevice.serialNumber] } elseif ($IntuneDevice.deviceName) { $OrgByName[$IntuneDevice.deviceName] }
                 if ($OrgId) { $Votes[$OrgId] = 1 + $Votes[$OrgId] }
             }

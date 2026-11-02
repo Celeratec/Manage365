@@ -301,41 +301,51 @@ Describe 'PIM secure-direction invariants' {
         $Offenders7 = & $script:FindDirectPIMCalls $IexComputed 'test7.ps1'
         $Offenders7.Count | Should -Be 0 -Because 'dynamic string construction is an accepted limit'
 
-        # Test 8: Block comment - FindDirectPIMCalls should NOT detect it
+        # Test 8: DETECTED - . (dot sourcing) with constant string - FindDirectPIMCalls should detect it
+        $DotSource = ". 'New-CIPPPIMScheduleRequest' -Kind adminAssign"
+        $Offenders8 = & $script:FindDirectPIMCalls $DotSource 'test8.ps1'
+        $Offenders8.Count | Should -Be 1 -Because 'dot operator is also caught'
+
+        # Test 9: DETECTED - Invoke-Expression with constant string - FindDirectPIMCalls should detect it
+        $IexConstant = "Invoke-Expression 'New-CIPPPIMScheduleRequest -Kind adminAssign'"
+        $Offenders9 = & $script:FindDirectPIMCalls $IexConstant 'test9.ps1'
+        $Offenders9.Count | Should -Be 1 -Because 'Invoke-Expression with literal function name is detected'
+
+        # Test 10: Block comment - FindDirectPIMCalls should NOT detect it
         $BlockComment = @'
 <# 
 New-CIPPPIMScheduleRequest -Kind adminAssign
 #>
 Write-Host "test"
 '@
-        $Offenders8 = & $script:FindDirectPIMCalls $BlockComment 'test8.ps1'
-        $Offenders8.Count | Should -Be 0
+        $Offenders10 = & $script:FindDirectPIMCalls $BlockComment 'test10.ps1'
+        $Offenders10.Count | Should -Be 0
 
-        # Test 9: Module-qualified call - FindDirectPIMCalls should detect it
+        # Test 11: Module-qualified call - FindDirectPIMCalls should detect it
         $ModuleQualified = 'CIPPCore\New-CIPPPIMScheduleRequest -Kind adminAssign'
-        $Offenders9 = & $script:FindDirectPIMCalls $ModuleQualified 'test9.ps1'
-        $Offenders9.Count | Should -Be 1
+        $Offenders11 = & $script:FindDirectPIMCalls $ModuleQualified 'test11.ps1'
+        $Offenders11.Count | Should -Be 1
 
-        # Test 10: Marker in wrong file - CheckMarkerScope should detect violation
+        # Test 12: Marker in wrong file - CheckMarkerScope should detect violation
         $WrongFile = '# PIM-VALIDATION-ONLY marker here'
-        $Violations10 = & $script:CheckMarkerScope $WrongFile 'WrongFile.ps1'
-        $Violations10.Count | Should -Be 1
+        $Violations12 = & $script:CheckMarkerScope $WrongFile 'WrongFile.ps1'
+        $Violations12.Count | Should -Be 1
 
-        # Test 11: Marker in correct file but wrong line - CheckMarkerScope should detect violation
+        # Test 13: Marker in correct file but wrong line - CheckMarkerScope should detect violation
         $WrongLine = '# PIM-VALIDATION-ONLY marker at wrong line'
-        $Violations11 = & $script:CheckMarkerScope $WrongLine 'Invoke-ExecPIMRoleAssignment.ps1'
-        $Violations11.Count | Should -Be 1 -Because 'line 1 is outside the allowed 95-105 range'
+        $Violations13 = & $script:CheckMarkerScope $WrongLine 'Invoke-ExecPIMRoleAssignment.ps1'
+        $Violations13.Count | Should -Be 1 -Because 'line 1 is outside the allowed 95-105 range'
 
-        # Test 12: Marker in correct file and line range - CheckMarkerScope should NOT detect violation
+        # Test 14: Marker in correct file and line range - CheckMarkerScope should NOT detect violation
         # Build a file with 100 lines where line 100 has the marker
         $CorrectLocation = (1..99 | ForEach-Object { "# Line $_" }) -join "`n"
         $CorrectLocation += "`n" + '# PIM-VALIDATION-ONLY marker at line 100'
-        $Violations12 = & $script:CheckMarkerScope $CorrectLocation 'Invoke-ExecPIMRoleAssignment.ps1'
-        $Violations12.Count | Should -Be 0 -Because 'line 100 is within the allowed 95-105 range'
+        $Violations14 = & $script:CheckMarkerScope $CorrectLocation 'Invoke-ExecPIMRoleAssignment.ps1'
+        $Violations14.Count | Should -Be 0 -Because 'line 100 is within the allowed 95-105 range'
 
-        # Test 13: Call with PIM-VALIDATION-ONLY marker - FindDirectPIMCalls should NOT detect it
+        # Test 15: Call with PIM-VALIDATION-ONLY marker - FindDirectPIMCalls should NOT detect it
         $MarkedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign  # PIM-VALIDATION-ONLY'
-        $Offenders13 = & $script:FindDirectPIMCalls $MarkedCall 'test13.ps1'
-        $Offenders13.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
+        $Offenders15 = & $script:FindDirectPIMCalls $MarkedCall 'test15.ps1'
+        $Offenders15.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
     }
 }
