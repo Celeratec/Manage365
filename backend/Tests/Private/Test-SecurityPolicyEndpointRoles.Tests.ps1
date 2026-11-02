@@ -159,9 +159,14 @@ Describe 'SecurityPolicy Endpoint RBAC Tests' {
             # Set up environment for Test-CIPPAccess
             $env:CIPPRootPath = Join-Path $PSScriptRoot '../..'
             
-            # Load the REAL Test-CIPPAccess function
-            $TestCIPPAccessPath = Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/Authentication/Test-CIPPAccess.ps1'
-            . $TestCIPPAccessPath
+            # Mock database/storage functions that aren't needed for role checking
+            function Get-CippTable { param($tableName, $partitionKey) $null }
+            
+            # Load all Authentication functions (Public and Private)
+            $PublicAuthPath = Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/Authentication'
+            $PrivateAuthPath = Join-Path $PSScriptRoot '../../Modules/CIPPCore/Private/Authentication'
+            Get-ChildItem -Path $PublicAuthPath -Filter '*.ps1' | ForEach-Object { . $_.FullName }
+            Get-ChildItem -Path $PrivateAuthPath -Filter '*.ps1' | ForEach-Object { . $_.FullName }
             
             # Load endpoint functions so Get-Help can read their .ROLE directives
             $ExecEnhancedFilteringPath = Join-Path $PSScriptRoot '../../Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Transport/Invoke-ExecEnhancedFiltering.ps1'
@@ -171,43 +176,66 @@ Describe 'SecurityPolicy Endpoint RBAC Tests' {
         }
 
         It 'editor role is denied access to ExecEnhancedFiltering (SecurityPolicy endpoint)' {
+            # Create Easy Auth principal JSON and encode it
+            $Principal = @{
+                identityProvider = 'aad'
+                userId = '12345678-1234-1234-1234-123456789012'
+                userDetails = 'editor@example.com'
+                userRoles = @('editor')
+            } | ConvertTo-Json -Compress
+            $PrincipalB64 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Principal))
+            
             $Request = [pscustomobject]@{
                 Headers = @{
-                    Roles = 'editor'
+                    'x-ms-client-principal' = $PrincipalB64
                     'x-ms-client-principal-idp' = 'aad'
-                    'x-ms-client-principal-name' = 'test@example.com'
+                    'x-ms-client-principal-name' = 'editor@example.com'
                 }
                 Params = @{
                     CIPPEndpoint = 'ExecEnhancedFiltering'
                 }
             }
             
-            $Result = Test-CIPPAccess -Request $Request
-            $Result | Should -Be $false -Because "editor role must not have Exchange.SecurityPolicy.ReadWrite access"
+            { Test-CIPPAccess -Request $Request } | Should -Throw -ExpectedMessage '*Exchange.SecurityPolicy.ReadWrite*' -Because "editor role must not have Exchange.SecurityPolicy.ReadWrite access"
         }
 
         It 'readonly role is denied access to ExecRemoveAntiSpamPolicy (SecurityPolicy endpoint)' {
+            $Principal = @{
+                identityProvider = 'aad'
+                userId = '12345678-1234-1234-1234-123456789012'
+                userDetails = 'readonly@example.com'
+                userRoles = @('readonly')
+            } | ConvertTo-Json -Compress
+            $PrincipalB64 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Principal))
+            
             $Request = [pscustomobject]@{
                 Headers = @{
-                    Roles = 'readonly'
+                    'x-ms-client-principal' = $PrincipalB64
                     'x-ms-client-principal-idp' = 'aad'
-                    'x-ms-client-principal-name' = 'test@example.com'
+                    'x-ms-client-principal-name' = 'readonly@example.com'
                 }
                 Params = @{
                     CIPPEndpoint = 'ExecRemoveAntiSpamPolicy'
                 }
             }
             
-            $Result = Test-CIPPAccess -Request $Request
-            $Result | Should -Be $false -Because "readonly role must not have Exchange.SecurityPolicy.ReadWrite access"
+            { Test-CIPPAccess -Request $Request } | Should -Throw -ExpectedMessage '*Exchange.SecurityPolicy.ReadWrite*' -Because "readonly role must not have Exchange.SecurityPolicy.ReadWrite access"
         }
 
         It 'admin role is allowed access to ExecEnhancedFiltering (SecurityPolicy endpoint)' {
+            $Principal = @{
+                identityProvider = 'aad'
+                userId = '12345678-1234-1234-1234-123456789012'
+                userDetails = 'admin@example.com'
+                userRoles = @('admin')
+            } | ConvertTo-Json -Compress
+            $PrincipalB64 = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($Principal))
+            
             $Request = [pscustomobject]@{
                 Headers = @{
-                    Roles = 'admin'
+                    'x-ms-client-principal' = $PrincipalB64
                     'x-ms-client-principal-idp' = 'aad'
-                    'x-ms-client-principal-name' = 'test@example.com'
+                    'x-ms-client-principal-name' = 'admin@example.com'
                 }
                 Params = @{
                     CIPPEndpoint = 'ExecEnhancedFiltering'
