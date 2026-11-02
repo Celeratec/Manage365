@@ -3,8 +3,13 @@ BeforeAll {
     Add-Type -Path (Join-Path $RepoRoot 'Shared/CIPPSharp/bin/CIPPSharp.dll')
 
     function Get-CIPPTable { param($TableName) @{} }
-    function Get-CIPPAzDataTableEntity {
-        [pscustomobject]@{ config = (@{ NinjaOne = @{ Instance = 'ninja.example.com' } } | ConvertTo-Json -Compress) }
+    function Get-AzDataTableEntity {
+        param($Filter, $Table)
+        if ($Filter -like '*NinjaOneMapping*') {
+            @()  # No existing mappings
+        } else {
+            [pscustomobject]@{ config = (@{ NinjaOne = @{ Instance = 'ninja.example.com' } } | ConvertTo-Json -Compress) }
+        }
     }
     function Get-NinjaOneToken { param($configuration) @{ access_token = 'token' } }
     function Write-LogMessage { param($API, $tenant, $message, $Sev) }
