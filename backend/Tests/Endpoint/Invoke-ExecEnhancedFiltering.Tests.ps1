@@ -593,7 +593,7 @@ Describe 'Invoke-ExecEnhancedFiltering' {
 
         $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
-        $response.Body.Results | Should -Match 'Reversed IP range in existing policy'
+        $response.Body.Results | Should -Match 'Reversed IP range.*start > end'
     }
 
     It 'strips inner spaces from ranges before sending to Exchange' {
