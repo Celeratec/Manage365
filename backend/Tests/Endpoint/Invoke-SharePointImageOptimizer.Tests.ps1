@@ -113,13 +113,15 @@ Describe 'Get-CIPPSharePointImageCandidate' {
 }
 
 Describe 'Compress-CIPPImage' {
-    It 'returns failure for empty input' -Skip:($IsLinux -or $IsMacOS) {
+    # System.Drawing.Common requires GDI+ which is Windows-only in .NET 6+
+    It 'returns failure for empty input' -Skip:$IsLinux {
         $r = Compress-CIPPImage -ImageBytes ([byte[]]::new(0)) -Quality 82
         $r.Success | Should -BeFalse
         $r.Error | Should -Be 'No image data supplied.'
     }
 
-    It 'warns when metadata preservation is requested' -Skip:($IsLinux -or $IsMacOS) {
+    # System.Drawing.Common requires GDI+ which is Windows-only in .NET 6+
+    It 'warns when metadata preservation is requested' -Skip:$IsLinux {
         $r = Compress-CIPPImage -ImageBytes ([byte[]]::new(0)) -Quality 82 -StripMetadata $false
         $r.Warning | Should -Match 'preservation is not supported'
     }

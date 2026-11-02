@@ -24,6 +24,7 @@ BeforeAll {
 
     $BaselinesHelpers = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Helpers'
     $BaselinesPrepare = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/PrepareHooks'
+    $BaselinesExecutors = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Executors'
 
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
@@ -32,7 +33,7 @@ BeforeAll {
     foreach ($Name in @('PhishProtection', 'ColleagueImpersonationAlert', 'DisableOutlookAddins',
             'RestrictThirdPartyStorageServices', 'IntuneAppTemplateDeploy', 'MFAPushApps')) {
         . (Join-Path $BaselinesPrepare "Get-CIPPBaseline${Name}State.ps1")
-        . (Join-Path $BaselinesPrepare "Invoke-CIPPBaseline${Name}.ps1")
+        . (Join-Path $BaselinesExecutors "Invoke-CIPPBaseline${Name}.ps1")
     }
 
     $script:Tenant = 'contoso.onmicrosoft.com'

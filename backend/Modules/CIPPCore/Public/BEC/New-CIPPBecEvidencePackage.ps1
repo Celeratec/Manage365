@@ -67,8 +67,10 @@ function New-CIPPBecEvidencePackage {
     # Logbook: every line stamped with the case id, across the day partitions the case spans.
     $LogRows = @()
     try {
-        $From = try { ([datetime]($Run.RequestedAt ?? $Run.ExtractedAt)).ToUniversalTime().AddDays(-1) } catch { $GeneratedUtc.AddDays(-30) }
-        if ($From -lt $GeneratedUtc.AddDays(-60)) { $From = $GeneratedUtc.AddDays(-60) }
+        $CaseDate = try { ([datetime]($Run.RequestedAt ?? $Run.ExtractedAt)).ToUniversalTime() } catch { $GeneratedUtc }
+        $From = $CaseDate.AddDays(-1)
+        $MaxBack = $CaseDate.AddDays(-60)
+        if ($From -lt $MaxBack) { $From = $MaxBack }
         $LogTable = Get-CIPPTable -TableName 'CippLogs'
         $Filter = "BecCaseId eq '$($CaseId -replace "'", "''")' and PartitionKey ge '$($From.ToString('yyyyMMdd'))' and PartitionKey le '$($GeneratedUtc.AddDays(1).ToString('yyyyMMdd'))'"
         $LogRows = @(Get-CIPPAzDataTableEntity @LogTable -Filter $Filter | Where-Object { $_ } | Sort-Object -Property Timestamp | ForEach-Object {

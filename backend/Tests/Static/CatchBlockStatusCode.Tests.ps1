@@ -11,7 +11,6 @@ BeforeAll {
         'Invoke-ExecSSOSetup'              = 'app created, secret failed: warning with Repair'
         'Invoke-ListUserOneDriveShortcuts' = 'user without a drive has no shortcuts'
         'Invoke-ListCSPsku'                = 'no Sherweb mapping means an empty catalog'
-        'Invoke-ExecMailboxSafeSender'     = 'Exec* convention returns 200 with error in Results; being fixed in PR #47'
     }
 }
 

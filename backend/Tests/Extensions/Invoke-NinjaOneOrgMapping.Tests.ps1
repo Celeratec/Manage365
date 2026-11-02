@@ -11,6 +11,7 @@ BeforeAll {
             [pscustomobject]@{ config = (@{ NinjaOne = @{ Instance = 'ninja.example.com' } } | ConvertTo-Json -Compress) }
         }
     }
+    function Add-AzDataTableEntity { param($Entity, [switch]$Force) }
     function Get-NinjaOneToken { param($configuration) @{ access_token = 'token' } }
     function Write-LogMessage { param($API, $tenant, $message, $Sev) }
     function Get-ExtensionMapping { param($Extension) @([pscustomobject]@{ RowKey = 't1'; IntegrationId = '1' }) }

@@ -115,3 +115,27 @@ jobs:
           name: pester-results
           path: backend/Tests/TestResults.xml
           if-no-files-found: warn
+
+  pester-windows:
+    name: Pester (Windows - Image Tests)
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install Pester 5
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module -Name Pester -MinimumVersion 5.0 -Force -Scope CurrentUser -SkipPublisherCheck
+      - name: Run image optimizer tests
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0
+          $Config = New-PesterConfiguration
+          $Config.Run.Path = 'backend/Tests/Endpoint/Invoke-SharePointImageOptimizer.Tests.ps1'
+          $Config.Run.Exit = $true
+          $Config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $Config

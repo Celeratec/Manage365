@@ -28,6 +28,7 @@ BeforeAll {
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
     . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCacheRows.ps1')
+    . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCommand.ps1')
     . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     . (Join-Path $Baselines 'Get-CIPPBaselineGlobalSecureAccessCompliantNetworkState.ps1')
     . (Join-Path $Baselines 'Invoke-CIPPBaselineGlobalSecureAccessCompliantNetwork.ps1')
