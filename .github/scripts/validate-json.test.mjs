@@ -1,19 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { test } from 'node:test';
-
-// Copy the escape functions from validate-json.mjs
-function escapeActionsCommand(str) {
-  return String(str)
-    .replace(/%/g, '%25')
-    .replace(/\r/g, '%0D')
-    .replace(/\n/g, '%0A');
-}
-
-function escapeActionsProperty(str) {
-  return escapeActionsCommand(str)
-    .replace(/:/g, '%3A')
-    .replace(/,/g, '%2C');
-}
+import { escapeActionsCommand, escapeActionsProperty } from './validate-json.mjs';
 
 test('escapeActionsCommand escapes percent signs', () => {
   assert.equal(escapeActionsCommand('50% complete'), '50%25 complete');

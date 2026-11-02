@@ -25,11 +25,22 @@ jobs:
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
+      
+      - name: Generate GitHub token for API access
+        id: token
+        run: echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
 
       - name: Install actionlint
         run: |
-          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
-          echo "${PWD}" >> $GITHUB_PATH
+          VERSION="1.7.4"
+          TARBALL="actionlint_${VERSION}_linux_amd64.tar.gz"
+          CHECKSUM="a1e7f9c0c27b5bb0e9bc0fb56a8c2e7f54debc20835d19a91f8daa49e60bd47a"
+          
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${TARBALL}" -o "${TARBALL}"
+          echo "${CHECKSUM}  ${TARBALL}" | sha256sum -c -
+          tar xzf "${TARBALL}" actionlint
+          sudo mv actionlint /usr/local/bin/
+          rm "${TARBALL}"
 
       - name: Run actionlint
         continue-on-error: true

@@ -57,7 +57,7 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
   rm -f /tmp/run_check_$$
 done
 
-# Check 3: All uses: must be pinned to 40-char SHA
+# Check 3: All uses: must be pinned to 40-char SHA and SHA must exist
 for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
   [ ! -f "$file" ] && continue
   
@@ -65,12 +65,26 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
   while IFS= read -r line; do
     # Extract the action reference after uses:
     if [[ "$line" =~ uses:[[:space:]]*([^@]+)@([^[:space:]#]+) ]]; then
+      action="${BASH_REMATCH[1]}"
       ref="${BASH_REMATCH[2]}"
+      
       # Check if it's NOT a 40-character hex SHA
       if ! [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
-        echo "❌ ERROR: $file has unpinned action: uses: ${BASH_REMATCH[1]}@${ref}"
-        echo "   Pin to SHA with: git ls-remote https://github.com/${BASH_REMATCH[1]} refs/tags/${ref}"
+        echo "❌ ERROR: $file has unpinned action: uses: ${action}@${ref}"
+        echo "   Pin to SHA with: git ls-remote https://github.com/${action} 'refs/tags/${ref}^{}'"
         errors=$((errors + 1))
+        continue
+      fi
+      
+      # Verify the SHA exists and is a commit (not a tag object)
+      if [ -n "$GITHUB_TOKEN" ]; then
+        if ! curl -sf -H "Authorization: token $GITHUB_TOKEN" \
+             "https://api.github.com/repos/${action}/commits/${ref}" >/dev/null 2>&1; then
+          echo "❌ ERROR: $file uses SHA ${ref} that doesn't exist or is not a commit"
+          echo "   Action: ${action}@${ref}"
+          echo "   This may be an annotated tag object. Use 'refs/tags/<tag>^{}' to dereference"
+          errors=$((errors + 1))
+        fi
       fi
     fi
   done < <(grep "uses:" "$file" | grep -v "^#")
