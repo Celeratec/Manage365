@@ -113,4 +113,24 @@ Describe 'New-CIPPBecEvidencePackage' {
         Mock Get-CIPPBecReport { [pscustomobject]@{ Status = 'Waiting' } }
         { New-CIPPBecEvidencePackage -TenantFilter 'contoso.com' -CaseId 'BEC-x' } | Should -Throw '*only completed runs*'
     }
+
+    It 'clamps From to 60-day retention window for cases older than 60 days' {
+        # Case from 100 days ago
+        $OldDate = [datetime]::UtcNow.AddDays(-100)
+        Mock Get-CIPPBecReport {
+            [pscustomobject]@{
+                CaseId      = 'BEC-old'
+                Status      = 'Completed'
+                RequestedAt = $OldDate.ToString('o')
+                Results     = @{ NewRules = @() }
+                Containment = @()
+            }
+        }
+        $Package = New-CIPPBecEvidencePackage -TenantFilter 'contoso.com' -CaseId 'BEC-old'
+        # From should be clamped to $GeneratedUtc.AddDays(-60), not $OldDate.AddDays(-1)
+        $ExpectedFrom = [datetime]::UtcNow.AddDays(-60).ToString('yyyyMMdd')
+        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -ParameterFilter {
+            $Filter -like "*PartitionKey ge '$ExpectedFrom'*"
+        }
+    }
 }

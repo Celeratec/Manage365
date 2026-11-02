@@ -69,10 +69,9 @@ function New-CIPPBecEvidencePackage {
     try {
         $CaseDate = try { ([datetime]($Run.RequestedAt ?? $Run.ExtractedAt)).ToUniversalTime() } catch { $GeneratedUtc }
         $From = $CaseDate.AddDays(-1)
-        $MaxBack = $CaseDate.AddDays(-60)
-        if ($From -lt $MaxBack) { $From = $MaxBack }
-        # Bound the upper end to the case date (or current time if the case is recent)
-        $To = if ($CaseDate -lt $GeneratedUtc.AddDays(-60)) { $CaseDate.AddDays(1) } else { $GeneratedUtc.AddDays(1) }
+        # Clamp From to retention window if needed
+        if ($From -lt $GeneratedUtc.AddDays(-60)) { $From = $GeneratedUtc.AddDays(-60) }
+        $To = $GeneratedUtc.AddDays(1)
         $LogTable = Get-CIPPTable -TableName 'CippLogs'
         $Filter = "BecCaseId eq '$($CaseId -replace "'", "''")' and PartitionKey ge '$($From.ToString('yyyyMMdd'))' and PartitionKey le '$($To.ToString('yyyyMMdd'))'"
         $LogRows = @(Get-CIPPAzDataTableEntity @LogTable -Filter $Filter | Where-Object { $_ } | Sort-Object -Property Timestamp | ForEach-Object {

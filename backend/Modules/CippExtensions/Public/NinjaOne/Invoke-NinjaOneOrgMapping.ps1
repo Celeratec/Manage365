@@ -72,12 +72,27 @@ function Invoke-NinjaOneOrgMapping {
 
     if ($Unmatched -and !$NameOnly) {
         $After = 0
+        $PagesFetched = 0
+        $MaxPages = 50  # Cap at 50 pages to prevent runaway fetch
         $NinjaDevices = do {
-            $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+            try {
+                $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+            } catch {
+                if ($_.Exception.Response.StatusCode -eq 429) {
+                    # Rate limited - wait and retry once
+                    $RetryAfter = if ($_.Exception.Response.Headers['Retry-After']) { [int]$_.Exception.Response.Headers['Retry-After'] } else { 60 }
+                    Write-Information "NinjaOne rate limit hit, waiting $RetryAfter seconds"
+                    Start-Sleep -Seconds $RetryAfter
+                    $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+                } else {
+                    throw
+                }
+            }
             $Result
             $ResultCount = ($Result.id | Measure-Object -Maximum)
             $After = $ResultCount.maximum
-        } while ($ResultCount.count -eq $PageSize)
+            $PagesFetched++
+        } while ($ResultCount.count -eq $PageSize -and $PagesFetched -lt $MaxPages)
 
         # Key -> org id; a key seen in more than one org maps to $null so it never votes
         $OrgBySerial = @{}
@@ -97,14 +112,19 @@ function Invoke-NinjaOneOrgMapping {
         foreach ($Tenant in $Unmatched) {
             $Votes = @{}
             $Rows = try { Get-CIPPDbItem -TenantFilter $Tenant.defaultDomainName -Type 'ManagedDevices' } catch { continue }
+            $TotalDevices = 0
             foreach ($Row in $Rows) {
                 if ($Row.RowKey -like '*-Count') { continue }
+                $TotalDevices++
                 $IntuneDevice = [CIPP.CippJson]::ConvertFromJson($Row.Data, [string[]]@('deviceName', 'serialNumber'))
                 $OrgId = if ($IntuneDevice.serialNumber -and $OrgBySerial[$IntuneDevice.serialNumber]) { $OrgBySerial[$IntuneDevice.serialNumber] } elseif ($IntuneDevice.deviceName) { $OrgByName[$IntuneDevice.deviceName] }
                 if ($OrgId) { $Votes[$OrgId] = 1 + $Votes[$OrgId] }
             }
             if ($Votes.Count -eq 0) { continue }
             $Ranked = @($Votes.GetEnumerator() | Sort-Object Value -Descending)
+            # Require at least 2 device matches or a majority of devices
+            $MinMatches = [Math]::Max(2, [Math]::Ceiling($TotalDevices / 2.0))
+            if ($Ranked[0].Value -lt $MinMatches) { continue }
             if ($Ranked.Count -gt 1 -and $Ranked[1].Value -eq $Ranked[0].Value) { continue }
             $Org = $OrgsById[$Ranked[0].Key]
             if (!$Org -or $MappedOrgIds.Contains("$($Org.id)")) { continue }

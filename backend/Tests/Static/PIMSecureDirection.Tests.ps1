@@ -35,8 +35,19 @@ BeforeAll {
 
 Describe 'PIM secure-direction invariants' {
     It 'addresses the schedule-request endpoints only from New-CIPPPIMScheduleRequest' {
-        $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
-        $Offenders = @($script:AllSources | Where-Object { $_.Name -ne 'New-CIPPPIMScheduleRequest.ps1' -and $Pattern.IsMatch($_.Text) } | ForEach-Object { $_.Name })
+        # Use AST to ignore doc comments
+        $Offenders = @()
+        foreach ($Source in $script:AllSources | Where-Object { $_.Name -ne 'New-CIPPPIMScheduleRequest.ps1' }) {
+            $Ast = [System.Management.Automation.Language.Parser]::ParseInput($Source.Text, [ref]$null, [ref]$null)
+            $StringConstants = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] }, $true)
+            $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
+            foreach ($String in $StringConstants) {
+                if ($Pattern.IsMatch($String.Value)) {
+                    $Offenders += $Source.Name
+                    break
+                }
+            }
+        }
         # The builder's tests mention the URIs in assertions; sources elsewhere may not.
         $Offenders | Should -BeNullOrEmpty -Because 'every schedule request must go through the builder that refuses no-expiration schedules'
     }
@@ -70,36 +81,69 @@ Describe 'PIM secure-direction invariants' {
     }
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
-        # The endpoint and the standards must delegate; they may not post schedule requests directly.
-        # Exempts lines with PIM-VALIDATION-ONLY marker (parameter validation, not actual posting).
-        $Pattern = [regex]'\bNew-CIPPPIMScheduleRequest\b'
-        $Direct = @($script:Sources | Where-Object {
-                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') -and
-                $Pattern.IsMatch($_.Text)
-            } | ForEach-Object {
-                # Strip comments before matching, exempt lines with the validation marker
-                $Lines = $_.Text -split "`r?`n"
-                $HasUnmarkedCall = $false
-                foreach ($Line in $Lines) {
-                    # Strip inline comments (but not string literals)
-                    $CodePart = if ($Line -match '^([^#]*?)(\s*#.*)$') { $matches[1] } else { $Line }
-                    if ($CodePart -match '\bNew-CIPPPIMScheduleRequest\b' -and $Line -notmatch 'PIM-VALIDATION-ONLY') {
-                        $HasUnmarkedCall = $true
-                        break
+        # Use AST to find all CommandAst nodes named New-CIPPPIMScheduleRequest, ignoring comments.
+        # PIM-VALIDATION-ONLY marker at Invoke-ExecPIMRoleAssignment.ps1:~100 exempts that one call.
+        $Direct = @()
+        foreach ($Source in $script:Sources | Where-Object { $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') }) {
+            $Ast = [System.Management.Automation.Language.Parser]::ParseInput($Source.Text, [ref]$null, [ref]$null)
+            $Commands = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)
+            foreach ($Cmd in $Commands) {
+                $CmdName = $Cmd.GetCommandName()
+                if ($CmdName -eq 'New-CIPPPIMScheduleRequest') {
+                    # Check if this line has the PIM-VALIDATION-ONLY marker
+                    $Line = $Source.Text.Substring(0, $Cmd.Extent.StartOffset) + $Source.Text.Substring($Cmd.Extent.StartOffset, $Cmd.Extent.EndOffset - $Cmd.Extent.StartOffset)
+                    $FullLine = ($Source.Text -split "`r?`n")[$Cmd.Extent.StartLineNumber - 1]
+                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                        $Direct += "$($Source.Name):$($Cmd.Extent.StartLineNumber)"
                     }
                 }
-                if ($HasUnmarkedCall) { $_.Name }
-            })
-        $Direct | Should -BeNullOrEmpty
+            }
+        }
+        $Direct | Should -BeNullOrEmpty -Because 'every secure-direction action must go through Invoke-CIPPPIMAssignmentAction or the builder'
     }
 
-    It 'detects named-parameter calls to the schedule request builder' {
-        # Prove the \b pattern catches '-Kind' and other named invocations
-        $TestSource = [pscustomobject]@{ 
-            Name = 'TestFile.ps1'
-            Text = 'New-CIPPPIMScheduleRequest -Kind adminAssign' 
+    It 'PIM-VALIDATION-ONLY marker appears only in Invoke-ExecPIMRoleAssignment.ps1 at about line 100' {
+        $Violations = @()
+        foreach ($Source in $script:AllSources) {
+            $Lines = $Source.Text -split "`r?`n"
+            for ($i = 0; $i -lt $Lines.Count; $i++) {
+                if ($Lines[$i] -match 'PIM-VALIDATION-ONLY') {
+                    if ($Source.Name -ne 'Invoke-ExecPIMRoleAssignment.ps1' -or ($i + 1) -lt 95 -or ($i + 1) -gt 105) {
+                        $Violations += "$($Source.Name):$($i + 1)"
+                    }
+                }
+            }
         }
-        $Pattern = [regex]'New-CIPPPIMScheduleRequest\b'
-        $Pattern.IsMatch($TestSource.Text) | Should -BeTrue
+        $Violations | Should -BeNullOrEmpty -Because 'the PIM-VALIDATION-ONLY marker must only appear at Invoke-ExecPIMRoleAssignment.ps1:~100'
+    }
+
+    It 'fixture: detects named-parameter calls and ignores comments in strings and blocks' {
+        # Named-parameter call
+        $NamedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign -Duration P365D'
+        $Ast1 = [System.Management.Automation.Language.Parser]::ParseInput($NamedCall, [ref]$null, [ref]$null)
+        $Cmds1 = @($Ast1.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
+        $Cmds1.Count | Should -Be 1
+        $Cmds1[0].GetCommandName() | Should -Be 'New-CIPPPIMScheduleRequest'
+
+        # '#' in a string should not be treated as a comment
+        $InString = 'Write-Host "New-CIPPPIMScheduleRequest # not a call"'
+        $Ast2 = [System.Management.Automation.Language.Parser]::ParseInput($InString, [ref]$null, [ref]$null)
+        $Cmds2 = @($Ast2.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
+        @($Cmds2 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
+
+        # Block comment should be ignored
+        $BlockComment = @'
+<# 
+New-CIPPPIMScheduleRequest -Kind adminAssign
+#>
+Write-Host "test"
+'@
+        $Ast3 = [System.Management.Automation.Language.Parser]::ParseInput($BlockComment, [ref]$null, [ref]$null)
+        $Cmds3 = @($Ast3.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
+        @($Cmds3 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
+
+        # Marker in wrong file should be detected (tested by previous It block)
+        $WrongFile = '# PIM-VALIDATION-ONLY marker here'
+        ($WrongFile -match 'PIM-VALIDATION-ONLY') | Should -BeTrue
     }
 }

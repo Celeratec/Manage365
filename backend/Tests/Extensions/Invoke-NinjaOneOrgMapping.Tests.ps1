@@ -113,3 +113,87 @@ Describe 'Invoke-NinjaOneOrgMapping -NameOnly' {
         Should -Invoke Invoke-WebRequest -Times 0 -ParameterFilter { $Uri -like '*/devices-detailed?*' }
     }
 }
+
+Describe 'Invoke-NinjaOneOrgMapping device matching thresholds' {
+    BeforeAll {
+        $script:Added = [System.Collections.Generic.List[object]]::new()
+        # Tenant with only 1 device match (below minimum of 2)
+        $script:IntuneDevices = @{
+            'single.test' = @(@{ deviceName = 'PC-1'; serialNumber = 'S1' })
+            'majority.test' = @(
+                @{ deviceName = 'MAJ-1'; serialNumber = 'M1' }
+                @{ deviceName = 'MAJ-2'; serialNumber = 'M2' }
+                @{ deviceName = 'MAJ-3'; serialNumber = 'M3' }
+            )
+        }
+        $script:Orgs = @(
+            @{ id = 10; name = 'Single Org' }
+            @{ id = 11; name = 'Majority Org' }
+        )
+        $script:NinjaDevices = @(
+            @{ id = 100; organizationId = 10; systemName = 'PC-1'; system = @{ serialNumber = 'S1' } }
+            @{ id = 101; organizationId = 11; systemName = 'MAJ-1'; system = @{ serialNumber = 'M1' } }
+            @{ id = 102; organizationId = 11; systemName = 'MAJ-2'; system = @{ serialNumber = 'M2' } }
+        )
+        $script:TenantIds = @{ Single = 10; Majority = 11 }
+        $script:Tenants = @(
+            [pscustomobject]@{ customerId = 't10'; displayName = 'Single'; defaultDomainName = 'single.test' }
+            [pscustomobject]@{ customerId = 't11'; displayName = 'Majority'; defaultDomainName = 'majority.test' }
+        )
+        Mock Invoke-WebRequest {
+            $Data = if ($Uri -like '*/organizations?*') { $script:Orgs } else { $script:NinjaDevices }
+            [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($Data) -Depth 5 -Compress) }
+        }
+        Mock Get-Tenants { param([switch]$IncludeErrors) $script:Tenants }
+        Invoke-NinjaOneOrgMapping
+        $script:ByTenant = @{}
+        foreach ($Row in $script:Added) { $script:ByTenant[$Row.RowKey] = $Row.IntegrationId }
+    }
+
+    It 'skips tenant with only 1 device match (below minimum of 2)' {
+        $script:ByTenant.Keys | Should -Not -Contain 't10'
+    }
+
+    It 'maps tenant with majority of devices matching (2 out of 3)' {
+        $script:ByTenant['t11'] | Should -Be '11'
+    }
+}
+
+Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
+    It 'retries once after 429 rate limit' {
+        Mock Invoke-WebRequest {
+            if ($script:Attempt -eq 0) {
+                $script:Attempt = 1
+                $Response = [PSCustomObject]@{
+                    StatusCode = 429
+                    Headers = @{ 'Retry-After' = '1' }
+                }
+                $Ex = New-Object System.Net.WebException('Rate limited', $null, [System.Net.WebExceptionStatus]::ProtocolError, $Response)
+                throw [System.Net.Http.HttpRequestException]::new('Rate limited', $Ex)
+            } else {
+                [pscustomobject]@{ content = '[]' }
+            }
+        } -ParameterFilter { $Uri -like '*/devices-detailed?*' }
+        Mock Invoke-WebRequest {
+            [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($script:Orgs) -Depth 5 -Compress) }
+        } -ParameterFilter { $Uri -like '*/organizations?*' }
+        $script:Attempt = 0
+        { Invoke-NinjaOneOrgMapping } | Should -Not -Throw
+        Should -Invoke Invoke-WebRequest -Times 2 -ParameterFilter { $Uri -like '*/devices-detailed?*' }
+    }
+
+    It 'stops fetching devices after 50 pages' {
+        $script:PageCount = 0
+        Mock Invoke-WebRequest {
+            $script:PageCount++
+            # Return full page of results to trigger continuation
+            $Devices = @(1..1000 | ForEach-Object { @{ id = $_; organizationId = 1; systemName = "PC$_"; system = @{ serialNumber = "S$_" } } })
+            [pscustomobject]@{ content = (ConvertTo-Json -InputObject $Devices -Depth 5 -Compress) }
+        } -ParameterFilter { $Uri -like '*/devices-detailed?*' }
+        Mock Invoke-WebRequest {
+            [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($script:Orgs) -Depth 5 -Compress) }
+        } -ParameterFilter { $Uri -like '*/organizations?*' }
+        Invoke-NinjaOneOrgMapping
+        $script:PageCount | Should -BeLessOrEqual 50
+    }
+}
