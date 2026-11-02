@@ -51,7 +51,7 @@ function Invoke-ExecAntiSpamPolicy {
         if ($null -ne $Request.Body.bulkThreshold) { $PolicyParams.BulkThreshold = $Request.Body.bulkThreshold }
         if ($null -ne $Request.Body.bulkSpamAction) { 
             if ($Request.Body.bulkSpamAction -eq 'Redirect') {
-                throw "Redirect actions require the Security Policy admin role. Contact your CIPP administrator to use the ExecRemoveAntiSpamPolicy endpoint for redirect configuration."
+                throw "Redirect actions are not supported through this API; configure redirects in the Exchange admin center."
             }
             if ($Request.Body.bulkSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'AddXHeader', 'ModifySubject')) {
                 throw "bulkSpamAction must be one of: MoveToJmf, Quarantine, Delete, AddXHeader, ModifySubject"
@@ -60,7 +60,7 @@ function Invoke-ExecAntiSpamPolicy {
         }
         if ($null -ne $Request.Body.spamAction) { 
             if ($Request.Body.spamAction -eq 'Redirect') {
-                throw "Redirect actions require the Security Policy admin role. Contact your CIPP administrator to use the ExecRemoveAntiSpamPolicy endpoint for redirect configuration."
+                throw "Redirect actions are not supported through this API; configure redirects in the Exchange admin center."
             }
             if ($Request.Body.spamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'AddXHeader', 'ModifySubject')) {
                 throw "spamAction must be one of: MoveToJmf, Quarantine, Delete, AddXHeader, ModifySubject"
@@ -69,7 +69,7 @@ function Invoke-ExecAntiSpamPolicy {
         }
         if ($null -ne $Request.Body.highConfidenceSpamAction) { 
             if ($Request.Body.highConfidenceSpamAction -eq 'Redirect') {
-                throw "Redirect actions require the Security Policy admin role. Contact your CIPP administrator to use the ExecRemoveAntiSpamPolicy endpoint for redirect configuration."
+                throw "Redirect actions are not supported through this API; configure redirects in the Exchange admin center."
             }
             if ($Request.Body.highConfidenceSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
                 throw "highConfidenceSpamAction must be one of: MoveToJmf, Quarantine, Delete"
@@ -78,7 +78,7 @@ function Invoke-ExecAntiSpamPolicy {
         }
         if ($null -ne $Request.Body.phishSpamAction) { 
             if ($Request.Body.phishSpamAction -eq 'Redirect') {
-                throw "Redirect actions require the Security Policy admin role. Contact your CIPP administrator to use the ExecRemoveAntiSpamPolicy endpoint for redirect configuration."
+                throw "Redirect actions are not supported through this API; configure redirects in the Exchange admin center."
             }
             if ($Request.Body.phishSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
                 throw "phishSpamAction must be one of: MoveToJmf, Quarantine, Delete"
@@ -87,7 +87,7 @@ function Invoke-ExecAntiSpamPolicy {
         }
         if ($null -ne $Request.Body.highConfidencePhishAction) { 
             if ($Request.Body.highConfidencePhishAction -eq 'Redirect') {
-                throw "Redirect actions require the Security Policy admin role. Contact your CIPP administrator to use the ExecRemoveAntiSpamPolicy endpoint for redirect configuration."
+                throw "Redirect actions are not supported through this API; configure redirects in the Exchange admin center."
             }
             if ($Request.Body.highConfidencePhishAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
                 throw "highConfidencePhishAction must be one of: MoveToJmf, Quarantine, Delete"
