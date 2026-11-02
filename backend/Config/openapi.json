@@ -37313,7 +37313,7 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Remove custom anti-malware policies (AntiMalwarePolicy and Rule).\nRefuses to remove default, built-in, or preset (Standard/Strict) policies.\nThis is a high-risk operation requiring explicit SecurityPolicy.ReadWrite permission.",
+        "description": "Remove custom anti-malware policies (MalwareFilterPolicy and Rule).\nRefuses to remove default, built-in, or preset (Standard/Strict) policies.\nThis is a high-risk operation requiring explicit SecurityPolicy.ReadWrite permission.",
         "requestBody": {
           "required": true,
           "content": {
@@ -59322,6 +59322,7 @@
                   }
                 },
                 "required": [
+                  "connectorIdentity",
                   "tenantFilter"
                 ]
               }
