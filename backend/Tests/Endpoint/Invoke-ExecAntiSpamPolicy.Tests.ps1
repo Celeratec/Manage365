@@ -107,4 +107,136 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         $SetCall.CmdParams.Identity | Should -Be 'CustomSpamPolicy'
         $SetCall.CmdParams.BulkThreshold | Should -Be 6
     }
+
+    It 'Remove action gets policy, removes rule, then removes policy' {
+        # Mock Get to return a custom policy
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            $script:ExoRequestHistory += @{ TenantId = $tenantid; Cmdlet = $cmdlet; CmdParams = $cmdParams }
+            if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
+                return [pscustomobject]@{ 
+                    Identity = $cmdParams.Identity
+                    IsDefault = $false
+                    RecommendedPolicyType = 'Custom'
+                }
+            }
+            if ($cmdlet -eq 'Get-HostedContentFilterRule') {
+                return @([pscustomobject]@{ Name = 'TestRule'; HostedContentFilterPolicy = 'TestPolicy' })
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'TestPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        
+        # Assert cmdlets in order: Get-Policy, Get-Rule, Remove-Rule, Remove-Policy
+        $script:ExoRequestHistory | Should -Not -BeNullOrEmpty
+        $script:ExoRequestHistory[0].Cmdlet | Should -Be 'Get-HostedContentFilterPolicy'
+        $script:ExoRequestHistory[1].Cmdlet | Should -Be 'Get-HostedContentFilterRule'
+        $script:ExoRequestHistory[2].Cmdlet | Should -Be 'Remove-HostedContentFilterRule'
+        $script:ExoRequestHistory[2].CmdParams.Confirm | Should -Be $false
+        $script:ExoRequestHistory[3].Cmdlet | Should -Be 'Remove-HostedContentFilterPolicy'
+        $script:ExoRequestHistory[3].CmdParams.Confirm | Should -Be $false
+    }
+
+    It 'Remove refuses default policy' {
+        # Mock Get to return a default policy
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
+                return [pscustomobject]@{ 
+                    Identity = $cmdParams.Identity
+                    IsDefault = $true
+                    RecommendedPolicyType = 'Custom'
+                }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'DefaultPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Cannot remove default policy'
+    }
+
+    It 'Remove refuses built-in policy' {
+        # Mock Get to return a built-in policy
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
+                return [pscustomobject]@{ 
+                    Identity = $cmdParams.Identity
+                    IsDefault = $false
+                    RecommendedPolicyType = 'Standard'
+                }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'StandardPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Only custom policies can be removed'
+    }
+
+    It 'Remove refuses preset policy' {
+        # Mock Get to return a preset policy
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
+                return [pscustomobject]@{ 
+                    Identity = $cmdParams.Identity
+                    IsDefault = $false
+                    RecommendedPolicyType = 'Strict'
+                }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'StrictPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Only custom policies can be removed'
+    }
 }

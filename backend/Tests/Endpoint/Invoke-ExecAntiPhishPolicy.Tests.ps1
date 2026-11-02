@@ -84,4 +84,60 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.Body.Results | Should -Match 'must match pattern'
     }
+
+    It 'Remove action gets policy first then removes it' {
+        # Mock Get to return a custom policy
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            $script:ExoRequestHistory += @{ TenantId = $tenantid; Cmdlet = $cmdlet; CmdParams = $cmdParams }
+            if ($cmdlet -eq 'Get-AntiPhishPolicy') {
+                return [pscustomobject]@{ 
+                    Identity = $cmdParams.Identity
+                    IsDefault = $false
+                    RecommendedPolicyType = 'Custom'
+                }
+            }
+            if ($cmdlet -eq 'Get-AntiPhishRule') { return @() }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'TestPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        
+        $script:ExoRequestHistory[0].Cmdlet | Should -Be 'Get-AntiPhishPolicy'
+        ($script:ExoRequestHistory | Where-Object { $_.Cmdlet -eq 'Remove-AntiPhishPolicy' }).CmdParams.Confirm | Should -Be $false
+    }
+
+    It 'Remove refuses default/built-in/preset policies' {
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            if ($cmdlet -eq 'Get-AntiPhishPolicy') {
+                return [pscustomobject]@{ IsDefault = $true; RecommendedPolicyType = 'Custom' }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'Default'
+            }
+        }
+
+        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response.Body.Results | Should -Match 'Cannot remove'
+    }
 }

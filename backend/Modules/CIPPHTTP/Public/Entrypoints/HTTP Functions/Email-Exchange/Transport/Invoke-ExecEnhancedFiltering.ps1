@@ -3,10 +3,11 @@ function Invoke-ExecEnhancedFiltering {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Exchange.SecurityPolicy.ReadWrite
+        Exchange.Connector.Read
     .DESCRIPTION
         Configure Enhanced Filtering for Connectors on an inbound connector.
         Manages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.
+        Get action requires Exchange.Connector.Read, Set action requires Exchange.SecurityPolicy.ReadWrite.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -23,6 +24,14 @@ function Invoke-ExecEnhancedFiltering {
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }
         if ($Action -notin @('Get', 'Set')) { throw 'action must be Get or Set.' }
+        
+        # Role check: Set action requires Exchange.SecurityPolicy.ReadWrite
+        if ($Action -eq 'Set') {
+            $AccessCheck = Test-CIPPAccess -Request $Request -TenantFilter $TenantFilter -RequiredRoles @('Exchange.SecurityPolicy.ReadWrite')
+            if (-not $AccessCheck) {
+                throw 'Set action requires Exchange.SecurityPolicy.ReadWrite role'
+            }
+        }
 
         # Read current connector
         $CurrentConnector = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -cmdParams @{ Identity = $ConnectorIdentity } -useSystemMailbox $true | Select-Object -First 1
@@ -87,6 +96,32 @@ function Invoke-ExecEnhancedFiltering {
                 $Validation = Test-CippExchangeInputValidation -IPAddresses $EFSkipIPs -StrictIPValidation -MaxIPCount 50
                 if (-not $Validation.IsValid) {
                     throw ($Validation.Errors -join '; ')
+                }
+                
+                # Two-way guard: refuse EFSkipIPs that overlap HostedConnectionFilterPolicy IPAllowList or IPBlockList
+                try {
+                    $ConnectionFilterPolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedConnectionFilterPolicy' -useSystemMailbox $true | Select-Object -First 1
+                    if ($ConnectionFilterPolicy) {
+                        $IPAllowList = $ConnectionFilterPolicy.IPAllowList ?? @()
+                        $IPBlockList = $ConnectionFilterPolicy.IPBlockList ?? @()
+                        
+                        foreach ($IP in $EFSkipIPs) {
+                            $NormalizedIP = $IP.Trim()
+                            if ($IPAllowList -contains $NormalizedIP) {
+                                throw "EFSkipIP '$NormalizedIP' overlaps with HostedConnectionFilterPolicy IPAllowList. Remove it from IPAllowList first."
+                            }
+                            if ($IPBlockList -contains $NormalizedIP) {
+                                throw "EFSkipIP '$NormalizedIP' overlaps with HostedConnectionFilterPolicy IPBlockList. Remove it from IPBlockList first."
+                            }
+                        }
+                    }
+                } catch {
+                    # If it's our overlap error, re-throw it
+                    if ($_.Exception.Message -match 'overlaps with HostedConnectionFilterPolicy') {
+                        throw
+                    }
+                    # Otherwise log warning but continue (in case connection filter policy doesn't exist)
+                    Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message "Could not check HostedConnectionFilterPolicy: $($_.Exception.Message)" -Sev 'Warning'
                 }
                 
                 # Send validated, normalized (trimmed) values to Exchange

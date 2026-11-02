@@ -111,12 +111,17 @@ function Test-CippExchangeInputValidation {
 
     if ($EmailAddresses -and $EmailAddresses.Count -gt 0) {
         foreach ($Email in $EmailAddresses) {
-            $EmailStr = ([string]$Email).Trim()
+            # Check RAW value for LF/CR BEFORE trim
+            $EmailRaw = [string]$Email
+            if ($EmailRaw -match '[\r\n]') {
+                $Result.IsValid = $false
+                $Result.Errors += "Email address cannot contain newline characters"
+                continue
+            }
+            
+            $EmailStr = $EmailRaw.Trim()
             if (![string]::IsNullOrWhiteSpace($EmailStr)) {
-                if ($EmailStr -match '[\r\n]') {
-                    $Result.IsValid = $false
-                    $Result.Errors += "Email address cannot contain newline characters"
-                } elseif ($EmailStr -notmatch $EmailRegex) {
+                if ($EmailStr -notmatch $EmailRegex) {
                     $Result.IsValid = $false
                     $Result.Errors += "Invalid email address format: $EmailStr"
                 }
@@ -204,7 +209,7 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate priority (must be integer between 0 and 9999, reject floats like 5.7 and booleans)
+    # Validate priority (must be integer between 0 and 9999, accept Int16/32/64 and whole doubles, reject booleans and non-whole floats)
     if ($null -ne $Priority) {
         # Reject booleans explicitly
         if ($Priority -is [bool]) {
@@ -213,37 +218,51 @@ function Test-CippExchangeInputValidation {
             return $Result
         }
         
-        # Reject non-integers BEFORE cast
-        if ($Priority -is [string]) {
+        # Accept any whole-number integer type: Int16, Int32, Int64
+        if ($Priority -is [int16] -or $Priority -is [int32] -or $Priority -is [int64]) {
+            # Already a valid integer type, just range check
+            if ($Priority -lt 0 -or $Priority -gt 9999) {
+                $Result.IsValid = $false
+                $Result.Errors += "Priority must be between 0 and 9999"
+            }
+        }
+        # Accept whole doubles (like 5.0) but reject non-whole (like 5.7)
+        elseif ($Priority -is [double] -or $Priority -is [float] -or $Priority -is [decimal]) {
+            if ($Priority -ne [Math]::Floor($Priority)) {
+                $Result.IsValid = $false
+                $Result.Errors += "Priority must be a whole number, not a decimal: $Priority"
+                return $Result
+            }
+            # Convert to int for range check
+            $PriorityInt = [int]$Priority
+            if ($PriorityInt -lt 0 -or $PriorityInt -gt 9999) {
+                $Result.IsValid = $false
+                $Result.Errors += "Priority must be between 0 and 9999"
+            }
+        }
+        # For strings, try to parse as integer
+        elseif ($Priority -is [string]) {
             if ($Priority -match '\.') {
                 $Result.IsValid = $false
                 $Result.Errors += "Priority must be an integer, not a decimal: $Priority"
                 return $Result
             }
-            # Try to parse as integer
             $PriorityInt = 0
             if (-not [int]::TryParse($Priority, [ref]$PriorityInt)) {
                 $Result.IsValid = $false
                 $Result.Errors += "Priority must be a valid integer"
                 return $Result
             }
-            $Priority = $PriorityInt
-        } elseif ($Priority -isnot [int]) {
-            # Check if it's a float/double
-            if ($Priority -is [double] -or $Priority -is [float] -or $Priority -is [decimal]) {
+            if ($PriorityInt -lt 0 -or $PriorityInt -gt 9999) {
                 $Result.IsValid = $false
-                $Result.Errors += "Priority must be an integer, not a decimal: $Priority"
-                return $Result
+                $Result.Errors += "Priority must be between 0 and 9999"
             }
-            # Reject any other non-integer type
+        }
+        else {
+            # Reject any other type
             $Result.IsValid = $false
             $Result.Errors += "Priority must be an integer, got $($Priority.GetType().Name)"
             return $Result
-        }
-        
-        if ($Priority -lt 0 -or $Priority -gt 9999) {
-            $Result.IsValid = $false
-            $Result.Errors += "Priority must be between 0 and 9999"
         }
     }
 
@@ -251,11 +270,15 @@ function Test-CippExchangeInputValidation {
     if ($SentToMemberOf -and $SentToMemberOf.Count -gt 0) {
         $GuidRegex = '\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z'
         foreach ($Member in $SentToMemberOf) {
-            $MemberStr = $Member.Trim()
-            if ($MemberStr -match '[\r\n]') {
+            # Check RAW value for LF/CR BEFORE trim
+            if ($Member -match '[\r\n]') {
                 $Result.IsValid = $false
                 $Result.Errors += "SentToMemberOf entry cannot contain newline characters"
-            } elseif ($MemberStr -notmatch $EmailRegex -and $MemberStr -notmatch $GuidRegex) {
+                continue
+            }
+            
+            $MemberStr = $Member.Trim()
+            if ($MemberStr -notmatch $EmailRegex -and $MemberStr -notmatch $GuidRegex) {
                 $Result.IsValid = $false
                 $Result.Errors += "SentToMemberOf entry must be a valid email address or GUID: $MemberStr"
             }
@@ -268,13 +291,16 @@ function Test-CippExchangeInputValidation {
 
     # Validate QuarantineTag (alphanumeric, hyphens, 1-64 chars, \z-anchored)
     if ($QuarantineTag) {
-        $QuarantineTag = $QuarantineTag.Trim()
+        # Check RAW value for LF/CR BEFORE trim
         if ($QuarantineTag -match '[\r\n]') {
             $Result.IsValid = $false
             $Result.Errors += "QuarantineTag cannot contain newline characters"
-        } elseif ($QuarantineTag -notmatch '\A[a-zA-Z0-9-]{1,64}\z') {
-            $Result.IsValid = $false
-            $Result.Errors += "QuarantineTag must be 1-64 alphanumeric characters or hyphens: $QuarantineTag"
+        } else {
+            $QuarantineTag = $QuarantineTag.Trim()
+            if ($QuarantineTag -notmatch '\A[a-zA-Z0-9-]{1,64}\z') {
+                $Result.IsValid = $false
+                $Result.Errors += "QuarantineTag must be 1-64 alphanumeric characters or hyphens: $QuarantineTag"
+            }
         }
     }
 
@@ -299,11 +325,15 @@ function Test-CippExchangeInputValidation {
     # Validate RegionBlockList (2-letter uppercase ISO 3166-1 codes, case-sensitive)
     if ($RegionBlockList -and $RegionBlockList.Count -gt 0) {
         foreach ($Region in $RegionBlockList) {
-            $RegionStr = $Region.Trim()
-            if ($RegionStr -match '[\r\n]') {
+            # Check RAW value for LF/CR BEFORE trim
+            if ($Region -match '[\r\n]') {
                 $Result.IsValid = $false
                 $Result.Errors += "Region code cannot contain newline characters"
-            } elseif ($RegionStr -cnotmatch '\A[A-Z]{2}\z') {
+                continue
+            }
+            
+            $RegionStr = $Region.Trim()
+            if ($RegionStr -cnotmatch '\A[A-Z]{2}\z') {
                 $Result.IsValid = $false
                 $Result.Errors += "Invalid region code '$RegionStr' (must be 2-letter uppercase ISO 3166-1 code)"
             }

@@ -246,4 +246,90 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'action must be Get or Set'
     }
+
+    It 'rejects EFSkipIPs that overlap with HostedConnectionFilterPolicy IPAllowList' {
+        # Mock New-ExoRequest to return a connection filter policy with IPAllowList
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:LastExoRequest = @{
+                TenantId         = $tenantid
+                Cmdlet           = $cmdlet
+                CmdParams        = $cmdParams
+                UseSystemMailbox = $useSystemMailbox
+            }
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{
+                    Identity     = 'Test Connector'
+                    EFSkipIPs    = @()
+                    EFSkipLastIP = $false
+                    EFUsers      = @()
+                }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{
+                    IPAllowList = @('192.168.1.1', '10.0.0.0/24')
+                    IPBlockList = @()
+                }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                connectorIdentity = 'Test Connector'
+                efSkipIPs         = @('192.168.1.1', '172.16.0.0/16')
+            }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy IPAllowList'
+    }
+
+    It 'rejects EFSkipIPs that overlap with HostedConnectionFilterPolicy IPBlockList' {
+        # Mock New-ExoRequest to return a connection filter policy with IPBlockList
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:LastExoRequest = @{
+                TenantId         = $tenantid
+                Cmdlet           = $cmdlet
+                CmdParams        = $cmdParams
+                UseSystemMailbox = $useSystemMailbox
+            }
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{
+                    Identity     = 'Test Connector'
+                    EFSkipIPs    = @()
+                    EFSkipLastIP = $false
+                    EFUsers      = @()
+                }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{
+                    IPAllowList = @()
+                    IPBlockList = @('10.0.0.0/24')
+                }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                connectorIdentity = 'Test Connector'
+                efSkipIPs         = @('10.0.0.0/24')
+            }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy IPBlockList'
+    }
 }

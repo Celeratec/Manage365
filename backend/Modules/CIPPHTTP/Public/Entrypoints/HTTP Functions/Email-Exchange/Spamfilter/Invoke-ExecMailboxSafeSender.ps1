@@ -42,6 +42,18 @@ function Invoke-ExecMailboxSafeSender {
             }
         }
 
+        # For Remove action, audit the before-state
+        if ($Action -eq 'Remove') {
+            try {
+                $BeforeState = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-MailboxJunkEmailConfiguration' -cmdParams @{ Identity = $Mailbox }
+                $BeforeAudit = "Before Remove - TrustedSendersAndDomains: $($BeforeState.TrustedSendersAndDomains -join ', ')"
+                Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $BeforeAudit -Sev 'Info'
+            } catch {
+                # If we can't get before-state, log it but continue
+                Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message "Could not get before-state: $($_.Exception.Message)" -Sev 'Warning'
+            }
+        }
+
         # Build the appropriate operation (Add or Remove)
         $Operation = if ($Action -eq 'Add') {
             @{'@odata.type' = '#Exchange.GenericHashTable'; Add = $Sender }

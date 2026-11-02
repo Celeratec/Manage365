@@ -113,9 +113,21 @@ function Invoke-ExecAntiPhishPolicy {
         }
 
         # Quarantine/redirection
-        if ($Request.Body.targetedUserQuarantineTag) { $PolicyParams.TargetedUserQuarantineTag = $Request.Body.targetedUserQuarantineTag }
-        if ($Request.Body.targetedDomainQuarantineTag) { $PolicyParams.TargetedDomainQuarantineTag = $Request.Body.targetedDomainQuarantineTag }
-        if ($Request.Body.mailboxIntelligenceQuarantineTag) { $PolicyParams.MailboxIntelligenceQuarantineTag = $Request.Body.mailboxIntelligenceQuarantineTag }
+        if ($Request.Body.targetedUserQuarantineTag) {
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.targetedUserQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.TargetedUserQuarantineTag = $Request.Body.targetedUserQuarantineTag
+        }
+        if ($Request.Body.targetedDomainQuarantineTag) {
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.targetedDomainQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.TargetedDomainQuarantineTag = $Request.Body.targetedDomainQuarantineTag
+        }
+        if ($Request.Body.mailboxIntelligenceQuarantineTag) {
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.mailboxIntelligenceQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.MailboxIntelligenceQuarantineTag = $Request.Body.mailboxIntelligenceQuarantineTag
+        }
 
         # Honor DMARC
         if ($null -ne $Request.Body.honorDmarcPolicy) { $PolicyParams.HonorDmarcPolicy = $Request.Body.honorDmarcPolicy }
@@ -166,18 +178,41 @@ function Invoke-ExecAntiPhishPolicy {
                 $Results += "Created anti-phishing rule: $RuleName"
             }
         } elseif ($Action -eq 'Remove') {
-            # Remove policy and rule (for rollback)
-            # First remove any associated rules
+            # Remove policy and rule (for rollback) - requires Exchange.SecurityPolicy.ReadWrite
+            # Guard: Get the policy first and refuse if it's default, built-in, or preset
             try {
-                $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishRule' -useSystemMailbox $true | 
-                    Where-Object { $_.AntiPhishPolicy -eq $PolicyName }
-                foreach ($Rule in $ExistingRules) {
+                $ExistingPolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true
+            } catch {
+                # Don't swallow the Get error - return it
+                throw "Failed to get policy '$PolicyName': $($_.Exception.Message)"
+            }
+            
+            if ($ExistingPolicy.IsDefault -eq $true) {
+                throw "Cannot remove default policy '$PolicyName'"
+            }
+            if ($ExistingPolicy.RecommendedPolicyType -and $ExistingPolicy.RecommendedPolicyType -ne 'Custom') {
+                throw "Cannot remove $($ExistingPolicy.RecommendedPolicyType) policy '$PolicyName'. Only custom policies can be removed."
+            }
+            
+            # Audit before-state
+            $AuditLog += "Before Remove - Policy: $($ExistingPolicy | ConvertTo-Json -Compress -Depth 2)"
+            
+            # First remove any associated rules - don't swallow errors
+            $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishRule' -useSystemMailbox $true | 
+                Where-Object { $_.AntiPhishPolicy -eq $PolicyName }
+            
+            foreach ($Rule in $ExistingRules) {
+                # Audit before-state for rule
+                $AuditLog += "Before Remove - Rule: $($Rule | ConvertTo-Json -Compress -Depth 2)"
+                
+                # Don't swallow errors - if rule removal fails, abort
+                try {
                     New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-AntiPhishRule' -cmdParams @{ Identity = $Rule.Name; Confirm = $false } -useSystemMailbox $true
                     $AuditLog += "Removed anti-phishing rule: $($Rule.Name)"
                     $Results += "Removed anti-phishing rule: $($Rule.Name)"
+                } catch {
+                    throw "Failed to remove rule '$($Rule.Name)': $($_.Exception.Message). Policy removal aborted."
                 }
-            } catch {
-                # Continue if no rules found
             }
             
             # Then remove the policy

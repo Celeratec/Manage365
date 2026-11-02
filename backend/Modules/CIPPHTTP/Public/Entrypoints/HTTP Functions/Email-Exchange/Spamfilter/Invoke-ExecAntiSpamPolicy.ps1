@@ -158,7 +158,11 @@ function Invoke-ExecAntiSpamPolicy {
             if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
             $PolicyParams.HighConfidencePhishQuarantineTag = $Request.Body.highConfidencePhishQuarantineTag 
         }
-        if ($Request.Body.bulkQuarantineTag) { $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag }
+        if ($Request.Body.bulkQuarantineTag) {
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.bulkQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag
+        }
 
         # RedirectToRecipients - must be in accepted domains
         if ($Request.Body.redirectToRecipients) {
@@ -230,18 +234,41 @@ function Invoke-ExecAntiSpamPolicy {
                 $Results += "Created anti-spam rule: $RuleName"
             }
         } elseif ($Action -eq 'Remove') {
-            # Remove policy and rule (for rollback)
-            # First remove any associated rules
+            # Remove policy and rule (for rollback) - requires Exchange.SecurityPolicy.ReadWrite
+            # Guard: Get the policy first and refuse if it's default, built-in, or preset
             try {
-                $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterRule' -useSystemMailbox $true | 
-                    Where-Object { $_.HostedContentFilterPolicy -eq $PolicyName }
-                foreach ($Rule in $ExistingRules) {
+                $ExistingPolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true
+            } catch {
+                # Don't swallow the Get error - return it
+                throw "Failed to get policy '$PolicyName': $($_.Exception.Message)"
+            }
+            
+            if ($ExistingPolicy.IsDefault -eq $true) {
+                throw "Cannot remove default policy '$PolicyName'"
+            }
+            if ($ExistingPolicy.RecommendedPolicyType -and $ExistingPolicy.RecommendedPolicyType -ne 'Custom') {
+                throw "Cannot remove $($ExistingPolicy.RecommendedPolicyType) policy '$PolicyName'. Only custom policies can be removed."
+            }
+            
+            # Audit before-state
+            $AuditLog += "Before Remove - Policy: $($ExistingPolicy | ConvertTo-Json -Compress -Depth 2)"
+            
+            # First remove any associated rules - don't swallow errors
+            $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterRule' -useSystemMailbox $true | 
+                Where-Object { $_.HostedContentFilterPolicy -eq $PolicyName }
+            
+            foreach ($Rule in $ExistingRules) {
+                # Audit before-state for rule
+                $AuditLog += "Before Remove - Rule: $($Rule | ConvertTo-Json -Compress -Depth 2)"
+                
+                # Don't swallow errors - if rule removal fails, abort
+                try {
                     New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-HostedContentFilterRule' -cmdParams @{ Identity = $Rule.Name; Confirm = $false } -useSystemMailbox $true
                     $AuditLog += "Removed anti-spam rule: $($Rule.Name)"
                     $Results += "Removed anti-spam rule: $($Rule.Name)"
+                } catch {
+                    throw "Failed to remove rule '$($Rule.Name)': $($_.Exception.Message). Policy removal aborted."
                 }
-            } catch {
-                # Continue if no rules found
             }
             
             # Then remove the policy

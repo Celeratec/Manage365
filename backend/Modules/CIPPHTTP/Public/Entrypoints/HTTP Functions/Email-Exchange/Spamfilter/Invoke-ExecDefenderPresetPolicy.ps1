@@ -63,21 +63,27 @@ function Invoke-ExecDefenderPresetPolicy {
                         $BeforeState = 'Error'
                     }
 
-                    # Use Set-*ProtectionPolicyRule with -State Enabled
-                    $SetCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Set-EOPProtectionPolicyRule' } else { 'Set-ATPProtectionPolicyRule' }
-                    New-ExoRequest -tenantid $TenantFilter -cmdlet $SetCmdlet -cmdParams @{
+                    # Use Enable-*ProtectionPolicyRule
+                    $EnableCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Enable-EOPProtectionPolicyRule' } else { 'Enable-ATPProtectionPolicyRule' }
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet $EnableCmdlet -cmdParams @{
                         Identity = $RuleIdentity
-                        State    = 'Enabled'
                     } -useSystemMailbox $true
                     
-                    $AfterState = 'Enabled'
-                    $AuditLog += @{
-                        RuleType    = $RuleTypeLabel
-                        RuleIdentity = $RuleIdentity
-                        BeforeState = $BeforeState
-                        AfterState  = $AfterState
+                    # Re-Get the rule to report the actual after state
+                    try {
+                        $UpdatedRule = New-ExoRequest -tenantid $TenantFilter -cmdlet $GetCmdlet -cmdParams @{ Identity = $RuleIdentity } -useSystemMailbox $true | Select-Object -First 1
+                        $AfterState = if ($UpdatedRule) { $UpdatedRule.State } else { 'Unknown' }
+                    } catch {
+                        $AfterState = 'Error'
                     }
-                    $Results += "Enabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState)"
+                    
+                    $AuditLog += @{
+                        RuleType     = $RuleTypeLabel
+                        RuleIdentity = $RuleIdentity
+                        BeforeState  = $BeforeState
+                        AfterState   = $AfterState
+                    }
+                    $Results += "Enabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState, now: $AfterState)"
                 }
                 'Disable' {
                     # Read current state for audit
@@ -89,21 +95,27 @@ function Invoke-ExecDefenderPresetPolicy {
                         $BeforeState = 'Error'
                     }
 
-                    # Use Set-*ProtectionPolicyRule with -State Disabled
-                    $SetCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Set-EOPProtectionPolicyRule' } else { 'Set-ATPProtectionPolicyRule' }
-                    New-ExoRequest -tenantid $TenantFilter -cmdlet $SetCmdlet -cmdParams @{
+                    # Use Disable-*ProtectionPolicyRule
+                    $DisableCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Disable-EOPProtectionPolicyRule' } else { 'Disable-ATPProtectionPolicyRule' }
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet $DisableCmdlet -cmdParams @{
                         Identity = $RuleIdentity
-                        State    = 'Disabled'
                     } -useSystemMailbox $true
                     
-                    $AfterState = 'Disabled'
+                    # Re-Get the rule to report the actual after state
+                    try {
+                        $UpdatedRule = New-ExoRequest -tenantid $TenantFilter -cmdlet $GetCmdlet -cmdParams @{ Identity = $RuleIdentity } -useSystemMailbox $true | Select-Object -First 1
+                        $AfterState = if ($UpdatedRule) { $UpdatedRule.State } else { 'Unknown' }
+                    } catch {
+                        $AfterState = 'Error'
+                    }
+                    
                     $AuditLog += @{
                         RuleType     = $RuleTypeLabel
                         RuleIdentity = $RuleIdentity
                         BeforeState  = $BeforeState
                         AfterState   = $AfterState
                     }
-                    $Results += "Disabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState)"
+                    $Results += "Disabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState, now: $AfterState)"
                 }
                 'Rescope' {
                     # Rescoping requires recipient/domain/group lists
