@@ -3,6 +3,7 @@
 BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $FunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-ExecAntiSpamPolicy.ps1'
+    $RemoveFunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-ExecRemoveAntiSpamPolicy.ps1'
     $ValidationPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Test-CippExchangeInputValidation.ps1'
     $TenantFilterPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Get-CippNormalizedTenantFilter.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
@@ -33,6 +34,7 @@ BeforeAll {
     . $ValidationPath
     . $TenantFilterPath
     . $FunctionPath
+    . $RemoveFunctionPath
 }
 
 Describe 'Invoke-ExecAntiSpamPolicy' {
