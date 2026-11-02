@@ -14901,7 +14901,7 @@
                   },
                   "enableLanguageBlockList": {
                     "type": "string",
-                    "description": "Language/Region filters"
+                    "description": "Language/Region filters - use helper for validation"
                   },
                   "enableRegionBlockList": {
                     "type": "string"
@@ -14954,8 +14954,7 @@
                     "type": "array",
                     "items": {
                       "type": "string"
-                    },
-                    "description": "Validate language codes (2-letter ISO 639-1)"
+                    }
                   },
                   "markAsSpamBulkMail": {
                     "type": "string"
@@ -15026,8 +15025,7 @@
                     "type": "array",
                     "items": {
                       "type": "string"
-                    },
-                    "description": "Validate region codes (2-letter ISO 3166-1)"
+                    }
                   },
                   "ruleName": {
                     "type": "string"
@@ -15046,7 +15044,7 @@
                   },
                   "spamQuarantineTag": {
                     "type": "string",
-                    "description": "Specific quarantine tags (not generic)"
+                    "description": "Specific quarantine tags (not generic) - use helper for validation"
                   },
                   "spamZapEnabled": {
                     "type": "string",
@@ -25510,6 +25508,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "action": {
+                    "type": "string"
+                  },
                   "connectorIdentity": {
                     "type": "string"
                   },
@@ -31979,7 +31980,7 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Adds a sender to a mailbox trusted/safe senders list via Set-MailboxJunkEmailConfiguration.",
+        "description": "Adds or removes a sender from a mailbox trusted/safe senders list via Set-MailboxJunkEmailConfiguration.",
         "requestBody": {
           "required": true,
           "content": {
@@ -31987,6 +31988,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "action": {
+                    "type": "string"
+                  },
                   "mailbox": {
                     "type": "string"
                   },
