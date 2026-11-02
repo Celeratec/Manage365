@@ -17,9 +17,24 @@ BeforeAll {
         $typeAccelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode])
     }
 
-    function Write-LogMessage { param($headers, $API, $message, $sev) }
+    function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
     function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
-    function New-ExoRequest { param($tenantid, $cmdlet, $cmdParams) $true }
+    function New-ExoRequest { 
+        param($tenantid, $cmdlet, $cmdParams) 
+        # Validate the fix: TrustedSendersAndDomains should have GenericHashTable with Add
+        if ($cmdlet -eq 'Set-MailboxJunkEmailConfiguration') {
+            if ($cmdParams.TrustedSendersAndDomains) {
+                $hashtable = $cmdParams.TrustedSendersAndDomains
+                if ($hashtable.'@odata.type' -ne '#Exchange.GenericHashTable') {
+                    throw 'TrustedSendersAndDomains must use GenericHashTable format'
+                }
+                if (-not $hashtable.Add) {
+                    throw 'TrustedSendersAndDomains GenericHashTable must have Add property'
+                }
+            }
+        }
+        $true 
+    }
 
     Get-ChildItem -Path $ToolsDir -Filter '*Quarantine*.ps1' | ForEach-Object { . $_.FullName }
     . $FunctionPath

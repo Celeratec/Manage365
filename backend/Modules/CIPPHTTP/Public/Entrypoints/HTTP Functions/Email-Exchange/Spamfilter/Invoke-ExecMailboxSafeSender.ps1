@@ -20,10 +20,10 @@ function Invoke-ExecMailboxSafeSender {
         if ([string]::IsNullOrWhiteSpace($Sender)) { throw 'sender is required.' }
 
         New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
-            Identity            = $Mailbox
-            TrustedSendersToAdd = @($Sender)
-            TrustedListsOnly    = $false
-            ContactsTrusted     = $false
+            Identity                = $Mailbox
+            TrustedSendersAndDomains = @{'@odata.type' = '#Exchange.GenericHashTable'; Add = $Sender }
+            TrustedListsOnly        = $false
+            ContactsTrusted         = $false
         }
 
         $Result = "Added $Sender to the safe senders list for $Mailbox."
