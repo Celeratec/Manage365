@@ -68,23 +68,25 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
       action="${BASH_REMATCH[1]}"
       ref="${BASH_REMATCH[2]}"
       
+      # For actions with subpaths (e.g. github/codeql-action/init), extract only owner/repo
+      repo=$(echo "$action" | cut -d'/' -f1-2)
+      
       # Check if it's NOT a 40-character hex SHA
       if ! [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
         echo "❌ ERROR: $file has unpinned action: uses: ${action}@${ref}"
-        echo "   Pin to SHA with: git ls-remote https://github.com/${action} 'refs/tags/${ref}^{}'"
+        echo "   Pin to SHA with: git ls-remote https://github.com/${repo} 'refs/tags/${ref}^{}'"
         errors=$((errors + 1))
         continue
       fi
       
       # Verify the SHA exists and is a commit (not a tag object)
-      if [ -n "$GITHUB_TOKEN" ]; then
-        if ! curl -sf -H "Authorization: token $GITHUB_TOKEN" \
-             "https://api.github.com/repos/${action}/commits/${ref}" >/dev/null 2>&1; then
-          echo "❌ ERROR: $file uses SHA ${ref} that doesn't exist or is not a commit"
-          echo "   Action: ${action}@${ref}"
-          echo "   This may be an annotated tag object. Use 'refs/tags/<tag>^{}' to dereference"
-          errors=$((errors + 1))
-        fi
+      # Use curl without auth to avoid rate limits with GITHUB_TOKEN
+      if ! curl -sf "https://api.github.com/repos/${repo}/commits/${ref}" >/dev/null 2>&1; then
+        echo "❌ ERROR: $file uses SHA ${ref} that doesn't exist or is not a commit"
+        echo "   Action: ${action}@${ref}"
+        echo "   Repo: ${repo}"
+        echo "   This may be an annotated tag object. Use 'refs/tags/<tag>^{}' to dereference"
+        errors=$((errors + 1))
       fi
     fi
   done < <(grep "uses:" "$file" | grep -v "^#")
