@@ -50,32 +50,47 @@ function Invoke-ExecAntiSpamPolicy {
         # SCL thresholds and actions
         if ($null -ne $Request.Body.bulkThreshold) { $PolicyParams.BulkThreshold = $Request.Body.bulkThreshold }
         if ($null -ne $Request.Body.bulkSpamAction) { 
-            if ($Request.Body.bulkSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect', 'AddXHeader', 'ModifySubject')) {
-                throw "bulkSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect, AddXHeader, ModifySubject"
+            if ($Request.Body.bulkSpamAction -eq 'Redirect') {
+                throw "bulkSpamAction 'Redirect' requires Exchange.SecurityPolicy.ReadWrite role. Use ExecRemoveAntiSpamPolicy endpoint."
+            }
+            if ($Request.Body.bulkSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'AddXHeader', 'ModifySubject')) {
+                throw "bulkSpamAction must be one of: MoveToJmf, Quarantine, Delete, AddXHeader, ModifySubject"
             }
             $PolicyParams.BulkSpamAction = $Request.Body.bulkSpamAction 
         }
         if ($null -ne $Request.Body.spamAction) { 
-            if ($Request.Body.spamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect', 'AddXHeader', 'ModifySubject')) {
-                throw "spamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect, AddXHeader, ModifySubject"
+            if ($Request.Body.spamAction -eq 'Redirect') {
+                throw "spamAction 'Redirect' requires Exchange.SecurityPolicy.ReadWrite role. Use ExecRemoveAntiSpamPolicy endpoint."
+            }
+            if ($Request.Body.spamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'AddXHeader', 'ModifySubject')) {
+                throw "spamAction must be one of: MoveToJmf, Quarantine, Delete, AddXHeader, ModifySubject"
             }
             $PolicyParams.SpamAction = $Request.Body.spamAction 
         }
         if ($null -ne $Request.Body.highConfidenceSpamAction) { 
-            if ($Request.Body.highConfidenceSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
-                throw "highConfidenceSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            if ($Request.Body.highConfidenceSpamAction -eq 'Redirect') {
+                throw "highConfidenceSpamAction 'Redirect' requires Exchange.SecurityPolicy.ReadWrite role. Use ExecRemoveAntiSpamPolicy endpoint."
+            }
+            if ($Request.Body.highConfidenceSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
+                throw "highConfidenceSpamAction must be one of: MoveToJmf, Quarantine, Delete"
             }
             $PolicyParams.HighConfidenceSpamAction = $Request.Body.highConfidenceSpamAction 
         }
         if ($null -ne $Request.Body.phishSpamAction) { 
-            if ($Request.Body.phishSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
-                throw "phishSpamAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            if ($Request.Body.phishSpamAction -eq 'Redirect') {
+                throw "phishSpamAction 'Redirect' requires Exchange.SecurityPolicy.ReadWrite role. Use ExecRemoveAntiSpamPolicy endpoint."
+            }
+            if ($Request.Body.phishSpamAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
+                throw "phishSpamAction must be one of: MoveToJmf, Quarantine, Delete"
             }
             $PolicyParams.PhishSpamAction = $Request.Body.phishSpamAction 
         }
         if ($null -ne $Request.Body.highConfidencePhishAction) { 
-            if ($Request.Body.highConfidencePhishAction -notin @('MoveToJmf', 'Quarantine', 'Delete', 'Redirect')) {
-                throw "highConfidencePhishAction must be one of: MoveToJmf, Quarantine, Delete, Redirect"
+            if ($Request.Body.highConfidencePhishAction -eq 'Redirect') {
+                throw "highConfidencePhishAction 'Redirect' requires Exchange.SecurityPolicy.ReadWrite role. Use ExecRemoveAntiSpamPolicy endpoint."
+            }
+            if ($Request.Body.highConfidencePhishAction -notin @('MoveToJmf', 'Quarantine', 'Delete')) {
+                throw "highConfidencePhishAction must be one of: MoveToJmf, Quarantine, Delete"
             }
             $PolicyParams.HighConfidencePhishAction = $Request.Body.highConfidencePhishAction 
         }

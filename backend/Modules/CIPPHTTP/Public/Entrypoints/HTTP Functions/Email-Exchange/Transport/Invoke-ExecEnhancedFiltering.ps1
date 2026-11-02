@@ -82,22 +82,24 @@ function Invoke-ExecEnhancedFiltering {
                         $NormalizedEFIP = $EFSkipIP.Trim()
                         
                         foreach ($AllowIP in $IPAllowList) {
-                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $AllowIP
+                            $TrimmedAllowIP = $AllowIP.Trim()
+                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $TrimmedAllowIP
                             if (-not $OverlapCheck.Valid) {
-                                throw "Cannot validate EFSkipIP '$NormalizedEFIP' against IPAllowList entry '$AllowIP': $($OverlapCheck.Error). Operation blocked for safety."
+                                throw "Cannot validate EFSkipIP '$NormalizedEFIP' against IPAllowList entry '$TrimmedAllowIP': $($OverlapCheck.Error). Operation blocked for safety."
                             }
                             if ($OverlapCheck.Overlaps) {
-                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPAllowList entry '$AllowIP'. Remove overlap first."
+                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPAllowList entry '$TrimmedAllowIP'. Remove overlap first."
                             }
                         }
                         
                         foreach ($BlockIP in $IPBlockList) {
-                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $BlockIP
+                            $TrimmedBlockIP = $BlockIP.Trim()
+                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $TrimmedBlockIP
                             if (-not $OverlapCheck.Valid) {
-                                throw "Cannot validate EFSkipIP '$NormalizedEFIP' against IPBlockList entry '$BlockIP': $($OverlapCheck.Error). Operation blocked for safety."
+                                throw "Cannot validate EFSkipIP '$NormalizedEFIP' against IPBlockList entry '$TrimmedBlockIP': $($OverlapCheck.Error). Operation blocked for safety."
                             }
                             if ($OverlapCheck.Overlaps) {
-                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPBlockList entry '$BlockIP'. Remove overlap first."
+                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPBlockList entry '$TrimmedBlockIP'. Remove overlap first."
                             }
                         }
                     }

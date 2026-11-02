@@ -43,8 +43,12 @@ function Invoke-ExecRemoveAntiPhishPolicy {
         $AuditLog += "Before Remove - Policy: $($ExistingPolicy | ConvertTo-Json -Compress -Depth 2)"
         
         # First remove any associated rules - don't swallow errors
-        $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishRule' -useSystemMailbox $true | 
-            Where-Object { $_.AntiPhishPolicy -eq $PolicyName }
+        try {
+            $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishRule' -useSystemMailbox $true | 
+                Where-Object { $_.AntiPhishPolicy -eq $PolicyName }
+        } catch {
+            throw "Failed to read associated rules for policy '$PolicyName': $($_.Exception.Message). Policy removal aborted."
+        }
         
         foreach ($Rule in $ExistingRules) {
             # Audit before-state for rule

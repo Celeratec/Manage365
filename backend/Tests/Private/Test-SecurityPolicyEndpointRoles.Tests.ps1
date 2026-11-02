@@ -153,4 +153,69 @@ Describe 'SecurityPolicy Endpoint RBAC Tests' {
             $Included | Should -Be $true -Because "editor role should grant SpamFilter.ReadWrite"
         }
     }
+
+    Context 'Real Test-CIPPAccess Integration' {
+        BeforeAll {
+            # Set up environment for Test-CIPPAccess
+            $env:CIPPRootPath = Join-Path $PSScriptRoot '../..'
+            
+            # Load the REAL Test-CIPPAccess function
+            $TestCIPPAccessPath = Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/Authentication/Test-CIPPAccess.ps1'
+            . $TestCIPPAccessPath
+            
+            # Load endpoint functions so Get-Help can read their .ROLE directives
+            $ExecEnhancedFilteringPath = Join-Path $PSScriptRoot '../../Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Transport/Invoke-ExecEnhancedFiltering.ps1'
+            $ExecRemoveAntiSpamPath = Join-Path $PSScriptRoot '../../Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-ExecRemoveAntiSpamPolicy.ps1'
+            . $ExecEnhancedFilteringPath
+            . $ExecRemoveAntiSpamPath
+        }
+
+        It 'editor role is denied access to ExecEnhancedFiltering (SecurityPolicy endpoint)' {
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'editor'
+                    'x-ms-client-principal-idp' = 'aad'
+                    'x-ms-client-principal-name' = 'test@example.com'
+                }
+                Params = @{
+                    CIPPEndpoint = 'ExecEnhancedFiltering'
+                }
+            }
+            
+            $Result = Test-CIPPAccess -Request $Request
+            $Result | Should -Be $false -Because "editor role must not have Exchange.SecurityPolicy.ReadWrite access"
+        }
+
+        It 'readonly role is denied access to ExecRemoveAntiSpamPolicy (SecurityPolicy endpoint)' {
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'readonly'
+                    'x-ms-client-principal-idp' = 'aad'
+                    'x-ms-client-principal-name' = 'test@example.com'
+                }
+                Params = @{
+                    CIPPEndpoint = 'ExecRemoveAntiSpamPolicy'
+                }
+            }
+            
+            $Result = Test-CIPPAccess -Request $Request
+            $Result | Should -Be $false -Because "readonly role must not have Exchange.SecurityPolicy.ReadWrite access"
+        }
+
+        It 'admin role is allowed access to ExecEnhancedFiltering (SecurityPolicy endpoint)' {
+            $Request = [pscustomobject]@{
+                Headers = @{
+                    Roles = 'admin'
+                    'x-ms-client-principal-idp' = 'aad'
+                    'x-ms-client-principal-name' = 'test@example.com'
+                }
+                Params = @{
+                    CIPPEndpoint = 'ExecEnhancedFiltering'
+                }
+            }
+            
+            $Result = Test-CIPPAccess -Request $Request
+            $Result | Should -Be $true -Because "admin role should have full access including SecurityPolicy"
+        }
+    }
 }
