@@ -411,8 +411,23 @@ function Test-CIPPIPOverlap {
     try {
         # Parse IP1
         $Addr1 = $null
+        $Addr1End = $null
         $Prefix1 = 0
-        if ($IP1 -match '^(.+?)/(-?\d+)$') {
+        $IsRange1 = $false
+        
+        # Check for range notation (a.b.c.d-w.x.y.z)
+        if ($IP1 -match '^([0-9.]+)\s*-\s*([0-9.]+)$') {
+            $IsRange1 = $true
+            if (-not [System.Net.IPAddress]::TryParse($Matches[1], [ref]$Addr1)) {
+                Write-Warning "Invalid range start in IP1"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+            if (-not [System.Net.IPAddress]::TryParse($Matches[2], [ref]$Addr1End)) {
+                Write-Warning "Invalid range end in IP1"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+        }
+        elseif ($IP1 -match '^(.+?)/(-?\d+)$') {
             $IP1Str = $Matches[1]
             $PrefixStr = $Matches[2]
             $Prefix1 = [int]$PrefixStr
@@ -444,8 +459,23 @@ function Test-CIPPIPOverlap {
         
         # Parse IP2
         $Addr2 = $null
+        $Addr2End = $null
         $Prefix2 = 0
-        if ($IP2 -match '^(.+?)/(-?\d+)$') {
+        $IsRange2 = $false
+        
+        # Check for range notation (a.b.c.d-w.x.y.z)
+        if ($IP2 -match '^([0-9.]+)\s*-\s*([0-9.]+)$') {
+            $IsRange2 = $true
+            if (-not [System.Net.IPAddress]::TryParse($Matches[1], [ref]$Addr2)) {
+                Write-Warning "Invalid range start in IP2"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+            if (-not [System.Net.IPAddress]::TryParse($Matches[2], [ref]$Addr2End)) {
+                Write-Warning "Invalid range end in IP2"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+        }
+        elseif ($IP2 -match '^(.+?)/(-?\d+)$') {
             $IP2Str = $Matches[1]
             $PrefixStr = $Matches[2]
             $Prefix2 = [int]$PrefixStr
@@ -488,6 +518,58 @@ function Test-CIPPIPOverlap {
         # Different address families don't overlap
         if ($Addr1.AddressFamily -ne $Addr2.AddressFamily) {
             return @{ Overlaps = $false; Valid = $true; Error = $null }
+        }
+        
+        # Helper to convert IP to integer for range comparisons (IPv4 only)
+        function ConvertTo-IPInt {
+            param([System.Net.IPAddress]$Addr)
+            $Bytes = $Addr.GetAddressBytes()
+            [Array]::Reverse($Bytes)
+            [BitConverter]::ToUInt32($Bytes, 0)
+        }
+        
+        # Handle range overlaps (IPv4 only for now)
+        if ($IsRange1 -or $IsRange2) {
+            if ($Addr1.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+                Write-Warning "Range notation only supported for IPv4"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Range notation only supported for IPv4' }
+            }
+            
+            # Convert range 1 to integer bounds
+            if ($IsRange1) {
+                $Start1 = ConvertTo-IPInt $Addr1
+                $End1 = ConvertTo-IPInt $Addr1End
+            } else {
+                # Convert CIDR/single IP to range
+                $Start1 = ConvertTo-IPInt $Addr1
+                if ($Prefix1 -eq 32) {
+                    $End1 = $Start1
+                } else {
+                    $Mask = [uint32]([Math]::Pow(2, 32) - [Math]::Pow(2, (32 - $Prefix1)))
+                    $Start1 = $Start1 -band $Mask
+                    $End1 = $Start1 + ([Math]::Pow(2, (32 - $Prefix1)) - 1)
+                }
+            }
+            
+            # Convert range 2 to integer bounds
+            if ($IsRange2) {
+                $Start2 = ConvertTo-IPInt $Addr2
+                $End2 = ConvertTo-IPInt $Addr2End
+            } else {
+                # Convert CIDR/single IP to range
+                $Start2 = ConvertTo-IPInt $Addr2
+                if ($Prefix2 -eq 32) {
+                    $End2 = $Start2
+                } else {
+                    $Mask = [uint32]([Math]::Pow(2, 32) - [Math]::Pow(2, (32 - $Prefix2)))
+                    $Start2 = $Start2 -band $Mask
+                    $End2 = $Start2 + ([Math]::Pow(2, (32 - $Prefix2)) - 1)
+                }
+            }
+            
+            # Check overlap: ranges overlap if Start1 <= End2 AND Start2 <= End1
+            $Overlaps = ($Start1 -le $End2) -and ($Start2 -le $End1)
+            return @{ Overlaps = $Overlaps; Valid = $true; Error = $null }
         }
         
         # Validate prefix lengths
