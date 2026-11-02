@@ -46,10 +46,9 @@ jobs:
       - name: Write result metadata
         if: always()
         env:
-          PR_NUMBER: ${{ github.event.pull_request.number || 0 }}
           INVALID_COUNT: ${{ steps.validate.outputs.invalid_count }}
         run: |
-          echo "{\"pr_number\": $PR_NUMBER, \"invalid_count\": $INVALID_COUNT}" > validation-metadata.json
+          echo "{\"invalid_count\": $INVALID_COUNT}" > validation-metadata.json
 
       - name: Upload validation results
         if: always()

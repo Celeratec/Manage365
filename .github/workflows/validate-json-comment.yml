@@ -39,9 +39,10 @@ jobs:
             });
             
             // Find the PR that matches: same head SHA, same head repo, open state
+            // Use pr.head.repo?.full_name since head.repo is null when fork is deleted
             const matchingPr = prs.find(pr => 
               pr.head.sha === headSha && 
-              pr.head.repo.full_name === headRepo &&
+              pr.head.repo?.full_name === headRepo &&
               pr.state === 'open'
             );
             
@@ -102,8 +103,16 @@ jobs:
             }
             
             function safeCodeSpan(text) {
-              // Use double backticks if text contains backticks, otherwise single
-              return text.includes('`') ? `\`\`${text}\`\`` : `\`${text}\``;
+              // Strip control characters including \r and \n
+              const cleaned = text.replace(/[\r\n\x00-\x1F\x7F]/g, '');
+              
+              // Find longest run of backticks in the text
+              const backtickRuns = cleaned.match(/`+/g) || [];
+              const maxBackticks = backtickRuns.reduce((max, run) => Math.max(max, run.length), 0);
+              
+              // Use one more backtick than the longest run, with spaces
+              const fence = '`'.repeat(maxBackticks + 1);
+              return `${fence} ${cleaned} ${fence}`;
             }
             
             let body;

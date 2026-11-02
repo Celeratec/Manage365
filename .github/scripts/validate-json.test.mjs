@@ -63,3 +63,31 @@ test('escapeActionsCommand handles realistic error messages', () => {
     'Parse error on line 1:%0A...{%0A  "key": value%0A---^'
   );
 });
+
+test('safeCodeSpan strips control characters', () => {
+  const safeCodeSpan = (text) => {
+    const cleaned = text.replace(/[\r\n\x00-\x1F\x7F]/g, '');
+    const backtickRuns = cleaned.match(/`+/g) || [];
+    const maxBackticks = backtickRuns.reduce((max, run) => Math.max(max, run.length), 0);
+    const fence = '`'.repeat(maxBackticks + 1);
+    return `${fence} ${cleaned} ${fence}`;
+  };
+  
+  assert.equal(safeCodeSpan('file\nname.txt'), '` filename.txt `');
+  assert.equal(safeCodeSpan('file\r\nname.txt'), '` filename.txt `');
+  assert.equal(safeCodeSpan('file\x00name.txt'), '` filename.txt `');
+});
+
+test('safeCodeSpan handles backticks in text', () => {
+  const safeCodeSpan = (text) => {
+    const cleaned = text.replace(/[\r\n\x00-\x1F\x7F]/g, '');
+    const backtickRuns = cleaned.match(/`+/g) || [];
+    const maxBackticks = backtickRuns.reduce((max, run) => Math.max(max, run.length), 0);
+    const fence = '`'.repeat(maxBackticks + 1);
+    return `${fence} ${cleaned} ${fence}`;
+  };
+  
+  assert.equal(safeCodeSpan('simple.txt'), '` simple.txt `');
+  assert.equal(safeCodeSpan('file`name.txt'), '`` file`name.txt ``');
+  assert.equal(safeCodeSpan('file``double.txt'), '``` file``double.txt ```');
+});

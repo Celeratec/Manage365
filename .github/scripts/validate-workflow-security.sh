@@ -58,6 +58,9 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
 done
 
 # Check 3: All uses: must be pinned to 40-char SHA and SHA must exist
+# Collect unique repo@sha pairs first to avoid redundant API calls
+declare -A verified_shas
+
 for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
   [ ! -f "$file" ] && continue
   
@@ -70,6 +73,7 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
       
       # For actions with subpaths (e.g. github/codeql-action/init), extract only owner/repo
       repo=$(echo "$action" | cut -d'/' -f1-2)
+      repo_sha="${repo}@${ref}"
       
       # Check if it's NOT a 40-character hex SHA
       if ! [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
@@ -79,15 +83,59 @@ for file in "$workflow_dir"/*.yml "$workflow_dir"/*.yaml; do
         continue
       fi
       
-      # Verify the SHA exists and is a commit (not a tag object)
-      # Use curl without auth to avoid rate limits with GITHUB_TOKEN
-      if ! curl -sf "https://api.github.com/repos/${repo}/commits/${ref}" >/dev/null 2>&1; then
-        echo "❌ ERROR: $file uses SHA ${ref} that doesn't exist or is not a commit"
-        echo "   Action: ${action}@${ref}"
-        echo "   Repo: ${repo}"
-        echo "   This may be an annotated tag object. Use 'refs/tags/<tag>^{}' to dereference"
-        errors=$((errors + 1))
+      # Skip if we've already verified this repo@sha
+      if [[ -n "${verified_shas[$repo_sha]}" ]]; then
+        continue
       fi
+      
+      # Verify the SHA exists and is a commit (not a tag object)
+      max_retries=3
+      retry=0
+      while [ $retry -le $max_retries ]; do
+        response=$(mktemp)
+        
+        if [ -n "$GH_TOKEN" ]; then
+          http_code=$(curl -w "%{http_code}" -o "$response" -s \
+            -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${repo}/commits/${ref}" 2>/dev/null)
+        else
+          http_code=$(curl -w "%{http_code}" -o "$response" -s \
+            "https://api.github.com/repos/${repo}/commits/${ref}" 2>/dev/null)
+        fi
+        
+        if [ "$http_code" = "200" ]; then
+          verified_shas[$repo_sha]="ok"
+          rm -f "$response"
+          break
+        elif [ "$http_code" = "404" ] || [ "$http_code" = "422" ]; then
+          echo "❌ ERROR: $file uses SHA ${ref} that doesn't exist or is not a commit"
+          echo "   Action: ${action}@${ref}"
+          echo "   Repo: ${repo}"
+          echo "   This may be an annotated tag object. Use 'refs/tags/<tag>^{}' to dereference"
+          errors=$((errors + 1))
+          verified_shas[$repo_sha]="fail"
+          rm -f "$response"
+          break
+        elif [ "$http_code" = "403" ] || [ "$http_code" = "429" ]; then
+          retry=$((retry + 1))
+          if [ $retry -le $max_retries ]; then
+            sleep $((2 ** retry))
+          else
+            echo "❌ ERROR: Rate limited when verifying ${repo}@${ref}"
+            echo "   HTTP $http_code after $max_retries retries"
+            echo "   Consider running with GH_TOKEN for higher rate limits"
+            errors=$((errors + 1))
+            verified_shas[$repo_sha]="rate-limited"
+          fi
+          rm -f "$response"
+        else
+          echo "❌ ERROR: Unexpected HTTP $http_code when verifying ${repo}@${ref}"
+          errors=$((errors + 1))
+          verified_shas[$repo_sha]="error"
+          rm -f "$response"
+          break
+        fi
+      done
     fi
   done < <(grep "uses:" "$file" | grep -v "^#")
 done
