@@ -23,6 +23,7 @@ BeforeAll {
     function Get-NormalizedError { param($Message) "$Message" }
 
     $BaselinesHelpers = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Helpers'
+    $BaselinesPrepare = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/PrepareHooks'
 
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
@@ -30,8 +31,8 @@ BeforeAll {
     . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     foreach ($Name in @('PhishProtection', 'ColleagueImpersonationAlert', 'DisableOutlookAddins',
             'RestrictThirdPartyStorageServices', 'IntuneAppTemplateDeploy', 'MFAPushApps')) {
-        . (Join-Path $Baselines "Get-CIPPBaseline${Name}State.ps1")
-        . (Join-Path $Baselines "Invoke-CIPPBaseline${Name}.ps1")
+        . (Join-Path $BaselinesPrepare "Get-CIPPBaseline${Name}State.ps1")
+        . (Join-Path $BaselinesPrepare "Invoke-CIPPBaseline${Name}.ps1")
     }
 
     $script:Tenant = 'contoso.onmicrosoft.com'

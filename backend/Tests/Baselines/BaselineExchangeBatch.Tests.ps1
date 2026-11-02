@@ -16,14 +16,16 @@ BeforeAll {
     function Get-CIPPTextReplacement { param($TenantFilter, $Text) $Text }
     function Get-NormalizedError { param($Message) "$Message" }
 
+    $BaselinesPrepare = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/PrepareHooks'
+
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
     . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCacheRows.ps1')
     . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     foreach ($Name in @('GlobalQuarantineSettings', 'GlobalQuarantineNotifications', 'UserSubmissions', 'RetentionPolicyTag',
             'SendReceiveLimitTenant', 'AddDKIM', 'RotateDKIM', 'PhishSimSpoofIntelligence', 'PhishingSimulations')) {
-        . (Join-Path $Baselines "Get-CIPPBaseline${Name}State.ps1")
-        . (Join-Path $Baselines "Invoke-CIPPBaseline${Name}.ps1")
+        . (Join-Path $BaselinesPrepare "Get-CIPPBaseline${Name}State.ps1")
+        . (Join-Path $BaselinesPrepare "Invoke-CIPPBaseline${Name}.ps1")
     }
 
     $script:Tenant = 'contoso.onmicrosoft.com'
