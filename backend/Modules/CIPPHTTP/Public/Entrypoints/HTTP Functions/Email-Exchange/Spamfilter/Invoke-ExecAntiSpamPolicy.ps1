@@ -3,11 +3,11 @@ function Invoke-ExecAntiSpamPolicy {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Exchange.SecurityPolicy.ReadWrite
+        Exchange.SpamFilter.ReadWrite
     .DESCRIPTION
         Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).
         Supports SCL thresholds, spam actions, BCL threshold, and ASF settings.
-        This role gates allow lists and RedirectToRecipients which can bypass security.
+        Allow lists and RedirectToRecipients are rejected - use ExecRemoveAntiSpamPolicy for deletions.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -25,7 +25,7 @@ function Invoke-ExecAntiSpamPolicy {
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
-        if ($Action -notin @('New', 'Update', 'Remove')) { throw 'action must be New, Update, or Remove.' }
+        if ($Action -notin @('New', 'Update')) { throw 'action must be New or Update. Use ExecRemoveAntiSpamPolicy for removal.' }
         if ([string]::IsNullOrWhiteSpace($PolicyName)) { throw 'policyName is required.' }
 
         # Validate policy/rule names
@@ -98,29 +98,9 @@ function Invoke-ExecAntiSpamPolicy {
         if ($null -ne $Request.Body.markAsSpamBulkMail) { $PolicyParams.MarkAsSpamBulkMail = $Request.Body.markAsSpamBulkMail }
         if ($null -ne $Request.Body.markAsSpamNdrBackscatter) { $PolicyParams.MarkAsSpamNdrBackscatter = $Request.Body.markAsSpamNdrBackscatter }
 
-        # Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite
+        # Allow/Block lists - rejected (require SecurityPolicy.ReadWrite which this endpoint doesn't have)
         if ($Request.Body.allowedSenders -or $Request.Body.allowedSenderDomains -or $Request.Body.blockedSenders -or $Request.Body.blockedSenderDomains) {
-            # Note: These require elevated permissions - checked by role
-            if ($Request.Body.allowedSenders) { 
-                $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.allowedSenders
-                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
-                $PolicyParams.AllowedSenders = $Request.Body.allowedSenders 
-            }
-            if ($Request.Body.allowedSenderDomains) { 
-                $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.allowedSenderDomains
-                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
-                $PolicyParams.AllowedSenderDomains = $Request.Body.allowedSenderDomains 
-            }
-            if ($Request.Body.blockedSenders) { 
-                $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.blockedSenders
-                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
-                $PolicyParams.BlockedSenders = $Request.Body.blockedSenders 
-            }
-            if ($Request.Body.blockedSenderDomains) { 
-                $Validation = Test-CippExchangeInputValidation -Domains $Request.Body.blockedSenderDomains
-                if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
-                $PolicyParams.BlockedSenderDomains = $Request.Body.blockedSenderDomains 
-            }
+            throw 'Allow/block lists require Exchange.SecurityPolicy.ReadWrite. Use a separate endpoint for allow/block list management.'
         }
 
         # Language/Region filters - use helper for validation
@@ -164,20 +144,9 @@ function Invoke-ExecAntiSpamPolicy {
             $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag
         }
 
-        # RedirectToRecipients - must be in accepted domains
+        # RedirectToRecipients - rejected (requires SecurityPolicy.ReadWrite which this endpoint doesn't have)
         if ($Request.Body.redirectToRecipients) {
-            $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.redirectToRecipients
-            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
-            
-            # Verify recipients are in accepted domains (use DomainName property)
-            $AcceptedDomains = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AcceptedDomain' | Select-Object -ExpandProperty DomainName
-            foreach ($Recipient in $Request.Body.redirectToRecipients) {
-                $RecipientDomain = ($Recipient -split '@')[1]
-                if ($RecipientDomain -notin $AcceptedDomains) {
-                    throw "RedirectToRecipients address '$Recipient' must be in an accepted domain of the tenant"
-                }
-            }
-            $PolicyParams.RedirectToRecipients = $Request.Body.redirectToRecipients 
+            throw 'RedirectToRecipients requires Exchange.SecurityPolicy.ReadWrite. Use a separate endpoint for redirect configuration.'
         }
 
         # ZAP settings (specific, not generic)
@@ -233,48 +202,6 @@ function Invoke-ExecAntiSpamPolicy {
                 $AuditLog += "Created anti-spam rule: $RuleName with settings: $($RuleParams | ConvertTo-Json -Compress)"
                 $Results += "Created anti-spam rule: $RuleName"
             }
-        } elseif ($Action -eq 'Remove') {
-            # Remove policy and rule (for rollback) - requires Exchange.SecurityPolicy.ReadWrite
-            # Guard: Get the policy first and refuse if it's default, built-in, or preset
-            try {
-                $ExistingPolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true
-            } catch {
-                # Don't swallow the Get error - return it
-                throw "Failed to get policy '$PolicyName': $($_.Exception.Message)"
-            }
-            
-            if ($ExistingPolicy.IsDefault -eq $true) {
-                throw "Cannot remove default policy '$PolicyName'"
-            }
-            if ($ExistingPolicy.RecommendedPolicyType -and $ExistingPolicy.RecommendedPolicyType -ne 'Custom') {
-                throw "Cannot remove $($ExistingPolicy.RecommendedPolicyType) policy '$PolicyName'. Only custom policies can be removed."
-            }
-            
-            # Audit before-state
-            $AuditLog += "Before Remove - Policy: $($ExistingPolicy | ConvertTo-Json -Compress -Depth 2)"
-            
-            # First remove any associated rules - don't swallow errors
-            $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterRule' -useSystemMailbox $true | 
-                Where-Object { $_.HostedContentFilterPolicy -eq $PolicyName }
-            
-            foreach ($Rule in $ExistingRules) {
-                # Audit before-state for rule
-                $AuditLog += "Before Remove - Rule: $($Rule | ConvertTo-Json -Compress -Depth 2)"
-                
-                # Don't swallow errors - if rule removal fails, abort
-                try {
-                    New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-HostedContentFilterRule' -cmdParams @{ Identity = $Rule.Name; Confirm = $false } -useSystemMailbox $true
-                    $AuditLog += "Removed anti-spam rule: $($Rule.Name)"
-                    $Results += "Removed anti-spam rule: $($Rule.Name)"
-                } catch {
-                    throw "Failed to remove rule '$($Rule.Name)': $($_.Exception.Message). Policy removal aborted."
-                }
-            }
-            
-            # Then remove the policy
-            New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName; Confirm = $false } -useSystemMailbox $true
-            $AuditLog += "Removed anti-spam policy: $PolicyName"
-            $Results += "Removed anti-spam policy: $PolicyName"
         } else {
             # Update existing policy - read before for audit
             $BeforePolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true
