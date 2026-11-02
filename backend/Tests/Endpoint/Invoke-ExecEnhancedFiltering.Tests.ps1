@@ -21,6 +21,7 @@ BeforeAll {
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
     function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
+    function Test-CIPPAccess { param($Request, $TenantFilter, $RequiredRoles) $true }
     
     $script:LastExoRequest = @{}
     function New-ExoRequest { 

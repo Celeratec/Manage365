@@ -72,8 +72,8 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Enabled'
-        $script:LastExoRequest.Cmdlet | Should -Be 'Enable-EOPProtectionPolicyRule'
-        $script:LastExoRequest.CmdParams.Identity | Should -Be 'Standard Preset Security Policy'
+        # After Enable, the function re-Gets the rule to report actual state, so LastExoRequest will be the Get cmdlet
+        $script:LastExoRequest.Cmdlet | Should -Be 'Get-EOPProtectionPolicyRule'
     }
 
     It 'returns a success message when disabling a strict preset policy' {
@@ -92,8 +92,8 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Disabled'
-        $script:LastExoRequest.Cmdlet | Should -Be 'Disable-ATPProtectionPolicyRule'
-        $script:LastExoRequest.CmdParams.Identity | Should -Be 'Strict Preset Security Policy'
+        # After Disable, the function re-Gets the rule to report actual state, so LastExoRequest will be the Get cmdlet
+        $script:LastExoRequest.Cmdlet | Should -Be 'Get-ATPProtectionPolicyRule'
     }
 
     It 'validates required parameters' {

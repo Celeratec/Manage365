@@ -1,7 +1,7 @@
 # Pester tests for Test-CippExchangeInputValidation priority handling
 
 BeforeAll {
-    $RepoRoot = Split-Path -Parent (Split-Path -Parent $PSCommandPath)
+    $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $ValidationPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Test-CippExchangeInputValidation.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
 
