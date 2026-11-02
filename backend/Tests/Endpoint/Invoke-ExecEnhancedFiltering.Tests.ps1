@@ -547,7 +547,7 @@ Describe 'Invoke-ExecEnhancedFiltering' {
 
         $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
-        $response.Body.Results | Should -Match 'Reversed IP range'
+        $response.Body.Results | Should -Match 'IP range end must be >= start'
     }
 
     It 'rejects range with non-dotted-quad address (shorthand)' {
@@ -570,6 +570,6 @@ Describe 'Invoke-ExecEnhancedFiltering' {
 
         $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
-        $response.Body.Results | Should -Match 'dotted-quad IPv4'
+        $response.Body.Results | Should -Match 'dotted-quad notation'
     }
 }
