@@ -66,29 +66,35 @@ function Invoke-ExecEnhancedFiltering {
                 }
                 
                 # Two-way guard: refuse EFSkipIPs that overlap HostedConnectionFilterPolicy IPAllowList or IPBlockList
+                # CIDR-aware, fail-closed, checks ALL policies
                 try {
-                    $ConnectionFilterPolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedConnectionFilterPolicy' -useSystemMailbox $true | Select-Object -First 1
-                    if ($ConnectionFilterPolicy) {
-                        $IPAllowList = $ConnectionFilterPolicy.IPAllowList ?? @()
-                        $IPBlockList = $ConnectionFilterPolicy.IPBlockList ?? @()
+                    $ConnectionFilterPolicies = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedConnectionFilterPolicy' -useSystemMailbox $true
+                } catch {
+                    # Fail closed: if we can't read the connection filter policies, abort
+                    throw "Failed to read HostedConnectionFilterPolicy for overlap check: $($_.Exception.Message). Cannot proceed."
+                }
+                
+                foreach ($Policy in $ConnectionFilterPolicies) {
+                    $IPAllowList = $Policy.IPAllowList ?? @()
+                    $IPBlockList = $Policy.IPBlockList ?? @()
+                    
+                    foreach ($EFSkipIP in $EFSkipIPs) {
+                        $NormalizedEFIP = $EFSkipIP.Trim()
                         
-                        foreach ($IP in $EFSkipIPs) {
-                            $NormalizedIP = $IP.Trim()
-                            if ($IPAllowList -contains $NormalizedIP) {
-                                throw "EFSkipIP '$NormalizedIP' overlaps with HostedConnectionFilterPolicy IPAllowList. Remove it from IPAllowList first."
+                        foreach ($AllowIP in $IPAllowList) {
+                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $AllowIP
+                            if ($OverlapCheck.Overlaps) {
+                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPAllowList entry '$AllowIP'. Remove overlap first."
                             }
-                            if ($IPBlockList -contains $NormalizedIP) {
-                                throw "EFSkipIP '$NormalizedIP' overlaps with HostedConnectionFilterPolicy IPBlockList. Remove it from IPBlockList first."
+                        }
+                        
+                        foreach ($BlockIP in $IPBlockList) {
+                            $OverlapCheck = Test-CIPPIPOverlap -IP1 $NormalizedEFIP -IP2 $BlockIP
+                            if ($OverlapCheck.Overlaps) {
+                                throw "EFSkipIP '$NormalizedEFIP' overlaps with HostedConnectionFilterPolicy '$($Policy.Name)' IPBlockList entry '$BlockIP'. Remove overlap first."
                             }
                         }
                     }
-                } catch {
-                    # If it's our overlap error, re-throw it
-                    if ($_.Exception.Message -match 'overlaps with HostedConnectionFilterPolicy') {
-                        throw
-                    }
-                    # Otherwise log warning but continue (in case connection filter policy doesn't exist)
-                    Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message "Could not check HostedConnectionFilterPolicy: $($_.Exception.Message)" -Sev 'Warning'
                 }
                 
                 # Send validated, normalized (trimmed) values to Exchange
