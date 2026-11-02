@@ -14849,7 +14849,7 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).\nSupports SCL thresholds, spam actions, BCL threshold, and ASF settings.\nThis role gates allow lists and RedirectToRecipients which can bypass security.",
+        "description": "Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).\nSupports SCL thresholds, spam actions, BCL threshold, and ASF settings.\nAllow lists and RedirectToRecipients are rejected - use ExecRemoveAntiSpamPolicy for deletions.",
         "requestBody": {
           "required": true,
           "content": {
@@ -14862,32 +14862,20 @@
                     "description": "New or Update"
                   },
                   "allowedSenderDomains": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                    "type": "string",
+                    "description": "Allow/Block lists - rejected (require SecurityPolicy.ReadWrite which this endpoint doesn't have)"
                   },
                   "allowedSenders": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                    "type": "string",
+                    "description": "Allow/Block lists - rejected (require SecurityPolicy.ReadWrite which this endpoint doesn't have)"
                   },
                   "blockedSenderDomains": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                    "type": "string",
+                    "description": "Allow/Block lists - rejected (require SecurityPolicy.ReadWrite which this endpoint doesn't have)"
                   },
                   "blockedSenders": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                    "type": "string",
+                    "description": "Allow/Block lists - rejected (require SecurityPolicy.ReadWrite which this endpoint doesn't have)"
                   },
                   "bulkQuarantineTag": {
                     "type": "string"
@@ -15015,11 +15003,8 @@
                     "description": "Validate and add scoping"
                   },
                   "redirectToRecipients": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "RedirectToRecipients - must be in accepted domains"
+                    "type": "string",
+                    "description": "RedirectToRecipients - rejected (requires SecurityPolicy.ReadWrite which this endpoint doesn't have)"
                   },
                   "regionBlockList": {
                     "type": "array",
@@ -15090,7 +15075,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite",
         "x-cipp-reads-via": [
           "Get-CippNormalizedTenantFilter"
         ]
@@ -22409,7 +22394,7 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Enable, disable, or rescope Defender preset security policies (Standard or Strict).\nManages EOP and ATP Protection Policy Rules. Enable action uses Exchange.SpamFilter.ReadWrite.",
+        "description": "Enable Defender preset security policies (Standard or Strict).\nManages EOP and ATP Protection Policy Rules. Use ExecDisableDefenderPresetPolicy or\nExecRescopeDefenderPresetPolicy for disable/rescope operations.",
         "requestBody": {
           "required": true,
           "content": {
@@ -22419,57 +22404,15 @@
                 "properties": {
                   "action": {
                     "type": "string",
-                    "enum": [
-                      "Disable",
-                      "Enable",
-                      "Rescope"
-                    ],
                     "description": "Enable, Disable, or Rescope"
-                  },
-                  "exceptIfRecipientDomainIs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "exceptIfSentTo": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
-                  "exceptIfSentToMemberOf": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
                   },
                   "policyType": {
                     "type": "string",
                     "description": "Standard or Strict"
                   },
-                  "recipientDomainIs": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
-                  },
                   "ruleType": {
                     "type": "string",
                     "description": "EOP or ATP or Both"
-                  },
-                  "sentTo": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Rescoping requires recipient/domain/group lists"
-                  },
-                  "sentToMemberOf": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
                   },
                   "tenantFilter": {
                     "type": "array",
@@ -22513,7 +22456,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite",
         "x-cipp-reads-via": [
           "Get-CippNormalizedTenantFilter"
         ]
@@ -23476,6 +23419,75 @@
           }
         ],
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
+    "/api/ExecDisableDefenderPresetPolicy": {
+      "post": {
+        "summary": "ExecDisableDefenderPresetPolicy",
+        "operationId": "ExecDisableDefenderPresetPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Disable Defender preset security policies (Standard or Strict).\nThis is a high-risk operation that weakens protection and requires SecurityPolicy.ReadWrite.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyType": {
+                    "type": "string",
+                    "description": "Standard or Strict"
+                  },
+                  "ruleType": {
+                    "type": "string",
+                    "description": "EOP or ATP or Both"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "policyType",
+                  "ruleType",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecDisableUser": {
@@ -25500,7 +25512,7 @@
         "tags": [
           "Email-Exchange > Transport"
         ],
-        "description": "Configure Enhanced Filtering for Connectors on an inbound connector.\nManages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.\nGet action requires Exchange.Connector.Read, Set action requires Exchange.SecurityPolicy.ReadWrite.",
+        "description": "Configure Enhanced Filtering for Connectors on an inbound connector (Set action only).\nManages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.\nThis endpoint requires Exchange.SecurityPolicy.ReadWrite. Use ListEnhancedFiltering for read-only access.",
         "requestBody": {
           "required": true,
           "content": {
@@ -25508,9 +25520,6 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "action": {
-                    "type": "string"
-                  },
                   "connectorIdentity": {
                     "type": "string"
                   },
@@ -25536,8 +25545,7 @@
                     "type": "array",
                     "items": {
                       "$ref": "#/components/schemas/LabelValue"
-                    },
-                    "description": "Normalize tenantFilter inside try block"
+                    }
                   }
                 },
                 "required": [
@@ -25571,7 +25579,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Connector.Read",
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
         "x-cipp-reads-via": [
           "Get-CippNormalizedTenantFilter"
         ]
@@ -32029,6 +32037,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -37295,6 +37306,192 @@
         "x-cipp-role": "Identity.Role.ReadWrite"
       }
     },
+    "/api/ExecRemoveAntiMalwarePolicy": {
+      "post": {
+        "summary": "ExecRemoveAntiMalwarePolicy",
+        "operationId": "ExecRemoveAntiMalwarePolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Remove custom anti-malware policies (AntiMalwarePolicy and Rule).\nRefuses to remove default, built-in, or preset (Standard/Strict) policies.\nThis is a high-risk operation requiring explicit SecurityPolicy.ReadWrite permission.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
+      }
+    },
+    "/api/ExecRemoveAntiPhishPolicy": {
+      "post": {
+        "summary": "ExecRemoveAntiPhishPolicy",
+        "operationId": "ExecRemoveAntiPhishPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Remove custom anti-phishing policies (AntiPhishPolicy and Rule).\nRefuses to remove default, built-in, or preset (Standard/Strict) policies.\nThis is a high-risk operation requiring explicit SecurityPolicy.ReadWrite permission.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
+      }
+    },
+    "/api/ExecRemoveAntiSpamPolicy": {
+      "post": {
+        "summary": "ExecRemoveAntiSpamPolicy",
+        "operationId": "ExecRemoveAntiSpamPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Remove custom anti-spam policies (HostedContentFilterPolicy and Rule).\nRefuses to remove default, built-in, or preset (Standard/Strict) policies.\nThis is a high-risk operation requiring explicit SecurityPolicy.ReadWrite permission.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
+      }
+    },
     "/api/ExecRemoveCippCveException": {
       "post": {
         "summary": "ExecRemoveCippCveException",
@@ -39191,6 +39388,112 @@
           }
         ],
         "x-cipp-role": "Identity.User.ReadWrite"
+      }
+    },
+    "/api/ExecRescopeDefenderPresetPolicy": {
+      "post": {
+        "summary": "ExecRescopeDefenderPresetPolicy",
+        "operationId": "ExecRescopeDefenderPresetPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Rescope Defender preset security policies (Standard or Strict).\nModifies the recipient/domain/group scope which can weaken protection and requires SecurityPolicy.ReadWrite.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "exceptIfRecipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentToMemberOf": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "policyType": {
+                    "type": "string",
+                    "description": "Standard or Strict"
+                  },
+                  "recipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "ruleType": {
+                    "type": "string",
+                    "description": "EOP or ATP or Both"
+                  },
+                  "sentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Rescoping requires recipient/domain/group lists"
+                  },
+                  "sentToMemberOf": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "policyType",
+                  "ruleType",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecResetMFA": {
@@ -58991,6 +59294,71 @@
           }
         ],
         "x-cipp-role": "Sharepoint.SiteRecycleBin.Read"
+      }
+    },
+    "/api/ListEnhancedFiltering": {
+      "post": {
+        "summary": "ListEnhancedFiltering",
+        "operationId": "ListEnhancedFiltering",
+        "tags": [
+          "Email-Exchange > Transport"
+        ],
+        "description": "Get Enhanced Filtering settings for an inbound connector (EFSkipIPs, EFSkipLastIP, EFUsers).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectorIdentity": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Connector.Read",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ListEquipment": {
