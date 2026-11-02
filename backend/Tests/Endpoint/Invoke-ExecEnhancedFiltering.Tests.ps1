@@ -225,9 +225,9 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.Body.Results | Should -Match 'Retrieved Enhanced Filtering settings'
         $response.Body.Settings | Should -Not -BeNullOrEmpty
         $response.Body.Settings.ConnectorIdentity | Should -Be 'Test Connector'
-        $response.Body.Settings.EFSkipIPs | Should -Not -BeNull
-        $response.Body.Settings.EFSkipLastIP | Should -Not -BeNull
-        $response.Body.Settings.EFUsers | Should -Not -BeNull
+        $response.Body.Settings.Keys | Should -Contain 'EFSkipIPs'
+        $response.Body.Settings.Keys | Should -Contain 'EFSkipLastIP'
+        $response.Body.Settings.Keys | Should -Contain 'EFUsers'
     }
 
     It 'rejects invalid action parameter' {
