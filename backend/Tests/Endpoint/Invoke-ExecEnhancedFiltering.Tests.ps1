@@ -297,4 +297,73 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy IPBlockList'
     }
+
+    It 'rejects EFSkipIP /25 CIDR that overlaps with /24 IPAllowList' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @('1.2.3.0/24'); IPBlockList = @() }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('1.2.3.0/25') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'overlaps.*IPAllowList'
+    }
+
+    It 'rejects single IP that overlaps with CIDR block in IPBlockList' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @(); IPBlockList = @('9.9.9.0/24') }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('9.9.9.9') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'overlaps.*IPBlockList'
+    }
+
+    It 'fails closed when Get-HostedConnectionFilterPolicy errors' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                throw "Policy read failed"
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('1.2.3.4') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Failed to read HostedConnectionFilterPolicy'
+    }
 }
