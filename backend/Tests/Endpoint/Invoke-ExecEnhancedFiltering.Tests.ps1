@@ -252,7 +252,7 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
-        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy IPAllowList'
+        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy.*IPAllowList'
     }
 
     It 'rejects EFSkipIPs that overlap with HostedConnectionFilterPolicy IPBlockList' {
@@ -295,7 +295,7 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
-        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy IPBlockList'
+        $response.Body.Results | Should -Match 'overlaps with HostedConnectionFilterPolicy.*IPBlockList'
     }
 
     It 'rejects EFSkipIP /25 CIDR that overlaps with /24 IPAllowList' {

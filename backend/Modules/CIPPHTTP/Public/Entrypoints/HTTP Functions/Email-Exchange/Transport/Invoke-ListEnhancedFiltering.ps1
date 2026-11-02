@@ -13,11 +13,11 @@ function Invoke-ListEnhancedFiltering {
     $APIName = $Request.Params.CIPPEndpoint
     
     try {
+        if ([string]::IsNullOrWhiteSpace($Request.Body.tenantFilter)) { throw 'tenantFilter is required.' }
+        if ([string]::IsNullOrWhiteSpace($Request.Body.connectorIdentity)) { throw 'connectorIdentity is required.' }
+        
         $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
         $ConnectorIdentity = Get-CippQuarantineInputValue $Request.Body.connectorIdentity
-        
-        if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
-        if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }
 
         $CurrentConnector = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -cmdParams @{ Identity = $ConnectorIdentity } -useSystemMailbox $true | Select-Object -First 1
         if (-not $CurrentConnector) {
