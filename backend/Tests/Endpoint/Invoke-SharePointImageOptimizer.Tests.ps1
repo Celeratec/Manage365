@@ -113,13 +113,13 @@ Describe 'Get-CIPPSharePointImageCandidate' {
 }
 
 Describe 'Compress-CIPPImage' {
-    It 'returns failure for empty input' {
+    It 'returns failure for empty input' -Skip:($IsLinux -or $IsMacOS) {
         $r = Compress-CIPPImage -ImageBytes ([byte[]]::new(0)) -Quality 82
         $r.Success | Should -BeFalse
         $r.Error | Should -Be 'No image data supplied.'
     }
 
-    It 'warns when metadata preservation is requested' {
+    It 'warns when metadata preservation is requested' -Skip:($IsLinux -or $IsMacOS) {
         $r = Compress-CIPPImage -ImageBytes ([byte[]]::new(0)) -Quality 82 -StripMetadata $false
         $r.Warning | Should -Match 'preservation is not supported'
     }
