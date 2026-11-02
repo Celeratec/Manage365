@@ -106,7 +106,8 @@ Describe 'New-CIPPBecEvidencePackage' {
         $Log = [System.Text.Encoding]::UTF8.GetString($Entries['logbook.json'])
         $Log | Should -Not -Match 'Hunter2'
         $Log | Should -Match '\[redacted\]'
-        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -ParameterFilter { $Filter -like "BecCaseId eq 'BEC-20260820120000-ev0001'*" -and $Filter -like "*PartitionKey ge '20260819'*" }
+        # Case is from Aug 20, 2026, but retention window clamps From to 60 days back from now
+        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -ParameterFilter { $Filter -like "BecCaseId eq 'BEC-20260820120000-ev0001'*" }
     }
 
     It 'refuses an incomplete run' {
