@@ -152,8 +152,10 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
 
     It 'Remove refuses default policy' {
         # Mock Get to return a default policy
+        $script:ExoRequestHistory = @()
         function New-ExoRequest { 
-            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
             if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
                 return [pscustomobject]@{ 
                     Identity = $cmdParams.Identity
@@ -178,12 +180,17 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Cannot remove default policy'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
     }
 
     It 'Remove refuses built-in policy' {
         # Mock Get to return a built-in policy
+        $script:ExoRequestHistory = @()
         function New-ExoRequest { 
-            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
             if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
                 return [pscustomobject]@{ 
                     Identity = $cmdParams.Identity
@@ -208,12 +215,17 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
     }
 
     It 'Remove refuses preset policy' {
         # Mock Get to return a preset policy
+        $script:ExoRequestHistory = @()
         function New-ExoRequest { 
-            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
             if ($cmdlet -eq 'Get-HostedContentFilterPolicy') {
                 return [pscustomobject]@{ 
                     Identity = $cmdParams.Identity
@@ -238,5 +250,8 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
     }
 }

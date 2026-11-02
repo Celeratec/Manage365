@@ -115,12 +115,22 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         
         $script:ExoRequestHistory[0].Cmdlet | Should -Be 'Get-AntiPhishPolicy'
+        
+        # Assert rule is removed before policy
+        $removeRuleIndex = ($script:ExoRequestHistory | ForEach-Object { $i = 0 } { if ($_.Cmdlet -eq 'Remove-AntiPhishRule') { $i }; $i++ }) | Select-Object -First 1
+        $removePolicyIndex = ($script:ExoRequestHistory | ForEach-Object { $i = 0 } { if ($_.Cmdlet -eq 'Remove-AntiPhishPolicy') { $i }; $i++ }) | Select-Object -First 1
+        if ($removeRuleIndex -ne $null -and $removePolicyIndex -ne $null) {
+            $removeRuleIndex | Should -BeLessThan $removePolicyIndex
+        }
+        
         ($script:ExoRequestHistory | Where-Object { $_.Cmdlet -eq 'Remove-AntiPhishPolicy' }).CmdParams.Confirm | Should -Be $false
     }
 
-    It 'Remove refuses default/built-in/preset policies' {
+    It 'Remove refuses default policy' {
+        $script:ExoRequestHistory = @()
         function New-ExoRequest { 
             param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
             if ($cmdlet -eq 'Get-AntiPhishPolicy') {
                 return [pscustomobject]@{ IsDefault = $true; RecommendedPolicyType = 'Custom' }
             }
@@ -138,6 +148,93 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
-        $response.Body.Results | Should -Match 'Cannot remove'
+        $response.Body.Results | Should -Match 'Cannot remove default policy'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
+    }
+
+    It 'Remove refuses built-in policy' {
+        $script:ExoRequestHistory = @()
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
+            if ($cmdlet -eq 'Get-AntiPhishPolicy') {
+                return [pscustomobject]@{ IsDefault = $false; RecommendedPolicyType = 'BuiltIn' }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'BuiltInPolicy'
+            }
+        }
+
+        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response.Body.Results | Should -Match 'Only custom policies can be removed'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
+    }
+
+    It 'Remove refuses Standard preset policy' {
+        $script:ExoRequestHistory = @()
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
+            if ($cmdlet -eq 'Get-AntiPhishPolicy') {
+                return [pscustomobject]@{ IsDefault = $false; RecommendedPolicyType = 'Standard' }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'Standard Preset Security Policy'
+            }
+        }
+
+        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response.Body.Results | Should -Match 'Only custom policies can be removed'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
+    }
+
+    It 'Remove refuses Strict preset policy' {
+        $script:ExoRequestHistory = @()
+        function New-ExoRequest { 
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            $script:ExoRequestHistory += @{ Cmdlet = $cmdlet }
+            if ($cmdlet -eq 'Get-AntiPhishPolicy') {
+                return [pscustomobject]@{ IsDefault = $false; RecommendedPolicyType = 'Strict' }
+            }
+            $true 
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action       = 'Remove'
+                policyName   = 'Strict Preset Security Policy'
+            }
+        }
+
+        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response.Body.Results | Should -Match 'Only custom policies can be removed'
+        
+        # Assert no Remove cmdlets were called
+        $script:ExoRequestHistory | Where-Object { $_.Cmdlet -like 'Remove-*' } | Should -BeNullOrEmpty
     }
 }
