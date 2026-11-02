@@ -12,20 +12,12 @@ function Invoke-ExecEnhancedFiltering {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    
-    # Normalize tenantFilter
-    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
-        if ($Request.Body.tenantFilter.Count -ne 1) {
-            throw 'tenantFilter must be a single tenant, not an array'
-        }
-        $Request.Body.tenantFilter[0]
-    } else {
-        $Request.Body.tenantFilter
-    }
-    
     $ConnectorIdentity = Get-CippQuarantineInputValue $Request.Body.connectorIdentity
 
     try {
+        # Normalize tenantFilter inside try block
+        $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
+        
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }

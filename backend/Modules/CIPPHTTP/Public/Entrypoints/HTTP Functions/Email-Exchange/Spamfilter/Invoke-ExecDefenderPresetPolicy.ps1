@@ -12,22 +12,14 @@ function Invoke-ExecDefenderPresetPolicy {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    
-    # Normalize tenantFilter: reject arrays, take single value
-    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
-        if ($Request.Body.tenantFilter.Count -ne 1) {
-            throw 'tenantFilter must be a single tenant, not an array'
-        }
-        $Request.Body.tenantFilter[0]
-    } else {
-        $Request.Body.tenantFilter
-    }
-    
     $Action = $Request.Body.action  # Enable, Disable, or Rescope
     $PolicyType = $Request.Body.policyType  # Standard or Strict
     $RuleType = $Request.Body.ruleType  # EOP or ATP or Both
 
     try {
+        # Normalize tenantFilter inside try block to return proper 400
+        $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
+        
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
@@ -111,6 +103,12 @@ function Invoke-ExecDefenderPresetPolicy {
                         $Validation = Test-CippExchangeInputValidation -EmailAddresses $SentTo
                         if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
                     }
+                    if ($SentToMemberOf -and $SentToMemberOf.Count -gt 0) {
+                        # SentToMemberOf contains group names/IDs - validate count cap
+                        if ($SentToMemberOf.Count -gt 1000) {
+                            throw "SentToMemberOf list exceeds maximum of 1000 entries"
+                        }
+                    }
                     if ($RecipientDomainIs -and $RecipientDomainIs.Count -gt 0) {
                         $Validation = Test-CippExchangeInputValidation -Domains $RecipientDomainIs
                         if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
@@ -118,6 +116,12 @@ function Invoke-ExecDefenderPresetPolicy {
                     if ($ExceptIfSentTo -and $ExceptIfSentTo.Count -gt 0) {
                         $Validation = Test-CippExchangeInputValidation -EmailAddresses $ExceptIfSentTo
                         if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+                    }
+                    if ($ExceptIfSentToMemberOf -and $ExceptIfSentToMemberOf.Count -gt 0) {
+                        # ExceptIfSentToMemberOf contains group names/IDs - validate count cap
+                        if ($ExceptIfSentToMemberOf.Count -gt 1000) {
+                            throw "ExceptIfSentToMemberOf list exceeds maximum of 1000 entries"
+                        }
                     }
                     if ($ExceptIfRecipientDomainIs -and $ExceptIfRecipientDomainIs.Count -gt 0) {
                         $Validation = Test-CippExchangeInputValidation -Domains $ExceptIfRecipientDomainIs

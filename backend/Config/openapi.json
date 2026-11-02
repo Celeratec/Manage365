@@ -14512,6 +14512,571 @@
         "x-cipp-role": "Security.Alert.Read"
       }
     },
+    "/api/ExecAntiMalwarePolicy": {
+      "post": {
+        "summary": "ExecAntiMalwarePolicy",
+        "operationId": "ExecAntiMalwarePolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Create or update custom anti-malware policies (MalwareFilterPolicy and Rule).\nSupports malware detection actions, notifications, and file type filtering.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "New or Update"
+                  },
+                  "customNotifications": {
+                    "type": "string",
+                    "description": "Custom notifications"
+                  },
+                  "enableExternalSenderAdminNotifications": {
+                    "type": "string"
+                  },
+                  "enableFileFilter": {
+                    "type": "string",
+                    "description": "File type filtering (not EnableCommonAttachmentFilter which doesn't exist)"
+                  },
+                  "enableInternalSenderAdminNotifications": {
+                    "type": "string",
+                    "description": "Admin notifications (online only)"
+                  },
+                  "exceptIfRecipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentToMemberOf": {
+                    "type": "string"
+                  },
+                  "externalSenderAdminAddress": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "fileTypes": {
+                    "type": "string"
+                  },
+                  "internalSenderAdminAddress": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "quarantineTag": {
+                    "type": "string",
+                    "description": "Quarantine tag"
+                  },
+                  "recipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "ruleName": {
+                    "type": "string"
+                  },
+                  "sentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sentToMemberOf": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  },
+                  "zapEnabled": {
+                    "type": "string",
+                    "description": "ZAP"
+                  }
+                },
+                "required": [
+                  "action",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+      }
+    },
+    "/api/ExecAntiPhishPolicy": {
+      "post": {
+        "summary": "ExecAntiPhishPolicy",
+        "operationId": "ExecAntiPhishPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Create or update custom anti-phishing policies (AntiPhishPolicy and Rule).\nSupports impersonation protection, mailbox intelligence, and safety tips.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "New or Update"
+                  },
+                  "authenticationFailAction": {
+                    "type": "string"
+                  },
+                  "enableMailboxIntelligence": {
+                    "type": "string",
+                    "description": "Mailbox intelligence"
+                  },
+                  "enableMailboxIntelligenceProtection": {
+                    "type": "string"
+                  },
+                  "enableSimilarDomainsSafetyTips": {
+                    "type": "string"
+                  },
+                  "enableSimilarUsersSafetyTips": {
+                    "type": "string",
+                    "description": "Safety tips"
+                  },
+                  "enableTargetedDomainsProtection": {
+                    "type": "string"
+                  },
+                  "enableTargetedUserProtection": {
+                    "type": "string",
+                    "description": "Impersonation protection"
+                  },
+                  "enableUnauthenticatedSender": {
+                    "type": "string",
+                    "description": "Spoofing (EnableAntiSpoofEnforcement removed - doesn't exist)"
+                  },
+                  "enableUnusualCharactersSafetyTips": {
+                    "type": "string"
+                  },
+                  "exceptIfRecipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentToMemberOf": {
+                    "type": "string"
+                  },
+                  "excludedDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "excludedSenders": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Trusted senders/domains"
+                  },
+                  "honorDmarcPolicy": {
+                    "type": "string",
+                    "description": "Honor DMARC"
+                  },
+                  "mailboxIntelligenceProtectionAction": {
+                    "type": "string"
+                  },
+                  "mailboxIntelligenceQuarantineTag": {
+                    "type": "string"
+                  },
+                  "phishThresholdLevel": {
+                    "type": "string",
+                    "description": "Actions"
+                  },
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "recipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "ruleName": {
+                    "type": "string"
+                  },
+                  "sentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sentToMemberOf": {
+                    "type": "string"
+                  },
+                  "targetedDomainProtectionAction": {
+                    "type": "string"
+                  },
+                  "targetedDomainQuarantineTag": {
+                    "type": "string"
+                  },
+                  "targetedDomainsToProtect": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "targetedUserProtectionAction": {
+                    "type": "string"
+                  },
+                  "targetedUserQuarantineTag": {
+                    "type": "string",
+                    "description": "Quarantine/redirection"
+                  },
+                  "targetedUsersToProtect": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  }
+                },
+                "required": [
+                  "action",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+      }
+    },
+    "/api/ExecAntiSpamPolicy": {
+      "post": {
+        "summary": "ExecAntiSpamPolicy",
+        "operationId": "ExecAntiSpamPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).\nSupports SCL thresholds, spam actions, BCL threshold, and ASF settings.\nAllow lists and RedirectToRecipients require Exchange.SecurityPolicy.ReadWrite.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "New or Update"
+                  },
+                  "allowedSenderDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                  },
+                  "allowedSenders": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                  },
+                  "blockedSenderDomains": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                  },
+                  "blockedSenders": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Allow/Block lists - require Exchange.SecurityPolicy.ReadWrite"
+                  },
+                  "bulkQuarantineTag": {
+                    "type": "string"
+                  },
+                  "bulkSpamAction": {
+                    "type": "string"
+                  },
+                  "bulkThreshold": {
+                    "type": "string",
+                    "description": "SCL thresholds and actions"
+                  },
+                  "enableLanguageBlockList": {
+                    "type": "string",
+                    "description": "Language/Region filters"
+                  },
+                  "enableRegionBlockList": {
+                    "type": "string"
+                  },
+                  "exceptIfRecipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentToMemberOf": {
+                    "type": "string"
+                  },
+                  "highConfidencePhishAction": {
+                    "type": "string"
+                  },
+                  "highConfidencePhishQuarantineTag": {
+                    "type": "string"
+                  },
+                  "highConfidenceSpamAction": {
+                    "type": "string"
+                  },
+                  "highConfidenceSpamQuarantineTag": {
+                    "type": "string"
+                  },
+                  "increaseSCLBizOrInfoUrls": {
+                    "type": "string"
+                  },
+                  "increaseSCLImageLinks": {
+                    "type": "string",
+                    "description": "ASF (Advanced Spam Filter) settings"
+                  },
+                  "increaseSCLNumericIPs": {
+                    "type": "string"
+                  },
+                  "increaseSCLRedirectToOtherPort": {
+                    "type": "string"
+                  },
+                  "inlineSafetyTipsEnabled": {
+                    "type": "string",
+                    "description": "Inline safety tips"
+                  },
+                  "languageBlockList": {
+                    "type": "string"
+                  },
+                  "markAsSpamBulkMail": {
+                    "type": "string"
+                  },
+                  "markAsSpamEmbedTagsInHtml": {
+                    "type": "string"
+                  },
+                  "markAsSpamEmptyMessages": {
+                    "type": "string"
+                  },
+                  "markAsSpamFormTagsInHtml": {
+                    "type": "string"
+                  },
+                  "markAsSpamFramesInHtml": {
+                    "type": "string"
+                  },
+                  "markAsSpamFromAddressAuthFail": {
+                    "type": "string"
+                  },
+                  "markAsSpamJavaScriptInHtml": {
+                    "type": "string"
+                  },
+                  "markAsSpamNdrBackscatter": {
+                    "type": "string"
+                  },
+                  "markAsSpamObjectTagsInHtml": {
+                    "type": "string"
+                  },
+                  "markAsSpamSensitiveWordList": {
+                    "type": "string"
+                  },
+                  "markAsSpamSpfRecordHardFail": {
+                    "type": "string"
+                  },
+                  "markAsSpamWebBugsInHtml": {
+                    "type": "string"
+                  },
+                  "phishQuarantineTag": {
+                    "type": "string"
+                  },
+                  "phishSpamAction": {
+                    "type": "string"
+                  },
+                  "phishZapEnabled": {
+                    "type": "string"
+                  },
+                  "policyName": {
+                    "type": "string"
+                  },
+                  "priority": {
+                    "type": "string"
+                  },
+                  "recipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Validate and add scoping"
+                  },
+                  "redirectToRecipients": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "RedirectToRecipients - requires Exchange.SecurityPolicy.ReadWrite and must be in accepted domains"
+                  },
+                  "regionBlockList": {
+                    "type": "string"
+                  },
+                  "ruleName": {
+                    "type": "string"
+                  },
+                  "sentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "sentToMemberOf": {
+                    "type": "string"
+                  },
+                  "spamAction": {
+                    "type": "string"
+                  },
+                  "spamQuarantineTag": {
+                    "type": "string",
+                    "description": "Specific quarantine tags (not generic)"
+                  },
+                  "spamZapEnabled": {
+                    "type": "string",
+                    "description": "ZAP settings (specific, not generic)"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  }
+                },
+                "required": [
+                  "action",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+      }
+    },
     "/api/ExecApiClient": {
       "post": {
         "summary": "ExecApiClient",
@@ -21818,6 +22383,114 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecDefenderPresetPolicy": {
+      "post": {
+        "summary": "ExecDefenderPresetPolicy",
+        "operationId": "ExecDefenderPresetPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Enable, disable, or rescope Defender preset security policies (Standard or Strict).\nManages EOP and ATP Protection Policy Rules. Enable action uses Exchange.SpamFilter.ReadWrite.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "Disable",
+                      "Enable",
+                      "Rescope"
+                    ],
+                    "description": "Enable, Disable, or Rescope"
+                  },
+                  "exceptIfRecipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "exceptIfSentToMemberOf": {
+                    "type": "string"
+                  },
+                  "policyType": {
+                    "type": "string",
+                    "description": "Standard or Strict"
+                  },
+                  "recipientDomainIs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "ruleType": {
+                    "type": "string",
+                    "description": "EOP or ATP or Both"
+                  },
+                  "sentTo": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Rescoping requires recipient/domain/group lists"
+                  },
+                  "sentToMemberOf": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter: reject arrays, take single value"
+                  }
+                },
+                "required": [
+                  "action",
+                  "policyType",
+                  "ruleType",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite"
+      }
+    },
     "/api/ExecDeleteGDAPRelationship": {
       "post": {
         "summary": "ExecDeleteGDAPRelationship",
@@ -24792,6 +25465,84 @@
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
+    "/api/ExecEnhancedFiltering": {
+      "post": {
+        "summary": "ExecEnhancedFiltering",
+        "operationId": "ExecEnhancedFiltering",
+        "tags": [
+          "Email-Exchange > Transport"
+        ],
+        "description": "Configure Enhanced Filtering for Connectors on an inbound connector.\nManages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "connectorIdentity": {
+                    "type": "string"
+                  },
+                  "efSkipIPs": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "EFSkipIPs - IP addresses to skip (validate as IPs/CIDRs/ranges)"
+                  },
+                  "efSkipLastIP": {
+                    "type": "boolean",
+                    "description": "EFSkipLastIP - Skip the last IP (boolean)"
+                  },
+                  "efUsers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "EFUsers - Email addresses to enable Enhanced Filtering for"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite"
+      }
+    },
     "/api/ExecExchangeRoleRepair": {
       "post": {
         "summary": "ExecExchangeRoleRepair",
@@ -25733,6 +26484,470 @@
           }
         ],
         "x-cipp-role": "CIPP.AppSettings.ReadWrite"
+      }
+    },
+    "/api/ExecFocusedInbox": {
+      "post": {
+        "summary": "ExecFocusedInbox",
+        "operationId": "ExecFocusedInbox",
+        "tags": [
+          "Email-Exchange > Tools"
+        ],
+        "description": "Configure Focused Inbox for a specific mailbox (Get/Set-FocusedInbox).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Get, Enable, or Disable"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  },
+                  "userPrincipalName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "action",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
+    "/api/ExecFocusedInboxOverride": {
+      "post": {
+        "summary": "ExecFocusedInboxOverride",
+        "operationId": "ExecFocusedInboxOverride",
+        "tags": [
+          "Email-Exchange > Tools"
+        ],
+        "description": "Add or remove Focused Inbox sender overrides for a mailbox using Graph API inferenceClassification.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "description": "Add, Remove, or List"
+                  },
+                  "classifyAs": {
+                    "type": "string",
+                    "description": "focused or other"
+                  },
+                  "senderEmailAddress": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter"
+                  },
+                  "userPrincipalName": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "action",
+                  "classifyAs",
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the Microsoft Graph entity it queries. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                  "properties": {
+                    "aboutMe": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "accountEnabled": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "ageGroup": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "assignedLicenses": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "assignedPlans": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "authorizationInfo": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "birthday": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "businessPhones": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "city": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "companyName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "consentProvidedForMinor": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "country": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "createdDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "creationType": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "customSecurityAttributes": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deletedDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "department": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deviceEnrollmentLimit": {
+                      "type": "integer",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "employeeHireDate": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "employeeId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "employeeLeaveDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "employeeOrgData": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "employeeType": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "externalUserState": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "externalUserStateChangeDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "faxNumber": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "givenName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "hireDate": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "id": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "identities": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "identityParentId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "imAddresses": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "interests": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "isManagementRestricted": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "isResourceAccount": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "jobTitle": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "lastPasswordChangeDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "legalAgeGroupClassification": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "licenseAssignmentStates": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "mail": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "mailboxSettings": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "mailNickname": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "mobilePhone": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "mySite": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "officeLocation": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesDistinguishedName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesDomainName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesExtensionAttributes": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesImmutableId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesLastSyncDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesProvisioningErrors": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesSamAccountName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesSecurityIdentifier": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesSyncEnabled": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "onPremisesUserPrincipalName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "otherMails": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "passwordPolicies": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "passwordProfile": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "pastProjects": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "postalCode": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "preferredDataLocation": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "preferredLanguage": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "preferredName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "print": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "provisionedPlans": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "proxyAddresses": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "responsibilities": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "schools": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "securityIdentifier": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "serviceProvisioningErrors": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "showInAddressList": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "signInActivity": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "signInSessionsValidFromDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "skills": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "state": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "streetAddress": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "surname": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "usageLocation": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "userPrincipalName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "userType": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
     "/api/ExecGDAPAccessAssignment": {
@@ -30740,7 +31955,11 @@
                     "type": "string"
                   },
                   "tenantFilter": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Normalize tenantFilter: reject arrays, take single value"
                   }
                 },
                 "required": [
@@ -54947,6 +56166,45 @@
         ],
         "x-cipp-role": "CIPP.Core.Read",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ListDefenderPresetPolicies": {
+      "get": {
+        "summary": "ListDefenderPresetPolicies",
+        "operationId": "ListDefenderPresetPolicies",
+        "tags": [
+          "Email-Exchange > Reports"
+        ],
+        "description": "Lists Defender preset security policies (Standard and Strict) for both EOP and ATP.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.Read"
       }
     },
     "/api/ListDefenderState": {

@@ -26,6 +26,11 @@ BeforeAll {
 }
 
 Describe 'Invoke-ExecAntiSpamPolicy' {
+    It 'has .ROLE Exchange.SecurityPolicy.ReadWrite' {
+        $Help = Get-Help Invoke-ExecAntiSpamPolicy
+        $Help.Role | Should -Be 'Exchange.SecurityPolicy.ReadWrite'
+    }
+
     It 'returns a success message when creating a new anti-spam policy' {
         $request = [pscustomobject]@{
             Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }

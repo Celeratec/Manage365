@@ -65,8 +65,8 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate email addresses
-    $EmailRegex = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    # Validate email addresses (use \z instead of $ to prevent newline bypass)
+    $EmailRegex = '\A[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\z'
     if ($EmailAddress) {
         if ($EmailAddress -notmatch $EmailRegex) {
             $Result.IsValid = $false
@@ -89,8 +89,8 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate domains
-    $DomainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+    # Validate domains (use \z instead of $)
+    $DomainRegex = '\A[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z'
     if ($Domain) {
         if ($Domain -notmatch $DomainRegex) {
             $Result.IsValid = $false
@@ -113,9 +113,9 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate UPN (email or GUID)
+    # Validate UPN (email or GUID, use \z)
     if ($UserPrincipalName) {
-        $GuidRegex = '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        $GuidRegex = '\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z'
         if ($UserPrincipalName -notmatch $EmailRegex -and $UserPrincipalName -notmatch $GuidRegex) {
             $Result.IsValid = $false
             $Result.Errors += "UserPrincipalName must be a valid email address or GUID"
@@ -150,9 +150,12 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate priority
+    # Validate priority (must be integer, reject 5.7)
     if ($null -ne $Priority) {
-        if ($Priority -lt 0 -or $Priority -gt 9999) {
+        if ($Priority -isnot [int] -or $Priority -ne [int]$Priority) {
+            $Result.IsValid = $false
+            $Result.Errors += "Priority must be an integer (whole number)"
+        } elseif ($Priority -lt 0 -or $Priority -gt 9999) {
             $Result.IsValid = $false
             $Result.Errors += "Priority must be between 0 and 9999"
         }
@@ -183,7 +186,7 @@ function Test-CippIPAddressStrict {
     $IPString = $IPAddress.Trim()
 
     # Check for IP range notation (a-b) which Exchange supports
-    if ($IPString -match '^(.+)-(.+)$') {
+    if ($IPString -match '\A(.+)-(.+)\z') {
         $StartIP = $matches[1].Trim()
         $EndIP = $matches[2].Trim()
         
@@ -208,11 +211,59 @@ function Test-CippIPAddressStrict {
             return $Result
         }
 
-        # Strict mode: validate format for IPv4
+        # Strict mode: validate format and breadth for IPv4
         if ($StrictMode -and $StartAddr.AddressFamily -eq 'InterNetwork') {
-            if ($StartIP -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$' -or $EndIP -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+            # Require strict dotted-quad format (reject 10/16, 010.1.1.1)
+            if ($StartIP -notmatch '\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\z' -or $EndIP -notmatch '\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\z') {
                 $Result.IsValid = $false
                 $Result.Errors += "IPv4 addresses in range must be in dotted-quad notation: $IPString"
+                return $Result
+            }
+            
+            # Check for leading zeros (010.1.1.1)
+            $StartOctets = $StartIP -split '\.'
+            $EndOctets = $EndIP -split '\.'
+            foreach ($Octet in ($StartOctets + $EndOctets)) {
+                if ($Octet.Length -gt 1 -and $Octet.StartsWith('0')) {
+                    $Result.IsValid = $false
+                    $Result.Errors += "IPv4 addresses cannot have leading zeros (octal notation): $IPString"
+                    return $Result
+                }
+            }
+            
+            # Calculate range breadth - must cover at most a /16 (65536 addresses)
+            $StartBytes = $StartAddr.GetAddressBytes()
+            $EndBytes = $EndAddr.GetAddressBytes()
+            $StartInt = [BitConverter]::ToUInt32($StartBytes[3..0], 0)
+            $EndInt = [BitConverter]::ToUInt32($EndBytes[3..0], 0)
+            
+            if ($EndInt -lt $StartInt) {
+                $Result.IsValid = $false
+                $Result.Errors += "IP range end must be >= start: $IPString"
+                return $Result
+            }
+            
+            $RangeSize = $EndInt - $StartInt + 1
+            if ($RangeSize -gt 65536) {
+                $Result.IsValid = $false
+                $Result.Errors += "IPv4 range covers $RangeSize addresses, exceeds /16 maximum (65536): $IPString"
+                return $Result
+            }
+        }
+        
+        # Strict mode: validate breadth for IPv6
+        if ($StrictMode -and $StartAddr.AddressFamily -eq 'InterNetworkV6') {
+            # Calculate range breadth - must cover at most a /32 (2^96 addresses)
+            $StartBytes = $StartAddr.GetAddressBytes()
+            $EndBytes = $EndAddr.GetAddressBytes()
+            
+            # Compare the first 4 bytes (top 32 bits)
+            $StartPrefix = [BitConverter]::ToUInt32($StartBytes[0..3], 0)
+            $EndPrefix = [BitConverter]::ToUInt32($EndBytes[0..3], 0)
+            
+            if ($StartPrefix -ne $EndPrefix) {
+                $Result.IsValid = $false
+                $Result.Errors += "IPv6 range exceeds /32 maximum (top 32 bits differ): $IPString"
                 return $Result
             }
         }
@@ -221,12 +272,12 @@ function Test-CippIPAddressStrict {
     }
 
     # Check for CIDR notation
-    if ($IPString -match '^(.+)/(\d+)$') {
+    if ($IPString -match '\A(.+)/(\d+)\z') {
         $IPAddr = $matches[1]
         $PrefixLengthStr = $matches[2]
         
         # Validate prefix length is numeric
-        if ($PrefixLengthStr -notmatch '^\d+$') {
+        if ($PrefixLengthStr -notmatch '\A\d+\z') {
             $Result.IsValid = $false
             $Result.Errors += "Invalid CIDR prefix length: $IPString"
             return $Result
@@ -240,6 +291,25 @@ function Test-CippIPAddressStrict {
             $Result.IsValid = $false
             $Result.Errors += "Invalid IP address in CIDR notation: $IPString"
             return $Result
+        }
+
+        # Strict mode: require dotted-quad for IPv4 (reject 10/16, 010.1.1.1)
+        if ($StrictMode -and $TestAddr.AddressFamily -eq 'InterNetwork') {
+            if ($IPAddr -notmatch '\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\z') {
+                $Result.IsValid = $false
+                $Result.Errors += "IPv4 address in CIDR must be in dotted-quad notation (reject shorthand like 10/16): $IPString"
+                return $Result
+            }
+            
+            # Check for leading zeros
+            $Octets = $IPAddr -split '\.'
+            foreach ($Octet in $Octets) {
+                if ($Octet.Length -gt 1 -and $Octet.StartsWith('0')) {
+                    $Result.IsValid = $false
+                    $Result.Errors += "IPv4 address cannot have leading zeros (octal notation): $IPString"
+                    return $Result
+                }
+            }
         }
 
         # Validate prefix length range
@@ -277,14 +347,24 @@ function Test-CippIPAddressStrict {
             return $Result
         }
 
-        # Strict mode: reject shorthand like '1' that TryParse might accept
+        # Strict mode: reject shorthand like '1' and leading zeros
         if ($StrictMode) {
             if ($TestAddr.AddressFamily -eq 'InterNetwork') {
                 # IPv4 must have exactly 4 octets
-                if ($IPString -notmatch '^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$') {
+                if ($IPString -notmatch '\A\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\z') {
                     $Result.IsValid = $false
                     $Result.Errors += "IPv4 address must be in dotted-quad notation (reject shorthand like '1'): $IPString"
                     return $Result
+                }
+                
+                # Check for leading zeros
+                $Octets = $IPString -split '\.'
+                foreach ($Octet in $Octets) {
+                    if ($Octet.Length -gt 1 -and $Octet.StartsWith('0')) {
+                        $Result.IsValid = $false
+                        $Result.Errors += "IPv4 address cannot have leading zeros (octal notation): $IPString"
+                        return $Result
+                    }
                 }
             }
         }

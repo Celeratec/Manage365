@@ -19,7 +19,8 @@
       "CIPP.Admin.*",
       "CIPP.AppSettings.*",
       "Tenant.Standards.ReadWrite",
-      "Tenant.Baselines.ReadWrite"
+      "Tenant.Baselines.ReadWrite",
+      "Exchange.SecurityPolicy.*"
     ]
   },
   "admin": {

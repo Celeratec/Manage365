@@ -11,23 +11,14 @@ function Invoke-ExecFocusedInboxOverride {
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    
-    # Normalize tenantFilter
-    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
-        if ($Request.Body.tenantFilter.Count -ne 1) {
-            throw 'tenantFilter must be a single tenant, not an array'
-        }
-        $Request.Body.tenantFilter[0]
-    } else {
-        $Request.Body.tenantFilter
-    }
-    
     $UserPrincipalName = Get-CippQuarantineInputValue $Request.Body.userPrincipalName
     $Action = $Request.Body.action  # Add, Remove, or List
     $SenderEmailAddress = Get-CippQuarantineInputValue $Request.Body.senderEmailAddress
     $ClassifyAs = $Request.Body.classifyAs  # focused or other
 
     try {
+        # Normalize tenantFilter inside try block
+        $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($UserPrincipalName)) { throw 'userPrincipalName is required.' }

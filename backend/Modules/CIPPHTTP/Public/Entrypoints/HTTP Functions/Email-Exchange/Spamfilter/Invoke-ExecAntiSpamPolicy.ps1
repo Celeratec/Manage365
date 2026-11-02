@@ -3,33 +3,25 @@ function Invoke-ExecAntiSpamPolicy {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Exchange.SpamFilter.ReadWrite
+        Exchange.SecurityPolicy.ReadWrite
     .DESCRIPTION
         Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).
         Supports SCL thresholds, spam actions, BCL threshold, and ASF settings.
-        Allow lists and RedirectToRecipients require Exchange.SecurityPolicy.ReadWrite.
+        This role gates allow lists and RedirectToRecipients which can bypass security.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
-    
-    # Normalize tenantFilter
-    $TenantFilter = if ($Request.Body.tenantFilter -is [array]) {
-        if ($Request.Body.tenantFilter.Count -ne 1) {
-            throw 'tenantFilter must be a single tenant, not an array'
-        }
-        $Request.Body.tenantFilter[0]
-    } else {
-        $Request.Body.tenantFilter
-    }
-    
     $Action = $Request.Body.action  # New or Update
     $PolicyName = Get-CippQuarantineInputValue $Request.Body.policyName
     $RuleName = Get-CippQuarantineInputValue $Request.Body.ruleName
     $Priority = $Request.Body.priority
 
     try {
+        # Normalize tenantFilter inside try block
+        $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
+        
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
@@ -133,9 +125,29 @@ function Invoke-ExecAntiSpamPolicy {
 
         # Language/Region filters
         if ($null -ne $Request.Body.enableLanguageBlockList) { $PolicyParams.EnableLanguageBlockList = $Request.Body.enableLanguageBlockList }
-        if ($Request.Body.languageBlockList) { $PolicyParams.LanguageBlockList = $Request.Body.languageBlockList }
+        if ($Request.Body.languageBlockList) { 
+            # Validate language codes (2-letter ISO 639-1)
+            if ($Request.Body.languageBlockList.Count -gt 0) {
+                foreach ($Lang in $Request.Body.languageBlockList) {
+                    if ($Lang -notmatch '\A[a-z]{2}\z') {
+                        throw "Invalid language code '$Lang' (must be 2-letter ISO 639-1 code)"
+                    }
+                }
+            }
+            $PolicyParams.LanguageBlockList = $Request.Body.languageBlockList 
+        }
         if ($null -ne $Request.Body.enableRegionBlockList) { $PolicyParams.EnableRegionBlockList = $Request.Body.enableRegionBlockList }
-        if ($Request.Body.regionBlockList) { $PolicyParams.RegionBlockList = $Request.Body.regionBlockList }
+        if ($Request.Body.regionBlockList) { 
+            # Validate region codes (2-letter ISO 3166-1)
+            if ($Request.Body.regionBlockList.Count -gt 0) {
+                foreach ($Region in $Request.Body.regionBlockList) {
+                    if ($Region -notmatch '\A[A-Z]{2}\z') {
+                        throw "Invalid region code '$Region' (must be 2-letter ISO 3166-1 code)"
+                    }
+                }
+            }
+            $PolicyParams.RegionBlockList = $Request.Body.regionBlockList 
+        }
 
         # Specific quarantine tags (not generic)
         if ($Request.Body.spamQuarantineTag) { $PolicyParams.SpamQuarantineTag = $Request.Body.spamQuarantineTag }
@@ -144,13 +156,13 @@ function Invoke-ExecAntiSpamPolicy {
         if ($Request.Body.highConfidencePhishQuarantineTag) { $PolicyParams.HighConfidencePhishQuarantineTag = $Request.Body.highConfidencePhishQuarantineTag }
         if ($Request.Body.bulkQuarantineTag) { $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag }
 
-        # RedirectToRecipients - requires Exchange.SecurityPolicy.ReadWrite and must be in accepted domains
+        # RedirectToRecipients - must be in accepted domains
         if ($Request.Body.redirectToRecipients) {
             $Validation = Test-CippExchangeInputValidation -EmailAddresses $Request.Body.redirectToRecipients
             if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
             
-            # Verify recipients are in accepted domains
-            $AcceptedDomains = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AcceptedDomain' | Select-Object -ExpandProperty Name
+            # Verify recipients are in accepted domains (use DomainName property)
+            $AcceptedDomains = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AcceptedDomain' | Select-Object -ExpandProperty DomainName
             foreach ($Recipient in $Request.Body.redirectToRecipients) {
                 $RecipientDomain = ($Recipient -split '@')[1]
                 if ($RecipientDomain -notin $AcceptedDomains) {
