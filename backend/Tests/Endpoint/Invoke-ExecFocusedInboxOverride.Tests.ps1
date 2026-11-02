@@ -4,6 +4,7 @@ BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $FunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Tools/Invoke-ExecFocusedInboxOverride.ps1'
     $ValidationPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Test-CippExchangeInputValidation.ps1'
+    $TenantFilterPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Get-CippNormalizedTenantFilter.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
 
     class HttpResponseContext {
@@ -18,7 +19,7 @@ BeforeAll {
     }
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
-    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
+    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
     $script:LastGraphRequest = @{}
     function New-GraphPOSTRequest { 
         param($uri, $tenantid, $body, $type) 
@@ -32,6 +33,7 @@ BeforeAll {
     }
 
     Get-ChildItem -Path $ToolsDir -Filter '*Quarantine*.ps1' | ForEach-Object { . $_.FullName }
+    . $TenantFilterPath
     . $ValidationPath
     . $FunctionPath
 }

@@ -4,6 +4,7 @@ BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $FunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-ExecAntiPhishPolicy.ps1'
     $ValidationPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Test-CippExchangeInputValidation.ps1'
+    $TenantFilterPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Get-CippNormalizedTenantFilter.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
 
     class HttpResponseContext {
@@ -18,21 +19,26 @@ BeforeAll {
     }
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
-    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
-    $script:LastExoRequest = @{}
+    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
+    $script:ExoRequestHistory = @()
     function New-ExoRequest { 
         param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox) 
-        $script:LastExoRequest = @{ TenantId = $tenantid; Cmdlet = $cmdlet; CmdParams = $cmdParams }
+        $script:ExoRequestHistory += @{ TenantId = $tenantid; Cmdlet = $cmdlet; CmdParams = $cmdParams }
         if ($cmdlet -like 'Get-*') { return [pscustomobject]@{ EnableMailboxIntelligence = $true; PhishThresholdLevel = 2; Priority = 0 } }
         $true 
     }
 
     Get-ChildItem -Path $ToolsDir -Filter '*Quarantine*.ps1' | ForEach-Object { . $_.FullName }
+    . $TenantFilterPath
     . $ValidationPath
     . $FunctionPath
 }
 
 Describe 'Invoke-ExecAntiPhishPolicy' {
+    BeforeEach {
+        $script:ExoRequestHistory = @()
+    }
+
     It 'creates a new anti-phishing policy' {
         $request = [pscustomobject]@{
             Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
@@ -41,6 +47,8 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
                 tenantFilter                    = 'contoso.onmicrosoft.com'
                 action                          = 'New'
                 policyName                      = 'CustomPhishPolicy'
+                ruleName                        = 'CustomPhishRule'
+                priority                        = 10
                 enableMailboxIntelligence       = $true
                 enableTargetedDomainsProtection = $true
             }
@@ -48,6 +56,19 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.StatusCode | Should -Be 200
         $response.Body.Results | Should -Match 'Created anti-phishing policy'
+
+        # Assert cmdlets
+        $script:ExoRequestHistory | Should -HaveCount 2
+        $script:ExoRequestHistory[0].Cmdlet | Should -Be 'New-AntiPhishPolicy'
+        $script:ExoRequestHistory[1].Cmdlet | Should -Be 'New-AntiPhishRule'
+
+        # Assert parameters
+        $script:ExoRequestHistory[0].CmdParams.Name | Should -Be 'CustomPhishPolicy'
+        $script:ExoRequestHistory[0].CmdParams.EnableMailboxIntelligence | Should -Be $true
+        $script:ExoRequestHistory[0].CmdParams.EnableTargetedDomainsProtection | Should -Be $true
+        $script:ExoRequestHistory[1].CmdParams.Name | Should -Be 'CustomPhishRule'
+        $script:ExoRequestHistory[1].CmdParams.AntiPhishPolicy | Should -Be 'CustomPhishPolicy'
+        $script:ExoRequestHistory[1].CmdParams.Priority | Should -Be 10
     }
 
     It 'validates policy name pattern' {
