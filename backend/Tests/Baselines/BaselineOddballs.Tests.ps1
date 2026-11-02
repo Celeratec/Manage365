@@ -22,10 +22,12 @@ BeforeAll {
     function Get-CIPPTextReplacement { param($TenantFilter, $Text) $Text }
     function Get-NormalizedError { param($Message) "$Message" }
 
+    $BaselinesHelpers = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Helpers'
+
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
-    . (Join-Path $Baselines 'Get-CIPPBaselineCacheRows.ps1')
-    . (Join-Path $Baselines 'Test-CIPPBaselineCacheCollected.ps1')
+    . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCacheRows.ps1')
+    . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     foreach ($Name in @('PhishProtection', 'ColleagueImpersonationAlert', 'DisableOutlookAddins',
             'RestrictThirdPartyStorageServices', 'IntuneAppTemplateDeploy', 'MFAPushApps')) {
         . (Join-Path $Baselines "Get-CIPPBaseline${Name}State.ps1")

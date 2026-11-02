@@ -22,11 +22,13 @@ BeforeAll {
     function Set-CIPPDBCacheIntuneConfigurationPolicies { param($TenantFilter) }
     function Set-CIPPDBCacheIntunePolicies { param($TenantFilter) }
 
+    $BaselinesHelpers = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Helpers'
+
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/SecuritySimulations/CAAnalysis/Get-CIPPCABreakGlassCandidate.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
-    . (Join-Path $Baselines 'Get-CIPPBaselineCacheRows.ps1')
-    . (Join-Path $Baselines 'Test-CIPPBaselineCacheCollected.ps1')
+    . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCacheRows.ps1')
+    . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     . (Join-Path $Baselines 'Get-CIPPBaselineGlobalSecureAccessCompliantNetworkState.ps1')
     . (Join-Path $Baselines 'Invoke-CIPPBaselineGlobalSecureAccessCompliantNetwork.ps1')
 

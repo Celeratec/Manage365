@@ -6,6 +6,7 @@
 BeforeAll {
     $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $Baselines = Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines'
+    $BaselinesHelpers = Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Helpers'
 
     function New-CIPPDbRequest { param($TenantFilter, $Type) }
     function Write-LogMessage { param($API, $tenant, $message, $Sev, $LogData) }
@@ -17,8 +18,8 @@ BeforeAll {
 
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneCompareExclusions.ps1')
     . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Compare-CIPPIntuneObject.ps1')
-    . (Join-Path $Baselines 'Get-CIPPBaselineCacheRows.ps1')
-    . (Join-Path $Baselines 'Test-CIPPBaselineCacheCollected.ps1')
+    . (Join-Path $BaselinesHelpers 'Get-CIPPBaselineCacheRows.ps1')
+    . (Join-Path $BaselinesHelpers 'Test-CIPPBaselineCacheCollected.ps1')
     foreach ($Name in @('GlobalQuarantineSettings', 'GlobalQuarantineNotifications', 'UserSubmissions', 'RetentionPolicyTag',
             'SendReceiveLimitTenant', 'AddDKIM', 'RotateDKIM', 'PhishSimSpoofIntelligence', 'PhishingSimulations')) {
         . (Join-Path $Baselines "Get-CIPPBaseline${Name}State.ps1")
