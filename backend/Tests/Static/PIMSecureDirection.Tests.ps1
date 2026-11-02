@@ -72,16 +72,18 @@ Describe 'PIM secure-direction invariants' {
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
         # The endpoint and the standards must delegate; they may not post schedule requests directly.
         # Exempts lines with PIM-VALIDATION-ONLY marker (parameter validation, not actual posting).
-        $Pattern = [regex]'New-CIPPPIMScheduleRequest\b'
+        $Pattern = [regex]'\bNew-CIPPPIMScheduleRequest\b'
         $Direct = @($script:Sources | Where-Object {
                 $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') -and
                 $Pattern.IsMatch($_.Text)
             } | ForEach-Object {
-                # Exempt lines with the validation marker
+                # Strip comments before matching, exempt lines with the validation marker
                 $Lines = $_.Text -split "`r?`n"
                 $HasUnmarkedCall = $false
                 foreach ($Line in $Lines) {
-                    if ($Line -match 'New-CIPPPIMScheduleRequest\b' -and $Line -notmatch 'PIM-VALIDATION-ONLY') {
+                    # Strip inline comments (but not string literals)
+                    $CodePart = if ($Line -match '^([^#]*?)(\s*#.*)$') { $matches[1] } else { $Line }
+                    if ($CodePart -match '\bNew-CIPPPIMScheduleRequest\b' -and $Line -notmatch 'PIM-VALIDATION-ONLY') {
                         $HasUnmarkedCall = $true
                         break
                     }
