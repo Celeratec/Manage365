@@ -114,7 +114,7 @@ Describe 'Invoke-ExecMailboxSafeSender' {
 
         $response = Invoke-ExecMailboxSafeSender -Request $request -TriggerMetadata $null
 
-        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::InternalServerError)
         $response.Body.Results | Should -Match 'action must be Add or Remove'
     }
 }

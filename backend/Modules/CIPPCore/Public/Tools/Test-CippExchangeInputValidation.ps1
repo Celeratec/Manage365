@@ -152,7 +152,15 @@ function Test-CippExchangeInputValidation {
 
     if ($Domains -and $Domains.Count -gt 0) {
         foreach ($Dom in $Domains) {
-            $DomStr = [string]$Dom
+            # Check RAW value for LF/CR BEFORE trim
+            $DomRaw = [string]$Dom
+            if ($DomRaw -match '[\r\n]') {
+                $Result.IsValid = $false
+                $Result.Errors += "Domain cannot contain newline characters"
+                continue
+            }
+            
+            $DomStr = $DomRaw.Trim()
             if (![string]::IsNullOrWhiteSpace($DomStr) -and $DomStr -notmatch $DomainRegex) {
                 $Result.IsValid = $false
                 $Result.Errors += "Invalid domain format: $DomStr"
@@ -233,11 +241,19 @@ function Test-CippExchangeInputValidation {
                 $Result.Errors += "Priority must be a whole number, not a decimal: $Priority"
                 return $Result
             }
-            # Convert to int for range check
-            $PriorityInt = [int]$Priority
-            if ($PriorityInt -lt 0 -or $PriorityInt -gt 9999) {
+            # Check range before converting to avoid overflow
+            if ($Priority -lt 0 -or $Priority -gt 9999) {
                 $Result.IsValid = $false
                 $Result.Errors += "Priority must be between 0 and 9999"
+                return $Result
+            }
+            # Safe to convert now
+            try {
+                $PriorityInt = [int]$Priority
+            } catch {
+                $Result.IsValid = $false
+                $Result.Errors += "Priority value is out of valid range"
+                return $Result
             }
         }
         # For strings, try to parse as integer

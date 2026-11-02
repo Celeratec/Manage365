@@ -3,35 +3,23 @@ function Invoke-ExecEnhancedFiltering {
     .FUNCTIONALITY
         Entrypoint
     .ROLE
-        Exchange.Connector.Read
+        Exchange.SecurityPolicy.ReadWrite
     .DESCRIPTION
-        Configure Enhanced Filtering for Connectors on an inbound connector.
+        Configure Enhanced Filtering for Connectors on an inbound connector (Set action only).
         Manages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.
-        Get action requires Exchange.Connector.Read, Set action requires Exchange.SecurityPolicy.ReadWrite.
+        This endpoint requires Exchange.SecurityPolicy.ReadWrite. Use ListEnhancedFiltering for read-only access.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
     $APIName = $Request.Params.CIPPEndpoint
     $ConnectorIdentity = Get-CippQuarantineInputValue $Request.Body.connectorIdentity
-    $Action = $Request.Body.action ?? 'Set'
 
     try {
-        # Normalize tenantFilter inside try block
         $TenantFilter = Get-CippNormalizedTenantFilter -TenantFilter $Request.Body.tenantFilter
         
-        # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }
-        if ($Action -notin @('Get', 'Set')) { throw 'action must be Get or Set.' }
-        
-        # Role check: Set action requires Exchange.SecurityPolicy.ReadWrite
-        if ($Action -eq 'Set') {
-            $AccessCheck = Test-CIPPAccess -Request $Request -TenantFilter $TenantFilter -RequiredRoles @('Exchange.SecurityPolicy.ReadWrite')
-            if (-not $AccessCheck) {
-                throw 'Set action requires Exchange.SecurityPolicy.ReadWrite role'
-            }
-        }
 
         # Read current connector
         $CurrentConnector = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -cmdParams @{ Identity = $ConnectorIdentity } -useSystemMailbox $true | Select-Object -First 1
@@ -39,28 +27,7 @@ function Invoke-ExecEnhancedFiltering {
             throw "Inbound connector '$ConnectorIdentity' not found"
         }
 
-        # If action is Get, return current settings
-        if ($Action -eq 'Get') {
-            $CurrentSettings = @{
-                ConnectorIdentity = $ConnectorIdentity
-                EFSkipIPs        = $CurrentConnector.EFSkipIPs ?? @()
-                EFSkipLastIP     = $CurrentConnector.EFSkipLastIP
-                EFUsers          = $CurrentConnector.EFUsers ?? @()
-            }
-            $Result = "Retrieved Enhanced Filtering settings for connector '$ConnectorIdentity'"
-            Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
-            $StatusCode = [HttpStatusCode]::OK
-            $Body = @{ 
-                Results = $Result
-                Settings = $CurrentSettings
-            }
-            return ([HttpResponseContext]@{
-                StatusCode = $StatusCode
-                Body       = $Body
-            })
-        }
-
-        # For Set action, continue with existing logic
+        # For Set action
         $BeforeSettings = @{
             EFSkipIPs     = $CurrentConnector.EFSkipIPs ?? @()
             EFSkipLastIP  = $CurrentConnector.EFSkipLastIP
