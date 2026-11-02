@@ -31,24 +31,109 @@ BeforeAll {
     $script:AllSources = foreach ($File in (Get-ChildItem -Path $ModulesRoot -Filter '*.ps1' -File -Recurse)) {
         [pscustomobject]@{ Name = $File.Name; Text = [System.IO.File]::ReadAllText($File.FullName) }
     }
+
+    # Helper: Find schedule-request endpoint references (string literals, expandable strings, concatenations, here-strings)
+    $script:FindScheduleRequestReferences = {
+        param($SourceText, $SourceName)
+        $Ast = [System.Management.Automation.Language.Parser]::ParseInput($SourceText, [ref]$null, [ref]$null)
+        
+        # Check string constants and expandable strings
+        $Strings = $Ast.FindAll({
+            $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+            $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
+        }, $true)
+        $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
+        foreach ($String in $Strings) {
+            if ($Pattern.IsMatch($String.Value)) {
+                return $true
+            }
+        }
+        
+        # Check binary expressions (string concatenation like "role"+"AssignmentScheduleRequests")
+        $BinaryOps = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.BinaryExpressionAst] }, $true)
+        foreach ($BinOp in $BinaryOps) {
+            if ($BinOp.Operator -eq 'Plus' -and $Pattern.IsMatch($BinOp.Extent.Text -replace '["''\s+]', '')) {
+                return $true
+            }
+        }
+        
+        return $false
+    }
+
+    # Helper: Find direct calls to New-CIPPPIMScheduleRequest (command, module-qualified, call operator, Invoke-Expression)
+    $script:FindDirectPIMCalls = {
+        param($SourceText, $SourceName)
+        $Offenders = @()
+        $Ast = [System.Management.Automation.Language.Parser]::ParseInput($SourceText, [ref]$null, [ref]$null)
+        
+        # Find CommandAst nodes
+        $Commands = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)
+        foreach ($Cmd in $Commands) {
+            $CmdName = $Cmd.GetCommandName()
+            # Match: New-CIPPPIMScheduleRequest, CIPPCore\New-CIPPPIMScheduleRequest, etc.
+            if ($CmdName -match '(^|\\)New-CIPPPIMScheduleRequest$') {
+                $Lines = $SourceText -split "`r?`n"
+                $FullLine = $Lines[$Cmd.Extent.StartLineNumber - 1]
+                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                    $Offenders += "$($SourceName):$($Cmd.Extent.StartLineNumber)"
+                }
+            }
+        }
+        
+        # Check for call operator & with variable that might be the function name
+        $InvokeOps = $Ast.FindAll({ 
+            $args[0] -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -or
+            ($args[0] -is [System.Management.Automation.Language.CommandAst] -and $args[0].InvocationOperator -eq 'Ampersand')
+        }, $true)
+        foreach ($Invoke in $InvokeOps) {
+            if ($Invoke.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
+                $Lines = $SourceText -split "`r?`n"
+                $FullLine = $Lines[$Invoke.Extent.StartLineNumber - 1]
+                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                    $Offenders += "$($SourceName):$($Invoke.Extent.StartLineNumber)"
+                }
+            }
+        }
+        
+        # Check for Invoke-Expression with the function name
+        foreach ($Cmd in $Commands) {
+            if ($Cmd.GetCommandName() -eq 'Invoke-Expression') {
+                if ($Cmd.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
+                    $Lines = $SourceText -split "`r?`n"
+                    $FullLine = $Lines[$Cmd.Extent.StartLineNumber - 1]
+                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                        $Offenders += "$($SourceName):$($Cmd.Extent.StartLineNumber)"
+                    }
+                }
+            }
+        }
+        
+        return $Offenders
+    }
+
+    # Helper: Check if marker appears in allowed location
+    $script:CheckMarkerScope = {
+        param($SourceText, $SourceName)
+        $Violations = @()
+        $Lines = $SourceText -split "`r?`n"
+        for ($i = 0; $i -lt $Lines.Count; $i++) {
+            if ($Lines[$i] -match 'PIM-VALIDATION-ONLY') {
+                if ($SourceName -ne 'Invoke-ExecPIMRoleAssignment.ps1' -or ($i + 1) -lt 95 -or ($i + 1) -gt 105) {
+                    $Violations += "$($SourceName):$($i + 1)"
+                }
+            }
+        }
+        return $Violations
+    }
 }
 
 Describe 'PIM secure-direction invariants' {
     It 'addresses the schedule-request endpoints only from New-CIPPPIMScheduleRequest' {
-        # Use AST to ignore doc comments, check both string literals and interpolated strings
+        # Catches: literals, "$Base/roleAssignmentScheduleRequests", here-strings, "role"+"AssignmentScheduleRequests"
         $Offenders = @()
         foreach ($Source in $script:AllSources | Where-Object { $_.Name -ne 'New-CIPPPIMScheduleRequest.ps1' }) {
-            $Ast = [System.Management.Automation.Language.Parser]::ParseInput($Source.Text, [ref]$null, [ref]$null)
-            $Strings = $Ast.FindAll({
-                $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
-                $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
-            }, $true)
-            $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
-            foreach ($String in $Strings) {
-                if ($Pattern.IsMatch($String.Value)) {
-                    $Offenders += $Source.Name
-                    break
-                }
+            if (& $script:FindScheduleRequestReferences $Source.Text $Source.Name) {
+                $Offenders += $Source.Name
             }
         }
         # The builder's tests mention the URIs in assertions; sources elsewhere may not.
@@ -84,23 +169,12 @@ Describe 'PIM secure-direction invariants' {
     }
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
-        # Use AST to find all CommandAst nodes named New-CIPPPIMScheduleRequest, ignoring comments.
+        # Catches: direct calls, CIPPCore\New-CIPPPIMScheduleRequest, & $c, Invoke-Expression
         # PIM-VALIDATION-ONLY marker at Invoke-ExecPIMRoleAssignment.ps1:~100 exempts that one call.
         $Direct = @()
         foreach ($Source in $script:Sources | Where-Object { $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') }) {
-            $Ast = [System.Management.Automation.Language.Parser]::ParseInput($Source.Text, [ref]$null, [ref]$null)
-            $Commands = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)
-            foreach ($Cmd in $Commands) {
-                $CmdName = $Cmd.GetCommandName()
-                if ($CmdName -eq 'New-CIPPPIMScheduleRequest') {
-                    # Check if this line has the PIM-VALIDATION-ONLY marker
-                    $Line = $Source.Text.Substring(0, $Cmd.Extent.StartOffset) + $Source.Text.Substring($Cmd.Extent.StartOffset, $Cmd.Extent.EndOffset - $Cmd.Extent.StartOffset)
-                    $FullLine = ($Source.Text -split "`r?`n")[$Cmd.Extent.StartLineNumber - 1]
-                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
-                        $Direct += "$($Source.Name):$($Cmd.Extent.StartLineNumber)"
-                    }
-                }
-            }
+            $Offenders = & $script:FindDirectPIMCalls $Source.Text $Source.Name
+            $Direct += $Offenders
         }
         $Direct | Should -BeNullOrEmpty -Because 'every secure-direction action must go through Invoke-CIPPPIMAssignmentAction or the builder'
     }
@@ -108,55 +182,85 @@ Describe 'PIM secure-direction invariants' {
     It 'PIM-VALIDATION-ONLY marker appears only in Invoke-ExecPIMRoleAssignment.ps1 at about line 100' {
         $Violations = @()
         foreach ($Source in $script:AllSources) {
-            $Lines = $Source.Text -split "`r?`n"
-            for ($i = 0; $i -lt $Lines.Count; $i++) {
-                if ($Lines[$i] -match 'PIM-VALIDATION-ONLY') {
-                    if ($Source.Name -ne 'Invoke-ExecPIMRoleAssignment.ps1' -or ($i + 1) -lt 95 -or ($i + 1) -gt 105) {
-                        $Violations += "$($Source.Name):$($i + 1)"
-                    }
-                }
-            }
+            $Violations += & $script:CheckMarkerScope $Source.Text $Source.Name
         }
         $Violations | Should -BeNullOrEmpty -Because 'the PIM-VALIDATION-ONLY marker must only appear at Invoke-ExecPIMRoleAssignment.ps1:~100'
     }
 
-    It 'fixture: AST filter detects command calls, ignores strings/comments, catches interpolated URIs, validates marker scope' {
-        # Test 1: Named-parameter call - should be detected
+    It 'the marked call is exactly one and in the shape: $null = New-CIPPPIMScheduleRequest @Window' {
+        $ExecFile = $script:AllSources | Where-Object { $_.Name -eq 'Invoke-ExecPIMRoleAssignment.ps1' }
+        $ExecFile | Should -Not -BeNullOrEmpty
+        
+        $Lines = $ExecFile.Text -split "`r?`n"
+        $MarkedLines = @()
+        for ($i = 0; $i -lt $Lines.Count; $i++) {
+            if ($Lines[$i] -match 'PIM-VALIDATION-ONLY') {
+                $MarkedLines += $Lines[$i]
+            }
+        }
+        
+        $MarkedLines.Count | Should -Be 1 -Because 'there must be exactly one PIM-VALIDATION-ONLY marked call'
+        $MarkedLines[0] | Should -Match '\$null\s*=\s*New-CIPPPIMScheduleRequest\s+@Window' -Because 'the marked call must be in the shape: $null = New-CIPPPIMScheduleRequest @Window'
+    }
+
+    It 'fixture: helpers detect all invocation forms and validate marker scope on test cases' {
+        # Test 1: Named-parameter call - FindDirectPIMCalls should detect it
         $NamedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign -Duration P365D'
-        $Ast1 = [System.Management.Automation.Language.Parser]::ParseInput($NamedCall, [ref]$null, [ref]$null)
-        $Cmds1 = @($Ast1.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
-        $Cmds1.Count | Should -Be 1
-        $Cmds1[0].GetCommandName() | Should -Be 'New-CIPPPIMScheduleRequest'
+        $Offenders1 = & $script:FindDirectPIMCalls $NamedCall 'test1.ps1'
+        $Offenders1.Count | Should -Be 1
 
-        # Test 2: '#' in a string should not be treated as a comment
+        # Test 2: '#' in a string - FindScheduleRequestReferences should NOT detect it
         $InString = 'Write-Host "New-CIPPPIMScheduleRequest # not a call"'
-        $Ast2 = [System.Management.Automation.Language.Parser]::ParseInput($InString, [ref]$null, [ref]$null)
-        $Cmds2 = @($Ast2.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
-        @($Cmds2 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
+        (& $script:FindScheduleRequestReferences $InString 'test2.ps1') | Should -BeFalse
 
-        # Test 3: Block comment should be ignored
+        # Test 3: Block comment - FindDirectPIMCalls should NOT detect it
         $BlockComment = @'
 <# 
 New-CIPPPIMScheduleRequest -Kind adminAssign
 #>
 Write-Host "test"
 '@
-        $Ast3 = [System.Management.Automation.Language.Parser]::ParseInput($BlockComment, [ref]$null, [ref]$null)
-        $Cmds3 = @($Ast3.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
-        @($Cmds3 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
+        $Offenders3 = & $script:FindDirectPIMCalls $BlockComment 'test3.ps1'
+        $Offenders3.Count | Should -Be 0
 
-        # Test 4: Interpolated URI with roleAssignmentScheduleRequests should be detected
+        # Test 4: Interpolated URI with roleAssignmentScheduleRequests - FindScheduleRequestReferences should detect it
         $InterpolatedUri = '$Uri = "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests/$Id"'
-        $Ast4 = [System.Management.Automation.Language.Parser]::ParseInput($InterpolatedUri, [ref]$null, [ref]$null)
-        $Strings4 = $Ast4.FindAll({
-            $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
-            $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
-        }, $true)
-        $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
-        @($Strings4 | Where-Object { $Pattern.IsMatch($_.Value) }).Count | Should -Be 1
+        (& $script:FindScheduleRequestReferences $InterpolatedUri 'test4.ps1') | Should -BeTrue
 
-        # Test 5: Marker in wrong file should be detected (tested by separate It block)
+        # Test 5: String concatenation - FindScheduleRequestReferences should detect it
+        $Concatenation = '$Path = "role" + "AssignmentScheduleRequests"'
+        (& $script:FindScheduleRequestReferences $Concatenation 'test5.ps1') | Should -BeTrue
+
+        # Test 6: Here-string - FindScheduleRequestReferences should detect it
+        $HereString = @'
+$Body = @"
+{
+  "uri": "roleAssignmentScheduleRequests"
+}
+"@
+'@
+        (& $script:FindScheduleRequestReferences $HereString 'test6.ps1') | Should -BeTrue
+
+        # Test 7: Module-qualified call - FindDirectPIMCalls should detect it
+        $ModuleQualified = 'CIPPCore\New-CIPPPIMScheduleRequest -Kind adminAssign'
+        $Offenders7 = & $script:FindDirectPIMCalls $ModuleQualified 'test7.ps1'
+        $Offenders7.Count | Should -Be 1
+
+        # Test 8: Marker in wrong file - CheckMarkerScope should detect it
         $WrongFile = '# PIM-VALIDATION-ONLY marker here'
-        ($WrongFile -match 'PIM-VALIDATION-ONLY') | Should -BeTrue
+        $Violations8 = & $script:CheckMarkerScope $WrongFile 'WrongFile.ps1'
+        $Violations8.Count | Should -Be 1
+
+        # Test 9: Marker in correct location - CheckMarkerScope should NOT detect it
+        $CorrectFile = '# PIM-VALIDATION-ONLY marker here'
+        $Violations9 = & $script:CheckMarkerScope $CorrectFile 'Invoke-ExecPIMRoleAssignment.ps1'
+        # This will still fail because line number is wrong (we're testing at line 1, not 95-105)
+        # But the file name check passes, demonstrating the helper works
+        $Violations9.Count | Should -Be 1 -Because 'line number is outside 95-105 range'
+
+        # Test 10: Call with PIM-VALIDATION-ONLY marker - FindDirectPIMCalls should NOT detect it
+        $MarkedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign  # PIM-VALIDATION-ONLY'
+        $Offenders10 = & $script:FindDirectPIMCalls $MarkedCall 'test10.ps1'
+        $Offenders10.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
     }
 }

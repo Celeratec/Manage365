@@ -26,14 +26,57 @@ function Invoke-NinjaOneOrgMapping {
     $MappedTenantIds = [System.Collections.Generic.HashSet[string]]::new([string[]]@($Mappings.RowKey), [System.StringComparer]::OrdinalIgnoreCase)
     $MappedOrgIds = [System.Collections.Generic.HashSet[string]]::new([string[]]@($Mappings.IntegrationId))
 
+    # Helper: Parse Retry-After header (seconds or HTTP-date) and cap it
+    $ParseRetryAfter = {
+        param($Header)
+        if (!$Header) { return 60 }
+        # Try parsing as integer (seconds)
+        $Seconds = 0
+        if ([int]::TryParse($Header, [ref]$Seconds)) {
+            return [Math]::Min($Seconds, 120)
+        }
+        # Try parsing as HTTP-date
+        $Date = [datetime]::MinValue
+        if ([datetime]::TryParse($Header, [ref]$Date)) {
+            $WaitSeconds = [Math]::Max(0, ($Date - [datetime]::UtcNow).TotalSeconds)
+            return [Math]::Min($WaitSeconds, 120)
+        }
+        return 60
+    }
+
     $After = 0
     $PageSize = 1000
+    $MaxOrgPages = 100
+    $OrgPagesFetched = 0
     $NinjaOrgs = do {
-        $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/organizations?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+        $RetryCount = 0
+        $MaxRetries = 3
+        $Result = $null
+        while ($RetryCount -le $MaxRetries) {
+            try {
+                $Response = Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/organizations?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json'
+                $Result = $Response.content | ConvertFrom-Json -Depth 100
+                break
+            } catch {
+                if ($_.Exception.Response.StatusCode -eq 429 -and $RetryCount -lt $MaxRetries) {
+                    $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers['Retry-After']
+                    Write-Information "NinjaOne rate limit hit on organizations endpoint, waiting $RetryAfter seconds (attempt $($RetryCount + 1)/$MaxRetries)"
+                    Start-Sleep -Seconds $RetryAfter
+                    $RetryCount++
+                } else {
+                    throw
+                }
+            }
+        }
         $Result
         $ResultCount = ($Result.id | Measure-Object -Maximum)
         $After = $ResultCount.maximum
-    } while ($ResultCount.count -eq $PageSize)
+        $OrgPagesFetched++
+    } while ($ResultCount.count -eq $PageSize -and $OrgPagesFetched -lt $MaxOrgPages)
+
+    if ($OrgPagesFetched -ge $MaxOrgPages -and $ResultCount.count -eq $PageSize) {
+        Write-LogMessage -API 'NinjaOneAutoMap' -message "NinjaOne organization fetch hit $MaxOrgPages page cap with more data remaining." -Sev 'Warning'
+    }
 
     $OrgsById = @{}
     $OrgsByName = @{}
@@ -76,23 +119,24 @@ function Invoke-NinjaOneOrgMapping {
         $MaxPages = 50  # Cap at 50 pages to prevent runaway fetch
         $LastPageFull = $false
         $NinjaDevices = do {
-            try {
-                $Response = Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json'
-                $Result = $Response.content | ConvertFrom-Json -Depth 100
-            } catch {
-                if ($_.Exception.Response.StatusCode -eq 429) {
-                    # Rate limited - wait and retry once
-                    $RetryAfter = if ($_.Exception.Response.Headers.RetryAfter.Delta) {
-                        [Math]::Min($_.Exception.Response.Headers.RetryAfter.Delta.TotalSeconds, 120)
-                    } else {
-                        60
-                    }
-                    Write-Information "NinjaOne rate limit hit, waiting $RetryAfter seconds"
-                    Start-Sleep -Seconds $RetryAfter
+            $RetryCount = 0
+            $MaxRetries = 3
+            $Result = $null
+            while ($RetryCount -le $MaxRetries) {
+                try {
                     $Response = Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json'
                     $Result = $Response.content | ConvertFrom-Json -Depth 100
-                } else {
-                    throw
+                    break
+                } catch {
+                    if ($_.Exception.Response.StatusCode -eq 429 -and $RetryCount -lt $MaxRetries) {
+                        # Rate limited - parse Retry-After (seconds or HTTP-date) and cap it
+                        $RetryAfter = & $ParseRetryAfter $_.Exception.Response.Headers['Retry-After']
+                        Write-Information "NinjaOne rate limit hit on devices endpoint, waiting $RetryAfter seconds (attempt $($RetryCount + 1)/$MaxRetries)"
+                        Start-Sleep -Seconds $RetryAfter
+                        $RetryCount++
+                    } else {
+                        throw
+                    }
                 }
             }
             $Result

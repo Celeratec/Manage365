@@ -173,14 +173,13 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
                 $script:DeviceCallCount++
                 if ($script:DeviceCallCount -eq 1) {
                     # First call: simulate 429 with proper exception structure
-                    # Create a minimal WebException-like structure
+                    # Create Headers as a dictionary that supports indexer access
+                    $Headers = @{
+                        'Retry-After' = '2'  # Seconds format
+                    }
                     $Response = [PSCustomObject]@{
                         StatusCode = 429
-                        Headers = [PSCustomObject]@{
-                            RetryAfter = [PSCustomObject]@{
-                                Delta = [TimeSpan]::FromSeconds(2)
-                            }
-                        }
+                        Headers = $Headers
                     }
                     # Create exception with nested Response property
                     $InnerException = [System.Exception]::new('429 Too Many Requests')
