@@ -56,9 +56,24 @@ for (const root of roots) {
   }
 }
 
+function escapeActionsCommand(str) {
+  return String(str)
+    .replace(/%/g, '%25')
+    .replace(/\r/g, '%0D')
+    .replace(/\n/g, '%0A');
+}
+
+function escapeActionsProperty(str) {
+  return escapeActionsCommand(str)
+    .replace(/:/g, '%3A')
+    .replace(/,/g, '%2C');
+}
+
 for (const { file, message } of failures) {
   // Annotate the PR diff via a GitHub Actions error command.
-  console.log(`::error file=${file}::${message}`);
+  const safeFile = escapeActionsProperty(file);
+  const safeMessage = escapeActionsCommand(message);
+  console.log(`::error file=${safeFile}::${safeMessage}`);
 }
 console.log(`Checked ${checked} JSON file(s), ${failures.length} invalid.`);
 

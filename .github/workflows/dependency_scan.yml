@@ -21,11 +21,11 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       # Node version comes from frontend/package.json `engines.node` so CI can
       # never drift from what the app declares it supports.
       - name: Use Node.js from package.json engines
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: frontend/package.json
           cache: 'yarn'

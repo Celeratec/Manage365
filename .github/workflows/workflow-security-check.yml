@@ -22,9 +22,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@f25a3a92316f7c38a34dcbcdf4723c88a75c2663 # v4.3.3
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
 
-      - name: Run security checks
+      - name: Install actionlint
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash | bash
+          echo "${PWD}" >> $GITHUB_PATH
+
+      - name: Run actionlint
+        run: actionlint -color
+
+      - name: Run custom security checks
         run: .github/scripts/validate-workflow-security.sh

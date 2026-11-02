@@ -5,6 +5,7 @@ on:
     workflows: ["Validate JSON (Check)"]
     types: [completed]
 permissions:
+  actions: read
   pull-requests: write
 jobs:
   comment:
@@ -15,25 +16,56 @@ jobs:
       - name: Download validation results
         uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
         with:
-          name: json-validation-results-${{ github.event.workflow_run.pull_requests[0].number }}
+          name: json-validation-results-${{ github.event.workflow_run.pull_requests[0].number || github.run_id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           run-id: ${{ github.event.workflow_run.id }}
-        continue-on-error: true
 
       - name: Comment on PR
-        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-        env:
-          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const marker = '<!-- validate-json -->';
             const resultsFile = 'json-validation-results.json';
+            const metadataFile = 'validation-metadata.json';
             
-            const prNumber = parseInt(process.env.PR_NUMBER, 10);
+            let prNumber = context.payload.workflow_run.pull_requests[0]?.number;
+            
+            if (!prNumber && fs.existsSync(metadataFile)) {
+              try {
+                const metadata = JSON.parse(fs.readFileSync(metadataFile, 'utf8'));
+                prNumber = metadata.pr_number;
+              } catch (error) {
+                core.warning(`Failed to read metadata: ${error.message}`);
+              }
+            }
+            
+            if (!prNumber) {
+              const headSha = context.payload.workflow_run.head_sha;
+              const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                ...context.repo,
+                commit_sha: headSha,
+              });
+              if (prs.length > 0) {
+                prNumber = prs[0].number;
+                core.info(`Resolved PR #${prNumber} from commit ${headSha}`);
+              }
+            }
+            
             if (!prNumber || prNumber < 1) {
-              core.warning('Invalid PR number from workflow_run event — skipping comment.');
+              core.warning('Could not resolve PR number — skipping comment.');
+              return;
+            }
+            
+            const headSha = context.payload.workflow_run.head_sha;
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,
+              commit_sha: headSha,
+            });
+            const matchingPr = prs.find(pr => pr.number === prNumber);
+            if (!matchingPr) {
+              core.error(`PR #${prNumber} not associated with commit ${headSha} — refusing to comment.`);
               return;
             }
             
@@ -69,11 +101,15 @@ jobs:
               per_page: 100,
             });
             const existing = comments.find(
-              (c) => c.user.type === 'Bot' && c.body.includes(marker)
+              (c) => (c.user.type === 'Bot' || c.user.login === 'github-actions[bot]') && c.body.includes(marker)
             );
             
             function escapeMarkdown(text) {
-              return text.replace(/[`]/g, '\\`').replace(/[<>]/g, (m) => m === '<' ? '&lt;' : '&gt;');
+              return text
+                .replace(/[\\]/g, '\\\\')
+                .replace(/[`*_{}[\]()#+\-!|@]/g, '\\$&')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
             }
             
             let body;
@@ -81,7 +117,7 @@ jobs:
               const list = failures
                 .slice(0, 50)
                 .map(({ file, message }) => {
-                  const safeFile = escapeMarkdown(String(file || 'unknown'));
+                  const safeFile = escapeMarkdown(String(file || 'unknown').substring(0, 200));
                   const safeMessage = escapeMarkdown(String(message || 'Parse error').substring(0, 500));
                   return `- \`${safeFile}\`\n  > ${safeMessage}`;
                 })
