@@ -1,0 +1,48 @@
+---
+name: Workflow Security Check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/scripts/validate-workflow-security.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - '.github/scripts/validate-workflow-security.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate workflow security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        run: |
+          VERSION="1.7.4"
+          TARBALL="actionlint_${VERSION}_linux_amd64.tar.gz"
+          CHECKSUM="fc0a6886bbb9a23a39eeec4b176193cadb54ddbe77cdbb19b637933919545395"
+          
+          curl -fsSL "https://github.com/rhysd/actionlint/releases/download/v${VERSION}/${TARBALL}" -o "${TARBALL}"
+          echo "${CHECKSUM}  ${TARBALL}" | sha256sum -c -
+          tar xzf "${TARBALL}" actionlint
+          sudo mv actionlint /usr/local/bin/
+          rm "${TARBALL}"
+
+      - name: Run actionlint
+        continue-on-error: true
+        run: actionlint -color || echo "::warning::actionlint found issues but continuing"
+
+      - name: Run custom security checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/scripts/validate-workflow-security.sh

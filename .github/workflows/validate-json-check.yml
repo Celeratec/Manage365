@@ -1,0 +1,69 @@
+---
+name: Validate JSON (Check)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - "frontend/public/**/*.json"
+      - "frontend/src/data/**/*.json"
+      - ".github/workflows/validate-json-*.yml"
+      - ".github/scripts/validate-json.mjs"
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/public/**/*.json"
+      - "frontend/src/data/**/*.json"
+      - ".github/workflows/validate-json-*.yml"
+      - ".github/scripts/validate-json.mjs"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Parse JSON in frontend/public and frontend/src/data
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js from package.json engines
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: frontend/package.json
+
+      - name: Validate JSON files
+        id: validate
+        continue-on-error: true
+        run: node .github/scripts/validate-json.mjs frontend/public frontend/src/data
+
+      - name: Write result metadata
+        if: always()
+        env:
+          INVALID_COUNT: ${{ steps.validate.outputs.invalid_count }}
+        run: |
+          echo "{\"invalid_count\": $INVALID_COUNT}" > validation-metadata.json
+
+      - name: Upload validation results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: json-validation-results
+          path: |
+            json-validation-results.json
+            validation-metadata.json
+          retention-days: 1
+
+      - name: Fail if any JSON is invalid
+        if: steps.validate.outputs.invalid_count != '0'
+        env:
+          INVALID_COUNT: ${{ steps.validate.outputs.invalid_count }}
+        run: |
+          echo "::error::$INVALID_COUNT invalid JSON file(s). See annotations above."
+          exit 1

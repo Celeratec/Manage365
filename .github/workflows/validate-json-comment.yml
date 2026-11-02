@@ -1,0 +1,153 @@
+---
+name: Validate JSON (Comment)
+on:
+  workflow_run:
+    workflows: ["Validate JSON (Check)"]
+    types: [completed]
+permissions:
+  actions: read
+  pull-requests: write
+jobs:
+  comment:
+    name: Post PR comment
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.event == 'pull_request'
+    steps:
+      - name: Download validation results
+        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
+        with:
+          name: json-validation-results
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Comment on PR
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- validate-json -->';
+            const resultsFile = 'json-validation-results.json';
+            
+            const headSha = context.payload.workflow_run.head_sha;
+            const headRepo = context.payload.workflow_run.head_repository.full_name;
+            
+            // Get all PRs for this commit
+            const { data: prs } = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+              ...context.repo,
+              commit_sha: headSha,
+            });
+            
+            // Find the PR that matches: same head SHA, same head repo, open state
+            // Use pr.head.repo?.full_name since head.repo is null when fork is deleted
+            const matchingPr = prs.find(pr => 
+              pr.head.sha === headSha && 
+              pr.head.repo?.full_name === headRepo &&
+              pr.state === 'open'
+            );
+            
+            if (!matchingPr) {
+              core.warning(`No open PR found for commit ${headSha} from ${headRepo}`);
+              return;
+            }
+            
+            const prNumber = matchingPr.number;
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.error(`Invalid PR number: ${prNumber}`);
+              return;
+            }
+            
+            core.info(`Verified PR #${prNumber} for commit ${headSha} from ${headRepo}`)
+            
+            if (!fs.existsSync(resultsFile)) {
+              core.warning('No validation results found — skipping PR comment.');
+              return;
+            }
+            
+            let rawContent;
+            try {
+              rawContent = fs.readFileSync(resultsFile, 'utf8');
+            } catch (error) {
+              core.warning(`Failed to read results file: ${error.message}`);
+              return;
+            }
+            
+            let failures;
+            try {
+              failures = JSON.parse(rawContent);
+            } catch (error) {
+              core.warning(`Results file is not valid JSON: ${error.message}`);
+              return;
+            }
+            
+            if (!Array.isArray(failures)) {
+              core.warning('Results file is not an array — skipping comment.');
+              return;
+            }
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              ...context.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+            const existing = comments.find(
+              (c) => c.user.login === 'github-actions[bot]' && c.body.includes(marker)
+            );
+            
+            function escapeMarkdown(text) {
+              return text
+                .replace(/[\\]/g, '\\\\')
+                .replace(/[`*_{}[\]()#+\-!|@]/g, '\\$&')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+            }
+            
+            function safeCodeSpan(text) {
+              // Strip control characters including \r and \n
+              const cleaned = text.replace(/[\r\n\x00-\x1F\x7F]/g, '');
+              
+              // Find longest run of backticks in the text
+              const backtickRuns = cleaned.match(/`+/g) || [];
+              const maxBackticks = backtickRuns.reduce((max, run) => Math.max(max, run.length), 0);
+              
+              // Use one more backtick than the longest run, with spaces
+              const fence = '`'.repeat(maxBackticks + 1);
+              return `${fence} ${cleaned} ${fence}`;
+            }
+            
+            let body;
+            if (failures.length > 0) {
+              const list = failures
+                .slice(0, 50)
+                .map(({ file, message }) => {
+                  const safeFile = String(file || 'unknown').substring(0, 200);
+                  const safeMessage = escapeMarkdown(String(message || 'Parse error').substring(0, 500));
+                  return `- ${safeCodeSpan(safeFile)}\n  > ${safeMessage}`;
+                })
+                .join('\n');
+              const suffix = failures.length > 50 ? `\n\n_(showing first 50 of ${failures.length} failures)_` : '';
+              body =
+                `${marker}\n### ⚠️ Invalid JSON detected\n\n` +
+                `${failures.length} JSON file(s) in this PR could not be parsed. ` +
+                `These files are loaded directly by Manage365, so a syntax error here breaks the app at runtime.\n\n` +
+                `${list}${suffix}\n\n` +
+                `Please fix the syntax and push again — this comment will update automatically.`;
+            } else if (existing) {
+              body = `${marker}\n### ✅ JSON is valid\n\nAll JSON files in \`frontend/public\` and \`frontend/src/data\` parse correctly. Thanks for fixing it!`;
+            } else {
+              return;
+            }
+            
+            if (existing) {
+              await github.rest.issues.updateComment({
+                ...context.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
