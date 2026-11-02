@@ -268,8 +268,8 @@ Describe 'Get-CIPPBaselineDlpCompliancePolicyTemplateState' {
         function Compare-CIPPDlpCompliancePolicy { param($TenantFilter, $Template) }
         function Set-CIPPDlpCompliancePolicy { param($TenantFilter, $Template, $APIName) }
         function ConvertTo-CIPPODataFilterValue { param($Value, $Type) "$Value" }
-        . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines/Get-CIPPBaselineDlpCompliancePolicyTemplateState.ps1')
-        . (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines/Invoke-CIPPBaselineDlpCompliancePolicyTemplate.ps1')
+        . (Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/PrepareHooks/Get-CIPPBaselineDlpCompliancePolicyTemplateState.ps1')
+        . (Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/Executors/Invoke-CIPPBaselineDlpCompliancePolicyTemplate.ps1')
         $script:DlpItem = [PSCustomObject]@{ Variables = [PSCustomObject]@{ dlpCompliancePolicyTemplate = [PSCustomObject]@{ value = 'dlp-guid-1' } } }
     }
     BeforeEach {

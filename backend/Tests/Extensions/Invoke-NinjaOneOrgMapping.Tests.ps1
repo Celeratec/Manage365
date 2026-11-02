@@ -6,14 +6,16 @@ BeforeAll {
     function Get-AzDataTableEntity {
         param($Filter, $Table)
         if ($Filter -like '*NinjaOneMapping*') {
-            @()  # No existing mappings
+            # Already tenant (t1) has an existing mapping to org 1
+            @([pscustomobject]@{ RowKey = 't1'; IntegrationId = '1'; IntegrationName = 'Already' })
         } else {
             [pscustomobject]@{ config = (@{ NinjaOne = @{ Instance = 'ninja.example.com' } } | ConvertTo-Json -Compress) }
         }
     }
-    function Add-AzDataTableEntity { param($Entity, [switch]$Force) }
+    function Add-AzDataTableEntity { param($Entity, [switch]$Force) $script:Added.Add($Entity) }
     function Get-NinjaOneToken { param($configuration) @{ access_token = 'token' } }
     function Write-LogMessage { param($API, $tenant, $message, $Sev) }
+    function Start-CIPPOrchestrator { param($InputObject) "Craft-$($InputObject.OrchestratorName)" }
     function Get-ExtensionMapping { param($Extension) @([pscustomobject]@{ RowKey = 't1'; IntegrationId = '1' }) }
     function Get-Tenants {
         param([switch]$IncludeErrors)

@@ -293,7 +293,7 @@ Describe 'Get-CIPPBaselinePhishingSimulationsState' {
 
 Describe 'Get-CIPPBaselineSpamFilterPolicyState block-list write params' {
     BeforeAll {
-        . (Join-Path (Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/Baselines') 'Get-CIPPBaselineSpamFilterPolicyState.ps1')
+        . (Join-Path (Join-Path $script:RepoRoot 'Modules/CIPPBaselines/Public/PrepareHooks') 'Get-CIPPBaselineSpamFilterPolicyState.ps1')
         $script:SpamPolicy = @{ Name = 'CIPP Default Spam Filter Policy'; EnableRegionBlockList = $true; EnableLanguageBlockList = $false }
         $script:SpamRule = @{ Name = 'CIPP Default Spam Filter Policy'; State = 'Enabled'; Priority = 0; HostedContentFilterPolicy = 'CIPP Default Spam Filter Policy'; RecipientDomainIs = @('contoso.com') }
     }
