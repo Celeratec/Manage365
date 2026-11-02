@@ -49,6 +49,7 @@ namespace Craft.Services {
     function Get-CIPPTable { param($TableName) @{ TableName = $TableName } }
     function Get-CIPPAzDataTableEntity { param($TableName, $Filter, $Property) $script:Rows[$TableName] }
     function Remove-CIPPAzDataTableEntity { param($TableName, $Entity, [switch]$Force) }
+    function Get-Command { param($Name, $ErrorAction) [pscustomobject]@{ Name = $Name } }
     function Get-Tenants { param($TenantFilter, [switch]$IncludeAll, [switch]$IncludeErrors, [switch]$SkipList) $script:Tenants }
     function New-CippQueueEntry { param($Name, $TotalTasks, $Link, $Reference) @{ RowKey = $script:QueueId } }
     function Get-CIPPSamPermissions { [pscustomobject]@{ Timestamp = [datetime]'2026-01-01' } }
