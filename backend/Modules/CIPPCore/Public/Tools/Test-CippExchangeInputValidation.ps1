@@ -150,12 +150,9 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate priority (must be integer, reject 5.7)
+    # Validate priority (must be between 0 and 9999)
     if ($null -ne $Priority) {
-        if ($Priority -isnot [int] -or $Priority -ne [int]$Priority) {
-            $Result.IsValid = $false
-            $Result.Errors += "Priority must be an integer (whole number)"
-        } elseif ($Priority -lt 0 -or $Priority -gt 9999) {
+        if ($Priority -lt 0 -or $Priority -gt 9999) {
             $Result.IsValid = $false
             $Result.Errors += "Priority must be between 0 and 9999"
         }
