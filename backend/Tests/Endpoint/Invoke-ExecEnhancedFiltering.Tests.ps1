@@ -5,6 +5,7 @@ BeforeAll {
     $FunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Transport/Invoke-ExecEnhancedFiltering.ps1'
     $ValidationPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Test-CippExchangeInputValidation.ps1'
     $TenantFilterPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools/Get-CippNormalizedTenantFilter.ps1'
+    $IPBlockListSafetyPath = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Test-CIPPIPBlockListSafety.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
 
     class HttpResponseContext {
@@ -46,6 +47,7 @@ BeforeAll {
     Get-ChildItem -Path $ToolsDir -Filter '*Quarantine*.ps1' | ForEach-Object { . $_.FullName }
     . $TenantFilterPath
     . $ValidationPath
+    . $IPBlockListSafetyPath
     . $FunctionPath
 }
 

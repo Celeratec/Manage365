@@ -78,17 +78,16 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
 
     It 'returns a success message when disabling a strict preset policy' {
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecDefenderPresetPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecDisableDefenderPresetPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Disable'
                 policyType   = 'Strict'
                 ruleType     = 'ATP'
             }
         }
 
-        $response = Invoke-ExecDefenderPresetPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecDisableDefenderPresetPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Disabled'
@@ -149,11 +148,10 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
 
     It 'supports rescoping with validated email addresses' {
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecDefenderPresetPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRescopeDefenderPresetPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter      = 'contoso.onmicrosoft.com'
-                action            = 'Rescope'
                 policyType        = 'Standard'
                 ruleType          = 'EOP'
                 sentTo            = @('user@contoso.com')
@@ -161,7 +159,7 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
             }
         }
 
-        $response = Invoke-ExecDefenderPresetPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRescopeDefenderPresetPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Rescoped|No changes'
@@ -169,11 +167,10 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
 
     It 'reports no changes when rescoping to same values' {
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecDefenderPresetPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRescopeDefenderPresetPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter      = 'contoso.onmicrosoft.com'
-                action            = 'Rescope'
                 policyType        = 'Standard'
                 ruleType          = 'EOP'
                 sentTo            = @()
@@ -181,7 +178,7 @@ Describe 'Invoke-ExecDefenderPresetPolicy' {
             }
         }
 
-        $response = Invoke-ExecDefenderPresetPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRescopeDefenderPresetPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'No changes'

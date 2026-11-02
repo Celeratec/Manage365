@@ -40,9 +40,9 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         $script:ExoRequestHistory = @()
     }
 
-    It 'has .ROLE Exchange.SecurityPolicy.ReadWrite' {
+    It 'has .ROLE Exchange.SpamFilter.ReadWrite' {
         $Help = Get-Help Invoke-ExecAntiSpamPolicy
-        $Help.Role | Should -Be 'Exchange.SecurityPolicy.ReadWrite'
+        $Help.Role | Should -Be 'Exchange.SpamFilter.ReadWrite'
     }
 
     It 'returns a success message when creating a new anti-spam policy' {
@@ -127,16 +127,15 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiSpamPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'TestPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiSpamPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         
@@ -167,16 +166,15 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiSpamPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'DefaultPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiSpamPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Cannot remove default policy'
@@ -202,16 +200,15 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiSpamPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'StandardPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiSpamPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
@@ -237,16 +234,15 @@ Describe 'Invoke-ExecAntiSpamPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiSpamPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiSpamPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'StrictPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiSpamPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiSpamPolicy -Request $request -TriggerMetadata $null
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Only custom policies can be removed'

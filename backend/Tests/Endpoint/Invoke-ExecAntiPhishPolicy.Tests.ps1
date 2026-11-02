@@ -102,16 +102,15 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiPhishPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'TestPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         
         $script:ExoRequestHistory[0].Cmdlet | Should -Be 'Get-AntiPhishPolicy'
@@ -138,16 +137,15 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiPhishPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'Default'
             }
         }
 
-        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.Body.Results | Should -Match 'Cannot remove default policy'
         
         # Assert no Remove cmdlets were called
@@ -166,16 +164,15 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiPhishPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'BuiltInPolicy'
             }
         }
 
-        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
         
         # Assert no Remove cmdlets were called
@@ -194,16 +191,15 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiPhishPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'Standard Preset Security Policy'
             }
         }
 
-        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
         
         # Assert no Remove cmdlets were called
@@ -222,16 +218,15 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
         }
 
         $request = [pscustomobject]@{
-            Params  = @{ CIPPEndpoint = 'ExecAntiPhishPolicy' }
+            Params  = @{ CIPPEndpoint = 'ExecRemoveAntiPhishPolicy' }
             Headers = @{}
             Body    = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                action       = 'Remove'
                 policyName   = 'Strict Preset Security Policy'
             }
         }
 
-        $response = Invoke-ExecAntiPhishPolicy -Request $request -TriggerMetadata $null
+        $response = Invoke-ExecRemoveAntiPhishPolicy -Request $request -TriggerMetadata $null
         $response.Body.Results | Should -Match 'Only custom policies can be removed'
         
         # Assert no Remove cmdlets were called
