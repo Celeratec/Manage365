@@ -1,6 +1,12 @@
 ---
 name: Backend Pester
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend_pester.yml'
   pull_request:
     branches:
       - main
@@ -20,6 +26,8 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       # The runner image ships a Pester, but not necessarily 5.x, and the suite uses the
       # Pester 5 Should -Invoke / -ParameterFilter syntax throughout.
       - name: Install Pester 5
