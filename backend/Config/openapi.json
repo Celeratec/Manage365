@@ -14568,7 +14568,11 @@
                     }
                   },
                   "fileTypes": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Validate file extensions (alphanumeric, 1-20 chars)"
                   },
                   "internalSenderAdminAddress": {
                     "type": "array",
@@ -14607,9 +14611,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   },
                   "zapEnabled": {
                     "type": "string",
@@ -14648,7 +14652,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecAntiPhishPolicy": {
@@ -14792,9 +14799,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   }
                 },
                 "required": [
@@ -14829,7 +14836,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecAntiSpamPolicy": {
@@ -14839,7 +14849,7 @@
         "tags": [
           "Email-Exchange > Spamfilter"
         ],
-        "description": "Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).\nSupports SCL thresholds, spam actions, BCL threshold, and ASF settings.\nAllow lists and RedirectToRecipients require Exchange.SecurityPolicy.ReadWrite.",
+        "description": "Create or update custom anti-spam policies (HostedContentFilterPolicy and Rule).\nSupports SCL thresholds, spam actions, BCL threshold, and ASF settings.\nThis role gates allow lists and RedirectToRecipients which can bypass security.",
         "requestBody": {
           "required": true,
           "content": {
@@ -14941,7 +14951,11 @@
                     "description": "Inline safety tips"
                   },
                   "languageBlockList": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Validate language codes (2-letter ISO 639-1)"
                   },
                   "markAsSpamBulkMail": {
                     "type": "string"
@@ -15006,10 +15020,14 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "RedirectToRecipients - requires Exchange.SecurityPolicy.ReadWrite and must be in accepted domains"
+                    "description": "RedirectToRecipients - must be in accepted domains"
                   },
                   "regionBlockList": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Validate region codes (2-letter ISO 3166-1)"
                   },
                   "ruleName": {
                     "type": "string"
@@ -15037,9 +15055,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   }
                 },
                 "required": [
@@ -15074,7 +15092,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecApiClient": {
@@ -22420,7 +22441,10 @@
                     }
                   },
                   "exceptIfSentToMemberOf": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "policyType": {
                     "type": "string",
@@ -22444,14 +22468,17 @@
                     "description": "Rescoping requires recipient/domain/group lists"
                   },
                   "sentToMemberOf": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter: reject arrays, take single value"
+                    "description": "Normalize tenantFilter inside try block to return proper 400"
                   }
                 },
                 "required": [
@@ -22488,7 +22515,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite"
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecDeleteGDAPRelationship": {
@@ -25504,9 +25534,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   }
                 },
                 "required": [
@@ -25540,7 +25570,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite"
+        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecExchangeRoleRepair": {
@@ -26508,9 +26541,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   },
                   "userPrincipalName": {
                     "type": "string"
@@ -26548,7 +26581,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecFocusedInboxOverride": {
@@ -26580,9 +26616,9 @@
                   "tenantFilter": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "$ref": "#/components/schemas/LabelValue"
                     },
-                    "description": "Normalize tenantFilter"
+                    "description": "Normalize tenantFilter inside try block"
                   },
                   "userPrincipalName": {
                     "type": "string"
@@ -26947,7 +26983,10 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CippNormalizedTenantFilter"
+        ]
       }
     },
     "/api/ExecGDAPAccessAssignment": {
