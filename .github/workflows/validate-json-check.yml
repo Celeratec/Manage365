@@ -1,0 +1,58 @@
+---
+name: Validate JSON (Check)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    paths:
+      - "frontend/public/**/*.json"
+      - "frontend/src/data/**/*.json"
+      - ".github/workflows/validate-json-*.yml"
+      - ".github/scripts/validate-json.mjs"
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/public/**/*.json"
+      - "frontend/src/data/**/*.json"
+      - ".github/workflows/validate-json-*.yml"
+      - ".github/scripts/validate-json.mjs"
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Parse JSON in frontend/public and frontend/src/data
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@f25a3a92316f7c38a34dcbcdf4723c88a75c2663 # v4.3.3
+        with:
+          persist-credentials: false
+
+      - name: Use Node.js from package.json engines
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.2.0
+        with:
+          node-version-file: frontend/package.json
+
+      - name: Validate JSON files
+        id: validate
+        continue-on-error: true
+        run: node .github/scripts/validate-json.mjs frontend/public frontend/src/data
+
+      - name: Upload validation results
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: json-validation-results-${{ github.event.pull_request.number || github.run_id }}
+          path: json-validation-results.json
+          retention-days: 1
+
+      - name: Fail if any JSON is invalid
+        if: steps.validate.outputs.invalid_count != '0'
+        run: |
+          echo "::error::${{ steps.validate.outputs.invalid_count }} invalid JSON file(s). See annotations above."
+          exit 1

@@ -1,0 +1,30 @@
+---
+name: Workflow Security Check
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/scripts/validate-workflow-security.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - '.github/scripts/validate-workflow-security.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate workflow security
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@f25a3a92316f7c38a34dcbcdf4723c88a75c2663 # v4.3.3
+        with:
+          persist-credentials: false
+
+      - name: Run security checks
+        run: .github/scripts/validate-workflow-security.sh
