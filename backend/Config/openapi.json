@@ -25500,7 +25500,7 @@
         "tags": [
           "Email-Exchange > Transport"
         ],
-        "description": "Configure Enhanced Filtering for Connectors on an inbound connector.\nManages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.",
+        "description": "Configure Enhanced Filtering for Connectors on an inbound connector.\nManages EFSkipIPs, EFSkipLastIP, and EFUsers settings with strict validation.\nGet action requires Exchange.Connector.Read, Set action requires Exchange.SecurityPolicy.ReadWrite.",
         "requestBody": {
           "required": true,
           "content": {
@@ -25571,7 +25571,7 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SecurityPolicy.ReadWrite",
+        "x-cipp-role": "Exchange.Connector.Read",
         "x-cipp-reads-via": [
           "Get-CippNormalizedTenantFilter"
         ]
