@@ -63,13 +63,21 @@ function Invoke-ExecDefenderPresetPolicy {
                         $BeforeState = 'Error'
                     }
 
-                    $CmdletName = if ($RuleTypeLabel -eq 'EOP') { 'Enable-EOPProtectionPolicyRule' } else { 'Enable-ATPProtectionPolicyRule' }
-                    New-ExoRequest -tenantid $TenantFilter -cmdlet $CmdletName -cmdParams @{
+                    # Use Set-*ProtectionPolicyRule with -State Enabled
+                    $SetCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Set-EOPProtectionPolicyRule' } else { 'Set-ATPProtectionPolicyRule' }
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet $SetCmdlet -cmdParams @{
                         Identity = $RuleIdentity
+                        State    = 'Enabled'
                     } -useSystemMailbox $true
                     
-                    $AuditLog += "$RuleTypeLabel rule '$RuleIdentity': State changed from $BeforeState to Enabled"
-                    $Results += "Enabled $RuleTypeLabel preset policy: $RuleIdentity"
+                    $AfterState = 'Enabled'
+                    $AuditLog += @{
+                        RuleType    = $RuleTypeLabel
+                        RuleIdentity = $RuleIdentity
+                        BeforeState = $BeforeState
+                        AfterState  = $AfterState
+                    }
+                    $Results += "Enabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState)"
                 }
                 'Disable' {
                     # Read current state for audit
@@ -81,13 +89,21 @@ function Invoke-ExecDefenderPresetPolicy {
                         $BeforeState = 'Error'
                     }
 
-                    $CmdletName = if ($RuleTypeLabel -eq 'EOP') { 'Disable-EOPProtectionPolicyRule' } else { 'Disable-ATPProtectionPolicyRule' }
-                    New-ExoRequest -tenantid $TenantFilter -cmdlet $CmdletName -cmdParams @{
+                    # Use Set-*ProtectionPolicyRule with -State Disabled
+                    $SetCmdlet = if ($RuleTypeLabel -eq 'EOP') { 'Set-EOPProtectionPolicyRule' } else { 'Set-ATPProtectionPolicyRule' }
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet $SetCmdlet -cmdParams @{
                         Identity = $RuleIdentity
+                        State    = 'Disabled'
                     } -useSystemMailbox $true
                     
-                    $AuditLog += "$RuleTypeLabel rule '$RuleIdentity': State changed from $BeforeState to Disabled"
-                    $Results += "Disabled $RuleTypeLabel preset policy: $RuleIdentity"
+                    $AfterState = 'Disabled'
+                    $AuditLog += @{
+                        RuleType     = $RuleTypeLabel
+                        RuleIdentity = $RuleIdentity
+                        BeforeState  = $BeforeState
+                        AfterState   = $AfterState
+                    }
+                    $Results += "Disabled $RuleTypeLabel preset policy: $RuleIdentity (was: $BeforeState)"
                 }
                 'Rescope' {
                     # Rescoping requires recipient/domain/group lists
@@ -104,10 +120,9 @@ function Invoke-ExecDefenderPresetPolicy {
                         if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
                     }
                     if ($SentToMemberOf -and $SentToMemberOf.Count -gt 0) {
-                        # SentToMemberOf contains group names/IDs - validate count cap
-                        if ($SentToMemberOf.Count -gt 1000) {
-                            throw "SentToMemberOf list exceeds maximum of 1000 entries"
-                        }
+                        # SentToMemberOf contains group emails/GUIDs - validate with helper
+                        $Validation = Test-CippExchangeInputValidation -SentToMemberOf $SentToMemberOf
+                        if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
                     }
                     if ($RecipientDomainIs -and $RecipientDomainIs.Count -gt 0) {
                         $Validation = Test-CippExchangeInputValidation -Domains $RecipientDomainIs
@@ -118,10 +133,9 @@ function Invoke-ExecDefenderPresetPolicy {
                         if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
                     }
                     if ($ExceptIfSentToMemberOf -and $ExceptIfSentToMemberOf.Count -gt 0) {
-                        # ExceptIfSentToMemberOf contains group names/IDs - validate count cap
-                        if ($ExceptIfSentToMemberOf.Count -gt 1000) {
-                            throw "ExceptIfSentToMemberOf list exceeds maximum of 1000 entries"
-                        }
+                        # ExceptIfSentToMemberOf contains group emails/GUIDs - validate with helper
+                        $Validation = Test-CippExchangeInputValidation -SentToMemberOf $ExceptIfSentToMemberOf
+                        if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
                     }
                     if ($ExceptIfRecipientDomainIs -and $ExceptIfRecipientDomainIs.Count -gt 0) {
                         $Validation = Test-CippExchangeInputValidation -Domains $ExceptIfRecipientDomainIs
@@ -186,10 +200,23 @@ function Invoke-ExecDefenderPresetPolicy {
         }
 
         $Result = $Results -join '; '
-        $AuditMessage = if ($AuditLog.Count -gt 0) { $AuditLog -join '; ' } else { $Result }
+        $AuditMessage = if ($AuditLog.Count -gt 0) { 
+            if ($AuditLog[0] -is [hashtable]) {
+                # Structured audit log (Enable/Disable actions)
+                ($AuditLog | ForEach-Object { "$($_.RuleType) rule '$($_.RuleIdentity)': State changed from $($_.BeforeState) to $($_.AfterState)" }) -join '; '
+            } else {
+                # String audit log (Rescope action)
+                $AuditLog -join '; '
+            }
+        } else { 
+            $Result 
+        }
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Info'
         $StatusCode = [HttpStatusCode]::OK
-        $Body = @{ Results = $Result }
+        $Body = @{ 
+            Results   = $Result
+            AuditLog  = $AuditLog
+        }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to $Action $PolicyType $RuleType preset policy for $TenantFilter`: $($ErrorMessage.NormalizedError)"

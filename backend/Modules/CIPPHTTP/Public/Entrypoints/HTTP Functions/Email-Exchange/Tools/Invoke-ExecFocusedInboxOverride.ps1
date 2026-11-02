@@ -41,7 +41,7 @@ function Invoke-ExecFocusedInboxOverride {
             $Validation = Test-CippExchangeInputValidation -EmailAddress $SenderEmailAddress
             if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
 
-            # Add override via Graph API (requires Mail.ReadWrite permission)
+            # Add override via Graph API (requires MailboxSettings.ReadWrite permission)
             $Body = @{
                 senderEmailAddress = @{
                     name    = $SenderEmailAddress

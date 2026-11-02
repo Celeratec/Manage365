@@ -16,7 +16,7 @@ BeforeAll {
     }
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
-    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
+    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
     function New-ExoRequest { 
         param($tenantid, $cmdlet, $useSystemMailbox) 
         @(

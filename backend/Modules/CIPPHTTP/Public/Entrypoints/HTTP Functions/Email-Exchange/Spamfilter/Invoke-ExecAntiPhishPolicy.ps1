@@ -24,7 +24,7 @@ function Invoke-ExecAntiPhishPolicy {
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
-        if ($Action -notin @('New', 'Update')) { throw 'action must be New or Update.' }
+        if ($Action -notin @('New', 'Update', 'Remove')) { throw 'action must be New, Update, or Remove.' }
         if ([string]::IsNullOrWhiteSpace($PolicyName)) { throw 'policyName is required.' }
 
         # Validate policy/rule names
@@ -165,6 +165,25 @@ function Invoke-ExecAntiPhishPolicy {
                 $AuditLog += "Created anti-phishing rule: $RuleName with settings: $($RuleParams | ConvertTo-Json -Compress)"
                 $Results += "Created anti-phishing rule: $RuleName"
             }
+        } elseif ($Action -eq 'Remove') {
+            # Remove policy and rule (for rollback)
+            # First remove any associated rules
+            try {
+                $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishRule' -useSystemMailbox $true | 
+                    Where-Object { $_.AntiPhishPolicy -eq $PolicyName }
+                foreach ($Rule in $ExistingRules) {
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-AntiPhishRule' -cmdParams @{ Identity = $Rule.Name; Confirm = $false } -useSystemMailbox $true
+                    $AuditLog += "Removed anti-phishing rule: $($Rule.Name)"
+                    $Results += "Removed anti-phishing rule: $($Rule.Name)"
+                }
+            } catch {
+                # Continue if no rules found
+            }
+            
+            # Then remove the policy
+            New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-AntiPhishPolicy' -cmdParams @{ Identity = $PolicyName; Confirm = $false } -useSystemMailbox $true
+            $AuditLog += "Removed anti-phishing policy: $PolicyName"
+            $Results += "Removed anti-phishing policy: $PolicyName"
         } else {
             # Update existing policy - read before for audit
             $BeforePolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-AntiPhishPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true

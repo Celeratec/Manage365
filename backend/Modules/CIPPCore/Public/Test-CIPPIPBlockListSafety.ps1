@@ -250,8 +250,9 @@ function Test-CIPPIPBlockListSafety {
         # Empty array or null both OK - tenant may have no connectors
         $InboundConnectors = @($InboundConnectors)
         
-        # Check against inbound connector IPs
+        # Check against inbound connector IPs and Enhanced Filtering IPs
         foreach ($Connector in $InboundConnectors) {
+            # Check SenderIPAddresses
             if ($Connector.SenderIPAddresses) {
                 foreach ($ConnectorIP in $Connector.SenderIPAddresses) {
                     # Fail closed if connector uses range notation (a-b)
@@ -275,6 +276,37 @@ function Test-CIPPIPBlockListSafety {
                                 ConflictingIP        = $IPToCheck
                                 ConflictingConnector = $Connector.Name
                                 ConflictingSource    = 'InboundConnector'
+                                ConflictingRelay     = $null
+                            }
+                        }
+                    }
+                }
+            }
+            
+            # Check Enhanced Filtering IPs (EFSkipIPs) - must never be blocked or allowed via connection filter
+            if ($Connector.EFSkipIPs) {
+                foreach ($EFIP in $Connector.EFSkipIPs) {
+                    # Fail closed if EF uses range notation (a-b)
+                    if ($EFIP -match '-') {
+                        return @{
+                            IsValid              = $false
+                            Reason               = "Inbound connector '$($Connector.Name)' Enhanced Filtering uses range notation '$EFIP'. Cannot safely validate. The operation has been blocked."
+                            ConflictingIP        = $EFIP
+                            ConflictingConnector = $Connector.Name
+                            ConflictingSource    = 'EnhancedFiltering'
+                            ConflictingRelay     = $null
+                        }
+                    }
+                    
+                    foreach ($IPToCheck in $CleanedIPs) {
+                        $OverlapResult = Test-CIPPIPOverlap -IP1 $IPToCheck -IP2 $EFIP
+                        if ($OverlapResult.Overlaps) {
+                            return @{
+                                IsValid              = $false
+                                Reason               = "IP '$IPToCheck' overlaps with inbound connector '$($Connector.Name)' Enhanced Filtering IP '$EFIP'. Enhanced Filtering IPs cannot be added to Connection Filter allow/block lists."
+                                ConflictingIP        = $IPToCheck
+                                ConflictingConnector = $Connector.Name
+                                ConflictingSource    = 'EnhancedFiltering'
                                 ConflictingRelay     = $null
                             }
                         }

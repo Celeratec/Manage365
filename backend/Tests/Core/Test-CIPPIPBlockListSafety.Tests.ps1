@@ -300,6 +300,42 @@ Describe 'Test-CIPPIPBlockListSafety' {
             $Result.ConflictingSource | Should -Be 'InboundConnector'
             $Result.ConflictingIP | Should -Be '198.51.100.1-198.51.100.10'
         }
+
+        It 'Blocks IP that overlaps with Enhanced Filtering EFSkipIPs' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                , @(@{ Name = 'Mail Gateway'; SenderIPAddresses = @(); EFSkipIPs = @('203.0.113.5') })
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('203.0.113.5')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'EnhancedFiltering'
+            $Result.ConflictingIP | Should -Be '203.0.113.5'
+            $Result.Reason | Should -Match 'Enhanced Filtering'
+        }
+
+        It 'Blocks CIDR range that overlaps with Enhanced Filtering EFSkipIPs' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                , @(@{ Name = 'Mail Gateway'; SenderIPAddresses = @(); EFSkipIPs = @('203.0.113.10') })
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('203.0.113.0/24')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'EnhancedFiltering'
+        }
+
+        It 'Fails closed when Enhanced Filtering uses range notation' {
+            Mock New-ExoRequest -ModuleName CIPPCore {
+                , @(@{ Name = 'Mail Gateway'; SenderIPAddresses = @(); EFSkipIPs = @('203.0.113.1-203.0.113.10') })
+            } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }
+            Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-OutboundConnector' }
+            
+            $Result = Test-CIPPIPBlockListSafety -TenantFilter 'contoso.onmicrosoft.com' -IPsToCheck @('8.8.8.8')
+            $Result.IsValid | Should -BeFalse
+            $Result.ConflictingSource | Should -Be 'EnhancedFiltering'
+            $Result.ConflictingIP | Should -Be '203.0.113.1-203.0.113.10'
+        }
         
         It 'Allows IP when no inbound connectors exist' {
             Mock New-ExoRequest -ModuleName CIPPCore { , @() } -ParameterFilter { $cmdlet -eq 'Get-InboundConnector' }

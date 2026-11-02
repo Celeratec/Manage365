@@ -96,14 +96,16 @@ function Test-CippExchangeInputValidation {
     # Validate email addresses (use \z instead of $ to prevent newline bypass)
     $EmailRegex = '\A[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\z'
     if ($EmailAddress) {
-        # Trim whitespace
-        $EmailAddress = $EmailAddress.Trim()
+        # Check for LF/CR BEFORE trimming
         if ($EmailAddress -match '[\r\n]') {
             $Result.IsValid = $false
             $Result.Errors += "Email address cannot contain newline characters"
-        } elseif ($EmailAddress -notmatch $EmailRegex) {
-            $Result.IsValid = $false
-            $Result.Errors += "Invalid email address format: $EmailAddress"
+        } else {
+            $EmailAddress = $EmailAddress.Trim()
+            if ($EmailAddress -notmatch $EmailRegex) {
+                $Result.IsValid = $false
+                $Result.Errors += "Invalid email address format: $EmailAddress"
+            }
         }
     }
 
@@ -130,14 +132,16 @@ function Test-CippExchangeInputValidation {
     # Validate domains (use \z instead of $)
     $DomainRegex = '\A[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\z'
     if ($Domain) {
-        # Trim whitespace
-        $Domain = $Domain.Trim()
+        # Check for LF/CR BEFORE trimming
         if ($Domain -match '[\r\n]') {
             $Result.IsValid = $false
             $Result.Errors += "Domain cannot contain newline characters"
-        } elseif ($Domain -notmatch $DomainRegex) {
-            $Result.IsValid = $false
-            $Result.Errors += "Invalid domain format: $Domain"
+        } else {
+            $Domain = $Domain.Trim()
+            if ($Domain -notmatch $DomainRegex) {
+                $Result.IsValid = $false
+                $Result.Errors += "Invalid domain format: $Domain"
+            }
         }
     }
 
@@ -158,15 +162,17 @@ function Test-CippExchangeInputValidation {
 
     # Validate UPN (email or GUID, use \z)
     if ($UserPrincipalName) {
-        # Trim whitespace
-        $UserPrincipalName = $UserPrincipalName.Trim()
         $GuidRegex = '\A[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\z'
+        # Check for LF/CR BEFORE trimming
         if ($UserPrincipalName -match '[\r\n]') {
             $Result.IsValid = $false
             $Result.Errors += "UserPrincipalName cannot contain newline characters"
-        } elseif ($UserPrincipalName -notmatch $EmailRegex -and $UserPrincipalName -notmatch $GuidRegex) {
-            $Result.IsValid = $false
-            $Result.Errors += "UserPrincipalName must be a valid email address or GUID"
+        } else {
+            $UserPrincipalName = $UserPrincipalName.Trim()
+            if ($UserPrincipalName -notmatch $EmailRegex -and $UserPrincipalName -notmatch $GuidRegex) {
+                $Result.IsValid = $false
+                $Result.Errors += "UserPrincipalName must be a valid email address or GUID"
+            }
         }
     }
 
@@ -198,8 +204,15 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate priority (must be integer between 0 and 9999, reject floats like 5.7)
+    # Validate priority (must be integer between 0 and 9999, reject floats like 5.7 and booleans)
     if ($null -ne $Priority) {
+        # Reject booleans explicitly
+        if ($Priority -is [bool]) {
+            $Result.IsValid = $false
+            $Result.Errors += "Priority must be an integer, not a boolean"
+            return $Result
+        }
+        
         # Reject non-integers BEFORE cast
         if ($Priority -is [string]) {
             if ($Priority -match '\.') {
@@ -222,14 +235,10 @@ function Test-CippExchangeInputValidation {
                 $Result.Errors += "Priority must be an integer, not a decimal: $Priority"
                 return $Result
             }
-            # Try to convert
-            try {
-                $Priority = [int]$Priority
-            } catch {
-                $Result.IsValid = $false
-                $Result.Errors += "Priority must be a valid integer"
-                return $Result
-            }
+            # Reject any other non-integer type
+            $Result.IsValid = $false
+            $Result.Errors += "Priority must be an integer, got $($Priority.GetType().Name)"
+            return $Result
         }
         
         if ($Priority -lt 0 -or $Priority -gt 9999) {
@@ -269,16 +278,20 @@ function Test-CippExchangeInputValidation {
         }
     }
 
-    # Validate LanguageBlockList (2-letter ISO 639-1 codes)
+    # Validate LanguageBlockList (2-letter ISO 639-1 codes, case-sensitive)
     if ($LanguageBlockList -and $LanguageBlockList.Count -gt 0) {
         foreach ($Lang in $LanguageBlockList) {
-            $LangStr = $Lang.Trim()
-            if ($LangStr -match '[\r\n]') {
+            # Check for LF/CR before trimming
+            if ($Lang -match '[\r\n]') {
                 $Result.IsValid = $false
                 $Result.Errors += "Language code cannot contain newline characters"
-            } elseif ($LangStr -notmatch '\A[a-z]{2}\z') {
-                $Result.IsValid = $false
-                $Result.Errors += "Invalid language code '$LangStr' (must be 2-letter lowercase ISO 639-1 code)"
+            } else {
+                $LangStr = $Lang.Trim()
+                # Use -cnotmatch for case-sensitive check
+                if ($LangStr -cnotmatch '\A[a-z]{2}\z') {
+                    $Result.IsValid = $false
+                    $Result.Errors += "Invalid language code '$LangStr' (must be 2-letter lowercase ISO 639-1 code)"
+                }
             }
         }
     }
@@ -319,14 +332,14 @@ function Test-CippIPAddressStrict {
         Errors  = @()
     }
 
-    $IPString = $IPAddress.Trim()
-    
-    # Reject embedded newlines
-    if ($IPString -match '[\r\n]') {
+    # Check for LF/CR BEFORE trimming (trim would remove trailing newlines)
+    if ($IPAddress -match '[\r\n]') {
         $Result.IsValid = $false
         $Result.Errors += "IP address cannot contain newline characters"
         return $Result
     }
+    
+    $IPString = $IPAddress.Trim()
 
     # Check for IP range notation (a-b) which Exchange supports
     if ($IPString -match '\A(.+)-(.+)\z') {

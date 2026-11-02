@@ -25,7 +25,7 @@ function Invoke-ExecAntiSpamPolicy {
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Action)) { throw 'action is required.' }
-        if ($Action -notin @('New', 'Update')) { throw 'action must be New or Update.' }
+        if ($Action -notin @('New', 'Update', 'Remove')) { throw 'action must be New, Update, or Remove.' }
         if ([string]::IsNullOrWhiteSpace($PolicyName)) { throw 'policyName is required.' }
 
         # Validate policy/rule names
@@ -123,37 +123,41 @@ function Invoke-ExecAntiSpamPolicy {
             }
         }
 
-        # Language/Region filters
+        # Language/Region filters - use helper for validation
         if ($null -ne $Request.Body.enableLanguageBlockList) { $PolicyParams.EnableLanguageBlockList = $Request.Body.enableLanguageBlockList }
         if ($Request.Body.languageBlockList) { 
-            # Validate language codes (2-letter ISO 639-1)
-            if ($Request.Body.languageBlockList.Count -gt 0) {
-                foreach ($Lang in $Request.Body.languageBlockList) {
-                    if ($Lang -notmatch '\A[a-z]{2}\z') {
-                        throw "Invalid language code '$Lang' (must be 2-letter ISO 639-1 code)"
-                    }
-                }
-            }
+            $Validation = Test-CippExchangeInputValidation -LanguageBlockList $Request.Body.languageBlockList
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
             $PolicyParams.LanguageBlockList = $Request.Body.languageBlockList 
         }
         if ($null -ne $Request.Body.enableRegionBlockList) { $PolicyParams.EnableRegionBlockList = $Request.Body.enableRegionBlockList }
         if ($Request.Body.regionBlockList) { 
-            # Validate region codes (2-letter ISO 3166-1)
-            if ($Request.Body.regionBlockList.Count -gt 0) {
-                foreach ($Region in $Request.Body.regionBlockList) {
-                    if ($Region -notmatch '\A[A-Z]{2}\z') {
-                        throw "Invalid region code '$Region' (must be 2-letter ISO 3166-1 code)"
-                    }
-                }
-            }
+            $Validation = Test-CippExchangeInputValidation -RegionBlockList $Request.Body.regionBlockList
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
             $PolicyParams.RegionBlockList = $Request.Body.regionBlockList 
         }
 
-        # Specific quarantine tags (not generic)
-        if ($Request.Body.spamQuarantineTag) { $PolicyParams.SpamQuarantineTag = $Request.Body.spamQuarantineTag }
-        if ($Request.Body.highConfidenceSpamQuarantineTag) { $PolicyParams.HighConfidenceSpamQuarantineTag = $Request.Body.highConfidenceSpamQuarantineTag }
-        if ($Request.Body.phishQuarantineTag) { $PolicyParams.PhishQuarantineTag = $Request.Body.phishQuarantineTag }
-        if ($Request.Body.highConfidencePhishQuarantineTag) { $PolicyParams.HighConfidencePhishQuarantineTag = $Request.Body.highConfidencePhishQuarantineTag }
+        # Specific quarantine tags (not generic) - use helper for validation
+        if ($Request.Body.spamQuarantineTag) { 
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.spamQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.SpamQuarantineTag = $Request.Body.spamQuarantineTag 
+        }
+        if ($Request.Body.highConfidenceSpamQuarantineTag) { 
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.highConfidenceSpamQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.HighConfidenceSpamQuarantineTag = $Request.Body.highConfidenceSpamQuarantineTag 
+        }
+        if ($Request.Body.phishQuarantineTag) { 
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.phishQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.PhishQuarantineTag = $Request.Body.phishQuarantineTag 
+        }
+        if ($Request.Body.highConfidencePhishQuarantineTag) { 
+            $Validation = Test-CippExchangeInputValidation -QuarantineTag $Request.Body.highConfidencePhishQuarantineTag
+            if (-not $Validation.IsValid) { throw ($Validation.Errors -join '; ') }
+            $PolicyParams.HighConfidencePhishQuarantineTag = $Request.Body.highConfidencePhishQuarantineTag 
+        }
         if ($Request.Body.bulkQuarantineTag) { $PolicyParams.BulkQuarantineTag = $Request.Body.bulkQuarantineTag }
 
         # RedirectToRecipients - must be in accepted domains
@@ -225,6 +229,25 @@ function Invoke-ExecAntiSpamPolicy {
                 $AuditLog += "Created anti-spam rule: $RuleName with settings: $($RuleParams | ConvertTo-Json -Compress)"
                 $Results += "Created anti-spam rule: $RuleName"
             }
+        } elseif ($Action -eq 'Remove') {
+            # Remove policy and rule (for rollback)
+            # First remove any associated rules
+            try {
+                $ExistingRules = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterRule' -useSystemMailbox $true | 
+                    Where-Object { $_.HostedContentFilterPolicy -eq $PolicyName }
+                foreach ($Rule in $ExistingRules) {
+                    New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-HostedContentFilterRule' -cmdParams @{ Identity = $Rule.Name; Confirm = $false } -useSystemMailbox $true
+                    $AuditLog += "Removed anti-spam rule: $($Rule.Name)"
+                    $Results += "Removed anti-spam rule: $($Rule.Name)"
+                }
+            } catch {
+                # Continue if no rules found
+            }
+            
+            # Then remove the policy
+            New-ExoRequest -tenantid $TenantFilter -cmdlet 'Remove-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName; Confirm = $false } -useSystemMailbox $true
+            $AuditLog += "Removed anti-spam policy: $PolicyName"
+            $Results += "Removed anti-spam policy: $PolicyName"
         } else {
             # Update existing policy - read before for audit
             $BeforePolicy = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-HostedContentFilterPolicy' -cmdParams @{ Identity = $PolicyName } -useSystemMailbox $true

@@ -5,7 +5,7 @@ function Invoke-ExecMailboxSafeSender {
     .ROLE
         Exchange.SpamFilter.ReadWrite
     .DESCRIPTION
-        Adds a sender to a mailbox trusted/safe senders list via Set-MailboxJunkEmailConfiguration.
+        Adds or removes a sender from a mailbox trusted/safe senders list via Set-MailboxJunkEmailConfiguration.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -24,11 +24,13 @@ function Invoke-ExecMailboxSafeSender {
     
     $Mailbox = Get-CippQuarantineInputValue $Request.Body.mailbox
     $Sender = Get-CippQuarantineInputValue $Request.Body.sender
+    $Action = $Request.Body.action ?? 'Add'
 
     try {
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($Mailbox)) { throw 'mailbox is required.' }
         if ([string]::IsNullOrWhiteSpace($Sender)) { throw 'sender is required.' }
+        if ($Action -notin @('Add', 'Remove')) { throw 'action must be Add or Remove.' }
 
         # Validate sender as email or domain
         $Validation = Test-CippExchangeInputValidation -EmailAddress $Sender
@@ -40,18 +42,29 @@ function Invoke-ExecMailboxSafeSender {
             }
         }
 
-        New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
-            Identity                 = $Mailbox
-            TrustedSendersAndDomains = @{'@odata.type' = '#Exchange.GenericHashTable'; Add = $Sender }
+        # Build the appropriate operation (Add or Remove)
+        $Operation = if ($Action -eq 'Add') {
+            @{'@odata.type' = '#Exchange.GenericHashTable'; Add = $Sender }
+        } else {
+            @{'@odata.type' = '#Exchange.GenericHashTable'; Remove = $Sender }
         }
 
-        $Result = "Added $Sender to the safe senders list for $Mailbox."
+        New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
+            Identity                 = $Mailbox
+            TrustedSendersAndDomains = $Operation
+        }
+
+        $Result = if ($Action -eq 'Add') {
+            "Added $Sender to the safe senders list for $Mailbox."
+        } else {
+            "Removed $Sender from the safe senders list for $Mailbox."
+        }
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
         $StatusCode = [HttpStatusCode]::OK
         $Body = @{ Results = $Result }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
-        $Result = "Failed to add safe sender for $Mailbox`: $($ErrorMessage.NormalizedError)"
+        $Result = "Failed to $Action safe sender for $Mailbox`: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Error'
         $StatusCode = [HttpStatusCode]::OK
         $Body = @{ Results = $Result }

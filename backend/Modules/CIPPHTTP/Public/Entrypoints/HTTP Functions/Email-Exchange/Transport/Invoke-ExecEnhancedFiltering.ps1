@@ -13,6 +13,7 @@ function Invoke-ExecEnhancedFiltering {
 
     $APIName = $Request.Params.CIPPEndpoint
     $ConnectorIdentity = Get-CippQuarantineInputValue $Request.Body.connectorIdentity
+    $Action = $Request.Body.action ?? 'Set'
 
     try {
         # Normalize tenantFilter inside try block
@@ -21,13 +22,36 @@ function Invoke-ExecEnhancedFiltering {
         # Input validation
         if ([string]::IsNullOrWhiteSpace($TenantFilter)) { throw 'tenantFilter is required.' }
         if ([string]::IsNullOrWhiteSpace($ConnectorIdentity)) { throw 'connectorIdentity is required.' }
+        if ($Action -notin @('Get', 'Set')) { throw 'action must be Get or Set.' }
 
-        # Read current connector for audit
+        # Read current connector
         $CurrentConnector = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-InboundConnector' -cmdParams @{ Identity = $ConnectorIdentity } -useSystemMailbox $true | Select-Object -First 1
         if (-not $CurrentConnector) {
             throw "Inbound connector '$ConnectorIdentity' not found"
         }
 
+        # If action is Get, return current settings
+        if ($Action -eq 'Get') {
+            $CurrentSettings = @{
+                ConnectorIdentity = $ConnectorIdentity
+                EFSkipIPs        = $CurrentConnector.EFSkipIPs ?? @()
+                EFSkipLastIP     = $CurrentConnector.EFSkipLastIP
+                EFUsers          = $CurrentConnector.EFUsers ?? @()
+            }
+            $Result = "Retrieved Enhanced Filtering settings for connector '$ConnectorIdentity'"
+            Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
+            $StatusCode = [HttpStatusCode]::OK
+            $Body = @{ 
+                Results = $Result
+                Settings = $CurrentSettings
+            }
+            return ([HttpResponseContext]@{
+                StatusCode = $StatusCode
+                Body       = $Body
+            })
+        }
+
+        # For Set action, continue with existing logic
         $BeforeSettings = @{
             EFSkipIPs     = $CurrentConnector.EFSkipIPs ?? @()
             EFSkipLastIP  = $CurrentConnector.EFSkipLastIP
@@ -65,7 +89,9 @@ function Invoke-ExecEnhancedFiltering {
                     throw ($Validation.Errors -join '; ')
                 }
                 
-                $ConnectorParams.EFSkipIPs = $EFSkipIPs
+                # Send validated, normalized (trimmed) values to Exchange
+                $NormalizedIPs = $EFSkipIPs | ForEach-Object { $_.Trim() }
+                $ConnectorParams.EFSkipIPs = $NormalizedIPs
             } else {
                 # Clear the setting
                 $ConnectorParams.EFSkipIPs = @()

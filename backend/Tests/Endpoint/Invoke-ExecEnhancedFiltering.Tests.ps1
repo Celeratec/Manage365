@@ -207,4 +207,43 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'must be a single tenant'
     }
+
+    It 'Get action returns current Enhanced Filtering settings' {
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                connectorIdentity = 'Test Connector'
+                action            = 'Get'
+            }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Retrieved Enhanced Filtering settings'
+        $response.Body.Settings | Should -Not -BeNullOrEmpty
+        $response.Body.Settings.ConnectorIdentity | Should -Be 'Test Connector'
+        $response.Body.Settings.EFSkipIPs | Should -Not -BeNull
+        $response.Body.Settings.EFSkipLastIP | Should -Not -BeNull
+        $response.Body.Settings.EFUsers | Should -Not -BeNull
+    }
+
+    It 'rejects invalid action parameter' {
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter      = 'contoso.onmicrosoft.com'
+                connectorIdentity = 'Test Connector'
+                action            = 'Delete'
+            }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'action must be Get or Set'
+    }
 }

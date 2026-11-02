@@ -21,9 +21,13 @@ Function Invoke-AddConnectionFilter {
     $Failed = 0
     $Refusals = [System.Collections.Generic.List[string]]::new()
 
-    # Run guard once per tenant for IPBlockList and cache results
-    $SafetyChecks = @{}
+    # Run guard once per tenant for IPBlockList and IPAllowList, cache results
+    $SafetyChecksBlock = @{}
+    $SafetyChecksAllow = @{}
     $SanitizedIPBlockList = @()
+    $SanitizedIPAllowList = @()
+    
+    # Check IPBlockList
     if ($null -ne $RequestParams.IPBlockList -and $RequestParams.IPBlockList.Count -gt 0) {
         # Sanitize IP list for logging (cap at 50 chars)
         $SanitizedIPBlockList = @($RequestParams.IPBlockList | ForEach-Object {
@@ -32,19 +36,39 @@ Function Invoke-AddConnectionFilter {
             })
         
         foreach ($TenantFilter in $Tenants) {
-            $SafetyChecks[$TenantFilter] = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
-            if (-not $SafetyChecks[$TenantFilter].IsValid) {
-                $AuditMessage = "BLOCKED connection filter IPBlockList add for tenant $TenantFilter - Reason: $($SafetyChecks[$TenantFilter].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($SanitizedIPBlockList -join ', ')"
+            $SafetyChecksBlock[$TenantFilter] = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPBlockList
+            if (-not $SafetyChecksBlock[$TenantFilter].IsValid) {
+                $AuditMessage = "BLOCKED connection filter IPBlockList add for tenant $TenantFilter - Reason: $($SafetyChecksBlock[$TenantFilter].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($SanitizedIPBlockList -join ', ')"
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Warning'
                 $Failed++
-                $Refusals.Add("Operation blocked for tenant $TenantFilter : $($SafetyChecks[$TenantFilter].Reason)")
+                $Refusals.Add("IPBlockList operation blocked for tenant $TenantFilter : $($SafetyChecksBlock[$TenantFilter].Reason)")
+            }
+        }
+    }
+    
+    # Check IPAllowList (Enhanced Filtering IPs must not be in allow list either)
+    if ($null -ne $RequestParams.IPAllowList -and $RequestParams.IPAllowList.Count -gt 0) {
+        # Sanitize IP list for logging (cap at 50 chars)
+        $SanitizedIPAllowList = @($RequestParams.IPAllowList | ForEach-Object {
+                $c = $_ -replace '[\x00-\x1F\x7F]', ''
+                $c.Substring(0, [Math]::Min($c.Length, 50))
+            })
+        
+        foreach ($TenantFilter in $Tenants) {
+            $SafetyChecksAllow[$TenantFilter] = Test-CIPPIPBlockListSafety -TenantFilter $TenantFilter -IPsToCheck $RequestParams.IPAllowList
+            if (-not $SafetyChecksAllow[$TenantFilter].IsValid) {
+                $AuditMessage = "BLOCKED connection filter IPAllowList add for tenant $TenantFilter - Reason: $($SafetyChecksAllow[$TenantFilter].Reason) - Requested by: $($Headers.'x-ms-client-principal-name' ?? 'Unknown') - IPs: $($SanitizedIPAllowList -join ', ')"
+                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $AuditMessage -Sev 'Warning'
+                $Failed++
+                $Refusals.Add("IPAllowList operation blocked for tenant $TenantFilter : $($SafetyChecksAllow[$TenantFilter].Reason)")
             }
         }
     }
 
     $Result = foreach ($TenantFilter in $Tenants) {
-        # Skip if guard check failed
-        if ($SafetyChecks.ContainsKey($TenantFilter) -and -not $SafetyChecks[$TenantFilter].IsValid) {
+        # Skip if either guard check failed
+        if (($SafetyChecksBlock.ContainsKey($TenantFilter) -and -not $SafetyChecksBlock[$TenantFilter].IsValid) -or
+            ($SafetyChecksAllow.ContainsKey($TenantFilter) -and -not $SafetyChecksAllow[$TenantFilter].IsValid)) {
             continue
         }
 

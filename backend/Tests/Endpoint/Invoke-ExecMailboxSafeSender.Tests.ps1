@@ -18,7 +18,7 @@ BeforeAll {
     }
 
     function Write-LogMessage { param($headers, $API, $message, $sev, $tenant) }
-    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
+    function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
     function Test-CippExchangeInputValidation { 
         param($EmailAddress, $Domain)
         @{ IsValid = $true; Errors = @() }
@@ -32,15 +32,15 @@ BeforeAll {
             Cmdlet    = $cmdlet
             CmdParams = $cmdParams
         }
-        # Validate the fix: TrustedSendersAndDomains should have GenericHashTable with Add
+        # Validate the fix: TrustedSendersAndDomains should have GenericHashTable with Add or Remove
         if ($cmdlet -eq 'Set-MailboxJunkEmailConfiguration') {
             if ($cmdParams.TrustedSendersAndDomains) {
                 $hashtable = $cmdParams.TrustedSendersAndDomains
                 if ($hashtable.'@odata.type' -ne '#Exchange.GenericHashTable') {
                     throw 'TrustedSendersAndDomains must use GenericHashTable format'
                 }
-                if (-not $hashtable.Add) {
-                    throw 'TrustedSendersAndDomains GenericHashTable must have Add property'
+                if (-not $hashtable.Add -and -not $hashtable.Remove) {
+                    throw 'TrustedSendersAndDomains GenericHashTable must have Add or Remove property'
                 }
             }
         }
@@ -74,5 +74,47 @@ Describe 'Invoke-ExecMailboxSafeSender' {
         $script:LastExoRequest.CmdParams.Identity | Should -Be 'user@contoso.com'
         $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.'@odata.type' | Should -Be '#Exchange.GenericHashTable'
         $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.Add | Should -Be 'sender@example.com'
+    }
+
+    It 'Remove action removes a sender from safe senders list' {
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecMailboxSafeSender' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                mailbox      = 'user@contoso.com'
+                sender       = 'sender@example.com'
+                action       = 'Remove'
+            }
+        }
+
+        $response = Invoke-ExecMailboxSafeSender -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Removed sender@example.com'
+        
+        # Assert the correct operation was used
+        $script:LastExoRequest | Should -Not -BeNullOrEmpty
+        $script:LastExoRequest.Cmdlet | Should -Be 'Set-MailboxJunkEmailConfiguration'
+        $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.'@odata.type' | Should -Be '#Exchange.GenericHashTable'
+        $script:LastExoRequest.CmdParams.TrustedSendersAndDomains.Remove | Should -Be 'sender@example.com'
+    }
+
+    It 'rejects invalid action parameter' {
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecMailboxSafeSender' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                mailbox      = 'user@contoso.com'
+                sender       = 'sender@example.com'
+                action       = 'InvalidAction'
+            }
+        }
+
+        $response = Invoke-ExecMailboxSafeSender -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'action must be Add or Remove'
     }
 }

@@ -180,6 +180,12 @@ Describe 'Test-CippExchangeInputValidation - Priority Float Rejection' {
         $Result.Errors | Should -Match 'decimal'
     }
 
+    It 'Rejects boolean priority ($true)' {
+        $Result = Test-CippExchangeInputValidation -Priority $true
+        $Result.IsValid | Should -Be $false
+        $Result.Errors | Should -Match 'boolean'
+    }
+
     It 'Accepts integer priority' {
         $Result = Test-CippExchangeInputValidation -Priority 5
         $Result.IsValid | Should -Be $true
@@ -243,6 +249,33 @@ Describe 'Test-CippExchangeInputValidation - Region Case-Sensitive Validation' {
 
     It 'Rejects region code with embedded newline' {
         $Result = Test-CippExchangeInputValidation -RegionBlockList @("US`nmalicious")
+        $Result.IsValid | Should -Be $false
+        $Result.Errors | Should -Match 'newline'
+    }
+}
+
+Describe 'Test-CippExchangeInputValidation - Language Case-Sensitive Validation' {
+    It 'Accepts lowercase language codes' {
+        $Result = Test-CippExchangeInputValidation -LanguageBlockList @('en', 'fr')
+        $Result.IsValid | Should -Be $true
+    }
+
+    It 'Rejects uppercase language code (case-sensitive with -cnotmatch)' {
+        $Result = Test-CippExchangeInputValidation -LanguageBlockList @('EN')
+        $Result.IsValid | Should -Be $false
+        $Result.Errors | Should -Match 'lowercase'
+    }
+}
+
+Describe 'Test-CippExchangeInputValidation - LF Check Before Trim' {
+    It 'Rejects IP with trailing newline (old code would trim and miss this)' {
+        $Result = Test-CippExchangeInputValidation -IPAddresses @("10.0.0.1`n") -StrictIPValidation
+        $Result.IsValid | Should -Be $false
+        $Result.Errors | Should -Match 'newline'
+    }
+
+    It 'Rejects email with trailing newline (old code would trim and miss this)' {
+        $Result = Test-CippExchangeInputValidation -EmailAddresses @("test@example.com`n")
         $Result.IsValid | Should -Be $false
         $Result.Errors | Should -Match 'newline'
     }
