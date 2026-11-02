@@ -102,7 +102,7 @@ Describe 'Invoke-ExecAntiPhishPolicy' {
             if ($cmdlet -eq 'Get-AntiPhishRule') {
                 return [pscustomobject]@{
                     Identity = 'TestPolicy'
-                    AntiPhishPolicyName = 'TestPolicy'
+                    AntiPhishPolicy = 'TestPolicy'
                 }
             }
             $true 

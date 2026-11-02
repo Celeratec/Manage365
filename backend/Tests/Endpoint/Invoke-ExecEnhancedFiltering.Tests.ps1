@@ -526,4 +526,50 @@ Describe 'Invoke-ExecEnhancedFiltering' {
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Cannot validate.*Operation blocked for safety'
     }
+
+    It 'rejects reversed range (start > end)' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @(); IPBlockList = @(); Name = 'Default' }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('10.0.0.100-10.0.0.50') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'Reversed IP range'
+    }
+
+    It 'rejects range with non-dotted-quad address (shorthand)' {
+        Mock New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, $useSystemMailbox)
+            if ($cmdlet -eq 'Get-InboundConnector') {
+                return [pscustomobject]@{ Identity = 'Test'; EFSkipIPs = @(); EFSkipLastIP = $false; EFUsers = @() }
+            }
+            if ($cmdlet -eq 'Get-HostedConnectionFilterPolicy') {
+                return [pscustomobject]@{ IPAllowList = @(); IPBlockList = @(); Name = 'Default' }
+            }
+            $true
+        }
+
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecEnhancedFiltering' }
+            Headers = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; connectorIdentity = 'Test'; efSkipIPs = @('192.168.1-192.168.10') }
+        }
+
+        $response = Invoke-ExecEnhancedFiltering -Request $request -TriggerMetadata $null
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+        $response.Body.Results | Should -Match 'dotted-quad IPv4'
+    }
 }

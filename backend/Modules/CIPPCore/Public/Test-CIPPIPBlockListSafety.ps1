@@ -409,6 +409,14 @@ function Test-CIPPIPOverlap {
     )
     
     try {
+        # Helper to convert IP to integer for range comparisons (IPv4 only)
+        function ConvertTo-IPInt {
+            param([System.Net.IPAddress]$Addr)
+            $Bytes = $Addr.GetAddressBytes()
+            [Array]::Reverse($Bytes)
+            [BitConverter]::ToUInt32($Bytes, 0)
+        }
+        
         # Parse IP1
         $Addr1 = $null
         $Addr1End = $null
@@ -418,13 +426,34 @@ function Test-CIPPIPOverlap {
         # Check for range notation (a.b.c.d-w.x.y.z)
         if ($IP1 -match '^([0-9.]+)\s*-\s*([0-9.]+)$') {
             $IsRange1 = $true
-            if (-not [System.Net.IPAddress]::TryParse($Matches[1], [ref]$Addr1)) {
+            $RangeStart = $Matches[1]
+            $RangeEnd = $Matches[2]
+            
+            # Require dotted-quad format for range IPs
+            if ($RangeStart -notmatch '^(\d{1,3}\.){3}\d{1,3}$') {
+                Write-Warning "Range start must be dotted-quad IPv4"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Range notation requires dotted-quad IPv4 addresses' }
+            }
+            if ($RangeEnd -notmatch '^(\d{1,3}\.){3}\d{1,3}$') {
+                Write-Warning "Range end must be dotted-quad IPv4"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Range notation requires dotted-quad IPv4 addresses' }
+            }
+            
+            if (-not [System.Net.IPAddress]::TryParse($RangeStart, [ref]$Addr1)) {
                 Write-Warning "Invalid range start in IP1"
                 return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
             }
-            if (-not [System.Net.IPAddress]::TryParse($Matches[2], [ref]$Addr1End)) {
+            if (-not [System.Net.IPAddress]::TryParse($RangeEnd, [ref]$Addr1End)) {
                 Write-Warning "Invalid range end in IP1"
                 return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+            
+            # Detect reversed range (start > end)
+            $Start1Int = ConvertTo-IPInt $Addr1
+            $End1Int = ConvertTo-IPInt $Addr1End
+            if ($Start1Int -gt $End1Int) {
+                Write-Warning "Reversed range in IP1: start > end"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Reversed IP range (start > end)' }
             }
         }
         elseif ($IP1 -match '^(.+?)/(-?\d+)$') {
@@ -466,13 +495,34 @@ function Test-CIPPIPOverlap {
         # Check for range notation (a.b.c.d-w.x.y.z)
         if ($IP2 -match '^([0-9.]+)\s*-\s*([0-9.]+)$') {
             $IsRange2 = $true
-            if (-not [System.Net.IPAddress]::TryParse($Matches[1], [ref]$Addr2)) {
+            $RangeStart = $Matches[1]
+            $RangeEnd = $Matches[2]
+            
+            # Require dotted-quad format for range IPs
+            if ($RangeStart -notmatch '^(\d{1,3}\.){3}\d{1,3}$') {
+                Write-Warning "Range start must be dotted-quad IPv4"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Range notation requires dotted-quad IPv4 addresses' }
+            }
+            if ($RangeEnd -notmatch '^(\d{1,3}\.){3}\d{1,3}$') {
+                Write-Warning "Range end must be dotted-quad IPv4"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Range notation requires dotted-quad IPv4 addresses' }
+            }
+            
+            if (-not [System.Net.IPAddress]::TryParse($RangeStart, [ref]$Addr2)) {
                 Write-Warning "Invalid range start in IP2"
                 return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
             }
-            if (-not [System.Net.IPAddress]::TryParse($Matches[2], [ref]$Addr2End)) {
+            if (-not [System.Net.IPAddress]::TryParse($RangeEnd, [ref]$Addr2End)) {
                 Write-Warning "Invalid range end in IP2"
                 return @{ Overlaps = $false; Valid = $false; Error = 'Unparseable IP range' }
+            }
+            
+            # Detect reversed range (start > end)
+            $Start2Int = ConvertTo-IPInt $Addr2
+            $End2Int = ConvertTo-IPInt $Addr2End
+            if ($Start2Int -gt $End2Int) {
+                Write-Warning "Reversed range in IP2: start > end"
+                return @{ Overlaps = $false; Valid = $false; Error = 'Reversed IP range (start > end)' }
             }
         }
         elseif ($IP2 -match '^(.+?)/(-?\d+)$') {
@@ -518,14 +568,6 @@ function Test-CIPPIPOverlap {
         # Different address families don't overlap
         if ($Addr1.AddressFamily -ne $Addr2.AddressFamily) {
             return @{ Overlaps = $false; Valid = $true; Error = $null }
-        }
-        
-        # Helper to convert IP to integer for range comparisons (IPv4 only)
-        function ConvertTo-IPInt {
-            param([System.Net.IPAddress]$Addr)
-            $Bytes = $Addr.GetAddressBytes()
-            [Array]::Reverse($Bytes)
-            [BitConverter]::ToUInt32($Bytes, 0)
         }
         
         # Handle range overlaps (IPv4 only for now)
