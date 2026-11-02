@@ -116,16 +116,35 @@ BeforeAll {
                         # Try to fold string concatenation
                         $Value = $Inner.Extent.Text -replace '["''\s+()]', ''
                     }
-                    # Check for & (Get-Command New-CIPPPIM*)
+                    # Check for & (Get-Command New-CIPPPIM*) and & $(Get-Command ...)
                     if ($First.Pipeline.PipelineElements.Count -gt 0) {
                         $PipeEl = $First.Pipeline.PipelineElements[0]
                         if ($PipeEl -is [System.Management.Automation.Language.CommandAst]) {
                             $InnerCmd = $PipeEl.GetCommandName()
-                            if ($InnerCmd -eq 'Get-Command' -and $PipeEl.Extent.Text -match 'New-CIPPPIM') {
+                            # Match Get-Command and gcm alias
+                            if ($InnerCmd -in @('Get-Command', 'gcm') -and $PipeEl.Extent.Text -match 'New-CIPPPIM') {
                                 $FullLine = $Lines[$LineNum - 1]
                                 if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
                                     $Offenders += "$($SourceName):$LineNum"
                                     [void]$DetectedLines.Add($LineNum)
+                                }
+                            }
+                        }
+                    }
+                } elseif ($First -is [System.Management.Automation.Language.SubExpressionAst]) {
+                    # Check for & $(Get-Command New-CIPPPIM*)
+                    if ($First.SubExpression.Statements.Count -gt 0) {
+                        $Pipeline = $First.SubExpression.Statements[0]
+                        if ($Pipeline -is [System.Management.Automation.Language.PipelineAst] -and $Pipeline.PipelineElements.Count -gt 0) {
+                            $PipeEl = $Pipeline.PipelineElements[0]
+                            if ($PipeEl -is [System.Management.Automation.Language.CommandAst]) {
+                                $InnerCmd = $PipeEl.GetCommandName()
+                                if ($InnerCmd -in @('Get-Command', 'gcm') -and $PipeEl.Extent.Text -match 'New-CIPPPIM') {
+                                    $FullLine = $Lines[$LineNum - 1]
+                                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                                        $Offenders += "$($SourceName):$LineNum"
+                                        [void]$DetectedLines.Add($LineNum)
+                                    }
                                 }
                             }
                         }
@@ -157,14 +176,49 @@ BeforeAll {
                     [void]$DetectedLines.Add($LineNum)
                 }
             }
-            # Match: Invoke-Expression and iex alias (resolve aliases)
+            # Match: Invoke-Expression, iex alias, and [scriptblock]::Create
             if ($CmdName -in @('Invoke-Expression', 'iex')) {
-                if ($Cmd.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
-                    $FullLine = $Lines[$LineNum - 1]
-                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
-                        $Offenders += "$($SourceName):$LineNum"
-                        [void]$DetectedLines.Add($LineNum)
+                # Check for constant string or constant-folded concatenation
+                if ($Cmd.CommandElements.Count -gt 1) {
+                    $Arg = $Cmd.CommandElements[1]
+                    $ArgValue = $null
+                    if ($Arg -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
+                        $ArgValue = $Arg.Value
+                    } elseif ($Arg -is [System.Management.Automation.Language.ExpandableStringExpressionAst]) {
+                        $ArgValue = $Arg.Value
+                    } elseif ($Arg -is [System.Management.Automation.Language.BinaryExpressionAst] -and $Arg.Operator -eq 'Plus') {
+                        # Fold constant concatenation
+                        $ArgValue = $Arg.Extent.Text -replace '["''\s+]', ''
+                    } elseif ($Arg -is [System.Management.Automation.Language.ParenExpressionAst]) {
+                        # Unwrap parenthesized expressions
+                        $Inner = $Arg.Pipeline.GetPureExpression()
+                        if ($Inner -is [System.Management.Automation.Language.BinaryExpressionAst] -and $Inner.Operator -eq 'Plus') {
+                            $ArgValue = $Inner.Extent.Text -replace '["''\s+()]', ''
+                        }
                     }
+                    if ($ArgValue -and $Pattern.IsMatch($ArgValue)) {
+                        $FullLine = $Lines[$LineNum - 1]
+                        if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                            $Offenders += "$($SourceName):$LineNum"
+                            [void]$DetectedLines.Add($LineNum)
+                        }
+                    }
+                }
+            }
+        }
+        
+        # 3. Find InvokeMemberExpressionAst nodes ([scriptblock]::Create)
+        $InvokeMembers = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.InvokeMemberExpressionAst] }, $true)
+        foreach ($Member in $InvokeMembers) {
+            $LineNum = $Member.Extent.StartLineNumber
+            if ($DetectedLines.Contains($LineNum)) { continue }
+            
+            # Match: [scriptblock]::Create with New-CIPPPIMScheduleRequest
+            if ($Member.Extent.Text -match '\[scriptblock\]::Create' -and $Member.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
+                $FullLine = $Lines[$LineNum - 1]
+                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                    $Offenders += "$($SourceName):$LineNum"
+                    [void]$DetectedLines.Add($LineNum)
                 }
             }
         }
@@ -347,5 +401,49 @@ Write-Host "test"
         $MarkedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign  # PIM-VALIDATION-ONLY'
         $Offenders15 = & $script:FindDirectPIMCalls $MarkedCall 'test15.ps1'
         $Offenders15.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
+
+        # Test 16 (Round 6 fix 1): DETECTED - iex with constant concatenation - FindDirectPIMCalls should detect it
+        $IexConcat = 'iex ("New-CIPPPIM" + "ScheduleRequest -Kind adminAssign")'
+        $Offenders16 = & $script:FindDirectPIMCalls $IexConcat 'test16.ps1'
+        $Offenders16.Count | Should -Be 1 -Because 'iex with constant-folded concat is detected'
+
+        # Test 17 (Round 6 fix 2): DETECTED - [scriptblock]::Create - FindDirectPIMCalls should detect it
+        $ScriptblockCreate = '[scriptblock]::Create("New-CIPPPIMScheduleRequest -Kind adminAssign").Invoke()'
+        $Offenders17 = & $script:FindDirectPIMCalls $ScriptblockCreate 'test17.ps1'
+        $Offenders17.Count | Should -Be 1 -Because '[scriptblock]::Create is detected'
+
+        # Test 18 (Round 6 fix 3a): DETECTED - gcm alias - FindDirectPIMCalls should detect it
+        $GcmAlias = '& (gcm New-CIPPPIM*) -Kind adminAssign'
+        $Offenders18 = & $script:FindDirectPIMCalls $GcmAlias 'test18.ps1'
+        $Offenders18.Count | Should -Be 1 -Because 'gcm alias is detected'
+
+        # Test 19 (Round 6 fix 3b): DETECTED - & $(Get-Command ...) subexpression - FindDirectPIMCalls should detect it
+        $SubExpr = '& $(Get-Command New-CIPPPIM*) -Kind adminAssign'
+        $Offenders19 = & $script:FindDirectPIMCalls $SubExpr 'test19.ps1'
+        $Offenders19.Count | Should -Be 1 -Because 'subexpression form is detected'
+    }
+
+    It 'fixture: FindScheduleRequestReferences detects URI patterns' {
+        # Test 1: '#' inside a string should NOT match (it's a comment character, not part of URI)
+        $HashInString = '$uri = "https://example.com#fragment"'
+        $Match1 = & $script:FindScheduleRequestReferences $HashInString 'test1.ps1'
+        $Match1 | Should -BeFalse -Because 'a hash inside a non-matching string should not trigger'
+
+        # Test 2: Interpolated URI with roleAssignmentScheduleRequests
+        $InterpolatedUri = '$uri = "$Base/roleAssignmentScheduleRequests"'
+        $Match2 = & $script:FindScheduleRequestReferences $InterpolatedUri 'test2.ps1'
+        $Match2 | Should -BeTrue -Because 'interpolated URI with schedule request endpoint is detected'
+
+        # Test 3: String concatenation 'role'+'AssignmentScheduleRequests'
+        $ConcatUri = '$path = "role" + "AssignmentScheduleRequests"'
+        $Match3 = & $script:FindScheduleRequestReferences $ConcatUri 'test3.ps1'
+        $Match3 | Should -BeTrue -Because 'concatenated URI parts are detected'
+
+        # Test 4: Here-string with roleAssignmentScheduleRequests
+        $HereString = '@"
+$Base/roleAssignmentScheduleRequests
+"@'
+        $Match4 = & $script:FindScheduleRequestReferences $HereString 'test4.ps1'
+        $Match4 | Should -BeTrue -Because 'here-string with schedule request endpoint is detected'
     }
 }

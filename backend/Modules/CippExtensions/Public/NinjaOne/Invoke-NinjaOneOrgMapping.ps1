@@ -206,9 +206,9 @@ function Invoke-NinjaOneOrgMapping {
             foreach ($Row in $Rows) {
                 if ($Row.RowKey -like '*-Count') { continue }
                 $IntuneDevice = [CIPP.CippJson]::ConvertFromJson($Row.Data, [string[]]@('deviceName', 'serialNumber', 'operatingSystem'))
-                # Exclude phones and tablets (iOS/Android) from majority count
+                # Exclude phones and tablets (iOS/iPadOS/Android) from majority count
                 $OS = "$($IntuneDevice.operatingSystem)".ToLowerInvariant()
-                if ($OS -match 'ios|android') { continue }
+                if ($OS -match 'ios|ipados|android') { continue }
                 $TotalDevices++
                 $OrgId = if ($IntuneDevice.serialNumber -and $OrgBySerial[$IntuneDevice.serialNumber]) { $OrgBySerial[$IntuneDevice.serialNumber] } elseif ($IntuneDevice.deviceName) { $OrgByName[$IntuneDevice.deviceName] }
                 if ($OrgId) { $Votes[$OrgId] = 1 + $Votes[$OrgId] }

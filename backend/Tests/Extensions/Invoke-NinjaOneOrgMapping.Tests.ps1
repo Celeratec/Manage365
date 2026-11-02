@@ -161,6 +161,21 @@ Describe 'Invoke-NinjaOneOrgMapping device matching thresholds' {
     }
 }
 
+
+Describe 'Invoke-NinjaOneOrgMapping mobile OS regex' {
+    It 'matches iOS, iPadOS, and Android operating systems (case-insensitive)' {
+        $Pattern = 'ios|ipados|android'
+        'ios' -match $Pattern | Should -BeTrue
+        'iOS' -match $Pattern | Should -BeTrue
+        'ipados' -match $Pattern | Should -BeTrue
+        'iPadOS' -match $Pattern | Should -BeTrue
+        'android' -match $Pattern | Should -BeTrue
+        'Android' -match $Pattern | Should -BeTrue
+        'windows' -match $Pattern | Should -BeFalse
+        'macos' -match $Pattern | Should -BeFalse
+    }
+}
+
 Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
     It 'retries once after 429 rate limit with capped sleep' {
         $script:Added = [System.Collections.Generic.List[object]]::new()
@@ -237,16 +252,13 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
             if ($Uri -like '*/devices-detailed?*') {
                 $script:DeviceCallCount++
                 if ($script:DeviceCallCount -eq 1) {
-                    # Simulate HttpResponseHeaders with RetryAfter.Delta
-                    $RetryAfterHeader = [PSCustomObject]@{
-                        Delta = [TimeSpan]::FromSeconds(3)
-                    }
-                    $Headers = [PSCustomObject]@{
-                        RetryAfter = $RetryAfterHeader
-                    }
+                    # Use a real HttpResponseMessage with RetryAfter header
+                    $HttpResponse = [System.Net.Http.HttpResponseMessage]::new([System.Net.HttpStatusCode]::TooManyRequests)
+                    $HttpResponse.Headers.RetryAfter = [System.Net.Http.Headers.RetryConditionHeaderValue]::new([TimeSpan]::FromSeconds(3))
+                    
                     $Response = [PSCustomObject]@{
                         StatusCode = 429
-                        Headers = $Headers
+                        Headers = $HttpResponse.Headers
                     }
                     $InnerException = [System.Exception]::new('429 Too Many Requests')
                     $InnerException | Add-Member -NotePropertyName Response -NotePropertyValue $Response -Force
@@ -255,6 +267,7 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
                     $ErrorRecord = [System.Management.Automation.ErrorRecord]::new(
                         $OuterException, 'WebException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $null
                     )
+                    $HttpResponse.Dispose()
                     throw $ErrorRecord
                 }
                 $Devices = @(@{ id = 1; organizationId = 1; systemName = 'PC'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S1' } })
@@ -278,8 +291,8 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
         $script:PageCount = 0
         Mock Invoke-WebRequest {
             $script:PageCount++
-            # Return full page of results to trigger continuation
-            $Devices = @(1..1000 | ForEach-Object { @{ id = ($script:PageCount - 1) * 1000 + $_; organizationId = 1; systemName = "PC$_"; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = "S$_" } } })
+            # Return full page of results to trigger continuation, devices in unmapped org 999
+            $Devices = @(1..1000 | ForEach-Object { @{ id = ($script:PageCount - 1) * 1000 + $_; organizationId = 999; systemName = "PC$_"; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = "S$_" } } })
             [pscustomobject]@{ content = (ConvertTo-Json -InputObject $Devices -Depth 5 -Compress) }
         } -ParameterFilter { $Uri -like '*/devices-detailed?*' }
         Mock Invoke-WebRequest {
@@ -289,7 +302,7 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
             @([pscustomobject]@{ customerId = 't99'; displayName = 'PageCapTest'; defaultDomainName = 'pagecap.test' })
         }
         Mock Get-CIPPDbItem {
-            # Return 2+ devices that would match - proves skip logic triggered, not just no match
+            # Return 2+ devices that would match if org 999 were mapped - proves skip logic triggered, not just no match
             @(
                 [pscustomobject]@{ RowKey = 'dev1'; Data = '{"deviceName":"PC1","serialNumber":"S1"}' }
                 [pscustomobject]@{ RowKey = 'dev2'; Data = '{"deviceName":"PC2","serialNumber":"S2"}' }
@@ -300,5 +313,45 @@ Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
         # No device mapping should have been written because of partial data (even though 2 devices would have matched)
         $script:Added.Count | Should -Be 0 -Because 'partial data skips device matching even when devices would match'
         $Result | Should -BeLike '*device matching skipped*'
+    }
+
+    It 'treats Retry-After=0 as 0 seconds, not as missing' {
+        $script:Added = [System.Collections.Generic.List[object]]::new()
+        $script:DeviceCallCount = 0
+        $script:SleepSeconds = -1
+        
+        Mock Invoke-WebRequest {
+            if ($Uri -like '*/devices-detailed?*') {
+                $script:DeviceCallCount++
+                if ($script:DeviceCallCount -eq 1) {
+                    # Retry-After: 0 means retry immediately
+                    $Headers = @{ 'Retry-After' = '0' }
+                    $Response = [PSCustomObject]@{
+                        StatusCode = 429
+                        Headers = $Headers
+                    }
+                    $InnerException = [System.Exception]::new('429 Too Many Requests')
+                    $InnerException | Add-Member -NotePropertyName Response -NotePropertyValue $Response -Force
+                    $OuterException = [System.Exception]::new('Too Many Requests', $InnerException)
+                    $OuterException | Add-Member -NotePropertyName Response -NotePropertyValue $Response -Force
+                    $ErrorRecord = [System.Management.Automation.ErrorRecord]::new(
+                        $OuterException, 'WebException', [System.Management.Automation.ErrorCategory]::InvalidOperation, $null
+                    )
+                    throw $ErrorRecord
+                }
+                $Devices = @(@{ id = 1; organizationId = 1; systemName = 'PC'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S1' } })
+                return [pscustomobject]@{ content = (ConvertTo-Json -InputObject $Devices -Depth 5 -Compress) }
+            } else {
+                return [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($script:Orgs) -Depth 5 -Compress) }
+            }
+        }
+        Mock Start-Sleep { param($Seconds); $script:SleepSeconds = $Seconds }
+        Mock Get-Tenants { @([pscustomobject]@{ customerId = 't99'; displayName = 'ZeroRetryTest'; defaultDomainName = 'zeroretry.test' }) }
+        Mock Get-CIPPDbItem { @([pscustomobject]@{ RowKey = 'dev1'; Data = '{"deviceName":"PC","serialNumber":"S1"}' }) }
+        
+        Invoke-NinjaOneOrgMapping
+        
+        $script:DeviceCallCount | Should -Be 2 -Because 'Retry-After=0 should retry immediately'
+        $script:SleepSeconds | Should -Be 0 -Because 'Retry-After=0 should sleep 0 seconds, not default to 60'
     }
 }
