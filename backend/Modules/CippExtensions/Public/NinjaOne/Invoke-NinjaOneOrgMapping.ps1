@@ -33,12 +33,14 @@ function Invoke-NinjaOneOrgMapping {
         # Try parsing as integer (seconds)
         $Seconds = 0
         if ([int]::TryParse($Header, [ref]$Seconds)) {
-            return [Math]::Min($Seconds, 120)
+            return [Math]::Max(0, [Math]::Min($Seconds, 120))
         }
-        # Try parsing as HTTP-date
+        # Try parsing as HTTP-date (compare in UTC)
         $Date = [datetime]::MinValue
         if ([datetime]::TryParse($Header, [ref]$Date)) {
-            $WaitSeconds = [Math]::Max(0, ($Date - [datetime]::UtcNow).TotalSeconds)
+            # Ensure comparison in UTC
+            $DateUtc = if ($Date.Kind -eq [System.DateTimeKind]::Utc) { $Date } else { $Date.ToUniversalTime() }
+            $WaitSeconds = [Math]::Max(0, ($DateUtc - [datetime]::UtcNow).TotalSeconds)
             return [Math]::Min($WaitSeconds, 120)
         }
         return 60
@@ -157,13 +159,14 @@ function Invoke-NinjaOneOrgMapping {
         }
 
         # Key -> org id; a key seen in more than one org maps to $null so it never votes
-        # Only count Windows/macOS devices
+        # Only count Windows/macOS devices (not mobile, not Linux)
         $OrgBySerial = @{}
         $OrgByName = @{}
         foreach ($Device in $NinjaDevices) {
-            # Only process Windows and macOS devices for matching
+            # Count: WINDOWS_WORKSTATION, WINDOWS_SERVER, MAC, MAC_SERVER
+            # Exclude: mobile (IOS_IPADOS, ANDROID), LINUX, CLOUD_MONITOR, VM_HOST, etc.
             $DeviceClass = "$($Device.nodeClass)".ToLowerInvariant()
-            if ($DeviceClass -notin @('windows_workstation', 'windows_server', 'mac')) { continue }
+            if ($DeviceClass -notin @('windows_workstation', 'windows_server', 'mac', 'mac_server')) { continue }
             
             $OrgId = "$($Device.organizationId)"
             foreach ($Serial in @($Device.system.serialNumber, $Device.system.biosSerialNumber)) {

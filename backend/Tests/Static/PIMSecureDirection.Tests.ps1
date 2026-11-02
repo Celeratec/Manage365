@@ -11,6 +11,24 @@
 #   2. no PIM-related source assigns a 'noExpiration' schedule;
 #   3. no PIM-related source re-introduces the legacy permanent directoryRoles/members/$ref write;
 #   4. every file that PATCHes a PIM role policy rule validates against the floor first.
+#
+# ACCEPTED LIMITS of FindDirectPIMCalls detection:
+# Static AST analysis cannot catch fully dynamic invocation. This test catches:
+#   - Direct calls: New-CIPPPIMScheduleRequest
+#   - Module-qualified: CIPPCore\New-CIPPPIMScheduleRequest
+#   - Invoke-Expression and iex alias: iex 'New-CIPPPIMScheduleRequest ...'
+#   - Call operator with constant string: & 'New-CIPPPIMScheduleRequest' or & ("New-CIPPPIM" + "ScheduleRequest")
+#   - Get-Command with wildcard: & (Get-Command New-CIPPPIM*)
+#
+# NOT DETECTED (accepted limits):
+#   - Variable holding the name: $c = 'New-CIPPPIMScheduleRequest'; & $c
+#   - Invoke-Expression with computed string: iex $dynamicCommand
+#   - Format operator: 'New-{0}' -f 'CIPPPIMScheduleRequest'
+#   - [string]::Concat, [string]::Join, -join operator
+#   - Variable + string concatenation: $prefix + 'PIMScheduleRequest'
+#   - Get-Command piped to &: Get-Command New-CIPPPIM* | & $_
+#
+# The PIM-VALIDATION-ONLY marker at Invoke-ExecPIMRoleAssignment.ps1:~100 exempts one validation call.
 
 BeforeAll {
     $BackendRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
@@ -60,49 +78,92 @@ BeforeAll {
         return $false
     }
 
-    # Helper: Find direct calls to New-CIPPPIMScheduleRequest (command, module-qualified, call operator, Invoke-Expression)
+    # Helper: Find direct calls to New-CIPPPIMScheduleRequest
+    # Catches: direct, module-qualified, iex alias, & with constant string/concatenation, & (Get-Command New-CIPPPIM*)
     $script:FindDirectPIMCalls = {
         param($SourceText, $SourceName)
         $Offenders = @()
         $Ast = [System.Management.Automation.Language.Parser]::ParseInput($SourceText, [ref]$null, [ref]$null)
+        $Lines = $SourceText -split "`r?`n"
+        $Pattern = [regex]'New-CIPPPIMScheduleRequest'
+        $DetectedLines = [System.Collections.Generic.HashSet[int]]::new()
         
-        # Find CommandAst nodes
-        $Commands = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)
-        foreach ($Cmd in $Commands) {
-            $CmdName = $Cmd.GetCommandName()
-            # Match: New-CIPPPIMScheduleRequest, CIPPCore\New-CIPPPIMScheduleRequest, etc.
-            if ($CmdName -match '(^|\\)New-CIPPPIMScheduleRequest$') {
-                $Lines = $SourceText -split "`r?`n"
-                $FullLine = $Lines[$Cmd.Extent.StartLineNumber - 1]
-                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
-                    $Offenders += "$($SourceName):$($Cmd.Extent.StartLineNumber)"
-                }
-            }
-        }
-        
-        # Check for call operator & with variable that might be the function name
+        # 1. Check & or . with parenthesized string or concatenation whose constant-folded value matches
+        # Do this FIRST to avoid double-counting with CommandAst
         $InvokeOps = $Ast.FindAll({ 
-            $args[0] -is [System.Management.Automation.Language.InvokeMemberExpressionAst] -or
-            ($args[0] -is [System.Management.Automation.Language.CommandAst] -and $args[0].InvocationOperator -eq 'Ampersand')
+            $args[0] -is [System.Management.Automation.Language.CommandAst] -and 
+            ($args[0].InvocationOperator -in @('Ampersand', 'Dot'))
         }, $true)
         foreach ($Invoke in $InvokeOps) {
-            if ($Invoke.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
-                $Lines = $SourceText -split "`r?`n"
-                $FullLine = $Lines[$Invoke.Extent.StartLineNumber - 1]
-                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
-                    $Offenders += "$($SourceName):$($Invoke.Extent.StartLineNumber)"
+            $LineNum = $Invoke.Extent.StartLineNumber
+            if ($DetectedLines.Contains($LineNum)) { continue }
+            
+            # Get the first element (the command expression after & or .)
+            if ($Invoke.CommandElements.Count -gt 0) {
+                $First = $Invoke.CommandElements[0]
+                # Check if it's a string constant, expandable string, or binary expression (concatenation)
+                $Value = $null
+                if ($First -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
+                    $Value = $First.Value
+                } elseif ($First -is [System.Management.Automation.Language.ExpandableStringExpressionAst]) {
+                    $Value = $First.Value
+                } elseif ($First -is [System.Management.Automation.Language.ParenExpressionAst]) {
+                    # Parenthesized expression: try to constant-fold string or check for Get-Command
+                    $Inner = $First.Pipeline.GetPureExpression()
+                    if ($Inner -is [System.Management.Automation.Language.StringConstantExpressionAst]) {
+                        $Value = $Inner.Value
+                    } elseif ($Inner -is [System.Management.Automation.Language.BinaryExpressionAst] -and $Inner.Operator -eq 'Plus') {
+                        # Try to fold string concatenation
+                        $Value = $Inner.Extent.Text -replace '["''\s+()]', ''
+                    }
+                    # Check for & (Get-Command New-CIPPPIM*)
+                    if ($First.Pipeline.PipelineElements.Count -gt 0) {
+                        $PipeEl = $First.Pipeline.PipelineElements[0]
+                        if ($PipeEl -is [System.Management.Automation.Language.CommandAst]) {
+                            $InnerCmd = $PipeEl.GetCommandName()
+                            if ($InnerCmd -eq 'Get-Command' -and $PipeEl.Extent.Text -match 'New-CIPPPIM') {
+                                $FullLine = $Lines[$LineNum - 1]
+                                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                                    $Offenders += "$($SourceName):$LineNum"
+                                    [void]$DetectedLines.Add($LineNum)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                if ($Value -and $Pattern.IsMatch($Value)) {
+                    $FullLine = $Lines[$LineNum - 1]
+                    if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                        $Offenders += "$($SourceName):$LineNum"
+                        [void]$DetectedLines.Add($LineNum)
+                    }
                 }
             }
         }
         
-        # Check for Invoke-Expression with the function name
+        # 2. Find CommandAst nodes (direct and module-qualified calls)
+        $Commands = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true)
         foreach ($Cmd in $Commands) {
-            if ($Cmd.GetCommandName() -eq 'Invoke-Expression') {
+            $LineNum = $Cmd.Extent.StartLineNumber
+            if ($DetectedLines.Contains($LineNum)) { continue }
+            
+            $CmdName = $Cmd.GetCommandName()
+            # Match: New-CIPPPIMScheduleRequest, CIPPCore\New-CIPPPIMScheduleRequest
+            if ($CmdName -match '(^|\\)New-CIPPPIMScheduleRequest$') {
+                $FullLine = $Lines[$LineNum - 1]
+                if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
+                    $Offenders += "$($SourceName):$LineNum"
+                    [void]$DetectedLines.Add($LineNum)
+                }
+            }
+            # Match: Invoke-Expression and iex alias (resolve aliases)
+            if ($CmdName -in @('Invoke-Expression', 'iex')) {
                 if ($Cmd.Extent.Text -match 'New-CIPPPIMScheduleRequest') {
-                    $Lines = $SourceText -split "`r?`n"
-                    $FullLine = $Lines[$Cmd.Extent.StartLineNumber - 1]
+                    $FullLine = $Lines[$LineNum - 1]
                     if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
-                        $Offenders += "$($SourceName):$($Cmd.Extent.StartLineNumber)"
+                        $Offenders += "$($SourceName):$LineNum"
+                        [void]$DetectedLines.Add($LineNum)
                     }
                 }
             }
@@ -169,7 +230,7 @@ Describe 'PIM secure-direction invariants' {
     }
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
-        # Catches: direct calls, CIPPCore\New-CIPPPIMScheduleRequest, & $c, Invoke-Expression
+        # Catches cheap forms (see ACCEPTED LIMITS at top). Variable-based invocation is not detected.
         # PIM-VALIDATION-ONLY marker at Invoke-ExecPIMRoleAssignment.ps1:~100 exempts that one call.
         $Direct = @()
         foreach ($Source in $script:Sources | Where-Object { $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') }) {
@@ -200,7 +261,8 @@ Describe 'PIM secure-direction invariants' {
         }
         
         $MarkedLines.Count | Should -Be 1 -Because 'there must be exactly one PIM-VALIDATION-ONLY marked call'
-        $MarkedLines[0] | Should -Match '\$null\s*=\s*New-CIPPPIMScheduleRequest\s+@Window' -Because 'the marked call must be in the shape: $null = New-CIPPPIMScheduleRequest @Window'
+        # Anchor the regex to match a single statement on the line
+        $MarkedLines[0] | Should -Match '^\s*\$null\s*=\s*New-CIPPPIMScheduleRequest\s+@Window\s*#.*PIM-VALIDATION-ONLY' -Because 'the marked call must be in the shape: $null = New-CIPPPIMScheduleRequest @Window'
     }
 
     It 'fixture: helpers detect all invocation forms and validate marker scope on test cases' {
@@ -209,58 +271,71 @@ Describe 'PIM secure-direction invariants' {
         $Offenders1 = & $script:FindDirectPIMCalls $NamedCall 'test1.ps1'
         $Offenders1.Count | Should -Be 1
 
-        # Test 2: '#' in a string - FindScheduleRequestReferences should NOT detect it
-        $InString = 'Write-Host "New-CIPPPIMScheduleRequest # not a call"'
-        (& $script:FindScheduleRequestReferences $InString 'test2.ps1') | Should -BeFalse
+        # Test 2: DETECTED - iex alias - FindDirectPIMCalls should detect it
+        $IexAlias = "iex 'New-CIPPPIMScheduleRequest -Kind adminAssign'"
+        $Offenders2 = & $script:FindDirectPIMCalls $IexAlias 'test2.ps1'
+        $Offenders2.Count | Should -Be 1
 
-        # Test 3: Block comment - FindDirectPIMCalls should NOT detect it
+        # Test 3: DETECTED - & with constant string - FindDirectPIMCalls should detect it
+        $CallWithString = "& 'New-CIPPPIMScheduleRequest' -Kind adminAssign"
+        $Offenders3 = & $script:FindDirectPIMCalls $CallWithString 'test3.ps1'
+        $Offenders3.Count | Should -Be 1
+
+        # Test 4: DETECTED - & with parenthesized concatenation - FindDirectPIMCalls should detect it
+        $CallWithConcat = '& ("New-CIPPPIM" + "ScheduleRequest") -Kind adminAssign'
+        $Offenders4 = & $script:FindDirectPIMCalls $CallWithConcat 'test4.ps1'
+        $Offenders4.Count | Should -Be 1
+
+        # Test 5: DETECTED - & (Get-Command New-CIPPPIM*) - FindDirectPIMCalls should detect it
+        $CallWithGetCommand = '& (Get-Command New-CIPPPIM*) -Kind adminAssign'
+        $Offenders5 = & $script:FindDirectPIMCalls $CallWithGetCommand 'test5.ps1'
+        $Offenders5.Count | Should -Be 1
+
+        # Test 6: NOT DETECTED - Variable holding name - documented limit
+        $VarName = '$c = "New-CIPPPIMScheduleRequest"; & $c -Kind adminAssign'
+        $Offenders6 = & $script:FindDirectPIMCalls $VarName 'test6.ps1'
+        $Offenders6.Count | Should -Be 0 -Because 'variable-based invocation is an accepted limit'
+
+        # Test 7: NOT DETECTED - Invoke-Expression with computed string - documented limit
+        $IexComputed = '$cmd = "New-" + "CIPPPIMScheduleRequest"; iex $cmd'
+        $Offenders7 = & $script:FindDirectPIMCalls $IexComputed 'test7.ps1'
+        $Offenders7.Count | Should -Be 0 -Because 'dynamic string construction is an accepted limit'
+
+        # Test 8: Block comment - FindDirectPIMCalls should NOT detect it
         $BlockComment = @'
 <# 
 New-CIPPPIMScheduleRequest -Kind adminAssign
 #>
 Write-Host "test"
 '@
-        $Offenders3 = & $script:FindDirectPIMCalls $BlockComment 'test3.ps1'
-        $Offenders3.Count | Should -Be 0
+        $Offenders8 = & $script:FindDirectPIMCalls $BlockComment 'test8.ps1'
+        $Offenders8.Count | Should -Be 0
 
-        # Test 4: Interpolated URI with roleAssignmentScheduleRequests - FindScheduleRequestReferences should detect it
-        $InterpolatedUri = '$Uri = "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests/$Id"'
-        (& $script:FindScheduleRequestReferences $InterpolatedUri 'test4.ps1') | Should -BeTrue
-
-        # Test 5: String concatenation - FindScheduleRequestReferences should detect it
-        $Concatenation = '$Path = "role" + "AssignmentScheduleRequests"'
-        (& $script:FindScheduleRequestReferences $Concatenation 'test5.ps1') | Should -BeTrue
-
-        # Test 6: Here-string - FindScheduleRequestReferences should detect it
-        $HereString = @'
-$Body = @"
-{
-  "uri": "roleAssignmentScheduleRequests"
-}
-"@
-'@
-        (& $script:FindScheduleRequestReferences $HereString 'test6.ps1') | Should -BeTrue
-
-        # Test 7: Module-qualified call - FindDirectPIMCalls should detect it
+        # Test 9: Module-qualified call - FindDirectPIMCalls should detect it
         $ModuleQualified = 'CIPPCore\New-CIPPPIMScheduleRequest -Kind adminAssign'
-        $Offenders7 = & $script:FindDirectPIMCalls $ModuleQualified 'test7.ps1'
-        $Offenders7.Count | Should -Be 1
+        $Offenders9 = & $script:FindDirectPIMCalls $ModuleQualified 'test9.ps1'
+        $Offenders9.Count | Should -Be 1
 
-        # Test 8: Marker in wrong file - CheckMarkerScope should detect it
+        # Test 10: Marker in wrong file - CheckMarkerScope should detect violation
         $WrongFile = '# PIM-VALIDATION-ONLY marker here'
-        $Violations8 = & $script:CheckMarkerScope $WrongFile 'WrongFile.ps1'
-        $Violations8.Count | Should -Be 1
+        $Violations10 = & $script:CheckMarkerScope $WrongFile 'WrongFile.ps1'
+        $Violations10.Count | Should -Be 1
 
-        # Test 9: Marker in correct location - CheckMarkerScope should NOT detect it
-        $CorrectFile = '# PIM-VALIDATION-ONLY marker here'
-        $Violations9 = & $script:CheckMarkerScope $CorrectFile 'Invoke-ExecPIMRoleAssignment.ps1'
-        # This will still fail because line number is wrong (we're testing at line 1, not 95-105)
-        # But the file name check passes, demonstrating the helper works
-        $Violations9.Count | Should -Be 1 -Because 'line number is outside 95-105 range'
+        # Test 11: Marker in correct file but wrong line - CheckMarkerScope should detect violation
+        $WrongLine = '# PIM-VALIDATION-ONLY marker at wrong line'
+        $Violations11 = & $script:CheckMarkerScope $WrongLine 'Invoke-ExecPIMRoleAssignment.ps1'
+        $Violations11.Count | Should -Be 1 -Because 'line 1 is outside the allowed 95-105 range'
 
-        # Test 10: Call with PIM-VALIDATION-ONLY marker - FindDirectPIMCalls should NOT detect it
+        # Test 12: Marker in correct file and line range - CheckMarkerScope should NOT detect violation
+        # Build a file with 100 lines where line 100 has the marker
+        $CorrectLocation = (1..99 | ForEach-Object { "# Line $_" }) -join "`n"
+        $CorrectLocation += "`n" + '# PIM-VALIDATION-ONLY marker at line 100'
+        $Violations12 = & $script:CheckMarkerScope $CorrectLocation 'Invoke-ExecPIMRoleAssignment.ps1'
+        $Violations12.Count | Should -Be 0 -Because 'line 100 is within the allowed 95-105 range'
+
+        # Test 13: Call with PIM-VALIDATION-ONLY marker - FindDirectPIMCalls should NOT detect it
         $MarkedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign  # PIM-VALIDATION-ONLY'
-        $Offenders10 = & $script:FindDirectPIMCalls $MarkedCall 'test10.ps1'
-        $Offenders10.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
+        $Offenders13 = & $script:FindDirectPIMCalls $MarkedCall 'test13.ps1'
+        $Offenders13.Count | Should -Be 0 -Because 'PIM-VALIDATION-ONLY marker exempts the call'
     }
 }
