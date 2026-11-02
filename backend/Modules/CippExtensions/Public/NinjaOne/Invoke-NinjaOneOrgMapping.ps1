@@ -74,16 +74,23 @@ function Invoke-NinjaOneOrgMapping {
         $After = 0
         $PagesFetched = 0
         $MaxPages = 50  # Cap at 50 pages to prevent runaway fetch
+        $LastPageFull = $false
         $NinjaDevices = do {
             try {
-                $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+                $Response = Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json'
+                $Result = $Response.content | ConvertFrom-Json -Depth 100
             } catch {
                 if ($_.Exception.Response.StatusCode -eq 429) {
                     # Rate limited - wait and retry once
-                    $RetryAfter = if ($_.Exception.Response.Headers['Retry-After']) { [int]$_.Exception.Response.Headers['Retry-After'] } else { 60 }
+                    $RetryAfter = if ($_.Exception.Response.Headers.RetryAfter.Delta) {
+                        [Math]::Min($_.Exception.Response.Headers.RetryAfter.Delta.TotalSeconds, 120)
+                    } else {
+                        60
+                    }
                     Write-Information "NinjaOne rate limit hit, waiting $RetryAfter seconds"
                     Start-Sleep -Seconds $RetryAfter
-                    $Result = (Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json').content | ConvertFrom-Json -Depth 100
+                    $Response = Invoke-WebRequest -Uri "https://$($Configuration.Instance)/api/v2/devices-detailed?pageSize=$PageSize&after=$After" -Method GET -Headers @{Authorization = "Bearer $($Token.access_token)" } -ContentType 'application/json'
+                    $Result = $Response.content | ConvertFrom-Json -Depth 100
                 } else {
                     throw
                 }
@@ -92,12 +99,28 @@ function Invoke-NinjaOneOrgMapping {
             $ResultCount = ($Result.id | Measure-Object -Maximum)
             $After = $ResultCount.maximum
             $PagesFetched++
+            $LastPageFull = ($ResultCount.count -eq $PageSize)
         } while ($ResultCount.count -eq $PageSize -and $PagesFetched -lt $MaxPages)
 
+        # If we hit the page cap and the last page was full, partial data - skip device matching
+        if ($PagesFetched -ge $MaxPages -and $LastPageFull) {
+            Write-LogMessage -API 'NinjaOneAutoMap' -message "NinjaOne device fetch hit $MaxPages page cap with more data remaining. Skipping device matching to avoid partial data." -Sev 'Warning'
+            # Don't proceed with device matching - return early
+            if ($Matched -gt 0) {
+                Write-LogMessage -API 'NinjaOneAutoMap' -message "NinjaOne AutoMap complete: $Matched tenant(s) mapped by name only" -Sev 'Info'
+            }
+            return "NinjaOne AutoMap complete: $Matched new tenant mapping(s) added (device matching skipped due to page cap)."
+        }
+
         # Key -> org id; a key seen in more than one org maps to $null so it never votes
+        # Only count Windows/macOS devices
         $OrgBySerial = @{}
         $OrgByName = @{}
         foreach ($Device in $NinjaDevices) {
+            # Only process Windows and macOS devices for matching
+            $DeviceClass = "$($Device.nodeClass)".ToLowerInvariant()
+            if ($DeviceClass -notin @('windows_workstation', 'windows_server', 'mac')) { continue }
+            
             $OrgId = "$($Device.organizationId)"
             foreach ($Serial in @($Device.system.serialNumber, $Device.system.biosSerialNumber)) {
                 if (!$Serial -or $Serial -in $ExcludeSerials) { continue }

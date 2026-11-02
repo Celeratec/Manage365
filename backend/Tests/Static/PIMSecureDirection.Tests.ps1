@@ -35,13 +35,16 @@ BeforeAll {
 
 Describe 'PIM secure-direction invariants' {
     It 'addresses the schedule-request endpoints only from New-CIPPPIMScheduleRequest' {
-        # Use AST to ignore doc comments
+        # Use AST to ignore doc comments, check both string literals and interpolated strings
         $Offenders = @()
         foreach ($Source in $script:AllSources | Where-Object { $_.Name -ne 'New-CIPPPIMScheduleRequest.ps1' }) {
             $Ast = [System.Management.Automation.Language.Parser]::ParseInput($Source.Text, [ref]$null, [ref]$null)
-            $StringConstants = $Ast.FindAll({ $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] }, $true)
+            $Strings = $Ast.FindAll({
+                $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+                $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
+            }, $true)
             $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
-            foreach ($String in $StringConstants) {
+            foreach ($String in $Strings) {
                 if ($Pattern.IsMatch($String.Value)) {
                     $Offenders += $Source.Name
                     break
@@ -117,21 +120,21 @@ Describe 'PIM secure-direction invariants' {
         $Violations | Should -BeNullOrEmpty -Because 'the PIM-VALIDATION-ONLY marker must only appear at Invoke-ExecPIMRoleAssignment.ps1:~100'
     }
 
-    It 'fixture: detects named-parameter calls and ignores comments in strings and blocks' {
-        # Named-parameter call
+    It 'fixture: AST filter detects command calls, ignores strings/comments, catches interpolated URIs, validates marker scope' {
+        # Test 1: Named-parameter call - should be detected
         $NamedCall = 'New-CIPPPIMScheduleRequest -Kind adminAssign -Duration P365D'
         $Ast1 = [System.Management.Automation.Language.Parser]::ParseInput($NamedCall, [ref]$null, [ref]$null)
         $Cmds1 = @($Ast1.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
         $Cmds1.Count | Should -Be 1
         $Cmds1[0].GetCommandName() | Should -Be 'New-CIPPPIMScheduleRequest'
 
-        # '#' in a string should not be treated as a comment
+        # Test 2: '#' in a string should not be treated as a comment
         $InString = 'Write-Host "New-CIPPPIMScheduleRequest # not a call"'
         $Ast2 = [System.Management.Automation.Language.Parser]::ParseInput($InString, [ref]$null, [ref]$null)
         $Cmds2 = @($Ast2.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
         @($Cmds2 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
 
-        # Block comment should be ignored
+        # Test 3: Block comment should be ignored
         $BlockComment = @'
 <# 
 New-CIPPPIMScheduleRequest -Kind adminAssign
@@ -142,7 +145,17 @@ Write-Host "test"
         $Cmds3 = @($Ast3.FindAll({ $args[0] -is [System.Management.Automation.Language.CommandAst] }, $true))
         @($Cmds3 | Where-Object { $_.GetCommandName() -eq 'New-CIPPPIMScheduleRequest' }).Count | Should -Be 0
 
-        # Marker in wrong file should be detected (tested by previous It block)
+        # Test 4: Interpolated URI with roleAssignmentScheduleRequests should be detected
+        $InterpolatedUri = '$Uri = "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignmentScheduleRequests/$Id"'
+        $Ast4 = [System.Management.Automation.Language.Parser]::ParseInput($InterpolatedUri, [ref]$null, [ref]$null)
+        $Strings4 = $Ast4.FindAll({
+            $args[0] -is [System.Management.Automation.Language.StringConstantExpressionAst] -or
+            $args[0] -is [System.Management.Automation.Language.ExpandableStringExpressionAst]
+        }, $true)
+        $Pattern = [regex]'role(Eligibility|Assignment)ScheduleRequests'
+        @($Strings4 | Where-Object { $Pattern.IsMatch($_.Value) }).Count | Should -Be 1
+
+        # Test 5: Marker in wrong file should be detected (tested by separate It block)
         $WrongFile = '# PIM-VALIDATION-ONLY marker here'
         ($WrongFile -match 'PIM-VALIDATION-ONLY') | Should -BeTrue
     }

@@ -17,6 +17,7 @@ BeforeAll {
         }
     }
     function Add-AzDataTableEntity { param($Entity, [switch]$Force) $script:Added.Add($Entity) }
+    function Add-CIPPAzDataTableEntity { param($Entity, [switch]$Force) $script:Added.Add($Entity) }
     function Get-NinjaOneToken { param($configuration) @{ access_token = 'token' } }
     function Write-LogMessage { param($API, $tenant, $message, $Sev) }
     function Start-CIPPOrchestrator { param($InputObject) "Craft-$($InputObject.OrchestratorName)" }
@@ -42,16 +43,16 @@ BeforeAll {
     $script:TenantIds = @{ Already = 1; Contoso = 2; Fabrikam = 3; Tied = 4; Taken = 5; DupSerial = 6; NameOnly = 7; Broken = 8 }
     $script:Orgs = @(1..7 | ForEach-Object { @{ id = $_; name = @{ 1 = 'Already'; 2 = 'Contoso'; 3 = 'Fabrikam Pty Ltd'; 4 = 'Other'; 5 = 'Tied A'; 6 = 'Tied B'; 7 = 'Name Only Org' }[$_] } })
     $script:NinjaDevices = @(
-        @{ id = 1; organizationId = 3; systemName = 'FAB-1'; system = @{ serialNumber = 'S1' } }
-        @{ id = 2; organizationId = 3; systemName = 'FAB-2'; system = @{ serialNumber = 'S2' } }
-        @{ id = 3; organizationId = 4; systemName = 'PC-X'; system = @{ serialNumber = 'SX' } }
-        @{ id = 4; organizationId = 5; systemName = 'TIE-A'; system = @{ serialNumber = 'S3' } }
-        @{ id = 5; organizationId = 6; systemName = 'TIE-B'; system = @{ serialNumber = 'S4' } }
-        @{ id = 6; organizationId = 1; systemName = 'TAKEN'; system = @{ serialNumber = 'S5' } }
-        @{ id = 7; organizationId = 5; systemName = 'DUP-A'; system = @{ serialNumber = 'DUP' } }
-        @{ id = 8; organizationId = 6; systemName = 'DUP-B'; system = @{ serialNumber = 'DUP' } }
-        @{ id = 9; organizationId = 7; systemName = 'NAMEPC'; system = @{ serialNumber = 'To Be Filled By O.E.M.' } }
-        @{ id = 10; organizationId = 7; systemName = 'NAMEPC2'; system = @{ serialNumber = 'To Be Filled By O.E.M.' } }
+        @{ id = 1; organizationId = 3; systemName = 'FAB-1'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S1' } }
+        @{ id = 2; organizationId = 3; systemName = 'FAB-2'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S2' } }
+        @{ id = 3; organizationId = 4; systemName = 'PC-X'; nodeClass = 'MAC'; system = @{ serialNumber = 'SX' } }
+        @{ id = 4; organizationId = 5; systemName = 'TIE-A'; nodeClass = 'WINDOWS_SERVER'; system = @{ serialNumber = 'S3' } }
+        @{ id = 5; organizationId = 6; systemName = 'TIE-B'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S4' } }
+        @{ id = 6; organizationId = 1; systemName = 'TAKEN'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S5' } }
+        @{ id = 7; organizationId = 5; systemName = 'DUP-A'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'DUP' } }
+        @{ id = 8; organizationId = 6; systemName = 'DUP-B'; nodeClass = 'MAC'; system = @{ serialNumber = 'DUP' } }
+        @{ id = 9; organizationId = 7; systemName = 'NAMEPC'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'To Be Filled By O.E.M.' } }
+        @{ id = 10; organizationId = 7; systemName = 'NAMEPC2'; nodeClass = 'MAC'; system = @{ serialNumber = 'To Be Filled By O.E.M.' } }
     )
     $script:IntuneDevices = @{
         'fabrikam.test'  = @(@{ deviceName = 'a'; serialNumber = 'S1' }, @{ deviceName = 'b'; serialNumber = 'S2' }, @{ deviceName = 'PC-X'; serialNumber = 'nope' })
@@ -132,9 +133,9 @@ Describe 'Invoke-NinjaOneOrgMapping device matching thresholds' {
             @{ id = 11; name = 'Majority Org' }
         )
         $script:NinjaDevices = @(
-            @{ id = 100; organizationId = 10; systemName = 'PC-1'; system = @{ serialNumber = 'S1' } }
-            @{ id = 101; organizationId = 11; systemName = 'MAJ-1'; system = @{ serialNumber = 'M1' } }
-            @{ id = 102; organizationId = 11; systemName = 'MAJ-2'; system = @{ serialNumber = 'M2' } }
+            @{ id = 100; organizationId = 10; systemName = 'PC-1'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S1' } }
+            @{ id = 101; organizationId = 11; systemName = 'MAJ-1'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'M1' } }
+            @{ id = 102; organizationId = 11; systemName = 'MAJ-2'; nodeClass = 'MAC'; system = @{ serialNumber = 'M2' } }
         )
         $script:TenantIds = @{ Single = 10; Majority = 11 }
         $script:Tenants = @(
@@ -161,23 +162,95 @@ Describe 'Invoke-NinjaOneOrgMapping device matching thresholds' {
 }
 
 Describe 'Invoke-NinjaOneOrgMapping 429 retry and page cap' {
-    It 'retries once after 429 rate limit' -Skip {
-        # Skip this test as mocking HTTP 429 responses with proper exception structure is complex
-        # and the retry logic is straightforward enough to verify through integration testing
+    It 'retries once after 429 rate limit with capped sleep' {
+        $script:Added = [System.Collections.Generic.List[object]]::new()
+        $script:DeviceCallCount = 0
+        $script:SleepCalled = $false
+        $script:SleepSeconds = 0
+        
+        Mock Invoke-WebRequest {
+            if ($Uri -like '*/devices-detailed?*') {
+                $script:DeviceCallCount++
+                if ($script:DeviceCallCount -eq 1) {
+                    # First call: simulate 429 with proper exception structure
+                    # Create a minimal WebException-like structure
+                    $Response = [PSCustomObject]@{
+                        StatusCode = 429
+                        Headers = [PSCustomObject]@{
+                            RetryAfter = [PSCustomObject]@{
+                                Delta = [TimeSpan]::FromSeconds(2)
+                            }
+                        }
+                    }
+                    # Create exception with nested Response property
+                    $InnerException = [System.Exception]::new('429 Too Many Requests')
+                    $InnerException | Add-Member -NotePropertyName Response -NotePropertyValue $Response -Force
+                    
+                    $OuterException = [System.Exception]::new('The remote server returned an error: (429) Too Many Requests.', $InnerException)
+                    $OuterException | Add-Member -NotePropertyName Response -NotePropertyValue $Response -Force
+                    
+                    # Create error record
+                    $ErrorRecord = [System.Management.Automation.ErrorRecord]::new(
+                        $OuterException,
+                        'WebException',
+                        [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                        $null
+                    )
+                    throw $ErrorRecord
+                }
+                # Second call: succeed
+                $Devices = @(@{ id = 1; organizationId = 1; systemName = 'PC'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'S1' } })
+                return [pscustomobject]@{ content = (ConvertTo-Json -InputObject $Devices -Depth 5 -Compress) }
+            } else {
+                # Organizations
+                return [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($script:Orgs) -Depth 5 -Compress) }
+            }
+        }
+        
+        Mock Start-Sleep {
+            param($Seconds)
+            $script:SleepCalled = $true
+            $script:SleepSeconds = $Seconds
+        }
+        # Return a tenant that won't match by name, forcing device matching
+        Mock Get-Tenants {
+            @([pscustomobject]@{ customerId = 't99'; displayName = 'RateLimitTest'; defaultDomainName = 'ratelimit.test' })
+        }
+        Mock Get-CIPPDbItem {
+            # Return a device to trigger device matching logic
+            @([pscustomobject]@{ RowKey = 'dev1'; Data = '{"deviceName":"PC","serialNumber":"S1"}' })
+        }
+        
+        Invoke-NinjaOneOrgMapping
+        
+        # Verify retry happened: device endpoint was called twice and sleep was called with correct duration
+        $script:DeviceCallCount | Should -Be 2
+        $script:SleepCalled | Should -BeTrue
+        $script:SleepSeconds | Should -Be 2
     }
 
-    It 'stops fetching devices after 50 pages' {
+    It 'stops fetching devices after 50 pages and skips device matching when last page is full' {
+        $script:Added = [System.Collections.Generic.List[object]]::new()
         $script:PageCount = 0
         Mock Invoke-WebRequest {
             $script:PageCount++
             # Return full page of results to trigger continuation
-            $Devices = @(1..1000 | ForEach-Object { @{ id = $_; organizationId = 1; systemName = "PC$_"; system = @{ serialNumber = "S$_" } } })
+            $Devices = @(1..1000 | ForEach-Object { @{ id = ($script:PageCount - 1) * 1000 + $_; organizationId = 1; systemName = "PC$_"; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = "S$_" } } })
             [pscustomobject]@{ content = (ConvertTo-Json -InputObject $Devices -Depth 5 -Compress) }
         } -ParameterFilter { $Uri -like '*/devices-detailed?*' }
         Mock Invoke-WebRequest {
             [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($script:Orgs) -Depth 5 -Compress) }
         } -ParameterFilter { $Uri -like '*/organizations?*' }
-        Invoke-NinjaOneOrgMapping
-        $script:PageCount | Should -BeLessOrEqual 50
+        Mock Get-Tenants {
+            @([pscustomobject]@{ customerId = 't99'; displayName = 'PageCapTest'; defaultDomainName = 'pagecap.test' })
+        }
+        Mock Get-CIPPDbItem {
+            @([pscustomobject]@{ RowKey = 'dev1'; Data = '{"deviceName":"PC1","serialNumber":"S1"}' })
+        }
+        $Result = Invoke-NinjaOneOrgMapping
+        $script:PageCount | Should -Be 50
+        # No device mapping should have been written because of partial data
+        $script:Added.Count | Should -Be 0
+        $Result | Should -BeLike '*device matching skipped*'
     }
 }

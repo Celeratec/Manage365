@@ -101,13 +101,20 @@ Describe 'New-CIPPBecEvidencePackage' {
     }
 
     It 'scrubs any password copy field from the logbook copy and queries the case id across day partitions' {
+        # Use a fixed date for predictable partition query testing
+        Mock Get-Date { [datetime]'2026-11-02T22:00:00Z' }
         $Package = New-CIPPBecEvidencePackage -TenantFilter 'contoso.com' -CaseId 'BEC-20260820120000-ev0001'
         $Entries = Read-Zip -Bytes $Package.ZipBytes
         $Log = [System.Text.Encoding]::UTF8.GetString($Entries['logbook.json'])
         $Log | Should -Not -Match 'Hunter2'
         $Log | Should -Match '\[redacted\]'
-        # Case is from Aug 20, 2026, but retention window clamps From to 60 days back from now
-        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -ParameterFilter { $Filter -like "BecCaseId eq 'BEC-20260820120000-ev0001'*" }
+        # Case is from Aug 20, 2026 at 12:00 UTC
+        # With retention window: From = max(Aug 19, Sept 3) = Sept 3, To = Nov 3
+        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -ParameterFilter {
+            $Filter -like "BecCaseId eq 'BEC-20260820120000-ev0001'*" -and
+            $Filter -like "*PartitionKey ge '20260903'*" -and
+            $Filter -like "*PartitionKey le '20261103'*"
+        }
     }
 
     It 'refuses an incomplete run' {
