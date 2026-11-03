@@ -372,7 +372,7 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
 
             $result.StatusCode | Should -Be 400
-            $result.Body.Results | Should -Match 'requires at least one allowed domain'
+            $result.Body.Results | Should -Match 'federationAllowedDomains to be provided'
         }
         
         It 'rejects invalid domains with 400 listing them' {
