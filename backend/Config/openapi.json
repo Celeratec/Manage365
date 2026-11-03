@@ -21352,6 +21352,357 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecCustomMailFilterPolicy": {
+      "post": {
+        "summary": "ExecCustomMailFilterPolicy",
+        "operationId": "ExecCustomMailFilterPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Creates, updates, or deletes a custom anti-spam, anti-phish, or anti-malware policy and its rule.\nEvery write snapshots the current policy, requires a numeric ticket ID, and returns a rollback payload.\nSet dryRun to true to receive the diff without applying it. A change that leaves the tenant with\nweaker filtering is rejected unless allowWeakerProtection is true.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allowWeakerProtection": {
+                    "type": "string",
+                    "description": "Explicit override that allows a change which weakens current protection."
+                  },
+                  "bulkSpamAction": {
+                    "type": "string",
+                    "description": "Action for bulk mail."
+                  },
+                  "bulkThreshold": {
+                    "type": "string",
+                    "description": "Anti-spam bulk complaint threshold, 1 to 9. A higher number lets more bulk mail through."
+                  },
+                  "dryRun": {
+                    "type": "string",
+                    "description": "When true, return the diff and rollback payload without changing the tenant."
+                  },
+                  "enabled": {
+                    "type": "string",
+                    "description": "Whether the policy rule is enabled."
+                  },
+                  "enableFileFilter": {
+                    "type": "string",
+                    "description": "Turns the common attachment file-type filter on or off."
+                  },
+                  "fileTypeAction": {
+                    "type": "string",
+                    "description": "What happens to a filtered file type: Reject or Quarantine."
+                  },
+                  "fileTypes": {
+                    "type": "string",
+                    "description": "File extensions the malware filter blocks."
+                  },
+                  "highConfidenceSpamAction": {
+                    "type": "string",
+                    "description": "Action for high-confidence spam."
+                  },
+                  "mailboxIntelligenceProtectionAction": {
+                    "type": "string",
+                    "description": "Action when mailbox intelligence flags a phish."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Policy name. Default and the built-in preset policies cannot be deleted."
+                  },
+                  "operation": {
+                    "type": "string",
+                    "description": "Create, Update, or Delete."
+                  },
+                  "policyType": {
+                    "type": "string",
+                    "description": "AntiSpam, AntiPhish, or AntiMalware."
+                  },
+                  "priority": {
+                    "type": "string",
+                    "description": "Rule priority. A lower number wins over later rules."
+                  },
+                  "recipientDomainIs": {
+                    "type": "string",
+                    "description": "Domains the rule applies to."
+                  },
+                  "ruleName": {
+                    "type": "string",
+                    "description": "Rule name. Defaults to the policy name."
+                  },
+                  "sentTo": {
+                    "type": "string",
+                    "description": "Users the rule applies to."
+                  },
+                  "sentToMemberOf": {
+                    "type": "string",
+                    "description": "Groups the rule applies to."
+                  },
+                  "spamAction": {
+                    "type": "string",
+                    "description": "Action for spam: MoveToJmf, AddXHeader, ModifySubject, Redirect, Delete, or Quarantine."
+                  },
+                  "targetedDomainProtectionAction": {
+                    "type": "string",
+                    "description": "Action when a targeted domain is impersonated."
+                  },
+                  "targetedUserProtectionAction": {
+                    "type": "string",
+                    "description": "Action when a targeted user is impersonated."
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Tenant the policy change applies to."
+                  },
+                  "ticketNumber": {
+                    "type": "string",
+                    "description": "Numeric ticket ID recorded with the audit row."
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "allowWeakerProtection",
+            "in": "query",
+            "description": "Explicit override that allows a change which weakens current protection.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bulkSpamAction",
+            "in": "query",
+            "description": "Action for bulk mail.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bulkThreshold",
+            "in": "query",
+            "description": "Anti-spam bulk complaint threshold, 1 to 9. A higher number lets more bulk mail through.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dryRun",
+            "in": "query",
+            "description": "When true, return the diff and rollback payload without changing the tenant.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "description": "Whether the policy rule is enabled.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enableFileFilter",
+            "in": "query",
+            "description": "Turns the common attachment file-type filter on or off.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileTypeAction",
+            "in": "query",
+            "description": "What happens to a filtered file type: Reject or Quarantine.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "fileTypes",
+            "in": "query",
+            "description": "File extensions the malware filter blocks.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "highConfidenceSpamAction",
+            "in": "query",
+            "description": "Action for high-confidence spam.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mailboxIntelligenceProtectionAction",
+            "in": "query",
+            "description": "Action when mailbox intelligence flags a phish.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "name",
+            "in": "query",
+            "description": "Policy name. Default and the built-in preset policies cannot be deleted.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "operation",
+            "in": "query",
+            "description": "Create, Update, or Delete.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyType",
+            "in": "query",
+            "description": "AntiSpam, AntiPhish, or AntiMalware.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "description": "Rule priority. A lower number wins over later rules.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "recipientDomainIs",
+            "in": "query",
+            "description": "Domains the rule applies to.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ruleName",
+            "in": "query",
+            "description": "Rule name. Defaults to the policy name.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sentTo",
+            "in": "query",
+            "description": "Users the rule applies to.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sentToMemberOf",
+            "in": "query",
+            "description": "Groups the rule applies to.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "spamAction",
+            "in": "query",
+            "description": "Action for spam: MoveToJmf, AddXHeader, ModifySubject, Redirect, Delete, or Quarantine.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetedDomainProtectionAction",
+            "in": "query",
+            "description": "Action when a targeted domain is impersonated.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "targetedUserProtectionAction",
+            "in": "query",
+            "description": "Action when a targeted user is impersonated.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "ticketNumber",
+            "in": "query",
+            "description": "Numeric ticket ID recorded with the audit row.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
+      }
+    },
     "/api/ExecCustomRole": {
       "post": {
         "summary": "ExecCustomRole",
@@ -25735,6 +26086,136 @@
         "x-cipp-role": "CIPP.AppSettings.ReadWrite"
       }
     },
+    "/api/ExecFocusedInbox": {
+      "post": {
+        "summary": "ExecFocusedInbox",
+        "operationId": "ExecFocusedInbox",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "description": "Turns Focused Inbox on or off for one mailbox (Set-FocusedInbox) or the whole organisation\n(Set-OrganizationConfig -FocusedInboxOn). The write snapshots the current value, requires a\nnumeric ticket ID, and returns a rollback payload. Set dryRun to true to receive the diff\nwithout applying it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dryRun": {
+                    "type": "string",
+                    "description": "When true, return the diff and rollback payload without changing the tenant."
+                  },
+                  "enabled": {
+                    "type": "string",
+                    "description": "True turns Focused Inbox on. False turns it off."
+                  },
+                  "mailbox": {
+                    "type": "string",
+                    "description": "Mailbox address. Required when scope is Mailbox."
+                  },
+                  "scope": {
+                    "type": "string",
+                    "description": "Mailbox or Organization."
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Tenant to update."
+                  },
+                  "ticketNumber": {
+                    "type": "string",
+                    "description": "Numeric ticket ID recorded with the audit row."
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "dryRun",
+            "in": "query",
+            "description": "When true, return the diff and rollback payload without changing the tenant.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "enabled",
+            "in": "query",
+            "description": "True turns Focused Inbox on. False turns it off.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mailbox",
+            "in": "query",
+            "description": "Mailbox address. Required when scope is Mailbox.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "description": "Mailbox or Organization.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "ticketNumber",
+            "in": "query",
+            "description": "Numeric ticket ID recorded with the audit row.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
     "/api/ExecGDAPAccessAssignment": {
       "post": {
         "summary": "ExecGDAPAccessAssignment",
@@ -28825,6 +29306,149 @@
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
+    "/api/ExecInboundConnectorEnhancedFiltering": {
+      "post": {
+        "summary": "ExecInboundConnectorEnhancedFiltering",
+        "operationId": "ExecInboundConnectorEnhancedFiltering",
+        "tags": [
+          "Email-Exchange > Transport"
+        ],
+        "description": "Sets Enhanced Filtering on an inbound connector: EFSkipIPs, EFSkipLastIP, and EFUsers.\nThe write snapshots the connector first, requires a numeric ticket ID, and returns a rollback payload.\nSet dryRun to true to receive the diff without applying it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dryRun": {
+                    "type": "string",
+                    "description": "When true, return the diff and rollback payload without changing the tenant."
+                  },
+                  "efSkipIPs": {
+                    "type": "string",
+                    "description": "IP addresses Enhanced Filtering should skip."
+                  },
+                  "efSkipLastIP": {
+                    "type": "string",
+                    "description": "Skip the last IP in the received chain."
+                  },
+                  "efUsers": {
+                    "type": "string",
+                    "description": "Users Enhanced Filtering applies to. An empty list clears the user scope."
+                  },
+                  "identity": {
+                    "type": "string",
+                    "description": "Inbound connector name or identity."
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Tenant that owns the connector."
+                  },
+                  "ticketNumber": {
+                    "type": "string",
+                    "description": "Numeric ticket ID recorded with the audit row."
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "dryRun",
+            "in": "query",
+            "description": "When true, return the diff and rollback payload without changing the tenant.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "efSkipIPs",
+            "in": "query",
+            "description": "IP addresses Enhanced Filtering should skip.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "efSkipLastIP",
+            "in": "query",
+            "description": "Skip the last IP in the received chain.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "efUsers",
+            "in": "query",
+            "description": "Users Enhanced Filtering applies to. An empty list clears the user scope.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "identity",
+            "in": "query",
+            "description": "Inbound connector name or identity.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "ticketNumber",
+            "in": "query",
+            "description": "Numeric ticket ID recorded with the audit row.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Connector.ReadWrite"
+      }
+    },
     "/api/ExecIncidentsList": {
       "get": {
         "summary": "ExecIncidentsList",
@@ -30456,6 +31080,162 @@
         ],
         "x-cipp-role": "CIPP.AppSettings.ReadWrite",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ExecMailboxJunkConfiguration": {
+      "post": {
+        "summary": "ExecMailboxJunkConfiguration",
+        "operationId": "ExecMailboxJunkConfiguration",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Adds or removes trusted (safe) senders and blocked senders on a mailbox.\nThe current list is read and merged. The write does not use TrustedSendersToAdd, which fails\nagainst the Exchange Online REST proxy. A numeric ticket ID is required. The response includes\nthe snapshot and a rollback payload. Set dryRun to true to receive the diff without applying it.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blockedSendersToAdd": {
+                    "type": "string",
+                    "description": "Blocked senders or domains to add."
+                  },
+                  "blockedSendersToRemove": {
+                    "type": "string",
+                    "description": "Blocked senders or domains to remove."
+                  },
+                  "dryRun": {
+                    "type": "string",
+                    "description": "When true, return the diff and rollback payload without changing the mailbox."
+                  },
+                  "mailbox": {
+                    "type": "string",
+                    "description": "Mailbox to update."
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Tenant that owns the mailbox."
+                  },
+                  "ticketNumber": {
+                    "type": "string",
+                    "description": "Numeric ticket ID recorded with the audit row."
+                  },
+                  "trustedSendersToAdd": {
+                    "type": "string",
+                    "description": "Trusted senders or domains to add. Merged with the current list."
+                  },
+                  "trustedSendersToRemove": {
+                    "type": "string",
+                    "description": "Trusted senders or domains to remove."
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "blockedSendersToAdd",
+            "in": "query",
+            "description": "Blocked senders or domains to add.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "blockedSendersToRemove",
+            "in": "query",
+            "description": "Blocked senders or domains to remove.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dryRun",
+            "in": "query",
+            "description": "When true, return the diff and rollback payload without changing the mailbox.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mailbox",
+            "in": "query",
+            "description": "Mailbox to update.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "ticketNumber",
+            "in": "query",
+            "description": "Numeric ticket ID recorded with the audit row.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trustedSendersToAdd",
+            "in": "query",
+            "description": "Trusted senders or domains to add. Merged with the current list.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trustedSendersToRemove",
+            "in": "query",
+            "description": "Trusted senders or domains to remove.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
       }
     },
     "/api/ExecMailboxMobileDevices": {
@@ -35457,6 +36237,214 @@
           }
         ],
         "x-cipp-role": "Identity.Role.ReadWrite"
+      }
+    },
+    "/api/ExecPresetSecurityPolicy": {
+      "post": {
+        "summary": "ExecPresetSecurityPolicy",
+        "operationId": "ExecPresetSecurityPolicy",
+        "tags": [
+          "Email-Exchange > Spamfilter"
+        ],
+        "description": "Turns the Standard or Strict preset security policy on or off and changes its scope.\nThe write snapshots the current EOP and Defender preset rules, requires a numeric ticket ID,\nand returns a rollback payload. Set dryRun to true to receive the diff without applying it.\nDisabling a preset or shrinking its scope is rejected unless allowWeakerProtection is true.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allowWeakerProtection": {
+                    "type": "string",
+                    "description": "Explicit override that allows a change which weakens current protection."
+                  },
+                  "domains": {
+                    "type": "string",
+                    "description": "Domains the preset applies to (RecipientDomainIs)."
+                  },
+                  "dryRun": {
+                    "type": "string",
+                    "description": "When true, return the diff and rollback payload without changing the tenant."
+                  },
+                  "exceptDomains": {
+                    "type": "string",
+                    "description": "Domains excluded from the preset."
+                  },
+                  "exceptGroups": {
+                    "type": "string",
+                    "description": "Groups excluded from the preset."
+                  },
+                  "exceptUsers": {
+                    "type": "string",
+                    "description": "Users excluded from the preset."
+                  },
+                  "groups": {
+                    "type": "string",
+                    "description": "Groups the preset applies to (SentToMemberOf)."
+                  },
+                  "preset": {
+                    "type": "string",
+                    "description": "Standard or Strict."
+                  },
+                  "state": {
+                    "type": "string",
+                    "description": "Enable or Disable. Omit to leave the current state and change scope only."
+                  },
+                  "tenantFilter": {
+                    "type": "string",
+                    "description": "Tenant the preset change applies to."
+                  },
+                  "ticketNumber": {
+                    "type": "string",
+                    "description": "Numeric ticket ID recorded with the audit row."
+                  },
+                  "users": {
+                    "type": "string",
+                    "description": "Users the preset applies to (SentTo). Send an empty list to clear them."
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "allowWeakerProtection",
+            "in": "query",
+            "description": "Explicit override that allows a change which weakens current protection.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "domains",
+            "in": "query",
+            "description": "Domains the preset applies to (RecipientDomainIs).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dryRun",
+            "in": "query",
+            "description": "When true, return the diff and rollback payload without changing the tenant.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exceptDomains",
+            "in": "query",
+            "description": "Domains excluded from the preset.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exceptGroups",
+            "in": "query",
+            "description": "Groups excluded from the preset.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "exceptUsers",
+            "in": "query",
+            "description": "Users excluded from the preset.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "groups",
+            "in": "query",
+            "description": "Groups the preset applies to (SentToMemberOf).",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "preset",
+            "in": "query",
+            "description": "Standard or Strict.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Enable or Disable. Omit to leave the current state and change scope only.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "ticketNumber",
+            "in": "query",
+            "description": "Numeric ticket ID recorded with the audit row.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "users",
+            "in": "query",
+            "description": "Users the preset applies to (SentTo). Send an empty list to clear them.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.SpamFilter.ReadWrite"
       }
     },
     "/api/ExecPreviewBrandingReportPdf": {

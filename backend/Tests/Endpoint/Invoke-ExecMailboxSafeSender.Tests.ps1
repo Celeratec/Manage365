@@ -4,6 +4,8 @@ BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $FunctionPath = Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Spamfilter/Invoke-ExecMailboxSafeSender.ps1'
     $ToolsDir = Join-Path $RepoRoot 'Modules/CIPPCore/Public/Tools'
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Private/MailFilter/MailFilter.Common.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/MailFilter/Join-CIPPMailboxJunkSenderList.ps1')
 
     class HttpResponseContext {
         [int]$StatusCode
@@ -19,7 +21,14 @@ BeforeAll {
 
     function Write-LogMessage { param($headers, $API, $message, $sev) }
     function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Message } }
-    function New-ExoRequest { param($tenantid, $cmdlet, $cmdParams) $true }
+    $script:SafeSenderWrites = @()
+    function New-ExoRequest {
+        param($tenantid, $cmdlet, $cmdParams, $Anchor, $useSystemMailbox)
+        if ($cmdlet -eq 'Get-MailboxJunkEmailConfiguration') {
+            return [pscustomobject]@{ TrustedSendersAndDomains = @('keep@contoso.com') }
+        }
+        $script:SafeSenderWrites += $cmdParams
+    }
 
     Get-ChildItem -Path $ToolsDir -Filter '*Quarantine*.ps1' | ForEach-Object { . $_.FullName }
     . $FunctionPath
@@ -41,5 +50,7 @@ Describe 'Invoke-ExecMailboxSafeSender' {
 
         $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
         $response.Body.Results | Should -Match 'Added sender@example.com'
+        $script:SafeSenderWrites[0].Keys | Should -Not -Contain 'TrustedSendersToAdd'
+        $script:SafeSenderWrites[0].TrustedSendersAndDomains | Should -Be @('keep@contoso.com', 'sender@example.com')
     }
 }

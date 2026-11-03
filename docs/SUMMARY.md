@@ -491,6 +491,7 @@
 
 * [Setup & Authentication](api-documentation/setup-and-authentication.md)
 * [Endpoints](api-documentation/endpoints.md)
+* [Mail filter writes](api-documentation/mail-filter-writes.md)
 
 ## MSP Adoption Toolkit
 

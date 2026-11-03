@@ -19,14 +19,19 @@ function Invoke-ExecMailboxSafeSender {
         if ([string]::IsNullOrWhiteSpace($Mailbox)) { throw 'mailbox is required.' }
         if ([string]::IsNullOrWhiteSpace($Sender)) { throw 'sender is required.' }
 
-        New-ExoRequest -tenantid $TenantFilter -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
-            Identity            = $Mailbox
-            TrustedSendersToAdd = @($Sender)
-            TrustedListsOnly    = $false
-            ContactsTrusted     = $false
-        }
+        # TrustedSendersToAdd fails through the Exchange REST proxy. Read the current list and write the merge.
+        $Current = New-ExoRequest -tenantid $TenantFilter -Anchor $Mailbox -cmdlet 'Get-MailboxJunkEmailConfiguration' -cmdParams @{ Identity = $Mailbox } -useSystemMailbox $true
+        $Merged = Join-CIPPMailboxJunkSenderList -Existing $Current.TrustedSendersAndDomains -Add @($Sender)
+        New-ExoRequest -tenantid $TenantFilter -Anchor $Mailbox -cmdlet 'Set-MailboxJunkEmailConfiguration' -cmdParams @{
+            Identity                 = $Mailbox
+            TrustedSendersAndDomains = @($Merged.List)
+        } -useSystemMailbox $true
 
-        $Result = "Added $Sender to the safe senders list for $Mailbox."
+        $Result = if (@($Merged.Added) -contains $Sender) {
+            "Added $Sender to the safe senders list for $Mailbox."
+        } else {
+            "$Sender is already on the safe senders list for $Mailbox."
+        }
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Info'
         $StatusCode = [HttpStatusCode]::OK
         $Body = @{ Results = $Result }
