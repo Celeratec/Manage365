@@ -69,8 +69,18 @@ function Invoke-ListTeamsSettings {
         $FederationAllowedDomains = @()
         $FederationBlockedDomains = @()
         $FederationMode = 'AllowAllExternal'
+        $AllowAllKnownDomains = $false
+        $AllowPublicUsers = $false
+        $AllowTeamsConsumerInbound = $false
 
         if ($FederationConfig) {
+            # Check if AllowedDomains is the AllowAllKnownDomains object
+            $AllowAllKnownDomains = $FederationConfig.AllowedDomains -and 
+                                     $FederationConfig.AllowedDomains.AllowAllKnownDomains -eq $true
+            
+            $AllowPublicUsers = $FederationConfig.AllowPublicUsers ?? $false
+            $AllowTeamsConsumerInbound = $FederationConfig.AllowTeamsConsumerInbound ?? $false
+
             if ($FederationConfig.AllowFederatedUsers -eq $false) {
                 $FederationMode = 'BlockAllExternal'
             } elseif ($FederationConfig.AllowedDomains -and $FederationConfig.AllowedDomains.GetType().Name -eq 'PSObject') {
@@ -109,6 +119,9 @@ function Invoke-ListTeamsSettings {
             federationMode              = $FederationMode
             allowFederatedUsers         = $FederationConfig.AllowFederatedUsers ?? $true
             allowTeamsConsumer          = $FederationConfig.AllowTeamsConsumer ?? $false
+            allowAllKnownDomains        = $AllowAllKnownDomains
+            allowPublicUsers            = $AllowPublicUsers
+            allowTeamsConsumerInbound   = $AllowTeamsConsumerInbound
             federationAllowedDomains    = $FederationAllowedDomains
             federationBlockedDomains    = $FederationBlockedDomains
             enableFederationAccess      = $ExternalAccessPolicy.EnableFederationAccess ?? $true

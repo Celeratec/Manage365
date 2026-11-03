@@ -1,0 +1,65 @@
+{
+  "requestBody": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "properties": {
+            "federationAllowedDomains": {
+              "type": null,
+              "items": null,
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Comma/semicolon/space-separated domain names"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of domain names"
+                }
+              ],
+              "description": "Allowed domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
+            },
+            "federationBlockedDomains": {
+              "type": null,
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Comma/semicolon/space-separated domain names"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of domain names"
+                }
+              ],
+              "description": "Blocked domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
+            },
+            "federationMode": {
+              "allOf": null,
+              "description": "AllowAllExternal, BlockAllExternal, AllowSpecificExternal, or BlockSpecificExternal. A select control may send { label, value } instead of a string.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "enum": [
+                    "AllowAllExternal",
+                    "BlockAllExternal",
+                    "AllowSpecificExternal",
+                    "BlockSpecificExternal"
+                  ]
+                },
+                {
+                  "$ref": "#/components/schemas/LabelValue"
+                }
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

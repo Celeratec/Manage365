@@ -23,40 +23,229 @@ function Invoke-EditTeamsSettings {
 
         switch ($Section) {
             'federation' {
-                # Establish Teams session first (required before calling New-CsEdgeAllowAllKnownDomains
-                # which uses the Teams ConfigAPI and requires an active connection)
-                $null = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
-
-                # Now build federation configuration parameters
-                $FederationMode = $Request.Body.federationMode
-                $cmdParams = @{
-                    Identity            = 'Global'
-                    AllowFederatedUsers = $true
-                    BlockedDomains      = @()
+                # Helper function to parse and validate domain lists
+                function ConvertTo-ValidatedDomainList {
+                    param(
+                        [object]$RawInput,
+                        [string]$FieldName
+                    )
+                    
+                    # Reject non-string, non-array types
+                    if ($null -ne $RawInput -and $RawInput -isnot [string] -and $RawInput -isnot [array]) {
+                        throw "Invalid $FieldName : expected string or array, got $($RawInput.GetType().Name)"
+                    }
+                    
+                    # Handle explicit empty array to clear domains
+                    if ($RawInput -is [array] -and $RawInput.Count -eq 0) {
+                        return @()
+                    }
+                    
+                    $parsed = @()
+                    $wasNonEmptyArray = $false
+                    # Process non-null, non-empty-string input
+                    if ($null -ne $RawInput) {
+                        if ($RawInput -is [string]) {
+                            # Only process non-empty strings
+                            if ($RawInput -ne '') {
+                                $parsed = $RawInput -split '[,;\s]+' | Where-Object { $_ -ne '' }
+                            }
+                        } elseif ($RawInput -is [array]) {
+                            $wasNonEmptyArray = $true
+                            foreach ($item in $RawInput) {
+                                if ($item -is [string]) {
+                                    $parsed += $item
+                                } else {
+                                    throw "Invalid domain in $FieldName : non-string element of type $($item.GetType().Name)"
+                                }
+                            }
+                            $parsed = $parsed | Where-Object { $_ -ne '' }
+                        }
+                    }
+                    
+                    $validDomains = @()
+                    $invalidDomains = @()
+                    # Domain regex: require at least one dot (no bare TLDs), use \z instead of $
+                    $domainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+\z'
+                    
+                    foreach ($d in $parsed) {
+                        if (-not ($d -is [string])) {
+                            $invalidDomains += "$d (non-string)"
+                            continue
+                        }
+                        
+                        $domainTrimmed = $d.Trim()
+                        if ($domainTrimmed.Length -gt 253) {
+                            $invalidDomains += "$domainTrimmed (exceeds 253 characters)"
+                            continue
+                        }
+                        
+                        $domainLower = $domainTrimmed.ToLower()
+                        if ($domainLower -match $domainRegex) {
+                            if ($domainLower -notin $validDomains) {
+                                $validDomains += $domainLower
+                            }
+                        } else {
+                            $invalidDomains += $domainTrimmed
+                        }
+                    }
+                    
+                    if ($invalidDomains.Count -gt 0) {
+                        throw "Invalid domains in $FieldName : $($invalidDomains -join ', ')"
+                    }
+                    
+                    # If a non-empty array yielded 0 valid domains, reject it
+                    if ($wasNonEmptyArray -and $validDomains.Count -eq 0) {
+                        throw "Invalid $FieldName : non-empty array contained no valid domains"
+                    }
+                    
+                    return $validDomains
                 }
-                $AllowedDomainsAsAList = @()
 
-                switch ($FederationMode) {
-                    'AllowAllExternal' {
-                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
+                # Establish Teams session first and get current configuration
+                $CurrentConfig = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
+
+                # Parse and validate federationMode before any mutations
+                $FederationMode = $Request.Body.federationMode
+                
+                # Reject non-string, non-object types immediately
+                if ($FederationMode -is [array]) {
+                    throw "Invalid federationMode: arrays are not supported"
+                }
+                if ($FederationMode -is [int] -or $FederationMode -is [double] -or $FederationMode -is [bool]) {
+                    throw "Invalid federationMode: numeric and boolean values are not supported"
+                }
+                
+                # Extract .value if object, but validate it has a value property
+                if ($FederationMode -is [PSCustomObject] -or $FederationMode -is [hashtable]) {
+                    if ($null -eq $FederationMode.value) {
+                        throw "Invalid federationMode: object must have a 'value' property"
                     }
-                    'BlockAllExternal' {
-                        $cmdParams['AllowFederatedUsers'] = $false
-                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
+                    # Reject array values
+                    if ($FederationMode.value -is [array]) {
+                        throw "Invalid federationMode: value property cannot be an array"
                     }
-                    'AllowSpecificExternal' {
-                        $AllowedDomainsAsAList = @($Request.Body.federationAllowedDomains)
+                    $FederationMode = $FederationMode.value
+                }
+                
+                # Validate federationMode is one of the 4 valid strings
+                $validModes = @('AllowAllExternal', 'BlockAllExternal', 'AllowSpecificExternal', 'BlockSpecificExternal')
+                if ([string]::IsNullOrWhiteSpace($FederationMode) -or $FederationMode -notin $validModes) {
+                    throw "Invalid federationMode. Must be one of: $($validModes -join ', ')"
+                }
+
+                # Build federation configuration parameters (no AllowFederatedUsers default)
+                $cmdParams = @{
+                    Identity = 'Global'
+                }
+                
+                $AllowedDomainsAsAList = @()
+                $ExpectedAllowedDomains = @()
+                $ExpectedBlockedDomains = @()
+                $ExpectedAllowAllKnownDomains = $false
+
+                # Helper to check if a domain field should clear the list (explicit empty array only)
+                function Test-ShouldClearDomains {
+                    param([object]$Value)
+                    return ($Value -is [array]) -and ($Value.Count -eq 0)
+                }
+                
+                # Helper to check if a domain field was meaningfully provided (non-empty array or non-blank string)
+                function Test-DomainFieldProvided {
+                    param([object]$Value)
+                    if ($Value -is [array]) {
+                        return $Value.Count -gt 0
                     }
-                    'BlockSpecificExternal' {
-                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
-                        $BlockedDomains = @($Request.Body.federationBlockedDomains)
-                        if ($BlockedDomains.Count -gt 0) {
-                            $cmdParams['BlockedDomains'] = $BlockedDomains
+                    return ($Value -is [string]) -and (-not [string]::IsNullOrWhiteSpace($Value))
+                }
+                
+                # Helper to resolve BlockedDomains: only [] clears, missing/null/'' preserves
+                function Resolve-BlockedDomains {
+                    param(
+                        [object]$RequestValue,
+                        [object]$CurrentConfig
+                    )
+                    
+                    if (Test-ShouldClearDomains -Value $RequestValue) {
+                        return @{
+                            BlockedDomains = @()
+                            ExpectedBlockedDomains = @()
+                        }
+                    } elseif (Test-DomainFieldProvided -Value $RequestValue) {
+                        $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $RequestValue -FieldName 'federationBlockedDomains')
+                        return @{
+                            BlockedDomains = $BlockedDomainsList
+                            ExpectedBlockedDomains = $BlockedDomainsList
+                        }
+                    } elseif ($CurrentConfig.BlockedDomains) {
+                        return @{
+                            BlockedDomains = $CurrentConfig.BlockedDomains
+                            ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
+                        }
+                    } else {
+                        return @{
+                            BlockedDomains = @()
+                            ExpectedBlockedDomains = @()
                         }
                     }
                 }
 
-                # Use AllowedDomainsAsAList for specific domain lists, AllowedDomains for the allow-all object
+                switch ($FederationMode) {
+                    'AllowAllExternal' {
+                        $cmdParams['AllowFederatedUsers'] = $true
+                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
+                        $ExpectedAllowAllKnownDomains = $true
+                        
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
+                    }
+                    'BlockAllExternal' {
+                        $cmdParams['AllowFederatedUsers'] = $false
+                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
+                        $ExpectedAllowAllKnownDomains = $true
+                        
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
+                    }
+                    'AllowSpecificExternal' {
+                        $cmdParams['AllowFederatedUsers'] = $true
+                        
+                        # Type-check federationAllowedDomains before other validation
+                        if ($null -ne $Request.Body.federationAllowedDomains -and 
+                            $Request.Body.federationAllowedDomains -isnot [string] -and 
+                            $Request.Body.federationAllowedDomains -isnot [array]) {
+                            throw "Invalid federationAllowedDomains: expected string or array, got $($Request.Body.federationAllowedDomains.GetType().Name)"
+                        }
+                        
+                        # federationAllowedDomains is required and must be provided
+                        if (-not (Test-DomainFieldProvided -Value $Request.Body.federationAllowedDomains)) {
+                            throw 'AllowSpecificExternal mode requires federationAllowedDomains to be provided as a non-empty string or array.'
+                        }
+                        
+                        $AllowedDomainsAsAList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationAllowedDomains -FieldName 'federationAllowedDomains')
+                        $ExpectedAllowedDomains = $AllowedDomainsAsAList
+                        
+                        if ($AllowedDomainsAsAList.Count -eq 0) {
+                            throw 'AllowSpecificExternal mode requires at least one allowed domain.'
+                        }
+                        
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
+                    }
+                    'BlockSpecificExternal' {
+                        $cmdParams['AllowFederatedUsers'] = $true
+                        $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
+                        $ExpectedAllowAllKnownDomains = $true
+                        
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
+                    }
+                }
+
+                # Use AllowedDomainsAsAList for specific domain lists
                 if ($AllowedDomainsAsAList.Count -gt 0) {
                     $cmdParams.Remove('AllowedDomains')
                     $cmdParams['AllowedDomainsAsAList'] = $AllowedDomainsAsAList
@@ -66,7 +255,93 @@ function Invoke-EditTeamsSettings {
                     $cmdParams['AllowTeamsConsumer'] = [bool]$Request.Body.allowTeamsConsumer
                 }
 
+                # Apply the configuration
                 New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Set-CsTenantFederationConfiguration' -CmdParams $cmdParams
+
+                # Verify the configuration was applied correctly
+                $VerifyConfig = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
+                
+                $verificationFailed = $false
+                $verificationErrors = @()
+
+                # Verify AllowFederatedUsers
+                if ($VerifyConfig.AllowFederatedUsers -ne $cmdParams.AllowFederatedUsers) {
+                    $verificationFailed = $true
+                    $verificationErrors += "AllowFederatedUsers: expected $($cmdParams.AllowFederatedUsers), got $($VerifyConfig.AllowFederatedUsers)"
+                }
+
+                # Verify AllowAllKnownDomains for modes that use it
+                if ($ExpectedAllowAllKnownDomains) {
+                    $actualIsAllowAll = $VerifyConfig.AllowedDomains -and $VerifyConfig.AllowedDomains.AllowAllKnownDomains -eq $true
+                    if (-not $actualIsAllowAll) {
+                        $verificationFailed = $true
+                        $verificationErrors += "AllowedDomains: expected AllowAllKnownDomains, got specific domain list or null"
+                    }
+                }
+
+                # Verify allowed domains for AllowSpecificExternal mode
+                if ($FederationMode -eq 'AllowSpecificExternal') {
+                    $actualAllowedDomains = @()
+                    if ($VerifyConfig.AllowedDomains -and $VerifyConfig.AllowedDomains.Domain) {
+                        $actualAllowedDomains = @(@($VerifyConfig.AllowedDomains.Domain) | Sort-Object)
+                    }
+                    $expectedSorted = @($ExpectedAllowedDomains | Sort-Object)
+                    
+                    if ($actualAllowedDomains.Count -ne $expectedSorted.Count) {
+                        $verificationFailed = $true
+                        $verificationErrors += "AllowedDomains count: expected $($expectedSorted.Count), got $($actualAllowedDomains.Count)"
+                    } else {
+                        for ($i = 0; $i -lt $expectedSorted.Count; $i++) {
+                            if ($actualAllowedDomains[$i] -ne $expectedSorted[$i]) {
+                                $verificationFailed = $true
+                                $verificationErrors += "AllowedDomains mismatch at index $i"
+                                break
+                            }
+                        }
+                    }
+                }
+
+                # Verify BlockedDomains for all modes that set it
+                $actualBlockedDomains = @()
+                if ($VerifyConfig.BlockedDomains) {
+                    $actualBlockedDomains = @(@($VerifyConfig.BlockedDomains) | Sort-Object)
+                }
+                $expectedBlockedSorted = @($ExpectedBlockedDomains | Sort-Object)
+                
+                if ($actualBlockedDomains.Count -ne $expectedBlockedSorted.Count) {
+                    $verificationFailed = $true
+                    $verificationErrors += "BlockedDomains count: expected $($expectedBlockedSorted.Count), got $($actualBlockedDomains.Count)"
+                } else {
+                    for ($i = 0; $i -lt $expectedBlockedSorted.Count; $i++) {
+                        if ($actualBlockedDomains[$i] -ne $expectedBlockedSorted[$i]) {
+                            $verificationFailed = $true
+                            $verificationErrors += "BlockedDomains mismatch at index $i"
+                            break
+                        }
+                    }
+                }
+
+                # Verify AllowTeamsConsumer if it was set
+                if ($null -ne $Request.Body.allowTeamsConsumer) {
+                    $expectedTeamsConsumer = [bool]$Request.Body.allowTeamsConsumer
+                    if ($VerifyConfig.AllowTeamsConsumer -ne $expectedTeamsConsumer) {
+                        $verificationFailed = $true
+                        $verificationErrors += "AllowTeamsConsumer: expected $expectedTeamsConsumer, got $($VerifyConfig.AllowTeamsConsumer)"
+                    }
+                }
+
+                if ($verificationFailed) {
+                    Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Federation verification failed: $($verificationErrors -join '; ')" -Sev 'Error'
+                    $Body = [PSCustomObject]@{
+                        Results = 'Federation change was sent but verification failed; tenant may be partly updated. Re-read before retrying.'
+                    }
+                    $StatusCode = [HttpStatusCode]::BadGateway
+                    return ([HttpResponseContext]@{
+                        StatusCode = $StatusCode
+                        Body       = $Body
+                    })
+                }
+
                 $Results.Add('Successfully updated federation configuration.')
 
                 # Update External Access Policy
