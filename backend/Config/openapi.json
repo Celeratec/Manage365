@@ -12020,7 +12020,8 @@
                     "type": "boolean"
                   },
                   "allowTeamsConsumer": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Verify AllowTeamsConsumer if it was set"
                   },
                   "allowUserDeleteChat": {
                     "type": "boolean"
@@ -12058,20 +12059,53 @@
                     "type": "boolean"
                   },
                   "federationAllowedDomains": {
-                    "type": "string"
+                    "description": "Allowed domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Comma/semicolon/space-separated domain names"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of domain names"
+                      }
+                    ]
                   },
                   "federationBlockedDomains": {
-                    "type": "string"
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Comma/semicolon/space-separated domain names"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of domain names"
+                      }
+                    ],
+                    "description": "Blocked domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
                   },
                   "federationMode": {
-                    "type": "string",
-                    "enum": [
-                      "AllowAllExternal",
-                      "AllowSpecificExternal",
-                      "BlockAllExternal",
-                      "BlockSpecificExternal"
-                    ],
-                    "description": "Now build federation configuration parameters"
+                    "description": "AllowAllExternal, BlockAllExternal, AllowSpecificExternal, or BlockSpecificExternal. A select control may send { label, value } instead of a string.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "AllowAllExternal",
+                          "BlockAllExternal",
+                          "AllowSpecificExternal",
+                          "BlockSpecificExternal"
+                        ]
+                      },
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ]
                   },
                   "meetingChatEnabledType": {
                     "type": "string"
@@ -12129,6 +12163,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "502": {
+            "description": "BadGateway"
           }
         },
         "security": [
@@ -34140,6 +34177,9 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -34148,6 +34188,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
