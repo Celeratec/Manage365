@@ -12057,14 +12057,37 @@
                     "items": {
                       "type": "string"
                     },
-                    "description": "federationAllowedDomains is required and must be provided"
+                    "description": "Allowed domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list.",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Comma/semicolon/space-separated domain names"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of domain names"
+                      }
+                    ]
                   },
                   "federationBlockedDomains": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Handle BlockedDomains: only [] clears, missing/null/'' preserves"
+                    "type": "string",
+                    "oneOf": [
+                      {
+                        "type": "string",
+                        "description": "Comma/semicolon/space-separated domain names"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "description": "Array of domain names"
+                      }
+                    ],
+                    "description": "Blocked domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
                   },
                   "federationMode": {
                     "allOf": [

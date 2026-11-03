@@ -1,0 +1,44 @@
+{
+  "requestBody": {
+    "content": {
+      "application/json": {
+        "schema": {
+          "properties": {
+            "federationAllowedDomains": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Comma/semicolon/space-separated domain names"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of domain names"
+                }
+              ],
+              "description": "Allowed domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
+            },
+            "federationBlockedDomains": {
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Comma/semicolon/space-separated domain names"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "Array of domain names"
+                }
+              ],
+              "description": "Blocked domains for federation (string or array). Empty string '' preserves existing, empty array [] clears the list."
+            }
+          }
+        }
+      }
+    }
+  }
+}
