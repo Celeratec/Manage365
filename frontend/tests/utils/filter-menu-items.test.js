@@ -116,8 +116,8 @@ describe('filterMenuItems', () => {
         ...new Set(
           pagesWithPermissions.flatMap((page) =>
             page.permissions.flatMap((perm) => [
-              perm.replace('*', 'Read'),
-              perm.replace('*', 'ReadWrite'),
+              perm.replaceAll('*', 'Read'),
+              perm.replaceAll('*', 'ReadWrite'),
             ])
           )
         ),
@@ -132,7 +132,7 @@ describe('filterMenuItems', () => {
       'shows %s to a role granted only that page permission',
       (_title, page) => {
         const permissions = page.permissions.map((perm) =>
-          perm.replace('*', 'Read')
+          perm.replaceAll('*', 'Read')
         )
         const visible = leafPages(
           filterMenuItems(nativeMenuItems, { permissions })
