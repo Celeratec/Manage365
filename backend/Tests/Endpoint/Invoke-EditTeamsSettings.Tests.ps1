@@ -291,6 +291,63 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $setCalls.Count | Should -Be 0
         }
 
+        It 'rejects array federationMode' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = @('AllowSpecificExternal')
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'arrays are not supported'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
+        It 'rejects integer federationMode' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 1
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'numeric and boolean values are not supported'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
+        It 'rejects object without value property' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = @{ label = 'Test' }
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match "object must have a 'value' property"
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
+        It 'rejects non-standard mode string like AllowEverything' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowEverything'
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid federationMode'
+            $result.Body.Results | Should -Match 'Must be one of'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
         It 'requires at least one domain for AllowSpecificExternal' {
             $request = New-EditTeamsRequest -Extra @{
                 federationMode           = 'AllowSpecificExternal'
@@ -350,6 +407,59 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
             $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 1
             $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'single.com'
+        }
+
+        It 'rejects bare TLD without subdomain' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = 'com'
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid domains'
+            $result.Body.Results | Should -Match 'com'
+        }
+
+        It 'rejects domain exceeding 253 characters' {
+            $longDomain = ('a' * 250) + '.com'
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = $longDomain
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'exceeds 253 characters'
+        }
+
+        It 'rejects non-string element in domain array' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = @('valid.com', 123)
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'non-string element'
+        }
+
+        It 'accepts explicit empty array to clear allowlist' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowAllExternal'
+                federationAllowedDomains = @()
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
         }
     }
 
