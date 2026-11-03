@@ -1,7 +1,17 @@
-import { getCippFormatting } from '../../src/utils/get-cipp-formatting'
+import { getCippFormatting, toSafeHttpUrl } from '../../src/utils/get-cipp-formatting'
 
 // pins exact text-mode output for high-churn cellNames so dependency bumps
 // and refactors that change formatting show up as diffs here
+describe('toSafeHttpUrl', () => {
+  it('keeps http(s) URLs and drops other schemes and credentials', () => {
+    expect(toSafeHttpUrl('https://cdn.example/logo.png')).toBe('https://cdn.example/logo.png')
+    expect(toSafeHttpUrl('http://cdn.example/logo.png')).toBe('http://cdn.example/logo.png')
+    expect(toSafeHttpUrl('javascript:alert(1)')).toBeNull()
+    expect(toSafeHttpUrl('https://user:pass@cdn.example/logo.png')).toBeNull()
+    expect(toSafeHttpUrl('not a url')).toBeNull()
+  })
+})
+
 describe('getCippFormatting (text mode)', () => {
   it('formats byte columns as GB with two decimals', () => {
     expect(getCippFormatting(5368709120, 'storageUsedInBytes', 'text')).toBe('5.00 GB')

@@ -15622,7 +15622,7 @@
         "tags": [
           "Tenant > Applications"
         ],
-        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.",
+        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.\n\nGraph addPassword returns the client secret as a string. Key Vault accepts only a SecureString.",
         "requestBody": {
           "required": false,
           "content": {
@@ -36382,12 +36382,14 @@
                     "type": "string"
                   },
                   "userId": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Prefer object ID (GUID) over UPN when available"
                   },
                   "userPrincipalName": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "string"
                   }
                 },
                 "required": [
