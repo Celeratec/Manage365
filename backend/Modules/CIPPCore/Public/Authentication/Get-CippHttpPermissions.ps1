@@ -23,6 +23,13 @@ function Get-CippHttpPermissions {
     } else {
         (Get-Content -Path (Join-Path $env:CIPPRootPath 'version_latest.txt')).Trim()
     }
+    # APP_VERSION stays on the CIPP baseline across Manage365 image tags, so a cache row
+    # written by an older image would hide roles added later. The image commit changes every
+    # publish and makes the next boot recompute the universe.
+    $Commit = [string]$env:COMMIT_SHA
+    if ($Commit -and $Commit -notin @('unknown', '-unknown')) {
+        $Version = "$Version+$Commit"
+    }
 
     if ($script:CippHttpPermissions -and $script:CippHttpPermissionsVersion -eq $Version) {
         return $script:CippHttpPermissions

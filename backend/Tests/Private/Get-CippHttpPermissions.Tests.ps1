@@ -61,6 +61,18 @@ Describe 'Get-CippHttpPermissions' {
         Mock Add-CIPPAzDataTableEntity {}
     }
 
+    It 'keys the cached universe by the image commit when one is published' {
+        $env:COMMIT_SHA = 'abc123'
+        try {
+            Mock Get-CIPPAzDataTableEntity { $script:SeenFilter = $Filter; [PSCustomObject]@{ Permissions = ($script:FullUniverse | ConvertTo-Json -Compress) } }
+            Mock Get-CIPPHttpFunctions { throw 'should not enumerate' }
+            Get-CippHttpPermissions | Out-Null
+            $script:SeenFilter | Should -Match '10\.9\.1\+abc123'
+        } finally {
+            Remove-Item Env:COMMIT_SHA -ErrorAction SilentlyContinue
+        }
+    }
+
     It 'serves a valid cached universe without enumerating' {
         Mock Get-CIPPAzDataTableEntity { [PSCustomObject]@{ Permissions = ($script:FullUniverse | ConvertTo-Json -Compress) } }
         Mock Get-CIPPHttpFunctions { throw 'should not enumerate' }

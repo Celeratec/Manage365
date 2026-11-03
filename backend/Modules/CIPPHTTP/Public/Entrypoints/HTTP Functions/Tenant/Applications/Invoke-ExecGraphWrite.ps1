@@ -5,7 +5,14 @@ function Invoke-ExecGraphWrite {
     .ROLE
         Tenant.AppGovernance.ReadWrite
     .DESCRIPTION
-        Graph POST, PATCH, or DELETE limited to the server-side allowlist. Reads the resource first and records it as Before. AllPrincipals consent requires Tenant.AppGovernance.AllPrincipals.
+        Graph POST, PATCH, or DELETE on v1.0 or beta, limited to this allowlist. Reads the resource first and records it as Before. oauth2PermissionGrants accept consentType Principal only.
+        POST servicePrincipals/{id}/appRoleAssignments. DELETE servicePrincipals/{id}/appRoleAssignments/{id}.
+        POST servicePrincipals/{id}/appRoleAssignedTo. DELETE servicePrincipals/{id}/appRoleAssignedTo/{id}.
+        POST oauth2PermissionGrants. PATCH oauth2PermissionGrants/{id}. DELETE oauth2PermissionGrants/{id}.
+        PATCH policies/identitySecurityDefaultsEnforcementPolicy.
+        POST chats/{id}/installedApps. DELETE chats/{id}/installedApps/{id}.
+        DELETE appCatalogs/teamsApps/{id}. DELETE applications/{id}. DELETE servicePrincipals/{id}.
+        Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun. Unknown paths return 403 and are audited.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -22,8 +29,7 @@ function Invoke-ExecGraphWrite {
     $Path = $Request.Body.Path
     $ApiVersion = $Request.Body.ApiVersion
     $WriteBody = $Request.Body.Body
-    $Permissions = @(Get-CippRequestAllowedPermissions)
-    $Plan = Get-CIPPGraphWritePlan -Method $Method -Path $Path -ApiVersion $ApiVersion -Body $WriteBody -AllowAllPrincipals:($Permissions -contains 'Tenant.AppGovernance.AllPrincipals')
+    $Plan = Get-CIPPGraphWritePlan -Method $Method -Path $Path -ApiVersion $ApiVersion -Body $WriteBody
     if (-not $Plan.Allowed) {
         $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $Gate.WhatIf -Result $Plan.Reason
         return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::Forbidden; Body = @{ Results = $Plan.Reason; Status = 'Failed'; AuditId = $AuditId } }

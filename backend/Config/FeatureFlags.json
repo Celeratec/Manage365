@@ -113,7 +113,7 @@
   {
     "Id": "GuardedTenantWrites",
     "Name": "Guarded tenant writes",
-    "Description": "Allowlisted Graph, Exchange, Teams, and app-registration writes. Off until an administrator enables the flag. Each call still requires a ticket number.",
+    "Description": "Allowlisted Graph, Exchange, Teams, app-registration, and mail-filter writes. Off until an administrator enables the flag. Each call still requires a ticket number. The endpoint list is read from this file on every request; a stored on/off choice is kept.",
     "Enabled": false,
     "AllowUserToggle": true,
     "Timers": [],
@@ -123,7 +123,13 @@
       "ExecSecurityDefaults",
       "ExecTeamsAppUpload",
       "ExecPermissionGrantPreApproval",
-      "ExecAppRegistration"
+      "ExecAppRegistration",
+      "GetAppRegistrationSecret",
+      "ExecCustomMailFilterPolicy",
+      "ExecPresetSecurityPolicy",
+      "ExecInboundConnectorEnhancedFiltering",
+      "ExecMailboxJunkConfiguration",
+      "ExecFocusedInbox"
     ],
     "Pages": [],
     "Hidden": false

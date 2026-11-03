@@ -4,6 +4,8 @@
   "New-ManagementScope": ["Name", "RecipientRestrictionFilter"],
   "New-ManagementRoleAssignment": ["App", "Role", "CustomResourceScope", "Name"],
   "Remove-ManagementRoleAssignment": ["Identity"],
+  "Remove-ServicePrincipal": ["Identity"],
+  "Remove-ManagementScope": ["Identity"],
   "Test-ServicePrincipalAuthorization": ["Identity", "Resource"],
   "Test-ApplicationAccessPolicy": ["Identity", "AppId"],
   "Enable-OrganizationCustomization": [],

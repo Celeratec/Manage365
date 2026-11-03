@@ -1,8 +1,15 @@
 [
   { "method": "POST", "path": "^servicePrincipals/[^/]+/appRoleAssignments$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^servicePrincipals/[^/]+/appRoleAssignments/[^/]+$", "apiVersion": ["v1.0", "beta"] },
   { "method": "POST", "path": "^servicePrincipals/[^/]+/appRoleAssignedTo$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^servicePrincipals/[^/]+/appRoleAssignedTo/[^/]+$", "apiVersion": ["v1.0", "beta"] },
   { "method": "POST", "path": "^oauth2PermissionGrants$", "apiVersion": ["v1.0", "beta"] },
   { "method": "PATCH", "path": "^oauth2PermissionGrants/[^/]+$", "apiVersion": ["v1.0", "beta"] },
   { "method": "DELETE", "path": "^oauth2PermissionGrants/[^/]+$", "apiVersion": ["v1.0", "beta"] },
-  { "method": "PATCH", "path": "^policies/identitySecurityDefaultsEnforcementPolicy$", "apiVersion": ["v1.0", "beta"] }
+  { "method": "PATCH", "path": "^policies/identitySecurityDefaultsEnforcementPolicy$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "POST", "path": "^chats/[^/]+/installedApps$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^chats/[^/]+/installedApps/[^/]+$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^appCatalogs/teamsApps/[^/]+$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^applications/[^/]+$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^servicePrincipals/[^/]+$", "apiVersion": ["v1.0", "beta"] }
 ]

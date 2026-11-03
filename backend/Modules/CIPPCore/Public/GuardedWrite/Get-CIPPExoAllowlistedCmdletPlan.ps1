@@ -43,9 +43,14 @@ function Get-CIPPExoAllowlistedCmdletPlan {
             return [pscustomobject]@{ Allowed = $false; Reason = 'RecipientRestrictionFilter must be a string of at most 1024 characters.' }
         }
     }
-    if ($Cmdlet -eq 'New-ManagementRoleAssignment' -and $Incoming.ContainsKey('Role')) {
-        if ([string]$Incoming.Role -notmatch '^Application ') {
-            return [pscustomobject]@{ Allowed = $false; Reason = 'Role must be an Application role.' }
+    if ($Cmdlet -eq 'New-ManagementRoleAssignment') {
+        $AllowedRoles = @(
+            'Application Mail.Read',
+            'Application Calendars.Read',
+            'Application Mail.ReadBasic'
+        )
+        if ([string]$Incoming.Role -notin $AllowedRoles) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Role must be Application Mail.Read, Application Calendars.Read, or Application Mail.ReadBasic.' }
         }
     }
     if ($Cmdlet -eq 'Set-AdminAuditLogConfig' -and $Incoming.ContainsKey('UnifiedAuditLogIngestionEnabled')) {
