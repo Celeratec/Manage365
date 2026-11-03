@@ -27,9 +27,13 @@ function Invoke-EditTeamsSettings {
                 function ConvertTo-ValidatedDomainList {
                     param(
                         [object]$RawInput,
-                        [string]$FieldName,
-                        [bool]$AllowEmpty = $false
+                        [string]$FieldName
                     )
+                    
+                    # Reject non-string, non-array types
+                    if ($null -ne $RawInput -and $RawInput -isnot [string] -and $RawInput -isnot [array]) {
+                        throw "Invalid $FieldName : expected string or array, got $($RawInput.GetType().Name)"
+                    }
                     
                     # Handle explicit empty array to clear domains
                     if ($RawInput -is [array] -and $RawInput.Count -eq 0) {
@@ -37,10 +41,12 @@ function Invoke-EditTeamsSettings {
                     }
                     
                     $parsed = @()
+                    $wasNonEmptyArray = $false
                     if ($null -ne $RawInput -and $RawInput -ne '') {
                         if ($RawInput -is [string]) {
                             $parsed = $RawInput -split '[,;\s]+' | Where-Object { $_ -ne '' }
                         } elseif ($RawInput -is [array]) {
+                            $wasNonEmptyArray = $true
                             foreach ($item in $RawInput) {
                                 if ($item -is [string]) {
                                     $parsed += $item
@@ -49,8 +55,6 @@ function Invoke-EditTeamsSettings {
                                 }
                             }
                             $parsed = $parsed | Where-Object { $_ -ne '' }
-                        } else {
-                            throw "Invalid domain list in $FieldName : expected string or array, got $($RawInput.GetType().Name)"
                         }
                     }
                     
@@ -83,6 +87,11 @@ function Invoke-EditTeamsSettings {
                     
                     if ($invalidDomains.Count -gt 0) {
                         throw "Invalid domains in $FieldName : $($invalidDomains -join ', ')"
+                    }
+                    
+                    # If a non-empty array yielded 0 valid domains, reject it
+                    if ($wasNonEmptyArray -and $validDomains.Count -eq 0) {
+                        throw "Invalid $FieldName : non-empty array contained no valid domains"
                     }
                     
                     return $validDomains
@@ -144,6 +153,37 @@ function Invoke-EditTeamsSettings {
                     }
                     return ($Value -is [string]) -and (-not [string]::IsNullOrWhiteSpace($Value))
                 }
+                
+                # Helper to resolve BlockedDomains: only [] clears, missing/null/'' preserves
+                function Resolve-BlockedDomains {
+                    param(
+                        [object]$RequestValue,
+                        [object]$CurrentConfig
+                    )
+                    
+                    if (Test-ShouldClearDomains -Value $RequestValue) {
+                        return @{
+                            BlockedDomains = @()
+                            ExpectedBlockedDomains = @()
+                        }
+                    } elseif (Test-DomainFieldProvided -Value $RequestValue) {
+                        $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $RequestValue -FieldName 'federationBlockedDomains')
+                        return @{
+                            BlockedDomains = $BlockedDomainsList
+                            ExpectedBlockedDomains = $BlockedDomainsList
+                        }
+                    } elseif ($CurrentConfig.BlockedDomains) {
+                        return @{
+                            BlockedDomains = $CurrentConfig.BlockedDomains
+                            ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
+                        }
+                    } else {
+                        return @{
+                            BlockedDomains = @()
+                            ExpectedBlockedDomains = @()
+                        }
+                    }
+                }
 
                 switch ($FederationMode) {
                     'AllowAllExternal' {
@@ -151,40 +191,18 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
-                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
-                            $cmdParams['BlockedDomains'] = @()
-                            $ExpectedBlockedDomains = @()
-                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
-                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
-                            $ExpectedBlockedDomains = $BlockedDomainsList
-                        } elseif ($CurrentConfig.BlockedDomains) {
-                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
-                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
-                        } else {
-                            $ExpectedBlockedDomains = @()
-                        }
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
                     }
                     'BlockAllExternal' {
                         $cmdParams['AllowFederatedUsers'] = $false
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
-                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
-                            $cmdParams['BlockedDomains'] = @()
-                            $ExpectedBlockedDomains = @()
-                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
-                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
-                            $ExpectedBlockedDomains = $BlockedDomainsList
-                        } elseif ($CurrentConfig.BlockedDomains) {
-                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
-                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
-                        } else {
-                            $ExpectedBlockedDomains = @()
-                        }
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
                     }
                     'AllowSpecificExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
@@ -201,40 +219,18 @@ function Invoke-EditTeamsSettings {
                             throw 'AllowSpecificExternal mode requires at least one allowed domain.'
                         }
                         
-                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
-                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
-                            $cmdParams['BlockedDomains'] = @()
-                            $ExpectedBlockedDomains = @()
-                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
-                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
-                            $ExpectedBlockedDomains = $BlockedDomainsList
-                        } elseif ($CurrentConfig.BlockedDomains) {
-                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
-                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
-                        } else {
-                            $ExpectedBlockedDomains = @()
-                        }
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
                     }
                     'BlockSpecificExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
-                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
-                            $cmdParams['BlockedDomains'] = @()
-                            $ExpectedBlockedDomains = @()
-                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
-                            $ExpectedBlockedDomains = $BlockedDomainsList
-                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
-                        } elseif ($CurrentConfig.BlockedDomains) {
-                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
-                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
-                        } else {
-                            $ExpectedBlockedDomains = @()
-                        }
+                        $blockedResult = Resolve-BlockedDomains -RequestValue $Request.Body.federationBlockedDomains -CurrentConfig $CurrentConfig
+                        $cmdParams['BlockedDomains'] = $blockedResult.BlockedDomains
+                        $ExpectedBlockedDomains = $blockedResult.ExpectedBlockedDomains
                     }
                 }
 
