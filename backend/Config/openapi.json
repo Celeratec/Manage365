@@ -115,6 +115,9 @@
       "name": "Security > Safe-Links-Policy"
     },
     {
+      "name": "Teams"
+    },
+    {
       "name": "Teams-Sharepoint"
     },
     {
@@ -134,6 +137,9 @@
     },
     {
       "name": "Tenant > AI"
+    },
+    {
+      "name": "Tenant > Applications"
     },
     {
       "name": "Tenant > Conditional"
@@ -15572,6 +15578,84 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecAppRegistration": {
+      "post": {
+        "summary": "ExecAppRegistration",
+        "operationId": "ExecAppRegistration",
+        "tags": [
+          "Tenant > Applications"
+        ],
+        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Credential": {
+                    "type": "object",
+                    "properties": {
+                      "CertificatePublicKeyBase64": {
+                        "type": "string"
+                      },
+                      "ExpiryMonths": {
+                        "type": "string"
+                      },
+                      "Type": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "DisplayName": {
+                    "type": "string"
+                  },
+                  "GrantAdminConsent": {
+                    "type": "string"
+                  },
+                  "RequiredResourceAccess": {
+                    "type": "string"
+                  },
+                  "SignInAudience": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.ReadWrite"
+      }
+    },
     "/api/ExecAppRoleAssignment": {
       "post": {
         "summary": "Assigns or removes an app role for one user or group. Does not grant delegated consent.",
@@ -24457,6 +24541,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "ConfirmRemoval": {
+                    "type": "string"
+                  },
                   "PolicyBody": {
                     "type": "object",
                     "properties": {
@@ -25514,6 +25601,67 @@
           }
         ],
         "x-cipp-role": "CIPP.AppSettings.ReadWrite"
+      }
+    },
+    "/api/ExecExoAllowlistedCmdlet": {
+      "post": {
+        "summary": "ExecExoAllowlistedCmdlet",
+        "operationId": "ExecExoAllowlistedCmdlet",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "description": "Runs one allowlisted Exchange cmdlet with allowlisted parameters. Test cmdlets use the same role because they read through a write-capable connection.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Cmdlet": {
+                    "type": "string"
+                  },
+                  "Parameters": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Security.ReadWrite"
       }
     },
     "/api/ExecExpirePassword": {
@@ -28566,6 +28714,78 @@
         "x-cipp-role": "CIPP.Core.Read"
       }
     },
+    "/api/ExecGraphWrite": {
+      "post": {
+        "summary": "ExecGraphWrite",
+        "operationId": "ExecGraphWrite",
+        "tags": [
+          "Tenant > Applications"
+        ],
+        "description": "Graph POST, PATCH, or DELETE limited to the server-side allowlist. Reads the resource first and records it as Before. AllPrincipals consent requires Tenant.AppGovernance.AllPrincipals.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ApiVersion": {
+                    "type": "string"
+                  },
+                  "Body": {
+                    "type": "object",
+                    "properties": {
+                      "consentType": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "Method": {
+                    "type": "string"
+                  },
+                  "Path": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.ReadWrite",
+        "x-cipp-reads-via": [
+          "Get-CIPPGraphWritePlan"
+        ]
+      }
+    },
     "/api/ExecGroupMembers": {
       "post": {
         "summary": "ExecGroupMembers",
@@ -31541,6 +31761,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -35983,6 +36206,67 @@
           }
         ],
         "x-cipp-role": "Identity.User.ReadWrite"
+      }
+    },
+    "/api/ExecPermissionGrantPreApproval": {
+      "post": {
+        "summary": "ExecPermissionGrantPreApproval",
+        "operationId": "ExecPermissionGrantPreApproval",
+        "tags": [
+          "Tenant > Applications"
+        ],
+        "description": "Creates, updates, or deletes a permission grant pre-approval policy. Scope type is group, chat, or tenant.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Action": {
+                    "type": "string"
+                  },
+                  "Conditions": {
+                    "type": "string"
+                  },
+                  "Id": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.ReadWrite"
       }
     },
     "/api/ExecPermissionRepair": {
@@ -41120,6 +41404,61 @@
           }
         ],
         "x-cipp-role": "Sharepoint.Site.Read"
+      }
+    },
+    "/api/ExecSecurityDefaults": {
+      "post": {
+        "summary": "ExecSecurityDefaults",
+        "operationId": "ExecSecurityDefaults",
+        "tags": [
+          "Tenant > Administration > Tenant"
+        ],
+        "description": "Reads or sets identity security defaults. Enabling warns when Conditional Access policies already exist.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Enabled": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.ReadWrite"
       }
     },
     "/api/ExecSendOrgMessage": {
@@ -46505,6 +46844,64 @@
           }
         ],
         "x-cipp-role": "Teams.Group.ReadWrite"
+      }
+    },
+    "/api/ExecTeamsAppUpload": {
+      "post": {
+        "summary": "ExecTeamsAppUpload",
+        "operationId": "ExecTeamsAppUpload",
+        "tags": [
+          "Teams"
+        ],
+        "description": "Uploads a Teams app package after checking the zip contains manifest.json and its id matches ExpectedManifestId. Packages larger than 5 MB are refused.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "AppDefinitionId": {
+                    "type": "string"
+                  },
+                  "ExpectedManifestId": {
+                    "type": "string"
+                  },
+                  "PackageBase64": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Teams.AppCatalog.ReadWrite"
       }
     },
     "/api/ExecTeamSettings": {
@@ -66106,6 +66503,9 @@
               }
             }
           },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
@@ -68351,6 +68751,48 @@
           }
         ],
         "x-cipp-role": "CIPP.Alert.Read"
+      }
+    },
+    "/api/ListPermissionGrantPreApproval": {
+      "get": {
+        "summary": "ListPermissionGrantPreApproval",
+        "operationId": "ListPermissionGrantPreApproval",
+        "tags": [
+          "Tenant > Applications"
+        ],
+        "description": "Lists permission grant pre-approval policies for a tenant.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.Read"
       }
     },
     "/api/ListPerUserMFA": {
@@ -70612,6 +71054,48 @@
         ],
         "x-cipp-role": "Tenant.Reports.Read",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ListSecurityDefaults": {
+      "get": {
+        "summary": "ListSecurityDefaults",
+        "operationId": "ListSecurityDefaults",
+        "tags": [
+          "Tenant > Administration > Tenant"
+        ],
+        "description": "Reads whether identity security defaults are enabled.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.Read"
       }
     },
     "/api/ListSensitiveInfoType": {
@@ -77163,6 +77647,56 @@
         ],
         "x-cipp-role": "Exchange.TransportRule.Read",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ListUserAuthMethods": {
+      "get": {
+        "summary": "ListUserAuthMethods",
+        "operationId": "ListUserAuthMethods",
+        "tags": [
+          "Identity > Administration > Users"
+        ],
+        "description": "Lists a user's authentication methods with phone numbers and secrets masked.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Identity.User.Read"
       }
     },
     "/api/ListUserCounts": {

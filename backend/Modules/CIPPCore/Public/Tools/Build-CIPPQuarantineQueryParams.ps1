@@ -53,9 +53,16 @@ function Build-CIPPQuarantineQueryParams {
         }
     }
 
+    if (-not $QueryInput.startDate -and $QueryInput.StartReceivedDate) { $QueryInput.startDate = $QueryInput.StartReceivedDate }
+    if (-not $QueryInput.endDate -and $QueryInput.EndReceivedDate) { $QueryInput.endDate = $QueryInput.EndReceivedDate }
+    if (-not $QueryInput.sender -and $QueryInput.SenderAddress) { $QueryInput.sender = $QueryInput.SenderAddress }
+    if (-not $QueryInput.recipient -and $QueryInput.RecipientAddress) { $QueryInput.recipient = $QueryInput.RecipientAddress }
+    if (-not $QueryInput.quarantineType -and $QueryInput.QuarantineTypes) { $QueryInput.quarantineType = $QueryInput.QuarantineTypes }
+
     $HasDate = $false
     if ($QueryInput.days) {
         $Days = [int](Get-CippQuarantineInputValue $QueryInput.days)
+        if ($Days -lt 1 -or $Days -gt 30) { throw 'Quarantine queries can cover at most 30 days.' }
         $CmdParams.StartReceivedDate = (Get-Date).AddDays(-$Days).ToUniversalTime()
         $CmdParams.EndReceivedDate = (Get-Date).ToUniversalTime()
         $AppliedFilters.days = $Days
@@ -80,6 +87,9 @@ function Build-CIPPQuarantineQueryParams {
         $AppliedFilters.startDate = $CmdParams.StartReceivedDate
         $AppliedFilters.endDate = $CmdParams.EndReceivedDate
         $HasDate = $true
+        $Span = ([datetime]$CmdParams.EndReceivedDate - [datetime]$CmdParams.StartReceivedDate).TotalDays
+        if ($Span -lt 0) { throw 'EndReceivedDate must be on or after StartReceivedDate.' }
+        if ($Span -gt 30) { throw 'Quarantine queries can cover at most 30 days.' }
     } elseif ($ApplyDefaultDateRange.IsPresent) {
         $CmdParams.StartReceivedDate = (Get-Date).AddDays(-7).ToUniversalTime()
         $CmdParams.EndReceivedDate = (Get-Date).ToUniversalTime()

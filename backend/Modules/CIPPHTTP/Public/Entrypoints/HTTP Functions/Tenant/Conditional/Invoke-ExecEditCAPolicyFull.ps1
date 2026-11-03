@@ -36,14 +36,24 @@ function Invoke-ExecEditCAPolicyFull {
             }
         }
 
-        # Strip read-only properties that cannot be PATCHed
+        # Strip read-only properties that cannot be PATCHed. Start from the live policy so a
+        # partial body cannot silently drop grant controls, session controls, conditions, or
+        # excluded users and groups.
         $CleanBody = $PolicyBody | Select-Object -Property * -ExcludeProperty id, createdDateTime, modifiedDateTime, templateId
-        # Round-trip so the canonicalizer always sees a PSCustomObject, whatever shape the request
-        # body deserialised into, then apply the same rules the template deploy path uses: managed
-        # keys the body omits are restored as their cleared form (that is how a PATCH clears an
-        # assignment) and a condition block Graph would reject half-populated becomes null instead.
-        $PolicyObject = ConvertTo-Json -InputObject $CleanBody -Depth 20 | ConvertFrom-Json
+        $Current = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$PolicyId" -tenantid $TenantFilter -asApp $true -noPagination $true
+        $CurrentClean = $Current | Select-Object -Property * -ExcludeProperty id, createdDateTime, modifiedDateTime, templateId
+        $PolicyObject = Merge-CIPPCAPolicyUpdate -Current $CurrentClean -Patch $CleanBody
         Format-CIPPCAPolicy -Policy $PolicyObject
+        $ConfirmRemoval = @($Request.Body.ConfirmRemoval | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+        $Dropped = @(Test-CIPPCAPolicyRemoval -Current $Current -Proposed $PolicyObject -ConfirmRemoval $ConfirmRemoval)
+        if ($Dropped.Count -gt 0) {
+            $Result = "Refusing to drop $($Dropped -join ', ') from CA policy $PolicyId. Set ConfirmRemoval to those field names to confirm."
+            Write-LogMessage -API $APIName -tenant $TenantFilter -headers $Headers -message $Result -sev Warning
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{ Results = $Result; ConfirmRemoval = $Dropped }
+            }
+        }
         $RawJSON = ConvertTo-Json -InputObject $PolicyObject -Depth 20 -Compress
 
         $null = New-GraphPOSTRequest `

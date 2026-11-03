@@ -1,0 +1,8 @@
+[
+  { "method": "POST", "path": "^servicePrincipals/[^/]+/appRoleAssignments$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "POST", "path": "^servicePrincipals/[^/]+/appRoleAssignedTo$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "POST", "path": "^oauth2PermissionGrants$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "PATCH", "path": "^oauth2PermissionGrants/[^/]+$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "DELETE", "path": "^oauth2PermissionGrants/[^/]+$", "apiVersion": ["v1.0", "beta"] },
+  { "method": "PATCH", "path": "^policies/identitySecurityDefaultsEnforcementPolicy$", "apiVersion": ["v1.0", "beta"] }
+]

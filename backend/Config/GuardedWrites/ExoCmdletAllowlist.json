@@ -1,0 +1,12 @@
+{
+  "Set-Mailbox": ["Identity", "CustomAttribute1", "CustomAttribute2", "CustomAttribute3", "CustomAttribute4", "CustomAttribute5", "CustomAttribute6", "CustomAttribute7", "CustomAttribute8", "CustomAttribute9", "CustomAttribute10", "CustomAttribute11", "CustomAttribute12", "CustomAttribute13", "CustomAttribute14", "CustomAttribute15"],
+  "New-ServicePrincipal": ["AppId", "ObjectId", "ServiceId", "DisplayName"],
+  "New-ManagementScope": ["Name", "RecipientRestrictionFilter"],
+  "New-ManagementRoleAssignment": ["App", "Role", "CustomResourceScope", "Name"],
+  "Remove-ManagementRoleAssignment": ["Identity"],
+  "Test-ServicePrincipalAuthorization": ["Identity", "Resource"],
+  "Test-ApplicationAccessPolicy": ["Identity", "AppId"],
+  "Enable-OrganizationCustomization": [],
+  "Set-AdminAuditLogConfig": ["UnifiedAuditLogIngestionEnabled"],
+  "Set-MailboxJunkEmailConfiguration": ["Identity", "TrustedSendersAndDomains", "BlockedSendersAndDomains"]
+}
