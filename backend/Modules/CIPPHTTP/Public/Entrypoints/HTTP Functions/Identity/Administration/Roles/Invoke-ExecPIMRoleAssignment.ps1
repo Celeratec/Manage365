@@ -86,12 +86,40 @@ function Invoke-ExecPIMRoleAssignment {
         return (& $Fail 'Supply either Duration or EndDateTime, not both.')
     }
 
+    $ResolvedScope = if ([string]::IsNullOrWhiteSpace($DirectoryScopeId)) { '/' } else { $DirectoryScopeId }
+    # Refuse an over-long or already-finished window before PIM is called. New-CIPPPIMScheduleRequest
+    # is the same check the assignment builder uses, so the 400 text stays in one place.
+    if ($Action -ne 'Remove' -and ((-not [string]::IsNullOrWhiteSpace($Duration)) -or ($null -ne $EndDateTime))) {
+        $ScheduleKind = if ($Action -in @('GrantEligible', 'ConvertToEligible')) { 'Eligibility' } else { 'Assignment' }
+        $ScheduleAction = switch ($Action) {
+            'Extend' { 'adminExtend' }
+            'Renew' { 'adminRenew' }
+            default { 'adminAssign' }
+        }
+        $ScheduleParams = @{
+            Kind             = $ScheduleKind
+            Action           = $ScheduleAction
+            PrincipalId      = $PrincipalId
+            RoleDefinitionId = $RoleDefinitionId
+            DirectoryScopeId = $ResolvedScope
+            Justification    = $Justification
+        }
+        if (-not [string]::IsNullOrWhiteSpace($Duration)) { $ScheduleParams.Duration = $Duration }
+        if ($null -ne $EndDateTime) { $ScheduleParams.EndDateTime = $EndDateTime }
+        if ($null -ne $StartDateTime) { $ScheduleParams.StartDateTime = $StartDateTime }
+        try {
+            $null = New-CIPPPIMScheduleRequest @ScheduleParams
+        } catch {
+            return (& $Fail $_.Exception.Message)
+        }
+    }
+
     $Params = @{
         TenantFilter     = $TenantFilter
         Action           = $Action
         PrincipalId      = $PrincipalId
         RoleDefinitionId = $RoleDefinitionId
-        DirectoryScopeId = if ([string]::IsNullOrWhiteSpace($DirectoryScopeId)) { '/' } else { $DirectoryScopeId }
+        DirectoryScopeId = $ResolvedScope
         Justification    = $Justification
         Headers          = $Headers
         APIName          = $APIName

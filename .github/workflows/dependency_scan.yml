@@ -22,6 +22,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
       # Node version comes from frontend/package.json `engines.node` so CI can
       # never drift from what the app declares it supports.
       - name: Use Node.js from package.json engines
@@ -33,4 +35,13 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
       - name: Audit for high/critical vulnerabilities
-        run: yarn audit --level high
+        # Yarn 1 ignores --level for the exit code. The code is a bitfield:
+        # 1 info, 2 low, 4 moderate, 8 high, 16 critical. Fail only on high or critical.
+        run: |
+          set +e
+          yarn audit --level high
+          code=$?
+          set -e
+          if [ $((code & 24)) -ne 0 ]; then
+            exit "$code"
+          fi

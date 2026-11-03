@@ -18,7 +18,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApiGetCall, ApiPostCall } from "../../api/ApiCall";
 import { useRouter } from "next/router";
 import extensions from "../../data/Extensions.json";
-import { useEffect } from "react";
 import { CippDataTable } from "../CippTable/CippDataTable";
 import { CippFormTenantSelector } from "../CippComponents/CippFormTenantSelector";
 import { CippFormComponent } from "../CippComponents/CippFormComponent";
@@ -29,6 +28,7 @@ const CippIntegrationSettings = ({ children }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [tableData, setTableData] = useState([]);
+  const [seenServerRows, setSeenServerRows] = useState(null);
 
   const mappings = ApiGetCall({
     url: "/api/ExecExtensionMapping",
@@ -168,6 +168,30 @@ const CippIntegrationSettings = ({ children }) => {
   const tenantSyncExtensions = ["NinjaOne", "Hudu"];
 
   const actions = [
+    ...(extension?.id === "Hudu"
+      ? [
+          {
+            label: "Exclude password data (LAPS/BitLocker)",
+            icon: (
+              <SvgIcon>
+                <CippIcons.Key />
+              </SvgIcon>
+            ),
+            condition: (row) => row?.SyncPasswords !== false,
+            customFunction: (row) => setSyncPasswords(row, false),
+          },
+          {
+            label: "Include password data",
+            icon: (
+              <SvgIcon>
+                <CippIcons.Key />
+              </SvgIcon>
+            ),
+            condition: (row) => row?.SyncPasswords === false,
+            customFunction: (row) => setSyncPasswords(row, true),
+          },
+        ]
+      : []),
     ...(tenantSyncExtensions.includes(extension?.id)
       ? [
           {
@@ -196,11 +220,31 @@ const CippIntegrationSettings = ({ children }) => {
     return Array.isArray(tableData) ? tableData.map((item) => item.TenantId) : [];
   }, [tableData]);
 
-  useEffect(() => {
-    if (mappings.isSuccess) {
-      setTableData(mappings.data.Mappings ?? []);
-    }
-  }, [mappings.isSuccess]);
+  const serverRows =
+    mappings.isSuccess && Array.isArray(mappings.data?.Mappings) ? mappings.data.Mappings : null;
+  if (serverRows && serverRows !== seenServerRows) {
+    setSeenServerRows(serverRows);
+    setTableData((current) => {
+      const rows = Array.isArray(current) ? current : [];
+      const serverIds = new Set(serverRows.map((row) => row?.TenantId).filter(Boolean));
+      const localOnly = rows.filter((row) => row?.TenantId && !serverIds.has(row.TenantId));
+      const next = [...serverRows, ...localOnly];
+      if (next.length === rows.length && next.every((row, index) => row === rows[index])) {
+        return current;
+      }
+      return next;
+    });
+  }
+
+  const setSyncPasswords = (row, value) => {
+    const target = Array.isArray(row) ? row[0] : row;
+    if (!target?.TenantId) return;
+    setTableData((rows) =>
+      rows.map((item) =>
+        item.TenantId === target.TenantId ? { ...item, SyncPasswords: value } : item
+      )
+    );
+  };
 
   return (
     <>
@@ -321,7 +365,11 @@ const CippIntegrationSettings = ({ children }) => {
                 reportTitle={`${extension.id}-tenant-map`}
                 data={tableData}
                 simple={false}
-                simpleColumns={["IntegrationName", "Tenant", "TenantDomain"]}
+                simpleColumns={
+                  extension.id === "Hudu"
+                    ? ["IntegrationName", "Tenant", "TenantDomain", "SyncPasswords"]
+                    : ["IntegrationName", "Tenant", "TenantDomain"]
+                }
                 isFetching={mappings.isFetching}
                 refreshFunction={() => mappings.refetch()}
               />
