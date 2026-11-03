@@ -42,9 +42,13 @@ function Invoke-EditTeamsSettings {
                     
                     $parsed = @()
                     $wasNonEmptyArray = $false
-                    if ($null -ne $RawInput -and $RawInput -ne '') {
+                    # Process non-null, non-empty-string input
+                    if ($null -ne $RawInput) {
                         if ($RawInput -is [string]) {
-                            $parsed = $RawInput -split '[,;\s]+' | Where-Object { $_ -ne '' }
+                            # Only process non-empty strings
+                            if ($RawInput -ne '') {
+                                $parsed = $RawInput -split '[,;\s]+' | Where-Object { $_ -ne '' }
+                            }
                         } elseif ($RawInput -is [array]) {
                             $wasNonEmptyArray = $true
                             foreach ($item in $RawInput) {
@@ -206,6 +210,13 @@ function Invoke-EditTeamsSettings {
                     }
                     'AllowSpecificExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
+                        
+                        # Type-check federationAllowedDomains before other validation
+                        if ($null -ne $Request.Body.federationAllowedDomains -and 
+                            $Request.Body.federationAllowedDomains -isnot [string] -and 
+                            $Request.Body.federationAllowedDomains -isnot [array]) {
+                            throw "Invalid federationAllowedDomains: expected string or array, got $($Request.Body.federationAllowedDomains.GetType().Name)"
+                        }
                         
                         # federationAllowedDomains is required and must be provided
                         if (-not (Test-DomainFieldProvided -Value $Request.Body.federationAllowedDomains)) {
