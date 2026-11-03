@@ -23,18 +23,60 @@ function Invoke-EditTeamsSettings {
 
         switch ($Section) {
             'federation' {
-                # Establish Teams session first (required before calling New-CsEdgeAllowAllKnownDomains
-                # which uses the Teams ConfigAPI and requires an active connection)
-                $null = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
+                # Establish Teams session first and get current configuration
+                $CurrentConfig = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
 
-                # Now build federation configuration parameters
+                # Parse federationMode (can be string or object with label/value)
                 $FederationMode = $Request.Body.federationMode
+                if ($FederationMode -is [PSCustomObject] -or $FederationMode -is [hashtable]) {
+                    $FederationMode = $FederationMode.value
+                }
+
+                # Helper function to parse and validate domains
+                function ConvertTo-DomainList {
+                    param([object]$Input)
+                    
+                    $domains = @()
+                    if ($null -eq $Input -or $Input -eq '') {
+                        return $domains
+                    }
+                    
+                    if ($Input -is [string]) {
+                        $domains = $Input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+                    } elseif ($Input -is [array]) {
+                        $domains = $Input | ForEach-Object { 
+                            if ($_ -is [string]) { $_.Trim() } else { $_ }
+                        } | Where-Object { $_ -ne '' }
+                    } else {
+                        $domains = @($Input)
+                    }
+                    
+                    # Validate domain format and deduplicate
+                    $validDomains = @()
+                    $domainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+                    foreach ($domain in $domains) {
+                        $domain = $domain.ToLower()
+                        if ($domain -match $domainRegex -and $domain -notin $validDomains) {
+                            $validDomains += $domain
+                        }
+                    }
+                    
+                    return $validDomains
+                }
+
+                # Build federation configuration parameters
                 $cmdParams = @{
                     Identity            = 'Global'
                     AllowFederatedUsers = $true
-                    BlockedDomains      = @()
                 }
+                
+                # Preserve existing BlockedDomains unless explicitly changed
+                if ($CurrentConfig.BlockedDomains) {
+                    $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
+                }
+
                 $AllowedDomainsAsAList = @()
+                $ExpectedAllowedDomains = @()
 
                 switch ($FederationMode) {
                     'AllowAllExternal' {
@@ -45,18 +87,22 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                     }
                     'AllowSpecificExternal' {
-                        $AllowedDomainsAsAList = @($Request.Body.federationAllowedDomains)
+                        $AllowedDomainsAsAList = ConvertTo-DomainList -Input $Request.Body.federationAllowedDomains
+                        $ExpectedAllowedDomains = $AllowedDomainsAsAList
+                        if ($AllowedDomainsAsAList.Count -eq 0) {
+                            throw 'AllowSpecificExternal mode requires at least one allowed domain.'
+                        }
                     }
                     'BlockSpecificExternal' {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
-                        $BlockedDomains = @($Request.Body.federationBlockedDomains)
-                        if ($BlockedDomains.Count -gt 0) {
-                            $cmdParams['BlockedDomains'] = $BlockedDomains
+                        $BlockedDomainsList = ConvertTo-DomainList -Input $Request.Body.federationBlockedDomains
+                        if ($BlockedDomainsList.Count -gt 0) {
+                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
                         }
                     }
                 }
 
-                # Use AllowedDomainsAsAList for specific domain lists, AllowedDomains for the allow-all object
+                # Use AllowedDomainsAsAList for specific domain lists
                 if ($AllowedDomainsAsAList.Count -gt 0) {
                     $cmdParams.Remove('AllowedDomains')
                     $cmdParams['AllowedDomainsAsAList'] = $AllowedDomainsAsAList
@@ -66,7 +112,57 @@ function Invoke-EditTeamsSettings {
                     $cmdParams['AllowTeamsConsumer'] = [bool]$Request.Body.allowTeamsConsumer
                 }
 
+                # Apply the configuration
                 New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Set-CsTenantFederationConfiguration' -CmdParams $cmdParams
+
+                # Verify the configuration was applied correctly
+                $VerifyConfig = New-TeamsRequest -TenantFilter $TenantFilter -Cmdlet 'Get-CsTenantFederationConfiguration' -CmdParams @{ Identity = 'Global' }
+                
+                $verificationFailed = $false
+                $verificationErrors = @()
+
+                # Verify AllowFederatedUsers
+                if ($VerifyConfig.AllowFederatedUsers -ne $cmdParams.AllowFederatedUsers) {
+                    $verificationFailed = $true
+                    $verificationErrors += "AllowFederatedUsers: expected $($cmdParams.AllowFederatedUsers), got $($VerifyConfig.AllowFederatedUsers)"
+                }
+
+                # Verify allowed domains for AllowSpecificExternal mode
+                if ($FederationMode -eq 'AllowSpecificExternal') {
+                    $actualAllowedDomains = @()
+                    if ($VerifyConfig.AllowedDomains -and $VerifyConfig.AllowedDomains.Domain) {
+                        $actualAllowedDomains = @($VerifyConfig.AllowedDomains.Domain) | Sort-Object
+                    }
+                    $expectedSorted = $ExpectedAllowedDomains | Sort-Object
+                    
+                    if ($actualAllowedDomains.Count -ne $expectedSorted.Count) {
+                        $verificationFailed = $true
+                        $verificationErrors += "AllowedDomains count: expected $($expectedSorted.Count), got $($actualAllowedDomains.Count)"
+                    } else {
+                        for ($i = 0; $i -lt $expectedSorted.Count; $i++) {
+                            if ($actualAllowedDomains[$i] -ne $expectedSorted[$i]) {
+                                $verificationFailed = $true
+                                $verificationErrors += "AllowedDomains mismatch at index $i"
+                                break
+                            }
+                        }
+                    }
+                }
+
+                # Verify AllowTeamsConsumer if it was set
+                if ($null -ne $Request.Body.allowTeamsConsumer) {
+                    $expectedTeamsConsumer = [bool]$Request.Body.allowTeamsConsumer
+                    if ($VerifyConfig.AllowTeamsConsumer -ne $expectedTeamsConsumer) {
+                        $verificationFailed = $true
+                        $verificationErrors += "AllowTeamsConsumer: expected $expectedTeamsConsumer, got $($VerifyConfig.AllowTeamsConsumer)"
+                    }
+                }
+
+                if ($verificationFailed) {
+                    $errorDetail = $verificationErrors -join '; '
+                    throw "Federation configuration verification failed: $errorDetail"
+                }
+
                 $Results.Add('Successfully updated federation configuration.')
 
                 # Update External Access Policy
