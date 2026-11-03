@@ -7,6 +7,8 @@ function Invoke-ExecAppRegistration {
     .DESCRIPTION
         Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.
     #>
+    # Graph addPassword returns the client secret as a string. Key Vault accepts only a SecureString.
+    [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'Graph returns the new client secret as a string and Key Vault accepts only a SecureString.')]
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
@@ -84,10 +86,15 @@ function Invoke-ExecAppRegistration {
         $VaultName = Get-CippKeyVaultName
         $SecretName = "appreg-$($App.appId)-$KeyId"
         $Secure = ConvertTo-SecureString -String $Generated -AsPlainText -Force
-        Set-CippKeyVaultSecret -VaultName $VaultName -Name $SecretName -SecretValue $Secure
+        try {
+            Set-CippKeyVaultSecret -VaultName $VaultName -Name $SecretName -SecretValue $Secure
+        } finally {
+            if ($Secure) { $Secure.Dispose() }
+            $Secure = $null
+            $Generated = $null
+            $Added = $null
+        }
         $Delivery = @{ Type = 'KeyVaultReference'; SecretUri = "https://$VaultName.vault.azure.net/secrets/$SecretName"; ExpiresAt = $End }
-        $Generated = $null
-        $Added = $null
     }
 
     $After = [pscustomobject]@{

@@ -15585,7 +15585,7 @@
         "tags": [
           "Tenant > Applications"
         ],
-        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.",
+        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.\n\nGraph addPassword returns the client secret as a string. Key Vault accepts only a SecureString.",
         "requestBody": {
           "required": false,
           "content": {
@@ -34140,6 +34140,9 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -34148,6 +34151,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
@@ -36339,12 +36345,14 @@
                     "type": "string"
                   },
                   "userId": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Prefer object ID (GUID) over UPN when available"
                   },
                   "userPrincipalName": {
-                    "type": "string",
-                    "description": "Guest user handling"
+                    "type": "string"
                   }
                 },
                 "required": [
