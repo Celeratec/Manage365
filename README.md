@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.24) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.28) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.24** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.28** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -40,6 +40,22 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 | Local: SWA CLI + Azurite + multiple function hosts | `build/docker-compose-all.yml` (Azurite + Craft on :5196) |
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+
+## Release 6.1.28 (November 2026)
+
+Allowlisted tenant writes stay off until the **Guarded tenant writes** flag is enabled. `ExecGraphWrite`, `ExecExoAllowlistedCmdlet`, `ExecTeamsAppUpload`, `ExecPermissionGrantPreApproval`, `ExecAppRegistration`, and `ExecSecurityDefaults` require a 6 to 8 digit ticket, support `WhatIf`, and write an audit row. App-registration secrets are stored in Key Vault and are not returned. Graph and Exchange calls are rejected unless they match `backend/Config/GuardedWrites`. Quarantine search accepts the Exchange date, sender, recipient, and type names and rejects a range longer than 30 days. A Conditional Access full save refuses to drop grant controls, session controls, conditions, or excluded users and groups unless `ConfirmRemoval` names those fields. Mailbox permission errors return 500 when every change fails and 207 when only some do. JIT admin push is sent only when CIPP-NG is on. The offboarding wizard can remove group ownership. CIPP baseline stays **11.2.1**.
+
+## Release 6.1.27 (November 2026)
+
+Managed tenants can change preset security policies, custom anti-spam, anti-phish, and anti-malware policies, inbound-connector Enhanced Filtering, mailbox junk senders, and Focused Inbox from Manage365. Each write snapshots the current configuration, requires a numeric ticket ID, supports `dryRun`, returns a rollback payload, and refuses a preset or custom policy change that weakens protection unless `allowWeakerProtection` is set. Adding a mailbox safe sender merges into the current list. A failure on that call returns 400. CIPP baseline stays **11.2.1**.
+
+## Release 6.1.26 (November 2026)
+
+Connection-filter and template IP blocks cannot include the tenant's own mail-relay addresses. GitHub Actions pins and workflow auth were tightened after the Aikido review. CIPP baseline stays **11.2.1**.
+
+## Release 6.1.25 (October 2026)
+
+Mailbox archive messages can be moved back to the primary mailbox. `ExecPerUserMFA` changes per-user MFA state. The frontend build is on Next 16.4.3. CIPP baseline stays **11.2.1**.
 
 ## Release 6.1.24 (October 2026)
 
@@ -545,6 +561,8 @@ Manage365 extends the upstream quarantine list with a Defender-style portal expe
 - `ListMailQuarantine`, `GetMailQuarantineMessage`, `ExportMailQuarantine`, extended `ExecQuarantineManagement`, `ExecEmailTroubleshoot`
 - `ExecMailboxSafeSender` -- adds one mailbox safe sender by merging it into the current list (API only; no UI yet). `TrustedSendersToAdd` is not used; that parameter fails through the Exchange REST proxy.
 - Mail filter writes -- `ExecPresetSecurityPolicy`, `ExecCustomMailFilterPolicy`, `ExecInboundConnectorEnhancedFiltering`, `ExecMailboxJunkConfiguration`, and `ExecFocusedInbox`. Each snapshots the current config, requires a numeric ticket ID, supports `dryRun`, returns a rollback payload, and refuses a preset or custom policy change that weakens protection unless `allowWeakerProtection` is set. See [docs/api-documentation/mail-filter-writes.md](docs/api-documentation/mail-filter-writes.md).
+- Quarantine queries accept `StartReceivedDate`, `EndReceivedDate`, `SenderAddress`, `RecipientAddress`, and `QuarantineTypes`. The default window is still 7 days. A range longer than 30 days is rejected.
+- Guarded tenant writes -- `ExecGraphWrite`, `ExecExoAllowlistedCmdlet`, `ExecTeamsAppUpload`, `ExecPermissionGrantPreApproval`, `ExecAppRegistration`, and `ExecSecurityDefaults`, plus `ListPermissionGrantPreApproval`, `ListSecurityDefaults`, and `ListUserAuthMethods`. Off until the Guarded tenant writes flag is enabled. See [docs/api-documentation/guarded-writes.md](docs/api-documentation/guarded-writes.md).
 - AllTenants cache paginates up to 5 × 1,000 rows per tenant (30-day window)
 - Feature matrix and API limits: [docs/upstream-sync/QUARANTINE_FEATURES.md](docs/upstream-sync/QUARANTINE_FEATURES.md)
 

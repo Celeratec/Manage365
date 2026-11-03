@@ -24,7 +24,7 @@ function Invoke-ListMailQuarantine {
                 page     = $Request.Query.page
                 nextLink = $Request.Query.nextLink
             }
-            foreach ($Key in @('days', 'startDate', 'endDate', 'sender', 'recipient', 'messageId', 'subject', 'subjectExact', 'quarantineType', 'releaseStatus', 'policyTypes', 'policyName', 'senderDomain', 'recipientDomain', 'entityType')) {
+            foreach ($Key in @('days', 'startDate', 'endDate', 'StartReceivedDate', 'EndReceivedDate', 'sender', 'recipient', 'SenderAddress', 'RecipientAddress', 'messageId', 'subject', 'subjectExact', 'quarantineType', 'QuarantineTypes', 'releaseStatus', 'policyTypes', 'policyName', 'senderDomain', 'recipientDomain', 'entityType')) {
                 if ($null -ne $Request.Query.$Key) {
                     $Input[$Key] = $Request.Query.$Key
                 }
@@ -114,6 +114,8 @@ function Invoke-ListMailQuarantine {
         # clients and monitoring from treating them as retryable.
         $StatusCode = if ($ErrorMessage -match 'not authorized|access.*denied|unauthorized|permission') {
             [HttpStatusCode]::Forbidden
+        } elseif ($ErrorMessage -match 'at most 30 days|must be on or after') {
+            [HttpStatusCode]::BadRequest
         } else {
             [HttpStatusCode]::InternalServerError
         }

@@ -109,5 +109,23 @@
     "Endpoints": [],
     "Pages": [],
     "Hidden": true
+  },
+  {
+    "Id": "GuardedTenantWrites",
+    "Name": "Guarded tenant writes",
+    "Description": "Allowlisted Graph, Exchange, Teams, and app-registration writes. Off until an administrator enables the flag. Each call still requires a ticket number.",
+    "Enabled": false,
+    "AllowUserToggle": true,
+    "Timers": [],
+    "Endpoints": [
+      "ExecGraphWrite",
+      "ExecExoAllowlistedCmdlet",
+      "ExecSecurityDefaults",
+      "ExecTeamsAppUpload",
+      "ExecPermissionGrantPreApproval",
+      "ExecAppRegistration"
+    ],
+    "Pages": [],
+    "Hidden": false
   }
 ]

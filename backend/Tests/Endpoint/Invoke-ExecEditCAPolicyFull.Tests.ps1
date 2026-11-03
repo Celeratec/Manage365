@@ -20,7 +20,22 @@ BeforeAll {
 
     # The canonicalizer is the real one - that is the behaviour under test.
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Functions/Format-CIPPCAPolicy.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/ConditionalAccess/Merge-CIPPCAPolicyUpdate.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/ConditionalAccess/Test-CIPPCAPolicyRemoval.ps1')
 
+    function New-GraphGetRequest {
+        [CmdletBinding()] param($uri, $tenantid, $asApp, $noPagination)
+        if ($script:CurrentPolicy) { return $script:CurrentPolicy }
+        [pscustomobject]@{
+            id              = 'policy-guid'
+            displayName     = 'CA201'
+            grantControls   = $null
+            sessionControls = $null
+            conditions      = [pscustomobject]@{
+                users = [pscustomobject]@{ excludeUsers = @(); excludeGroups = @() }
+            }
+        }
+    }
     function New-GraphPOSTRequest {
         [CmdletBinding()] param($uri, $tenantid, $type, $body, $asApp)
         $script:LastPatch = @{ Uri = $uri; Type = $type; Body = $body }
@@ -43,11 +58,13 @@ BeforeAll {
             }
         }
         $Response = Invoke-ExecEditCAPolicyFull -Request $Request
-        return @{ Response = $Response; Sent = ($script:LastPatch.Body | ConvertFrom-Json) }
+        $Sent = if ($script:LastPatch.Body) { $script:LastPatch.Body | ConvertFrom-Json } else { $null }
+        return @{ Response = $Response; Sent = $Sent }
     }
 }
 
 Describe 'Invoke-ExecEditCAPolicyFull' {
+    BeforeEach { $script:CurrentPolicy = $null }
 
     Context 'a policy whose blocks the editor emptied' {
         BeforeAll {
@@ -144,6 +161,57 @@ Describe 'Invoke-ExecEditCAPolicyFull' {
             $Names | Should -Not -Contain 'id'
             $Names | Should -Not -Contain 'createdDateTime'
             $Names | Should -Not -Contain 'templateId'
+        }
+    }
+
+    Context 'protected fields' {
+        It 'refuses a partial body that would drop excluded users' {
+            $script:CurrentPolicy = [pscustomobject]@{
+                id            = 'policy-guid'
+                displayName   = 'CA201'
+                grantControls = [pscustomobject]@{ operator = 'OR'; builtInControls = @('mfa') }
+                conditions    = [pscustomobject]@{
+                    users = [pscustomobject]@{ includeUsers = @('All'); excludeUsers = @('breakglass@contoso.com'); excludeGroups = @() }
+                }
+            }
+            $Result = Invoke-Edit @{
+                displayName = 'CA201'
+                conditions  = @{ users = @{ includeUsers = @('All'); excludeUsers = @() } }
+            }
+            $script:CurrentPolicy = $null
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+            $Result.Response.Body.Results | Should -Match 'excludeUsers'
+            $script:LastPatch | Should -BeNullOrEmpty
+        }
+
+        It 'drops excluded users only when ConfirmRemoval names that field' {
+            $script:CurrentPolicy = [pscustomobject]@{
+                id            = 'policy-guid'
+                displayName   = 'CA201'
+                grantControls = [pscustomobject]@{ operator = 'OR'; builtInControls = @('mfa') }
+                conditions    = [pscustomobject]@{
+                    users = [pscustomobject]@{ includeUsers = @('All'); excludeUsers = @('breakglass@contoso.com'); excludeGroups = @() }
+                }
+            }
+            $script:LastPatch = $null
+            $Request = @{
+                Params  = @{ CIPPEndpoint = 'ExecEditCAPolicyFull' }
+                Headers = @{}
+                Query   = @{}
+                Body    = [pscustomobject]@{
+                    tenantFilter   = 'contoso.onmicrosoft.com'
+                    PolicyId       = 'policy-guid'
+                    ConfirmRemoval = @('excludeUsers')
+                    PolicyBody     = (@{
+                            displayName = 'CA201'
+                            conditions  = @{ users = @{ includeUsers = @('All'); excludeUsers = @() } }
+                        } | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
+                }
+            }
+            $Response = Invoke-ExecEditCAPolicyFull -Request $Request
+            $script:CurrentPolicy = $null
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            ($script:LastPatch.Body | ConvertFrom-Json).conditions.users.excludeUsers | Should -BeNullOrEmpty
         }
     }
 

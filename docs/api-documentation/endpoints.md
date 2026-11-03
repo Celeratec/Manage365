@@ -34,6 +34,8 @@ Open it while signed in to CIPP and save the file, then import it into Postman, 
 
 Preset security policies, custom anti-spam, anti-phish, and anti-malware policies, inbound-connector Enhanced Filtering, mailbox junk senders, and Focused Inbox are changed through the write endpoints in [Mail filter writes](mail-filter-writes.md). Each one snapshots the current configuration, requires a ticket ID, can run as a dry run, and returns a rollback payload.
 
+Allowlisted Graph and Exchange writes, Teams app upload, app registration, security defaults, and permission-grant pre-approval are described in [Guarded tenant writes](guarded-writes.md). Those endpoints stay off until the GuardedTenantWrites feature flag is enabled.
+
 ## Finding the endpoint behind a page
 
 If you are not sure which call sits behind something you do in CIPP, open your browser's developer tools, switch to the Network tab, and perform the action. The request name matches the endpoint in the reference, so you can look it up there and see its full parameters.

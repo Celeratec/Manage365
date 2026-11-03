@@ -492,6 +492,7 @@
 * [Setup & Authentication](api-documentation/setup-and-authentication.md)
 * [Endpoints](api-documentation/endpoints.md)
 * [Mail filter writes](api-documentation/mail-filter-writes.md)
+* [Guarded tenant writes](api-documentation/guarded-writes.md)
 
 ## MSP Adoption Toolkit
 

@@ -54,15 +54,34 @@ Describe 'Build-CIPPQuarantineQueryParams' {
     It 'maps explicit start and end dates' {
         $testInput = @{
             startDate = '2026-01-01T00:00:00Z'
-            endDate   = '2026-01-31T23:59:59Z'
+            endDate   = '2026-01-30T23:59:59Z'
         }
         $splat = @{ QueryInput = $testInput }
         $result = Build-CIPPQuarantineQueryParams @splat
 
         $result.CmdParams.StartReceivedDate.ToString('yyyy-MM-dd') | Should -Be '2026-01-01'
-        $result.CmdParams.EndReceivedDate.ToString('yyyy-MM-dd') | Should -Be '2026-01-31'
+        $result.CmdParams.EndReceivedDate.ToString('yyyy-MM-dd') | Should -Be '2026-01-30'
         $result.AppliedFilters.startDate | Should -Not -BeNullOrEmpty
         $result.AppliedFilters.endDate | Should -Not -BeNullOrEmpty
+    }
+
+    It 'accepts the Exchange parameter names and rejects a range past 30 days' {
+        $aliased = Build-CIPPQuarantineQueryParams -QueryInput @{
+            StartReceivedDate = '2026-02-01T00:00:00Z'
+            EndReceivedDate   = '2026-02-20T00:00:00Z'
+            SenderAddress     = 'sender@contoso.com'
+            RecipientAddress  = 'user@contoso.com'
+            QuarantineTypes   = 'Spam'
+        }
+        $aliased.CmdParams.SenderAddress | Should -Be @('sender@contoso.com')
+        $aliased.CmdParams.RecipientAddress | Should -Be @('user@contoso.com')
+        $aliased.CmdParams.QuarantineTypes | Should -Be @('Spam')
+
+        { Build-CIPPQuarantineQueryParams -QueryInput @{ days = 31 } } | Should -Throw '*30 days*'
+        { Build-CIPPQuarantineQueryParams -QueryInput @{
+                StartReceivedDate = '2026-01-01T00:00:00Z'
+                EndReceivedDate   = '2026-03-01T00:00:00Z'
+            } } | Should -Throw '*30 days*'
     }
 
     It 'maps sender and recipient values with guest UPN encoding' {
