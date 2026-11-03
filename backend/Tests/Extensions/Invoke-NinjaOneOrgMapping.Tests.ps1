@@ -162,17 +162,39 @@ Describe 'Invoke-NinjaOneOrgMapping device matching thresholds' {
 }
 
 
-Describe 'Invoke-NinjaOneOrgMapping mobile OS regex' {
-    It 'matches iOS, iPadOS, and Android operating systems (case-insensitive)' {
-        $Pattern = 'ios|ipados|android'
-        'ios' -match $Pattern | Should -BeTrue
-        'iOS' -match $Pattern | Should -BeTrue
-        'ipados' -match $Pattern | Should -BeTrue
-        'iPadOS' -match $Pattern | Should -BeTrue
-        'android' -match $Pattern | Should -BeTrue
-        'Android' -match $Pattern | Should -BeTrue
-        'windows' -match $Pattern | Should -BeFalse
-        'macos' -match $Pattern | Should -BeFalse
+Describe 'Invoke-NinjaOneOrgMapping mobile OS exclusion' {
+    BeforeAll {
+        $script:Added = [System.Collections.Generic.List[object]]::new()
+        $script:IntuneDevices = @{
+            'mobile.test' = @(
+                @{ deviceName = 'WIN-PC'; serialNumber = 'W1'; operatingSystem = 'Windows' }
+                @{ deviceName = 'MAC-1'; serialNumber = 'M1'; operatingSystem = 'macOS' }
+                @{ deviceName = 'iPhone'; serialNumber = 'I1'; operatingSystem = 'iOS' }
+                @{ deviceName = 'iPad'; serialNumber = 'P1'; operatingSystem = 'iPadOS' }
+                @{ deviceName = 'Android'; serialNumber = 'A1'; operatingSystem = 'Android' }
+            )
+        }
+        $script:Orgs = @(@{ id = 30; name = 'Mobile Test Org' })
+        $script:NinjaDevices = @(
+            @{ id = 300; organizationId = 30; systemName = 'WIN-PC'; nodeClass = 'WINDOWS_WORKSTATION'; system = @{ serialNumber = 'W1' } }
+            @{ id = 301; organizationId = 30; systemName = 'MAC-1'; nodeClass = 'MAC'; system = @{ serialNumber = 'M1' } }
+        )
+        Mock Invoke-WebRequest {
+            $Data = if ($Uri -like '*/organizations?*') { $script:Orgs } else { $script:NinjaDevices }
+            [pscustomobject]@{ content = (ConvertTo-Json -InputObject @($Data) -Depth 5 -Compress) }
+        }
+        Mock Get-Tenants {
+            @([pscustomobject]@{ customerId = 't30'; displayName = 'Mobile Test'; defaultDomainName = 'mobile.test' })
+        }
+        Invoke-NinjaOneOrgMapping
+        $script:ByTenant = @{}
+        foreach ($Row in $script:Added) { $script:ByTenant[$Row.RowKey] = $Row.IntegrationId }
+    }
+
+    It 'excludes iOS, iPadOS, and Android from device total, keeping only Windows and macOS' {
+        # Should match: 2 devices (Windows, macOS) out of 2 counted = 100% match
+        # Would NOT match if all 5 devices were counted: 2 out of 5 = 40% < 50%
+        $script:ByTenant['t30'] | Should -Be '30' -Because 'iOS, iPadOS, and Android are excluded from majority calculation'
     }
 }
 

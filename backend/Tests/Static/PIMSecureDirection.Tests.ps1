@@ -196,6 +196,10 @@ BeforeAll {
                             $ArgValue = $Inner.Extent.Text -replace '["''\s+()]', ''
                         }
                     }
+                    # Fallback: catch named parameters and other parenthesized forms
+                    if (-not $ArgValue) {
+                        $ArgValue = ($Cmd.Extent.Text -replace '["''\s+()]', '')
+                    }
                     if ($ArgValue -and $Pattern.IsMatch($ArgValue)) {
                         $FullLine = $Lines[$LineNum - 1]
                         if ($FullLine -notmatch 'PIM-VALIDATION-ONLY') {
@@ -421,13 +425,28 @@ Write-Host "test"
         $SubExpr = '& $(Get-Command New-CIPPPIM*) -Kind adminAssign'
         $Offenders19 = & $script:FindDirectPIMCalls $SubExpr 'test19.ps1'
         $Offenders19.Count | Should -Be 1 -Because 'subexpression form is detected'
+
+        # Test 20 (Round 7 blocker R7-1a): DETECTED - iex with named parameter -Command
+        $IexNamed = "iex -Command 'New-CIPPPIMScheduleRequest -Kind adminAssign'"
+        $Offenders20 = & $script:FindDirectPIMCalls $IexNamed 'test20.ps1'
+        $Offenders20.Count | Should -Be 1 -Because 'iex with named -Command parameter is detected'
+
+        # Test 21 (Round 7 blocker R7-1b): DETECTED - Invoke-Expression with named parameter and concatenation
+        $InvokeExpressionNamed = 'Invoke-Expression -Command ("New-CIPPPIM" + "ScheduleRequest")'
+        $Offenders21 = & $script:FindDirectPIMCalls $InvokeExpressionNamed 'test21.ps1'
+        $Offenders21.Count | Should -Be 1 -Because 'Invoke-Expression with named -Command and concatenation is detected'
+
+        # Test 22 (Round 7 blocker R7-1c): DETECTED - iex with parenthesized argument
+        $IexParenthesized = "iex ('New-CIPPPIMScheduleRequest -Kind adminAssign')"
+        $Offenders22 = & $script:FindDirectPIMCalls $IexParenthesized 'test22.ps1'
+        $Offenders22.Count | Should -Be 1 -Because 'iex with parenthesized argument is detected'
     }
 
     It 'fixture: FindScheduleRequestReferences detects URI patterns' {
-        # Test 1: '#' inside a string should NOT match (it's a comment character, not part of URI)
-        $HashInString = '$uri = "https://example.com#fragment"'
-        $Match1 = & $script:FindScheduleRequestReferences $HashInString 'test1.ps1'
-        $Match1 | Should -BeFalse -Because 'a hash inside a non-matching string should not trigger'
+        # Test 1: '#' in a comment should NOT match (comments are stripped before pattern matching)
+        $HashInComment = 'Write-Host "x" # roleAssignmentScheduleRequests'
+        $Match1 = & $script:FindScheduleRequestReferences $HashInComment 'test1.ps1'
+        $Match1 | Should -BeFalse -Because 'roleAssignmentScheduleRequests in a comment should not trigger'
 
         # Test 2: Interpolated URI with roleAssignmentScheduleRequests
         $InterpolatedUri = '$uri = "$Base/roleAssignmentScheduleRequests"'
