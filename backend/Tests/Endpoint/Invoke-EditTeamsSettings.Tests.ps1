@@ -180,12 +180,12 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
 
             $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
 
-            $result.StatusCode | Should -Be 200
-            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
-            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'valid.com'
-            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'also-valid.org'
-            $setCall.CmdParams.AllowedDomainsAsAList | Should -Not -Contain 'invalid..com'
-            $setCall.CmdParams.AllowedDomainsAsAList | Should -Not -Contain 'not@valid.com'
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid domains'
+            $result.Body.Results | Should -Match 'invalid\.\.'
+            $result.Body.Results | Should -Match 'not@valid'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
         }
 
         It 'handles 109-domain comma-separated string' {
@@ -566,6 +566,98 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
             $setCall.CmdParams.BlockedDomains | Should -Contain 'spam.com'
             $setCall.CmdParams.BlockedDomains | Should -Contain 'malicious.org'
+        }
+
+        It 'preserves existing BlockedDomains when empty string is sent (UI payload)' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        $config = [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowTeamsConsumer  = $lastSet.CmdParams.AllowTeamsConsumer
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                        }
+                        
+                        if ($lastSet.CmdParams.AllowedDomainsAsAList) {
+                            $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue ([PSCustomObject]@{
+                                Domain = $lastSet.CmdParams.AllowedDomainsAsAList
+                            })
+                        }
+                        
+                        return $config
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('spam.com')
+                            AllowTeamsConsumer  = $false
+                        }
+                    }
+                }
+            }
+
+            # Exact UI payload: sends empty string for federationBlockedDomains
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'AllowSpecificExternal'
+                federationAllowedDomains    = 'trusted.com'
+                federationBlockedDomains    = ''
+                enableFederationAccess      = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'spam.com'
+        }
+
+        It 'handles exact repro payload: 109 domains comma-separated with empty blocked string' {
+            $domains = 1..109 | ForEach-Object { "domain$_.com" }
+            $domainString = $domains -join ','
+
+            # Exact repro payload from Freshdesk 3277840
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'AllowSpecificExternal'
+                federationAllowedDomains    = $domainString
+                federationBlockedDomains    = ''
+                enableFederationAccess      = $true
+                allowTeamsConsumer          = $false
+                enableTeamsConsumerAccess   = $false
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 109
+        }
+
+        It 'handles federationMode as object (retry payload)' {
+            # Retry payload: federationMode as object
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = @{ label = 'Allow specific external domains'; value = 'AllowSpecificExternal' }
+                federationAllowedDomains    = 'a.com,b.com,c.com'
+                federationBlockedDomains    = ''
+                enableFederationAccess      = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 3
         }
     }
 }

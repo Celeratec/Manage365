@@ -12053,17 +12053,32 @@
                     "type": "boolean"
                   },
                   "federationAllowedDomains": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    }
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ],
+                    "description": "Comma/semicolon/space-separated string or array of domain names"
                   },
                   "federationBlockedDomains": {
-                    "type": "array",
-                    "items": {
-                      "type": "string"
-                    },
-                    "description": "Preserve existing BlockedDomains unless explicitly cleared"
+                    "oneOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        }
+                      }
+                    ],
+                    "description": "Comma/semicolon/space-separated string or array of domain names. Empty string preserves existing."
                   },
                   "federationMode": {
                     "allOf": [
@@ -12071,7 +12086,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "Parse and validate federationMode before any mutations"
+                    "description": "Federation mode: AllowAllExternal, BlockAllExternal, AllowSpecificExternal, or BlockSpecificExternal"
                   },
                   "meetingChatEnabledType": {
                     "type": "string"

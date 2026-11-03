@@ -126,14 +126,21 @@ function Invoke-EditTeamsSettings {
                 $ExpectedBlockedDomains = @()
                 $ExpectedAllowAllKnownDomains = $false
 
+                # Helper to check if a domain field was meaningfully provided (array or non-blank string)
+                function Test-DomainFieldProvided {
+                    param([object]$Value)
+                    return ($Value -is [array]) -or (($Value -is [string]) -and (-not [string]::IsNullOrWhiteSpace($Value)))
+                }
+
                 switch ($FederationMode) {
                     'AllowAllExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
-                        # Preserve existing BlockedDomains unless explicitly cleared
-                        if ($null -ne $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true
+                        
+                        # Preserve existing BlockedDomains unless explicitly provided
+                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
                             $ExpectedBlockedDomains = $BlockedDomainsList
                         } elseif ($CurrentConfig.BlockedDomains) {
@@ -150,16 +157,22 @@ function Invoke-EditTeamsSettings {
                     }
                     'AllowSpecificExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
-                        $AllowedDomainsAsAList = ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationAllowedDomains -FieldName 'federationAllowedDomains'
+                        
+                        # federationAllowedDomains is required and must be provided
+                        if (-not (Test-DomainFieldProvided -Value $Request.Body.federationAllowedDomains)) {
+                            throw 'AllowSpecificExternal mode requires federationAllowedDomains to be provided as a non-empty string or array.'
+                        }
+                        
+                        $AllowedDomainsAsAList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationAllowedDomains -FieldName 'federationAllowedDomains')
                         $ExpectedAllowedDomains = $AllowedDomainsAsAList
                         
                         if ($AllowedDomainsAsAList.Count -eq 0) {
                             throw 'AllowSpecificExternal mode requires at least one allowed domain.'
                         }
                         
-                        # Preserve existing BlockedDomains unless explicitly cleared
-                        if ($null -ne $Request.Body.federationBlockedDomains) {
-                            $BlockedDomainsList = ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true
+                        # Preserve existing BlockedDomains unless explicitly provided
+                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
                             $ExpectedBlockedDomains = $BlockedDomainsList
                         } elseif ($CurrentConfig.BlockedDomains) {
@@ -174,9 +187,17 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        $BlockedDomainsList = ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true
-                        $ExpectedBlockedDomains = $BlockedDomainsList
-                        $cmdParams['BlockedDomains'] = $BlockedDomainsList
+                        # federationBlockedDomains can be provided or omitted; empty array clears
+                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
+                            $ExpectedBlockedDomains = $BlockedDomainsList
+                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
+                        } elseif ($CurrentConfig.BlockedDomains) {
+                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
+                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
+                        } else {
+                            $ExpectedBlockedDomains = @()
+                        }
                     }
                 }
 
