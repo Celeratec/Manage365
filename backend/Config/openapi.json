@@ -12053,32 +12053,18 @@
                     "type": "boolean"
                   },
                   "federationAllowedDomains": {
-                    "oneOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ],
-                    "description": "Comma/semicolon/space-separated string or array of domain names"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "federationAllowedDomains is required and must be provided"
                   },
                   "federationBlockedDomains": {
-                    "oneOf": [
-                      {
-                        "type": "string"
-                      },
-                      {
-                        "type": "array",
-                        "items": {
-                          "type": "string"
-                        }
-                      }
-                    ],
-                    "description": "Comma/semicolon/space-separated string or array of domain names. Empty string preserves existing."
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Handle BlockedDomains: only [] clears, missing/null/'' preserves"
                   },
                   "federationMode": {
                     "allOf": [
@@ -12086,7 +12072,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "Federation mode: AllowAllExternal, BlockAllExternal, AllowSpecificExternal, or BlockSpecificExternal"
+                    "description": "Parse and validate federationMode before any mutations"
                   },
                   "meetingChatEnabledType": {
                     "type": "string"
