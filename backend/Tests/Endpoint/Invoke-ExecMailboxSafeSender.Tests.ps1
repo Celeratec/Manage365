@@ -35,6 +35,10 @@ BeforeAll {
 }
 
 Describe 'Invoke-ExecMailboxSafeSender' {
+    BeforeEach {
+        $script:SafeSenderWrites = @()
+    }
+
     It 'returns a success Results message when mailbox and sender are provided' {
         $request = [pscustomobject]@{
             Params  = @{ CIPPEndpoint = 'ExecMailboxSafeSender' }
@@ -52,5 +56,22 @@ Describe 'Invoke-ExecMailboxSafeSender' {
         $response.Body.Results | Should -Match 'Added sender@example.com'
         $script:SafeSenderWrites[0].Keys | Should -Not -Contain 'TrustedSendersToAdd'
         $script:SafeSenderWrites[0].TrustedSendersAndDomains | Should -Be @('keep@contoso.com', 'sender@example.com')
+    }
+
+    It 'returns BadRequest when mailbox is missing' {
+        $request = [pscustomobject]@{
+            Params  = @{ CIPPEndpoint = 'ExecMailboxSafeSender' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                sender       = 'sender@example.com'
+            }
+        }
+
+        $response = Invoke-ExecMailboxSafeSender -Request $request -TriggerMetadata $null
+
+        $response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+        $response.Body.Results | Should -Match 'Failed to add safe sender'
+        $script:SafeSenderWrites | Should -BeNullOrEmpty
     }
 }

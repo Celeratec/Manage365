@@ -39,7 +39,7 @@ function Invoke-ExecMailboxSafeSender {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to add safe sender for $Mailbox`: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Error'
-        $StatusCode = [HttpStatusCode]::OK
+        $StatusCode = [HttpStatusCode]::BadRequest
         $Body = @{ Results = $Result }
     }
 
