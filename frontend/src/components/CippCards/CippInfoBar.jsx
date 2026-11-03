@@ -1,4 +1,5 @@
 import React, { useState, Fragment } from 'react'
+import router from 'next/router'
 import { Box, Card, Stack, SvgIcon, Typography, Skeleton, Tooltip } from '@mui/material'
 import { Grid } from '@mui/system'
 import { CippOffCanvas } from '../CippComponents/CippOffCanvas'
@@ -14,9 +15,15 @@ export const CippInfoBar = ({ data, isFetching }) => {
           <Fragment key={item.name}>
             <Grid
               size={{ md: 3, sm: 6, xs: 12 }}
-              onClick={item.offcanvas ? () => setVisibleIndex(index) : undefined}
+              onClick={
+                item.offcanvas
+                  ? () => setVisibleIndex(index)
+                  : item.link
+                    ? () => router.push(item.link)
+                    : undefined
+              }
               sx={{
-                cursor: item.offcanvas ? 'pointer' : 'default',
+                cursor: item.offcanvas || item.link ? 'pointer' : 'default',
                 borderBottom: (theme) => ({
                   xs: `1px solid ${theme.palette.divider}`,
                   md: 'none',

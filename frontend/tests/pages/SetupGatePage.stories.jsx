@@ -450,9 +450,9 @@ export const NonAdminHold = {
 }
 
 // /api/me tracks completion here: submitting the wizard flips it to complete, so
-// clicking "Enter CIPP" after the final step genuinely lifts the gate and
+// clicking "Enter Manage365" after the final step genuinely lifts the gate and
 // "app content" appears. The play drives the ENTIRE First Setup path end to end
-// - auth, partner tenant, baselines, notifications, submit, Enter CIPP -
+// - auth, partner tenant, baselines, notifications, submit, Enter Manage365 -
 // finishing on the unblocked app.
 const completionSandbox = makeSandbox()
 
@@ -478,17 +478,17 @@ export const WizardCompletionFlow = {
         expect(canvas.getByRole('button', { name: 'Submit' })).toBeEnabled()
       })
     })
-    await step('submitting completes setup and offers Enter CIPP', async () => {
+    await step('submitting completes setup and offers Enter Manage365', async () => {
       await userEvent.click(canvas.getByRole('button', { name: 'Submit' }))
       await waitFor(
         () => {
-          expect(canvas.getByRole('button', { name: 'Enter CIPP' })).toBeEnabled()
+          expect(canvas.getByRole('button', { name: 'Enter Manage365' })).toBeEnabled()
         },
         { timeout: 5000 },
       )
     })
-    await step('Enter CIPP lifts the gate into the app', async () => {
-      await userEvent.click(canvas.getByRole('button', { name: 'Enter CIPP' }))
+    await step('Enter Manage365 lifts the gate into the app', async () => {
+      await userEvent.click(canvas.getByRole('button', { name: 'Enter Manage365' }))
       await waitFor(
         () => {
           expect(canvas.getByText('app content')).toBeInTheDocument()
