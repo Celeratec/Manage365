@@ -32,38 +32,6 @@ function Invoke-EditTeamsSettings {
                     $FederationMode = $FederationMode.value
                 }
 
-                # Helper function to parse and validate domains
-                function ConvertTo-DomainList {
-                    param([object]$Input)
-                    
-                    $domains = @()
-                    if ($null -eq $Input -or $Input -eq '') {
-                        return $domains
-                    }
-                    
-                    if ($Input -is [string]) {
-                        $domains = $Input -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
-                    } elseif ($Input -is [array]) {
-                        $domains = $Input | ForEach-Object { 
-                            if ($_ -is [string]) { $_.Trim() } else { $_ }
-                        } | Where-Object { $_ -ne '' }
-                    } else {
-                        $domains = @($Input)
-                    }
-                    
-                    # Validate domain format and deduplicate
-                    $validDomains = @()
-                    $domainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
-                    foreach ($domain in $domains) {
-                        $domain = $domain.ToLower()
-                        if ($domain -match $domainRegex -and $domain -notin $validDomains) {
-                            $validDomains += $domain
-                        }
-                    }
-                    
-                    return $validDomains
-                }
-
                 # Build federation configuration parameters
                 $cmdParams = @{
                     Identity            = 'Global'
@@ -87,7 +55,32 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                     }
                     'AllowSpecificExternal' {
-                        $AllowedDomainsAsAList = ConvertTo-DomainList -Input $Request.Body.federationAllowedDomains
+                        # Parse and validate allowed domains
+                        $rawDomains = $Request.Body.federationAllowedDomains
+                        $parsedDomains = @()
+                        
+                        if ($null -ne $rawDomains -and $rawDomains -ne '') {
+                            if ($rawDomains -is [string]) {
+                                $parsedDomains = $rawDomains -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+                            } elseif ($rawDomains -is [array]) {
+                                $parsedDomains = $rawDomains | ForEach-Object { 
+                                    if ($_ -is [string]) { $_.Trim() } else { $_ }
+                                } | Where-Object { $_ -ne '' }
+                            } else {
+                                $parsedDomains = @($rawDomains)
+                            }
+                        }
+                        
+                        # Validate domain format and deduplicate
+                        $AllowedDomainsAsAList = @()
+                        $domainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+                        foreach ($d in $parsedDomains) {
+                            $domainLower = $d.ToLower()
+                            if ($domainLower -match $domainRegex -and $domainLower -notin $AllowedDomainsAsAList) {
+                                $AllowedDomainsAsAList += $domainLower
+                            }
+                        }
+                        
                         $ExpectedAllowedDomains = $AllowedDomainsAsAList
                         if ($AllowedDomainsAsAList.Count -eq 0) {
                             throw 'AllowSpecificExternal mode requires at least one allowed domain.'
@@ -95,7 +88,33 @@ function Invoke-EditTeamsSettings {
                     }
                     'BlockSpecificExternal' {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
-                        $BlockedDomainsList = ConvertTo-DomainList -Input $Request.Body.federationBlockedDomains
+                        
+                        # Parse and validate blocked domains
+                        $rawBlockedDomains = $Request.Body.federationBlockedDomains
+                        $parsedBlockedDomains = @()
+                        
+                        if ($null -ne $rawBlockedDomains -and $rawBlockedDomains -ne '') {
+                            if ($rawBlockedDomains -is [string]) {
+                                $parsedBlockedDomains = $rawBlockedDomains -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' }
+                            } elseif ($rawBlockedDomains -is [array]) {
+                                $parsedBlockedDomains = $rawBlockedDomains | ForEach-Object { 
+                                    if ($_ -is [string]) { $_.Trim() } else { $_ }
+                                } | Where-Object { $_ -ne '' }
+                            } else {
+                                $parsedBlockedDomains = @($rawBlockedDomains)
+                            }
+                        }
+                        
+                        # Validate and deduplicate
+                        $BlockedDomainsList = @()
+                        $domainRegex = '^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$'
+                        foreach ($d in $parsedBlockedDomains) {
+                            $domainLower = $d.ToLower()
+                            if ($domainLower -match $domainRegex -and $domainLower -notin $BlockedDomainsList) {
+                                $BlockedDomainsList += $domainLower
+                            }
+                        }
+                        
                         if ($BlockedDomainsList.Count -gt 0) {
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
                         }
