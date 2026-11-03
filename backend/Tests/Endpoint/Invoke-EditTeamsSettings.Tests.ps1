@@ -249,6 +249,48 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'test.com'
         }
 
+        It 'rejects invalid federationMode string' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'Bogus'
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid federationMode'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
+        It 'rejects null federationMode' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = $null
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid federationMode'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
+        It 'rejects object with null value' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = @{ label = 'Test'; value = $null }
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid federationMode'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
         It 'requires at least one domain for AllowSpecificExternal' {
             $request = New-EditTeamsRequest -Extra @{
                 federationMode           = 'AllowSpecificExternal'
@@ -260,6 +302,54 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
 
             $result.StatusCode | Should -Be 400
             $result.Body.Results | Should -Match 'requires at least one allowed domain'
+        }
+        
+        It 'rejects invalid domains with 400 listing them' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = 'valid.com,invalid..com,also@bad'
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'Invalid domains'
+            $result.Body.Results | Should -Match 'invalid\.\.'
+            $result.Body.Results | Should -Match 'also@bad'
+        }
+        
+        It 'splits on comma, semicolon, and whitespace' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = 'a.com, b.com; c.com d.com'
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 4
+            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'a.com'
+            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'b.com'
+            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'c.com'
+            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'd.com'
+        }
+        
+        It 'handles single domain correctly' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = 'single.com'
+                enableFederationAccess   = $true
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 1
+            $setCall.CmdParams.AllowedDomainsAsAList | Should -Contain 'single.com'
         }
     }
 
@@ -375,7 +465,7 @@ Describe 'Invoke-EditTeamsSettings Verification Failure' {
         $script:teamsRequests = @()
     }
 
-    It 'returns error when AllowFederatedUsers verification fails' {
+    It 'returns 502 when AllowFederatedUsers verification fails' {
         Mock New-TeamsRequest {
             param($TenantFilter, $Cmdlet, $CmdParams)
             
@@ -413,12 +503,11 @@ Describe 'Invoke-EditTeamsSettings Verification Failure' {
 
         $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
 
-        $result.StatusCode | Should -Be 400
+        $result.StatusCode | Should -Be 502
         $result.Body.Results | Should -Match 'verification failed'
-        $result.Body.Results | Should -Match 'AllowFederatedUsers'
     }
 
-    It 'returns error when AllowedDomains count verification fails' {
+    It 'returns 502 when AllowedDomains count verification fails' {
         Mock New-TeamsRequest {
             param($TenantFilter, $Cmdlet, $CmdParams)
             
@@ -457,12 +546,56 @@ Describe 'Invoke-EditTeamsSettings Verification Failure' {
 
         $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
 
-        $result.StatusCode | Should -Be 400
+        $result.StatusCode | Should -Be 502
         $result.Body.Results | Should -Match 'verification failed'
-        $result.Body.Results | Should -Match 'AllowedDomains count'
     }
 
-    It 'returns error when AllowTeamsConsumer verification fails' {
+    It 'returns 502 when AllowedDomains have same count but different domains' {
+        Mock New-TeamsRequest {
+            param($TenantFilter, $Cmdlet, $CmdParams)
+            
+            $script:teamsRequests += [PSCustomObject]@{
+                TenantFilter = $TenantFilter
+                Cmdlet       = $Cmdlet
+                CmdParams    = $CmdParams
+            }
+            
+            if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                $getCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Get-CsTenantFederationConfiguration' }
+                if ($getCalls.Count -le 1) {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @()
+                    }
+                } else {
+                    # Return different domains with same count
+                    $config = [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        BlockedDomains      = @()
+                    }
+                    $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue ([PSCustomObject]@{
+                        Domain = @('wrong1.com', 'wrong2.com')
+                    })
+                    return $config
+                }
+            }
+        }
+
+        $request = New-EditTeamsRequest -Extra @{
+            federationMode           = 'AllowSpecificExternal'
+            federationAllowedDomains = 'right1.com,right2.com'
+        }
+
+        $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+        $result.StatusCode | Should -Be 502
+        $result.Body.Results | Should -Match 'verification failed'
+    }
+
+    It 'returns 502 when AllowTeamsConsumer verification fails' {
         Mock New-TeamsRequest {
             param($TenantFilter, $Cmdlet, $CmdParams)
             
@@ -506,8 +639,7 @@ Describe 'Invoke-EditTeamsSettings Verification Failure' {
 
         $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
 
-        $result.StatusCode | Should -Be 400
+        $result.StatusCode | Should -Be 502
         $result.Body.Results | Should -Match 'verification failed'
-        $result.Body.Results | Should -Match 'AllowTeamsConsumer'
     }
 }

@@ -12014,7 +12014,8 @@
                     "type": "boolean"
                   },
                   "allowTeamsConsumer": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Verify AllowTeamsConsumer if it was set"
                   },
                   "allowUserDeleteChat": {
                     "type": "boolean"
@@ -12058,14 +12059,12 @@
                     "type": "string"
                   },
                   "federationMode": {
-                    "type": "string",
-                    "enum": [
-                      "AllowAllExternal",
-                      "AllowSpecificExternal",
-                      "BlockAllExternal",
-                      "BlockSpecificExternal"
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
                     ],
-                    "description": "Now build federation configuration parameters"
+                    "description": "Parse federationMode (can be string or object with label/value)"
                   },
                   "meetingChatEnabledType": {
                     "type": "string"
@@ -12123,6 +12122,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "502": {
+            "description": "BadGateway"
           }
         },
         "security": [
