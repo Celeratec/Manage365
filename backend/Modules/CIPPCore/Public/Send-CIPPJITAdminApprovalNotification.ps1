@@ -61,8 +61,10 @@ function Send-CIPPJITAdminApprovalNotification {
         } else {
             $ApprovalRequest.RequestedBy
         }
-        foreach ($Target in $PushTargets) {
-            $null = Send-CIPPAlert -Type 'push' -Title $Title -TargetUser $Target -PushMessage "$($ApprovalRequest.RoleNames) $($ApprovalRequest.GroupNames)".Trim() -Url $Path -APIName 'JITAdminApproval'
+        if ($env:CIPPNG -eq 'true') {
+            foreach ($Target in $PushTargets) {
+                $null = Send-CIPPAlert -Type 'push' -Title $Title -TargetUser $Target -PushMessage "$($ApprovalRequest.RoleNames) $($ApprovalRequest.GroupNames)".Trim() -Url $Path -APIName 'JITAdminApproval'
+            }
         }
     } catch {
         Write-LogMessage -API 'JITAdminApproval' -tenant $ApprovalRequest.Tenant -message "Failed to send JIT admin approval notification: $($_.Exception.Message)" -Sev 'Warning'

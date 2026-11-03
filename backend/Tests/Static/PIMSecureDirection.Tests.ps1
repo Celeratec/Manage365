@@ -29,7 +29,9 @@ BeforeAll {
     }
 
     $script:AllSources = foreach ($File in (Get-ChildItem -Path $ModulesRoot -Filter '*.ps1' -File -Recurse)) {
-        [pscustomobject]@{ Name = $File.Name; Text = [System.IO.File]::ReadAllText($File.FullName) }
+        $Text = [System.IO.File]::ReadAllText($File.FullName)
+        $Text = [regex]::Replace($Text, '<#[\s\S]*?#>', '')
+        [pscustomobject]@{ Name = $File.Name; Text = $Text }
     }
 }
 
