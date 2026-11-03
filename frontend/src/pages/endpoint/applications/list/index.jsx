@@ -19,6 +19,7 @@ import { alpha } from '@mui/material/styles'
 import { Box, Stack } from '@mui/system'
 import { useCallback } from 'react'
 import { useRouter } from 'next/router'
+import { CippIntuneDeploymentStatus } from '../../../../components/CippComponents/CippIntuneDeploymentStatus.jsx'
 import { useSettings } from '../../../../hooks/use-settings.js'
 import { useDialog } from '../../../../hooks/use-dialog.js'
 import { useCippReportDB } from '../../../../components/CippComponents/CippReportDBControls'
@@ -648,9 +649,17 @@ const Page = () => {
               )}
             </Stack>
           </Box>
+
+          <CippIntuneDeploymentStatus
+            row={row}
+            tenant={tenant}
+            type="mobileApps"
+            url="/api/ListAppDeploymentStatus"
+          />
         </Stack>
       )
     },
+    size: 'lg',
   }
 
   const simpleColumns = [
