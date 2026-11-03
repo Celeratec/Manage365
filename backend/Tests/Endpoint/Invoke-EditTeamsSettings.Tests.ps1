@@ -50,17 +50,19 @@ BeforeAll {
                 # Return what was set
                 $config = [PSCustomObject]@{
                     Identity            = 'Global'
-                    AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
-                    AllowTeamsConsumer  = $lastSet.CmdParams.AllowTeamsConsumer
-                    BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                    AllowFederatedUsers = if ($null -ne $lastSet.CmdParams.AllowFederatedUsers) { $lastSet.CmdParams.AllowFederatedUsers } else { $true }
+                    AllowTeamsConsumer  = if ($null -ne $lastSet.CmdParams.AllowTeamsConsumer) { $lastSet.CmdParams.AllowTeamsConsumer } else { $false }
+                    BlockedDomains      = if ($lastSet.CmdParams.BlockedDomains) { $lastSet.CmdParams.BlockedDomains } else { @() }
                 }
                 
                 if ($lastSet.CmdParams.AllowedDomainsAsAList) {
                     $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue ([PSCustomObject]@{
-                        Domain = $lastSet.CmdParams.AllowedDomainsAsAList
+                        Domain = @($lastSet.CmdParams.AllowedDomainsAsAList)
                     })
-                } else {
+                } elseif ($lastSet.CmdParams.AllowedDomains) {
                     $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue $lastSet.CmdParams.AllowedDomains
+                } else {
+                    $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue (New-CsEdgeAllowAllKnownDomains)
                 }
                 
                 return $config
