@@ -34140,6 +34140,9 @@
               }
             }
           },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
           "400": {
             "description": "Bad request - missing required field or invalid input"
           },
@@ -34148,6 +34151,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
           }
         },
         "security": [
