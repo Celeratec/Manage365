@@ -333,6 +333,20 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $setCalls.Count | Should -Be 0
         }
 
+        It 'rejects object with array value' {
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = @{ label = 'Test'; value = @('AllowSpecificExternal') }
+                federationAllowedDomains = 'test.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 400
+            $result.Body.Results | Should -Match 'value property cannot be an array'
+            $setCalls = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCalls.Count | Should -Be 0
+        }
+
         It 'rejects non-standard mode string like AllowEverything' {
             $request = New-EditTeamsRequest -Extra @{
                 federationMode           = 'AllowEverything'
@@ -658,6 +672,266 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
             $result.StatusCode | Should -Be 200
             $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
             $setCall.CmdParams.AllowedDomainsAsAList.Count | Should -Be 3
+        }
+
+        It 'preserves BlockedDomains when missing field in AllowSpecificExternal' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @('spam.com')
+                        AllowTeamsConsumer  = $false
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode           = 'AllowSpecificExternal'
+                federationAllowedDomains = 'trusted.com'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'spam.com'
+        }
+
+        It 'preserves BlockedDomains when null in AllowSpecificExternal' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @('spam.com', 'malware.net')
+                        AllowTeamsConsumer  = $false
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'AllowSpecificExternal'
+                federationAllowedDomains    = 'trusted.com'
+                federationBlockedDomains    = $null
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'spam.com'
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'malware.net'
+        }
+
+        It 'preserves BlockedDomains when missing field in BlockSpecificExternal' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @('block1.com', 'block2.org')
+                        AllowTeamsConsumer  = $false
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode = 'BlockSpecificExternal'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'block1.com'
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'block2.org'
+        }
+
+        It 'preserves BlockedDomains when null in BlockSpecificExternal' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @('bad.com')
+                        AllowTeamsConsumer  = $false
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'BlockSpecificExternal'
+                federationBlockedDomains    = $null
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'bad.com'
+        }
+
+        It 'preserves BlockedDomains when empty string in BlockSpecificExternal' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    return [PSCustomObject]@{
+                        Identity            = 'Global'
+                        AllowFederatedUsers = $true
+                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                        BlockedDomains      = @('existing-block.com')
+                        AllowTeamsConsumer  = $false
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'BlockSpecificExternal'
+                federationBlockedDomains    = ''
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains | Should -Contain 'existing-block.com'
+        }
+
+        It 'clears BlockedDomains when empty array sent explicitly' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowedDomains      = if ($lastSet.CmdParams.AllowedDomainsAsAList) {
+                                [PSCustomObject]@{ Domain = $lastSet.CmdParams.AllowedDomainsAsAList }
+                            } else {
+                                New-CsEdgeAllowAllKnownDomains
+                            }
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                            AllowTeamsConsumer  = $false
+                        }
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('should-be-cleared.com')
+                            AllowTeamsConsumer  = $false
+                        }
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode              = 'AllowSpecificExternal'
+                federationAllowedDomains    = 'trusted.com'
+                federationBlockedDomains    = @()
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $setCall = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' }
+            $setCall.CmdParams.BlockedDomains.Count | Should -Be 0
+        }
+
+        It 'handles BlockAllExternal with existing BlockedDomains without false 502' {
+            Mock New-TeamsRequest {
+                param($TenantFilter, $Cmdlet, $CmdParams)
+                
+                $script:teamsRequests += [PSCustomObject]@{
+                    TenantFilter = $TenantFilter
+                    Cmdlet       = $Cmdlet
+                    CmdParams    = $CmdParams
+                }
+                
+                if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                            AllowTeamsConsumer  = $false
+                        }
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('old-block.com')
+                            AllowTeamsConsumer  = $false
+                        }
+                    }
+                }
+            }
+
+            $request = New-EditTeamsRequest -Extra @{
+                federationMode = 'BlockAllExternal'
+            }
+
+            $result = Invoke-EditTeamsSettings -Request $request -TriggerMetadata $null
+
+            $result.StatusCode | Should -Be 200
+            $result.Body.Results | Should -Not -Match 'verification failed'
         }
     }
 }

@@ -107,13 +107,17 @@ function Invoke-EditTeamsSettings {
                     if ($null -eq $FederationMode.value) {
                         throw "Invalid federationMode: object must have a 'value' property"
                     }
+                    # Reject array values
+                    if ($FederationMode.value -is [array]) {
+                        throw "Invalid federationMode: value property cannot be an array"
+                    }
                     $FederationMode = $FederationMode.value
                 }
                 
                 # Validate federationMode is one of the 4 valid strings
                 $validModes = @('AllowAllExternal', 'BlockAllExternal', 'AllowSpecificExternal', 'BlockSpecificExternal')
                 if ([string]::IsNullOrWhiteSpace($FederationMode) -or $FederationMode -notin $validModes) {
-                    throw "Invalid federationMode: '$FederationMode'. Must be one of: $($validModes -join ', ')"
+                    throw "Invalid federationMode. Must be one of: $($validModes -join ', ')"
                 }
 
                 # Build federation configuration parameters (no AllowFederatedUsers default)
@@ -126,10 +130,19 @@ function Invoke-EditTeamsSettings {
                 $ExpectedBlockedDomains = @()
                 $ExpectedAllowAllKnownDomains = $false
 
-                # Helper to check if a domain field was meaningfully provided (array or non-blank string)
+                # Helper to check if a domain field should clear the list (explicit empty array only)
+                function Test-ShouldClearDomains {
+                    param([object]$Value)
+                    return ($Value -is [array]) -and ($Value.Count -eq 0)
+                }
+                
+                # Helper to check if a domain field was meaningfully provided (non-empty array or non-blank string)
                 function Test-DomainFieldProvided {
                     param([object]$Value)
-                    return ($Value -is [array]) -or (($Value -is [string]) -and (-not [string]::IsNullOrWhiteSpace($Value)))
+                    if ($Value -is [array]) {
+                        return $Value.Count -gt 0
+                    }
+                    return ($Value -is [string]) -and (-not [string]::IsNullOrWhiteSpace($Value))
                 }
 
                 switch ($FederationMode) {
@@ -138,8 +151,11 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        # Preserve existing BlockedDomains unless explicitly provided
-                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
+                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
+                            $cmdParams['BlockedDomains'] = @()
+                            $ExpectedBlockedDomains = @()
+                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
                             $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
                             $ExpectedBlockedDomains = $BlockedDomainsList
@@ -154,6 +170,21 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowFederatedUsers'] = $false
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
+                        
+                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
+                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
+                            $cmdParams['BlockedDomains'] = @()
+                            $ExpectedBlockedDomains = @()
+                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                            $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
+                            $cmdParams['BlockedDomains'] = $BlockedDomainsList
+                            $ExpectedBlockedDomains = $BlockedDomainsList
+                        } elseif ($CurrentConfig.BlockedDomains) {
+                            $cmdParams['BlockedDomains'] = $CurrentConfig.BlockedDomains
+                            $ExpectedBlockedDomains = @($CurrentConfig.BlockedDomains)
+                        } else {
+                            $ExpectedBlockedDomains = @()
+                        }
                     }
                     'AllowSpecificExternal' {
                         $cmdParams['AllowFederatedUsers'] = $true
@@ -170,8 +201,11 @@ function Invoke-EditTeamsSettings {
                             throw 'AllowSpecificExternal mode requires at least one allowed domain.'
                         }
                         
-                        # Preserve existing BlockedDomains unless explicitly provided
-                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
+                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
+                            $cmdParams['BlockedDomains'] = @()
+                            $ExpectedBlockedDomains = @()
+                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
                             $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
                             $ExpectedBlockedDomains = $BlockedDomainsList
@@ -187,8 +221,11 @@ function Invoke-EditTeamsSettings {
                         $cmdParams['AllowedDomains'] = New-CsEdgeAllowAllKnownDomains
                         $ExpectedAllowAllKnownDomains = $true
                         
-                        # federationBlockedDomains can be provided or omitted; empty array clears
-                        if (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
+                        # Handle BlockedDomains: only [] clears, missing/null/'' preserves
+                        if (Test-ShouldClearDomains -Value $Request.Body.federationBlockedDomains) {
+                            $cmdParams['BlockedDomains'] = @()
+                            $ExpectedBlockedDomains = @()
+                        } elseif (Test-DomainFieldProvided -Value $Request.Body.federationBlockedDomains) {
                             $BlockedDomainsList = @(ConvertTo-ValidatedDomainList -RawInput $Request.Body.federationBlockedDomains -FieldName 'federationBlockedDomains' -AllowEmpty $true)
                             $ExpectedBlockedDomains = $BlockedDomainsList
                             $cmdParams['BlockedDomains'] = $BlockedDomainsList
