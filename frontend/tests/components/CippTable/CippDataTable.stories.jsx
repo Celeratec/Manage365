@@ -32,17 +32,17 @@ const generateLargeDataset = (count = 10000) => {
     '4b585984-651b-448a-9e53-3b10f069cf7f',
   ]
 
-  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)]
-  const randomDate = (startYear, endYear) => {
-    const start = new Date(startYear, 0, 1).getTime()
-    const end = new Date(endYear, 11, 31).getTime()
-    return new Date(start + Math.random() * (end - start)).toISOString()
+  const pick = (arr, index) => arr[index % arr.length]
+  const dateFor = (index, startYear, endYear) => {
+    const start = Date.UTC(startYear, 0, 1)
+    const end = Date.UTC(endYear, 11, 31)
+    return new Date(start + ((index * 9973) % (end - start))).toISOString()
   }
 
   return Array.from({ length: count }, (_, i) => {
-    const first = pick(firstNames)
-    const last = pick(lastNames)
-    const domain = pick(domains)
+    const first = pick(firstNames, i)
+    const last = pick(lastNames, i * 3)
+    const domain = pick(domains, i)
     const upn = `${first.toLowerCase()}.${last.toLowerCase()}${i}@${domain}`
 
     return {
@@ -50,36 +50,34 @@ const generateLargeDataset = (count = 10000) => {
       displayName: `${first} ${last}`,
       userPrincipalName: upn,
       mail: upn,
-      createdDateTime: randomDate(2020, 2025),
-      lastSignInDateTime: randomDate(2024, 2026),
-      accountEnabled: Math.random() > 0.2,
+      createdDateTime: dateFor(i, 2020, 2025),
+      lastSignInDateTime: dateFor(i + 1, 2024, 2026),
+      accountEnabled: i % 5 !== 0,
       proxyAddresses: [
         `SMTP:${upn}`,
         `smtp:${first.toLowerCase()}${i}@${domain}`,
-        ...(Math.random() > 0.5 ? [`smtp:alias${i}@${domain}`] : []),
+        ...(i % 2 === 0 ? [`smtp:alias${i}@${domain}`] : []),
       ],
       assignedLicenses: [
-        { skuId: pick(licenseGuids) },
-        ...(Math.random() > 0.5 ? [{ skuId: pick(licenseGuids) }] : []),
+        { skuId: pick(licenseGuids, i) },
+        ...(i % 2 === 1 ? [{ skuId: pick(licenseGuids, i + 1) }] : []),
       ],
-      Severity: pick(severities),
-      Status: pick(statuses),
-      riskLevel: pick(riskLevels),
-      state: pick(states),
+      Severity: pick(severities, i),
+      Status: pick(statuses, i),
+      riskLevel: pick(riskLevels, i),
+      state: pick(states, i),
       info: {
         displayName: `${first} ${last} (Info)`,
       },
-      businessPhones: Math.random() > 0.3
+      businessPhones: i % 3 !== 0
         ? [
-            `+1-555-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-            ...(Math.random() > 0.5
-              ? [`+1-555-${String(Math.floor(Math.random() * 9000) + 1000)}`]
-              : []),
+            `+1-555-${String(1000 + (i % 9000))}`,
+            ...(i % 4 === 0 ? [`+1-555-${String(1000 + ((i * 7) % 9000))}`] : []),
           ]
         : [],
-      delegatedPrivilegeStatus: pick(delegationStatuses),
-      jobTitle: pick(jobTitles),
-      department: pick(departments),
+      delegatedPrivilegeStatus: pick(delegationStatuses, i),
+      jobTitle: pick(jobTitles, i),
+      department: pick(departments, i),
     }
   })
 }
