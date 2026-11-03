@@ -12053,10 +12053,17 @@
                     "type": "boolean"
                   },
                   "federationAllowedDomains": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   },
                   "federationBlockedDomains": {
-                    "type": "string"
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Preserve existing BlockedDomains unless explicitly cleared"
                   },
                   "federationMode": {
                     "allOf": [
@@ -12064,7 +12071,7 @@
                         "$ref": "#/components/schemas/LabelValue"
                       }
                     ],
-                    "description": "Parse federationMode (can be string or object with label/value)"
+                    "description": "Parse and validate federationMode before any mutations"
                   },
                   "meetingChatEnabledType": {
                     "type": "string"
