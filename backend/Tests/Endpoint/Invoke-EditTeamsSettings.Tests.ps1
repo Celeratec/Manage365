@@ -685,12 +685,31 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
                 }
                 
                 if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
-                    return [PSCustomObject]@{
-                        Identity            = 'Global'
-                        AllowFederatedUsers = $true
-                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
-                        BlockedDomains      = @('spam.com')
-                        AllowTeamsConsumer  = $false
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        $config = [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowTeamsConsumer  = $false
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                        }
+                        
+                        if ($lastSet.CmdParams.AllowedDomainsAsAList) {
+                            $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue ([PSCustomObject]@{
+                                Domain = $lastSet.CmdParams.AllowedDomainsAsAList
+                            })
+                        }
+                        
+                        return $config
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('spam.com')
+                            AllowTeamsConsumer  = $false
+                        }
                     }
                 }
             }
@@ -718,12 +737,31 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
                 }
                 
                 if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
-                    return [PSCustomObject]@{
-                        Identity            = 'Global'
-                        AllowFederatedUsers = $true
-                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
-                        BlockedDomains      = @('spam.com', 'malware.net')
-                        AllowTeamsConsumer  = $false
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        $config = [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowTeamsConsumer  = $false
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                        }
+                        
+                        if ($lastSet.CmdParams.AllowedDomainsAsAList) {
+                            $config | Add-Member -NotePropertyName 'AllowedDomains' -NotePropertyValue ([PSCustomObject]@{
+                                Domain = $lastSet.CmdParams.AllowedDomainsAsAList
+                            })
+                        }
+                        
+                        return $config
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('spam.com', 'malware.net')
+                            AllowTeamsConsumer  = $false
+                        }
                     }
                 }
             }
@@ -753,12 +791,24 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
                 }
                 
                 if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
-                    return [PSCustomObject]@{
-                        Identity            = 'Global'
-                        AllowFederatedUsers = $true
-                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
-                        BlockedDomains      = @('block1.com', 'block2.org')
-                        AllowTeamsConsumer  = $false
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                            AllowTeamsConsumer  = $false
+                        }
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('block1.com', 'block2.org')
+                            AllowTeamsConsumer  = $false
+                        }
                     }
                 }
             }
@@ -786,12 +836,24 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
                 }
                 
                 if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
-                    return [PSCustomObject]@{
-                        Identity            = 'Global'
-                        AllowFederatedUsers = $true
-                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
-                        BlockedDomains      = @('bad.com')
-                        AllowTeamsConsumer  = $false
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                            AllowTeamsConsumer  = $false
+                        }
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('bad.com')
+                            AllowTeamsConsumer  = $false
+                        }
                     }
                 }
             }
@@ -819,12 +881,24 @@ Describe 'Invoke-EditTeamsSettings Federation Allowlist' {
                 }
                 
                 if ($Cmdlet -eq 'Get-CsTenantFederationConfiguration') {
-                    return [PSCustomObject]@{
-                        Identity            = 'Global'
-                        AllowFederatedUsers = $true
-                        AllowedDomains      = New-CsEdgeAllowAllKnownDomains
-                        BlockedDomains      = @('existing-block.com')
-                        AllowTeamsConsumer  = $false
+                    $lastSet = $script:teamsRequests | Where-Object { $_.Cmdlet -eq 'Set-CsTenantFederationConfiguration' } | Select-Object -Last 1
+                    
+                    if ($lastSet) {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $lastSet.CmdParams.AllowFederatedUsers
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = $lastSet.CmdParams.BlockedDomains
+                            AllowTeamsConsumer  = $false
+                        }
+                    } else {
+                        return [PSCustomObject]@{
+                            Identity            = 'Global'
+                            AllowFederatedUsers = $true
+                            AllowedDomains      = New-CsEdgeAllowAllKnownDomains
+                            BlockedDomains      = @('existing-block.com')
+                            AllowTeamsConsumer  = $false
+                        }
                     }
                 }
             }
