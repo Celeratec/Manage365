@@ -15622,7 +15622,7 @@
         "tags": [
           "Tenant > Applications"
         ],
-        "description": "Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.\n\nGraph addPassword returns the client secret as a string. Key Vault accepts only a SecureString.",
+        "description": "Creates a single-tenant application, its service principal, and one credential. A secret is stored in Key Vault and is never returned or logged. SecretDelivery names GetAppRegistrationSecret, which returns that secret once within 24 hours. Certificate is the preferred credential and uses CertificatePublicKeyBase64. Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun.",
         "requestBody": {
           "required": false,
           "content": {
@@ -25647,7 +25647,7 @@
         "tags": [
           "Email-Exchange > Administration"
         ],
-        "description": "Runs one allowlisted Exchange cmdlet with allowlisted parameters. Test cmdlets use the same role because they read through a write-capable connection.",
+        "description": "Runs one allowlisted Exchange cmdlet. Any other cmdlet or parameter returns 403 and is audited. Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun.\nSet-Mailbox: Identity and CustomAttribute1 through CustomAttribute15.\nNew-ServicePrincipal: AppId, ObjectId, ServiceId, DisplayName.\nNew-ManagementScope: Name and RecipientRestrictionFilter (1024 characters max).\nNew-ManagementRoleAssignment: App, Role, CustomResourceScope, Name. Role must be exactly Application Mail.Read, Application Calendars.Read, or Application Mail.ReadBasic.\nRemove-ManagementRoleAssignment: Identity. Remove-ServicePrincipal: Identity. Remove-ManagementScope: Identity.\nTest-ServicePrincipalAuthorization: Identity and Resource. Test-ApplicationAccessPolicy: Identity and AppId.\nEnable-OrganizationCustomization takes no parameters. Set-AdminAuditLogConfig: UnifiedAuditLogIngestionEnabled boolean.\nSet-MailboxJunkEmailConfiguration: Identity, TrustedSendersAndDomains, and BlockedSendersAndDomains. TrustedSendersToAdd and BlockedSendersToAdd are rejected.",
         "requestBody": {
           "required": false,
           "content": {
@@ -28758,7 +28758,7 @@
         "tags": [
           "Tenant > Applications"
         ],
-        "description": "Graph POST, PATCH, or DELETE limited to the server-side allowlist. Reads the resource first and records it as Before. AllPrincipals consent requires Tenant.AppGovernance.AllPrincipals.",
+        "description": "Graph POST, PATCH, or DELETE on v1.0 or beta, limited to this allowlist. Reads the resource first and records it as Before. oauth2PermissionGrants accept consentType Principal only.\nPOST servicePrincipals/{id}/appRoleAssignments. DELETE servicePrincipals/{id}/appRoleAssignments/{id}.\nPOST servicePrincipals/{id}/appRoleAssignedTo. DELETE servicePrincipals/{id}/appRoleAssignedTo/{id}.\nPOST oauth2PermissionGrants. PATCH oauth2PermissionGrants/{id}. DELETE oauth2PermissionGrants/{id}.\nPATCH policies/identitySecurityDefaultsEnforcementPolicy.\nPOST chats/{id}/installedApps. DELETE chats/{id}/installedApps/{id}.\nDELETE appCatalogs/teamsApps/{id}. DELETE applications/{id}. DELETE servicePrincipals/{id}.\nRequires tenantFilter, ticketNumber (6 to 8 digits), and dryRun. Unknown paths return 403 and are audited.",
         "requestBody": {
           "required": false,
           "content": {
@@ -42971,6 +42971,7 @@
         "tags": [
           "Email-Exchange > Administration"
         ],
+        "description": "Sets mailbox custom attributes. Send AttributeNumber (1-15), Value (1024 characters max; empty clears), tenantFilter, ticketNumber, and dryRun to set one attribute and receive the old and new values. The existing CustomAttribute1-15 body is still accepted for the mailbox editor.",
         "requestBody": {
           "required": true,
           "content": {
@@ -42978,6 +42979,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "AttributeNumber": {
+                    "type": "string"
+                  },
                   "Identity": {
                     "type": "string"
                   },
@@ -42987,11 +42991,18 @@
                   },
                   "userid": {
                     "type": "string"
+                  },
+                  "Value": {
+                    "type": "string"
                   }
                 },
                 "required": [
+                  "Identity",
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
@@ -48995,6 +49006,70 @@
           }
         ],
         "x-cipp-role": "Exchange.SpamFilter.Read"
+      }
+    },
+    "/api/GetAppRegistrationSecret": {
+      "post": {
+        "summary": "GetAppRegistrationSecret",
+        "operationId": "GetAppRegistrationSecret",
+        "tags": [
+          "Tenant > Applications"
+        ],
+        "description": "Returns the client secret stored by ExecAppRegistration exactly once, then deletes it from Key Vault. The secret can be retrieved for 24 hours after it was stored. It is not written to the log or the audit row. Requires tenantFilter, ticketNumber (6 to 8 digits), dryRun, AppId, and CredentialKeyId. dryRun does not read or delete the secret.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "AppId": {
+                    "type": "string"
+                  },
+                  "CredentialKeyId": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "410": {
+            "description": "Gone"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.AppGovernance.ReadWrite"
       }
     },
     "/api/GetCippAlerts": {
@@ -67542,6 +67617,40 @@
           }
         ],
         "x-cipp-role": "Exchange.Mailbox.Read"
+      }
+    },
+    "/api/ListMyApiRoles": {
+      "get": {
+        "summary": "ListMyApiRoles",
+        "operationId": "ListMyApiRoles",
+        "tags": [
+          "CIPP > Core"
+        ],
+        "description": "Returns the permissions this caller can use. The list is the same one the access check uses, so a 403 on another endpoint can be compared with it.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "CIPP.Core.Read"
       }
     },
     "/api/ListNamedLocations": {

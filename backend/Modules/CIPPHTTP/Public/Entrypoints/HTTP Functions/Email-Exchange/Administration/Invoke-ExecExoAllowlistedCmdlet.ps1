@@ -5,7 +5,15 @@ function Invoke-ExecExoAllowlistedCmdlet {
     .ROLE
         Exchange.Security.ReadWrite
     .DESCRIPTION
-        Runs one allowlisted Exchange cmdlet with allowlisted parameters. Test cmdlets use the same role because they read through a write-capable connection.
+        Runs one allowlisted Exchange cmdlet. Any other cmdlet or parameter returns 403 and is audited. Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun.
+        Set-Mailbox: Identity and CustomAttribute1 through CustomAttribute15.
+        New-ServicePrincipal: AppId, ObjectId, ServiceId, DisplayName.
+        New-ManagementScope: Name and RecipientRestrictionFilter (1024 characters max).
+        New-ManagementRoleAssignment: App, Role, CustomResourceScope, Name. Role must be exactly Application Mail.Read, Application Calendars.Read, or Application Mail.ReadBasic.
+        Remove-ManagementRoleAssignment: Identity. Remove-ServicePrincipal: Identity. Remove-ManagementScope: Identity.
+        Test-ServicePrincipalAuthorization: Identity and Resource. Test-ApplicationAccessPolicy: Identity and AppId.
+        Enable-OrganizationCustomization takes no parameters. Set-AdminAuditLogConfig: UnifiedAuditLogIngestionEnabled boolean.
+        Set-MailboxJunkEmailConfiguration: Identity, TrustedSendersAndDomains, and BlockedSendersAndDomains. TrustedSendersToAdd and BlockedSendersToAdd are rejected.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)

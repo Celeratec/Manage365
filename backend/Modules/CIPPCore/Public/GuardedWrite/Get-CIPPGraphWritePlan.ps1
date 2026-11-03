@@ -3,8 +3,8 @@ function Get-CIPPGraphWritePlan {
     .SYNOPSIS
         Accepts a Graph write only when the method, path, and API version are on the allowlist.
     .DESCRIPTION
-        oauth2PermissionGrants default to consentType Principal. AllPrincipals is refused unless
-        the caller holds the elevated role. Anything else returns Allowed false for a 403.
+        oauth2PermissionGrants accept consentType Principal only. AllPrincipals is refused.
+        Anything else returns Allowed false for a 403.
     #>
     [CmdletBinding()]
     param(
@@ -12,7 +12,6 @@ function Get-CIPPGraphWritePlan {
         [string]$Path,
         [string]$ApiVersion,
         $Body,
-        [switch]$AllowAllPrincipals,
         $Allowlist
     )
 
@@ -43,11 +42,8 @@ function Get-CIPPGraphWritePlan {
     if ($Relative -match '^oauth2PermissionGrants') {
         $Consent = [string]$Body.consentType
         if ([string]::IsNullOrWhiteSpace($Consent)) { $Consent = 'Principal' }
-        if ($Consent -eq 'AllPrincipals' -and -not $AllowAllPrincipals) {
-            return [pscustomobject]@{ Allowed = $false; Reason = 'AllPrincipals grants require Tenant.AppGovernance.AllPrincipals.' }
-        }
-        if ($Consent -notin @('Principal', 'AllPrincipals')) {
-            return [pscustomobject]@{ Allowed = $false; Reason = "consentType '$Consent' is not allowed." }
+        if ($Consent -ne 'Principal') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'consentType must be Principal.' }
         }
         if ($Body -is [System.Collections.IDictionary]) {
             $WriteBody = @{} + $Body

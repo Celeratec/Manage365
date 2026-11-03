@@ -5,9 +5,8 @@ function Invoke-ExecAppRegistration {
     .ROLE
         Tenant.AppGovernance.ReadWrite
     .DESCRIPTION
-        Creates a single-tenant application, its service principal, and one credential. The secret value is stored in Key Vault and is never returned or logged.
+        Creates a single-tenant application, its service principal, and one credential. A secret is stored in Key Vault and is never returned or logged. SecretDelivery names GetAppRegistrationSecret, which returns that secret once within 24 hours. Certificate is the preferred credential and uses CertificatePublicKeyBase64. Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun.
     #>
-    # Graph addPassword returns the client secret as a string. Key Vault accepts only a SecureString.
     [System.Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'Graph returns the new client secret as a string and Key Vault accepts only a SecureString.')]
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -94,7 +93,13 @@ function Invoke-ExecAppRegistration {
             $Generated = $null
             $Added = $null
         }
-        $Delivery = @{ Type = 'KeyVaultReference'; SecretUri = "https://$VaultName.vault.azure.net/secrets/$SecretName"; ExpiresAt = $End }
+        $Delivery = @{
+            Type               = 'KeyVaultReference'
+            SecretUri          = "https://$VaultName.vault.azure.net/secrets/$SecretName"
+            RetrievalEndpoint  = 'GetAppRegistrationSecret'
+            RetrievalExpiresAt = [datetime]::UtcNow.AddHours(24).ToString('o')
+            ExpiresAt          = $End
+        }
     }
 
     $After = [pscustomobject]@{
