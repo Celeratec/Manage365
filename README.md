@@ -543,7 +543,8 @@ Manage365 extends the upstream quarantine list with a Defender-style portal expe
 
 - `Build-CIPPQuarantineQueryParams.ps1` -- shared filter mapper, post-filters, EXO retry/backoff, display normalization
 - `ListMailQuarantine`, `GetMailQuarantineMessage`, `ExportMailQuarantine`, extended `ExecQuarantineManagement`, `ExecEmailTroubleshoot`
-- `ExecMailboxSafeSender` -- backend endpoint for mailbox safe-sender list (API only; no UI yet)
+- `ExecMailboxSafeSender` -- adds one mailbox safe sender by merging it into the current list (API only; no UI yet). `TrustedSendersToAdd` is not used; that parameter fails through the Exchange REST proxy.
+- Mail filter writes -- `ExecPresetSecurityPolicy`, `ExecCustomMailFilterPolicy`, `ExecInboundConnectorEnhancedFiltering`, `ExecMailboxJunkConfiguration`, and `ExecFocusedInbox`. Each snapshots the current config, requires a numeric ticket ID, supports `dryRun`, returns a rollback payload, and refuses a preset or custom policy change that weakens protection unless `allowWeakerProtection` is set. See [docs/api-documentation/mail-filter-writes.md](docs/api-documentation/mail-filter-writes.md).
 - AllTenants cache paginates up to 5 × 1,000 rows per tenant (30-day window)
 - Feature matrix and API limits: [docs/upstream-sync/QUARANTINE_FEATURES.md](docs/upstream-sync/QUARANTINE_FEATURES.md)
 
