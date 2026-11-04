@@ -22,6 +22,7 @@ BeforeAll {
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Functions/Format-CIPPCAPolicy.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/ConditionalAccess/Merge-CIPPCAPolicyUpdate.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/ConditionalAccess/Test-CIPPCAPolicyRemoval.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GraphHelper/Get-CIPPGraphErrorMessage.ps1')
 
     function New-GraphGetRequest {
         [CmdletBinding()] param($uri, $tenantid, $asApp, $noPagination)
@@ -39,8 +40,23 @@ BeforeAll {
     function New-GraphPOSTRequest {
         [CmdletBinding()] param($uri, $tenantid, $type, $body, $asApp)
         $script:LastPatch = @{ Uri = $uri; Type = $type; Body = $body }
+        if ($script:GraphErrorBody) {
+            $Exception = [System.Exception]::new('Response status code does not indicate success: BadRequest')
+            $Record = [System.Management.Automation.ErrorRecord]::new(
+                $Exception,
+                'GraphError',
+                [System.Management.Automation.ErrorCategory]::InvalidOperation,
+                $null
+            )
+            $Record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new([string]$script:GraphErrorBody)
+            throw $Record
+        }
     }
-    function Write-LogMessage { [CmdletBinding()] param($API, $tenant, $headers, $message, $sev, $LogData) }
+    function Write-LogMessage {
+        [CmdletBinding()] param($API, $tenant, $headers, $message, $sev, $LogData)
+        $script:LogMessage = $message
+        $script:LogData = $LogData
+    }
     function Get-CippException { [CmdletBinding()] param($Exception) $Exception }
 
     . $FunctionPath
@@ -76,7 +92,11 @@ BeforeAll {
 }
 
 Describe 'Invoke-ExecEditCAPolicyFull' {
-    BeforeEach { $script:CurrentPolicy = $null }
+    BeforeEach {
+        $script:CurrentPolicy = $null
+        $script:GraphErrorBody = $null
+        $script:LogMessage = $null
+    }
 
     Context 'a policy whose blocks the editor emptied' {
         BeforeAll {
@@ -461,6 +481,195 @@ Describe 'Invoke-ExecEditCAPolicyFull' {
                 Body    = [pscustomobject]@{ tenantFilter = 'contoso.onmicrosoft.com'; PolicyBody = [pscustomobject]@{ displayName = 'CA201' } }
             }
             (Invoke-ExecEditCAPolicyFull -Request $Request).StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
+        }
+    }
+
+    Context 'ticket 3277327, a report-only policy with one added exclusion' {
+        It 'PATCHes both exclusion ids as an array and keeps the report-only state' {
+            $OldUser = '11111111-1111-1111-1111-111111111111'
+            $NewUser = 'd5a90120-e6b5-4166-922e-0799284aeeae'
+            $script:CurrentPolicy = @"
+{
+  "@odata.context": "https://graph.microsoft.com/beta/`$metadata#identity/conditionalAccess/policies/`$entity",
+  "id": "policy-guid",
+  "templateId": "template-guid",
+  "createdDateTime": "2026-01-01T00:00:00Z",
+  "modifiedDateTime": "2026-11-03T23:15:00Z",
+  "deletedDateTime": null,
+  "partialEnablementStrategy": "disabled",
+  "displayName": "Cortalis - Block device code flow",
+  "state": "enabledForReportingButNotEnforced",
+  "conditions": {
+    "clientAppTypes": ["all"],
+    "users": {
+      "includeUsers": ["All"],
+      "excludeUsers": ["$OldUser"],
+      "includeUsers@odata.type": "#Collection(String)",
+      "excludeGuestsOrExternalUsers": {
+        "guestOrExternalUserTypes": "b2bCollaborationGuest",
+        "externalTenants": { "@odata.type": "#microsoft.graph.conditionalAccessAllExternalTenants", "membershipKind": "all" }
+      }
+    },
+    "applications": { "includeApplications": ["All"], "excludeApplications": [] },
+    "authenticationFlows": { "transferMethods": "deviceCodeFlow" }
+  },
+  "grantControls": {
+    "operator": "OR",
+    "builtInControls": ["block"],
+    "authenticationStrength": {
+      "@odata.context": "https://graph.microsoft.com/beta/`$metadata#identity/conditionalAccess/authenticationStrength/policies/`$entity",
+      "id": "00000000-0000-0000-0000-000000000004",
+      "displayName": "Phishing-resistant MFA",
+      "createdDateTime": "2026-01-01T00:00:00Z",
+      "modifiedDateTime": "2026-01-01T00:00:00Z"
+    }
+  },
+  "sessionControls": null
+}
+"@ | ConvertFrom-Json
+
+            $Result = Invoke-Edit @{
+                displayName = 'Cortalis - Block device code flow'
+                state       = 'enabledForReportingButNotEnforced'
+                conditions  = @{
+                    clientAppTypes       = @('all')
+                    users                = @{
+                        includeUsers = @('All')
+                        excludeUsers = @($OldUser, $NewUser)
+                        excludeGuestsOrExternalUsers = @{
+                            guestOrExternalUserTypes = 'b2bCollaborationGuest'
+                            externalTenants          = @{
+                                '@odata.type'  = '#microsoft.graph.conditionalAccessAllExternalTenants'
+                                membershipKind = 'all'
+                            }
+                        }
+                    }
+                    applications         = @{ includeApplications = @('All'); excludeApplications = @() }
+                    authenticationFlows  = @{ transferMethods = 'deviceCodeFlow' }
+                }
+                grantControls = @{
+                    operator         = 'OR'
+                    builtInControls  = @('block')
+                    authenticationStrength = @{ id = '00000000-0000-0000-0000-000000000004'; displayName = 'Phishing-resistant MFA' }
+                }
+                sessionControls = $null
+            }
+
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Result.Sent.state | Should -Be 'enabledForReportingButNotEnforced'
+            $script:LastPatch.Body | Should -Match '"excludeUsers":\["11111111-1111-1111-1111-111111111111","d5a90120-e6b5-4166-922e-0799284aeeae"\]'
+            $script:LastPatch.Body | Should -Not -Match '@odata\.context|deletedDateTime|partialEnablementStrategy|templateId|createdDateTime|modifiedDateTime|Phishing-resistant MFA'
+            $Result.Sent.conditions.users.excludeGuestsOrExternalUsers.externalTenants.'@odata.type' | Should -Be '#microsoft.graph.conditionalAccessAllExternalTenants'
+            $Result.Sent.grantControls.authenticationStrength.PSObject.Properties.Name | Should -Be @('id')
+            $Result.Sent.conditions.authenticationFlows.transferMethods | Should -Be 'deviceCodeFlow'
+        }
+    }
+
+    Context 'array values Graph would reject as scalars or null' {
+        It 'writes a one-item exclusion and an empty collection as JSON arrays' {
+            $Request = @{
+                Params  = @{ CIPPEndpoint = 'ExecEditCAPolicyFull' }
+                Headers = @{}
+                Query   = @{}
+                Body    = [pscustomobject]@{
+                    tenantFilter = 'contoso.onmicrosoft.com'
+                    PolicyId     = 'policy-guid'
+                    PolicyBody   = [pscustomobject]@{
+                        displayName = 'CA201'
+                        state       = 'enabled'
+                        conditions  = [pscustomobject]@{
+                            clientAppTypes = 'all'
+                            users          = [pscustomobject]@{
+                                includeUsers  = 'All'
+                                excludeUsers  = 'd5a90120-e6b5-4166-922e-0799284aeeae'
+                                includeGroups = $null
+                            }
+                        }
+                    }
+                }
+            }
+            $Response = Invoke-ExecEditCAPolicyFull -Request $Request
+            $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $script:LastPatch.Body | Should -Match '"excludeUsers":\["d5a90120-e6b5-4166-922e-0799284aeeae"\]'
+            $script:LastPatch.Body | Should -Match '"includeUsers":\["All"\]'
+            $script:LastPatch.Body | Should -Match '"includeGroups":\[\]'
+            $script:LastPatch.Body | Should -Match '"clientAppTypes":\["all"\]'
+        }
+    }
+
+    Context 'a live block the request did not clear' {
+        It 'does not send devices null when the saved block was half populated' {
+            $script:CurrentPolicy = [pscustomobject]@{
+                id          = 'policy-guid'
+                displayName = 'CA201'
+                state       = 'enabled'
+                conditions  = [pscustomobject]@{
+                    clientAppTypes = @('all')
+                    users          = [pscustomobject]@{ includeUsers = @('All'); excludeUsers = @(); excludeGroups = @() }
+                    devices        = [pscustomobject]@{ deviceFilter = [pscustomobject]@{} }
+                }
+                grantControls = [pscustomobject]@{ operator = 'OR'; builtInControls = @('mfa') }
+            }
+            $Result = Invoke-Edit @{
+                displayName   = 'CA201'
+                state         = 'enabled'
+                conditions    = @{
+                    clientAppTypes = @('all')
+                    users          = @{ includeUsers = @('All') }
+                }
+                grantControls = @{ operator = 'OR'; builtInControls = @('mfa') }
+            }
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Result.Sent.conditions.PSObject.Properties.Name | Should -Not -Contain 'devices'
+            $script:LastPatch.Body | Should -Not -Match '"devices":null'
+        }
+
+        It 'sends devices null when the caller clears that block' {
+            $script:CurrentPolicy = [pscustomobject]@{
+                id          = 'policy-guid'
+                displayName = 'CA201'
+                state       = 'enabled'
+                conditions  = [pscustomobject]@{
+                    clientAppTypes = @('all')
+                    users          = [pscustomobject]@{ includeUsers = @('All'); excludeUsers = @(); excludeGroups = @() }
+                    devices        = [pscustomobject]@{
+                        deviceFilter = [pscustomobject]@{ mode = 'include'; rule = 'device.trustType -eq "ServerAD"' }
+                    }
+                }
+                grantControls = [pscustomobject]@{ operator = 'OR'; builtInControls = @('mfa') }
+            }
+            $Result = Invoke-Edit @{
+                displayName   = 'CA201'
+                state         = 'enabled'
+                conditions    = @{
+                    clientAppTypes = @('all')
+                    users          = @{ includeUsers = @('All') }
+                    devices        = $null
+                }
+                grantControls = @{ operator = 'OR'; builtInControls = @('mfa') }
+            }
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Result.Sent.conditions.PSObject.Properties.Name | Should -Contain 'devices'
+            $Result.Sent.conditions.devices | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'a Graph schema rejection' {
+        It 'returns 500 with the Graph 1007 message and logs the outgoing body' {
+            $script:GraphErrorBody = '{"error":{"code":"1007","message":"Incoming ConditionalAccessPolicy object is null or does not match the schema of ConditionalAccessPolicy type."}}'
+            $Result = Invoke-Edit @{
+                displayName = 'Bearer eyJhbGciOiJub25lIn0.secret'
+                state       = 'enabled'
+                conditions  = @{ users = @{ includeUsers = @('All') } }
+                grantControls = @{ operator = 'OR'; builtInControls = @('mfa') }
+            }
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::InternalServerError)
+            $Result.Response.Body.Results | Should -Match '1007'
+            $Result.Response.Body.Results | Should -Match 'does not match the schema of ConditionalAccessPolicy type'
+            $script:LogMessage | Should -Match 'Outgoing body:'
+            $script:LogMessage | Should -Match '"includeUsers":\["All"\]'
+            $script:LogMessage | Should -Not -Match 'eyJhbGciOiJub25lIn0'
+            $script:LogMessage | Should -Match 'Bearer \[redacted\]'
         }
     }
 }
