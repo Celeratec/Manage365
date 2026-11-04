@@ -86,6 +86,71 @@ function Invoke-ExecEditCAPolicyFull {
         }
     }
 
+    # Beta GET and the editor can carry properties the beta PATCH schema rejects with 1007.
+    # includeAgentActions, agents, and actionsAndDestinations are the ones that show up on a
+    # report-only block policy. Dropping them leaves the stored value alone; sending them fails
+    # the whole update. @odata.type stays, because externalTenants is polymorphic.
+    function Remove-CIPPCAPolicyUnsupportedProperties {
+        param($Node, [string]$Path = '')
+        if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return }
+        if ($Node -isnot [System.Management.Automation.PSCustomObject]) {
+            foreach ($Item in @($Node)) { Remove-CIPPCAPolicyUnsupportedProperties -Node $Item -Path $Path }
+            return
+        }
+
+        $Allowed = @{
+            '' = @('displayName', 'state', 'conditions', 'grantControls', 'sessionControls')
+            'conditions' = @(
+                'users', 'applications', 'clientAppTypes', 'platforms', 'locations', 'devices',
+                'clientApplications', 'signInRiskLevels', 'userRiskLevels', 'servicePrincipalRiskLevels',
+                'insiderRiskLevels', 'authenticationFlows', 'agentIdRiskLevels'
+            )
+            'conditions.users' = @(
+                'includeUsers', 'excludeUsers', 'includeGroups', 'excludeGroups', 'includeRoles', 'excludeRoles',
+                'includeGuestsOrExternalUsers', 'excludeGuestsOrExternalUsers'
+            )
+            'conditions.users.includeGuestsOrExternalUsers' = @('guestOrExternalUserTypes', 'externalTenants')
+            'conditions.users.excludeGuestsOrExternalUsers' = @('guestOrExternalUserTypes', 'externalTenants')
+            'conditions.users.includeGuestsOrExternalUsers.externalTenants' = @('membershipKind', 'members')
+            'conditions.users.excludeGuestsOrExternalUsers.externalTenants' = @('membershipKind', 'members')
+            'conditions.applications' = @(
+                'includeApplications', 'excludeApplications', 'includeUserActions',
+                'includeAuthenticationContextClassReferences', 'applicationFilter'
+            )
+            'conditions.applications.applicationFilter' = @('mode', 'rule')
+            'conditions.platforms' = @('includePlatforms', 'excludePlatforms')
+            'conditions.locations' = @('includeLocations', 'excludeLocations')
+            'conditions.devices' = @('includeDevices', 'excludeDevices', 'deviceFilter')
+            'conditions.devices.deviceFilter' = @('mode', 'rule')
+            'conditions.clientApplications' = @('includeServicePrincipals', 'excludeServicePrincipals', 'servicePrincipalFilter')
+            'conditions.clientApplications.servicePrincipalFilter' = @('mode', 'rule')
+            'conditions.authenticationFlows' = @('transferMethods')
+            'grantControls' = @('operator', 'builtInControls', 'customAuthenticationFactors', 'termsOfUse', 'authenticationStrength')
+            'grantControls.authenticationStrength' = @('id')
+            'sessionControls' = @(
+                'applicationEnforcedRestrictions', 'cloudAppSecurity', 'signInFrequency', 'persistentBrowser',
+                'disableResilienceDefaults', 'continuousAccessEvaluation', 'secureSignInSession',
+                'globalSecureAccessFilteringProfile'
+            )
+            'sessionControls.applicationEnforcedRestrictions' = @('isEnabled')
+            'sessionControls.cloudAppSecurity' = @('isEnabled', 'cloudAppSecurityType')
+            'sessionControls.signInFrequency' = @('isEnabled', 'value', 'type', 'frequencyInterval', 'authenticationType')
+            'sessionControls.persistentBrowser' = @('isEnabled', 'mode')
+        }
+        if (-not $Allowed.ContainsKey($Path)) { return }
+
+        foreach ($Name in @($Node.PSObject.Properties.Name)) {
+            if ($Name -eq '@odata.type') { continue }
+            if ($Name -notin $Allowed[$Path]) {
+                $Node.PSObject.Properties.Remove($Name)
+            }
+        }
+        foreach ($Prop in @($Node.PSObject.Properties)) {
+            $ChildPath = if ([string]::IsNullOrEmpty($Path)) { $Prop.Name } else { "$Path.$($Prop.Name)" }
+            Remove-CIPPCAPolicyUnsupportedProperties -Node $Prop.Value -Path $ChildPath
+        }
+    }
+
     function Test-CIPPCAPolicyNode {
         param($Node, [string]$Name)
         return ($null -ne $Node -and $Node -is [System.Management.Automation.PSCustomObject] -and $Node.PSObject.Properties.Name -contains $Name)
@@ -224,6 +289,7 @@ function Invoke-ExecEditCAPolicyFull {
         Format-CIPPCAPolicy -Policy $PolicyObject
         Remove-CIPPCAPolicyUnrequestedNull -Proposed $PolicyObject -Live $CurrentClean -Patch $CleanBody
         Set-CIPPCAPolicyArrays -Node $PolicyObject
+        Remove-CIPPCAPolicyUnsupportedProperties -Node $PolicyObject
         $ConfirmRemoval = @($Request.Body.ConfirmRemoval | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
         $Dropped = @(Test-CIPPCAPolicyRemoval -Current $Current -Proposed $PolicyObject -ConfirmRemoval $ConfirmRemoval)
         if ($Dropped.Count -gt 0) {
@@ -253,7 +319,15 @@ function Invoke-ExecEditCAPolicyFull {
         $LoggedBody = ConvertTo-CIPPCAPolicyLogBody -Json $RawJSON
         $LogMessage = if ([string]::IsNullOrWhiteSpace($LoggedBody)) { $Result } else { "$Result Outgoing body: $LoggedBody" }
         Write-LogMessage -API $APIName -tenant $TenantFilter -headers $Headers -message $LogMessage -sev Error -LogData $ErrorMessage
-        $StatusCode = [HttpStatusCode]::InternalServerError
+        $GraphStatus = $null
+        if ($_.Exception.Data -and $_.Exception.Data.Contains('StatusCode')) {
+            $GraphStatus = [int]$_.Exception.Data['StatusCode']
+        }
+        $StatusCode = if ($GraphStatus -ge 400 -and $GraphStatus -lt 500) {
+            [HttpStatusCode]$GraphStatus
+        } else {
+            [HttpStatusCode]::InternalServerError
+        }
     }
 
     return [HttpResponseContext]@{

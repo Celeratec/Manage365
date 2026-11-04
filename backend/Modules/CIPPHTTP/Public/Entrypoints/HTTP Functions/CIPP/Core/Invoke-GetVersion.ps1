@@ -5,7 +5,7 @@ function Invoke-GetVersion {
     .ROLE
         CIPP.Core.Read
     .DESCRIPTION
-        Compares the caller's reported CIPP version against the latest published release and reports whether the frontend or the API is out of date, alongside the hosting shape (hosting type, App Service SKU, runtime stack) and the recorded version-update history.
+        Compares the caller's reported CIPP version against the latest published release and reports whether the frontend or the API is out of date, alongside the hosting shape (hosting type, App Service SKU, runtime stack), the running Manage365 image tag, and the recorded version-update history.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -74,10 +74,13 @@ function Invoke-GetVersion {
         DomainsAuthoritative = [bool]$SiteState.Discovered
     }
 
-    # Update history recorded at warmup by Update-CIPPVersionHistory; empty until the
-    # instance has moved between builds at least once.
+    # Update history recorded at warmup by Update-CIPPVersionHistory. That table only
+    # moves when APP_VERSION changes, so it stays on the last baseline bump. The running
+    # Manage365 release is the image tag in version.json.
     $History = @(Get-CIPPVersionHistory)
+    $ImageTag = Get-CIPPRunningImageTag
 
+    $Version | Add-Member -NotePropertyName 'ImageTag' -NotePropertyValue $ImageTag
     $Version | Add-Member -NotePropertyName 'Hosting' -NotePropertyValue $Hosting
     $Version | Add-Member -NotePropertyName 'VersionHistory' -NotePropertyValue $History
     $Version | Add-Member -NotePropertyName 'LastUpdate' -NotePropertyValue ($History.Count -gt 0 ? $History[0] : $null)

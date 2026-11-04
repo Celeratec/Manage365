@@ -49179,7 +49179,7 @@
         "tags": [
           "CIPP > Core"
         ],
-        "description": "Compares the caller's reported CIPP version against the latest published release and reports whether the frontend or the API is out of date, alongside the hosting shape (hosting type, App Service SKU, runtime stack) and the recorded version-update history.",
+        "description": "Compares the caller's reported CIPP version against the latest published release and reports whether the frontend or the API is out of date, alongside the hosting shape (hosting type, App Service SKU, runtime stack), the running Manage365 image tag, and the recorded version-update history.",
         "parameters": [
           {
             "name": "CleanupStale",

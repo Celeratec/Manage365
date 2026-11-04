@@ -49,6 +49,8 @@ BeforeAll {
                 $null
             )
             $Record.ErrorDetails = [System.Management.Automation.ErrorDetails]::new([string]$script:GraphErrorBody)
+            $Exception.Data['StatusCode'] = 400
+            $Exception.Data['RawErrorBody'] = [string]$script:GraphErrorBody
             throw $Record
         }
     }
@@ -654,8 +656,182 @@ Describe 'Invoke-ExecEditCAPolicyFull' {
         }
     }
 
+    Context 'HPDArch report-only edits on the beta schema' {
+        # Documented Microsoft Graph beta conditionalAccessPolicy update shape.
+        # includeAgentActions, agents, and actionsAndDestinations are not in it.
+        BeforeAll {
+        $script:BetaSchema = @{
+            '' = @('displayName', 'state', 'conditions', 'grantControls', 'sessionControls')
+            'conditions' = @('users', 'applications', 'clientAppTypes', 'platforms', 'locations', 'devices', 'clientApplications', 'signInRiskLevels', 'userRiskLevels', 'servicePrincipalRiskLevels', 'insiderRiskLevels', 'authenticationFlows', 'agentIdRiskLevels')
+            'conditions.users' = @('includeUsers', 'excludeUsers', 'includeGroups', 'excludeGroups', 'includeRoles', 'excludeRoles', 'includeGuestsOrExternalUsers', 'excludeGuestsOrExternalUsers')
+            'conditions.applications' = @('includeApplications', 'excludeApplications', 'includeUserActions', 'includeAuthenticationContextClassReferences', 'applicationFilter')
+            'conditions.platforms' = @('includePlatforms', 'excludePlatforms')
+            'conditions.locations' = @('includeLocations', 'excludeLocations')
+            'conditions.devices' = @('includeDevices', 'excludeDevices', 'deviceFilter')
+            'conditions.clientApplications' = @('includeServicePrincipals', 'excludeServicePrincipals', 'servicePrincipalFilter')
+            'conditions.authenticationFlows' = @('transferMethods')
+            'grantControls' = @('operator', 'builtInControls', 'customAuthenticationFactors', 'termsOfUse', 'authenticationStrength')
+            'grantControls.authenticationStrength' = @('id')
+            'sessionControls' = @('applicationEnforcedRestrictions', 'cloudAppSecurity', 'signInFrequency', 'persistentBrowser', 'disableResilienceDefaults', 'continuousAccessEvaluation', 'secureSignInSession', 'globalSecureAccessFilteringProfile')
+        }
+
+        function Get-SchemaViolations ($Node, [string]$Path) {
+            $Found = [System.Collections.Generic.List[string]]::new()
+            if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return $Found }
+            if ($Node -isnot [System.Management.Automation.PSCustomObject]) {
+                foreach ($Item in @($Node)) {
+                    foreach ($Violation in @(Get-SchemaViolations -Node $Item -Path $Path)) { $Found.Add($Violation) }
+                }
+                return $Found
+            }
+            $Allowed = $script:BetaSchema[$Path]
+            foreach ($Prop in @($Node.PSObject.Properties)) {
+                if ($Prop.Name -eq '@odata.type') { continue }
+                if ($null -ne $Allowed -and $Prop.Name -notin $Allowed) {
+                    $Found.Add($(if ($Path) { "$Path.$($Prop.Name)" } else { $Prop.Name }))
+                }
+                $ChildPath = if ($Path) { "$Path.$($Prop.Name)" } else { $Prop.Name }
+                if ($script:BetaSchema.ContainsKey($ChildPath)) {
+                    foreach ($Violation in @(Get-SchemaViolations -Node $Prop.Value -Path $ChildPath)) { $Found.Add($Violation) }
+                }
+            }
+            return $Found
+        }
+
+        function New-HpdLivePolicy ([string]$Kind) {
+            $Conditions = @{
+                clientAppTypes = @('all')
+                userRiskLevels = @()
+                signInRiskLevels = @()
+                applications = @{
+                    includeApplications = @('All')
+                    excludeApplications = @()
+                    includeUserActions = @()
+                    includeAgentActions = @()
+                    includeAuthenticationContextClassReferences = @()
+                }
+                users = @{
+                    includeUsers = @('All')
+                    excludeUsers = @('896e0c37-d911-4742-b291-a0b57058ff06')
+                    includeGroups = @()
+                    excludeGroups = @()
+                    includeRoles = @()
+                    excludeRoles = @()
+                }
+                agents = @{}
+                actionsAndDestinations = @{}
+            }
+            if ($Kind -eq 'deviceCode') {
+                $Conditions.authenticationFlows = @{ transferMethods = 'deviceCodeFlow' }
+            } else {
+                $Conditions.locations = @{ includeLocations = @('05ad0683-c39f-4830-aef0-1442d3890313'); excludeLocations = @() }
+            }
+            return [pscustomobject]@{
+                '@odata.context' = 'https://graph.microsoft.com/beta/$metadata#identity/conditionalAccess/policies/$entity'
+                id = 'policy-guid'
+                createdDateTime = '2026-01-01T00:00:00Z'
+                modifiedDateTime = '2026-11-04T00:00:00Z'
+                deletedDateTime = $null
+                templateId = 'template-guid'
+                partialEnablementStrategy = 'disabled'
+                displayName = 'Cortalis - Block device code flow (#3277327)'
+                state = 'enabledForReportingButNotEnforced'
+                conditions = ($Conditions | ConvertTo-Json -Depth 10 | ConvertFrom-Json)
+                grantControls = [pscustomobject]@{
+                    operator = 'OR'
+                    builtInControls = @('block')
+                    customAuthenticationFactors = @()
+                    termsOfUse = @()
+                }
+                sessionControls = $null
+            }
+        }
+
+        function New-HpdRequest ([string]$Kind) {
+            $Body = @{
+                displayName = 'Cortalis - Block device code flow (#3277327)'
+                state = 'enabledForReportingButNotEnforced'
+                conditions = @{
+                    userRiskLevels = @()
+                    signInRiskLevels = @()
+                    clientAppTypes = @('all')
+                    applications = @{
+                        includeApplications = @('All')
+                        excludeApplications = @()
+                        includeUserActions = @()
+                        includeAgentActions = @()
+                        includeAuthenticationContextClassReferences = @()
+                    }
+                    users = @{
+                        includeUsers = @('All')
+                        excludeUsers = @('896e0c37-d911-4742-b291-a0b57058ff06', 'd5a90120-e6b5-4166-922e-0799284aeeae')
+                        includeGroups = @()
+                        excludeGroups = @()
+                        includeRoles = @()
+                        excludeRoles = @()
+                    }
+                }
+                grantControls = @{
+                    operator = 'OR'
+                    builtInControls = @('block')
+                    customAuthenticationFactors = @()
+                    termsOfUse = @()
+                }
+                sessionControls = $null
+            }
+            if ($Kind -eq 'deviceCode') {
+                $Body.conditions.authenticationFlows = @{ transferMethods = 'deviceCodeFlow' }
+            } else {
+                $Body.displayName = 'Cortalis - Block one named location'
+                $Body.conditions.locations = @{ includeLocations = @('05ad0683-c39f-4830-aef0-1442d3890313') }
+            }
+            return $Body
+        }
+        }
+
+        It 'PATCHes beta and keeps the device-code exclusion inside the schema' {
+            $script:CurrentPolicy = New-HpdLivePolicy -Kind 'deviceCode'
+            $Result = Invoke-Edit (New-HpdRequest -Kind 'deviceCode')
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $script:LastPatch.Uri | Should -Be 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies/policy-guid'
+            $script:LastPatch.Type | Should -Be 'PATCH'
+            $Violations = @(Get-SchemaViolations -Node $Result.Sent -Path '')
+            $Violations | Should -BeNullOrEmpty
+            $script:LastPatch.Body | Should -Not -Match 'includeAgentActions|actionsAndDestinations|"agents"'
+            $script:LastPatch.Body | Should -Match '"excludeUsers":\["896e0c37-d911-4742-b291-a0b57058ff06","d5a90120-e6b5-4166-922e-0799284aeeae"\]'
+            $Result.Sent.state | Should -Be 'enabledForReportingButNotEnforced'
+            $Result.Sent.grantControls.builtInControls | Should -Be @('block')
+            $Result.Sent.conditions.authenticationFlows.transferMethods | Should -Be 'deviceCodeFlow'
+            $Result.Sent.sessionControls | Should -BeNullOrEmpty
+        }
+
+        It 'PATCHes beta and keeps the named-location exclusion inside the schema' {
+            $script:CurrentPolicy = New-HpdLivePolicy -Kind 'location'
+            $Result = Invoke-Edit (New-HpdRequest -Kind 'location')
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $script:LastPatch.Uri | Should -Be 'https://graph.microsoft.com/beta/identity/conditionalAccess/policies/policy-guid'
+            $Violations = @(Get-SchemaViolations -Node $Result.Sent -Path '')
+            $Violations | Should -BeNullOrEmpty
+            $script:LastPatch.Body | Should -Not -Match 'includeAgentActions|actionsAndDestinations|"agents"'
+            $script:LastPatch.Body | Should -Match '"excludeUsers":\["896e0c37-d911-4742-b291-a0b57058ff06","d5a90120-e6b5-4166-922e-0799284aeeae"\]'
+            $script:LastPatch.Body | Should -Match '"includeLocations":\["05ad0683-c39f-4830-aef0-1442d3890313"\]'
+            $Result.Sent.state | Should -Be 'enabledForReportingButNotEnforced'
+            $Result.Sent.grantControls.builtInControls | Should -Be @('block')
+            $Result.Sent.PSObject.Properties.Name | Should -Not -Contain 'authenticationFlows'
+        }
+
+        It 'does not wipe grant controls the request left out' {
+            $script:CurrentPolicy = New-HpdLivePolicy -Kind 'deviceCode'
+            $Request = New-HpdRequest -Kind 'deviceCode'
+            $Request.Remove('grantControls')
+            $Result = Invoke-Edit $Request
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Result.Sent.grantControls.builtInControls | Should -Be @('block')
+        }
+    }
+
     Context 'a Graph schema rejection' {
-        It 'returns 500 with the Graph 1007 message and logs the outgoing body' {
+        It 'returns the Graph 1007 error instead of a generic failure and logs the outgoing body' {
             $script:GraphErrorBody = '{"error":{"code":"1007","message":"Incoming ConditionalAccessPolicy object is null or does not match the schema of ConditionalAccessPolicy type."}}'
             $Result = Invoke-Edit @{
                 displayName = 'Bearer eyJhbGciOiJub25lIn0.secret'
@@ -663,7 +839,7 @@ Describe 'Invoke-ExecEditCAPolicyFull' {
                 conditions  = @{ users = @{ includeUsers = @('All') } }
                 grantControls = @{ operator = 'OR'; builtInControls = @('mfa') }
             }
-            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::InternalServerError)
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::BadRequest)
             $Result.Response.Body.Results | Should -Match '1007'
             $Result.Response.Body.Results | Should -Match 'does not match the schema of ConditionalAccessPolicy type'
             $script:LogMessage | Should -Match 'Outgoing body:'
