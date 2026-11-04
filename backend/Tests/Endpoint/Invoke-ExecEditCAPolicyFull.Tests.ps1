@@ -45,6 +45,18 @@ BeforeAll {
 
     . $FunctionPath
 
+    function Get-PolicyPropertyNames ($Node, [System.Collections.Generic.List[string]]$Names) {
+        if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return }
+        if ($Node -isnot [System.Management.Automation.PSCustomObject]) {
+            foreach ($Item in @($Node)) { Get-PolicyPropertyNames -Node $Item -Names $Names }
+            return
+        }
+        foreach ($Prop in @($Node.PSObject.Properties)) {
+            $Names.Add($Prop.Name)
+            Get-PolicyPropertyNames -Node $Prop.Value -Names $Names
+        }
+    }
+
     function Invoke-Edit ($PolicyBody) {
         $script:LastPatch = $null
         $Request = @{
@@ -212,6 +224,221 @@ Describe 'Invoke-ExecEditCAPolicyFull' {
             $script:CurrentPolicy = $null
             $Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
             ($script:LastPatch.Body | ConvertFrom-Json).conditions.users.excludeUsers | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'a live Graph beta policy' {
+        It 'drops annotations and read-only fields from the GET and the request before PATCH' {
+            $script:CurrentPolicy = @'
+{
+  "@odata.context": "https://graph.microsoft.com/beta/$metadata#identity/conditionalAccess/policies/$entity",
+  "id": "policy-guid",
+  "templateId": "template-guid",
+  "createdDateTime": "2026-01-01T00:00:00Z",
+  "modifiedDateTime": "2026-11-03T16:09:00Z",
+  "deletedDateTime": null,
+  "partialEnablementStrategy": "disabled",
+  "displayName": "CA201",
+  "state": "enabledForReportingButNotEnforced",
+  "conditions": {
+    "clientAppTypes": ["all"],
+    "users": {
+      "includeUsers": ["All"],
+      "excludeUsers": [],
+      "includeUsers@odata.type": "#Collection(String)",
+      "excludeGuestsOrExternalUsers": {
+        "guestOrExternalUserTypes": "b2bCollaborationGuest",
+        "externalTenants": { "@odata.type": "#microsoft.graph.conditionalAccessAllExternalTenants", "membershipKind": "all" }
+      }
+    },
+    "applications": { "includeApplications": ["All"], "excludeApplications": [] }
+  },
+  "grantControls": {
+    "@odata.type": "#microsoft.graph.conditionalAccessGrantControls",
+    "operator": "OR",
+    "builtInControls": ["mfa"],
+    "customAuthenticationFactors": [],
+    "termsOfUse": [],
+    "authenticationStrength": {
+      "@odata.context": "https://graph.microsoft.com/beta/$metadata#identity/conditionalAccess/authenticationStrength/policies/$entity",
+      "id": "00000000-0000-0000-0000-000000000002",
+      "displayName": "Multifactor authentication",
+      "createdDateTime": "2026-01-01T00:00:00Z",
+      "modifiedDateTime": "2026-01-01T00:00:00Z"
+    },
+    "authenticationStrength@odata.context": "https://graph.microsoft.com/beta/$metadata#policies('policy-guid')/grantControls/authenticationStrength"
+  },
+  "sessionControls": null
+}
+'@ | ConvertFrom-Json
+
+            $Result = Invoke-Edit @{
+                '@odata.context'          = 'https://graph.microsoft.com/beta/$metadata#identity/conditionalAccess/policies/$entity'
+                id                        = 'policy-guid'
+                createdDateTime           = '2026-01-01T00:00:00Z'
+                modifiedDateTime          = '2026-11-03T16:09:00Z'
+                deletedDateTime           = $null
+                templateId                = 'template-guid'
+                partialEnablementStrategy = 'disabled'
+                displayName               = 'CA201'
+                state                     = 'enabled'
+                conditions                = @{
+                    clientAppTypes = @('all')
+                    users          = @{
+                        includeUsers   = @('All')
+                        excludeUsers   = @()
+                        excludeGuestsOrExternalUsers = @{
+                            guestOrExternalUserTypes = 'b2bCollaborationGuest'
+                            externalTenants          = @{
+                                '@odata.type'  = '#microsoft.graph.conditionalAccessAllExternalTenants'
+                                membershipKind = 'all'
+                            }
+                        }
+                    }
+                    applications   = @{ includeApplications = @('All'); excludeApplications = @() }
+                }
+                grantControls             = @{
+                    '@odata.type'          = '#microsoft.graph.conditionalAccessGrantControls'
+                    operator               = 'OR'
+                    builtInControls        = @('mfa')
+                    customAuthenticationFactors = @()
+                    termsOfUse             = @()
+                    authenticationStrength = @{
+                        id             = '00000000-0000-0000-0000-000000000002'
+                        displayName    = 'Multifactor authentication'
+                        createdDateTime = '2026-01-01T00:00:00Z'
+                    }
+                }
+                sessionControls           = $null
+            }
+            $script:CurrentPolicy = $null
+
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Names = [System.Collections.Generic.List[string]]::new()
+            Get-PolicyPropertyNames -Node $Result.Sent -Names $Names
+            $Names | Should -Not -Contain '@odata.context'
+            $Names | Should -Not -Contain 'includeUsers@odata.type'
+            $Names | Should -Not -Contain 'authenticationStrength@odata.context'
+            $Names | Should -Not -Contain 'createdDateTime'
+            $Names | Should -Not -Contain 'modifiedDateTime'
+            $Names | Should -Not -Contain 'deletedDateTime'
+            $Names | Should -Not -Contain 'templateId'
+            $Names | Should -Not -Contain 'partialEnablementStrategy'
+            $Result.Sent.PSObject.Properties.Name | Should -Not -Contain 'id'
+            $Result.Sent.grantControls.authenticationStrength.PSObject.Properties.Name | Should -Be @('id')
+            $Result.Sent.grantControls.authenticationStrength.id | Should -Be '00000000-0000-0000-0000-000000000002'
+            $Result.Sent.conditions.users.excludeGuestsOrExternalUsers.externalTenants.'@odata.type' | Should -Be '#microsoft.graph.conditionalAccessAllExternalTenants'
+        }
+
+        It 'sends a state-only change when the full payload otherwise matches the live policy' {
+            $script:CurrentPolicy = @'
+{
+  "@odata.context": "https://graph.microsoft.com/beta/$metadata#identity/conditionalAccess/policies/$entity",
+  "id": "policy-guid",
+  "createdDateTime": "2026-01-01T00:00:00Z",
+  "modifiedDateTime": "2026-11-03T16:09:00Z",
+  "deletedDateTime": null,
+  "displayName": "CA201",
+  "state": "enabledForReportingButNotEnforced",
+  "conditions": {
+    "clientAppTypes": ["all"],
+    "signInRiskLevels": [],
+    "userRiskLevels": [],
+    "servicePrincipalRiskLevels": [],
+    "platforms": null,
+    "locations": null,
+    "devices": null,
+    "clientApplications": null,
+    "authenticationFlows": null,
+    "insiderRiskLevels": null,
+    "users": {
+      "includeUsers": ["All"],
+      "excludeUsers": [],
+      "includeGroups": [],
+      "excludeGroups": [],
+      "includeRoles": [],
+      "excludeRoles": [],
+      "includeGuestsOrExternalUsers": null,
+      "excludeGuestsOrExternalUsers": null
+    },
+    "applications": {
+      "includeApplications": ["All"],
+      "excludeApplications": [],
+      "includeUserActions": [],
+      "includeAuthenticationContextClassReferences": [],
+      "applicationFilter": null
+    }
+  },
+  "grantControls": {
+    "operator": "OR",
+    "builtInControls": ["mfa"],
+    "customAuthenticationFactors": [],
+    "termsOfUse": [],
+    "authenticationStrength": null
+  },
+  "sessionControls": null
+}
+'@ | ConvertFrom-Json
+
+            $Result = Invoke-Edit @{
+                id               = 'policy-guid'
+                createdDateTime  = '2026-01-01T00:00:00Z'
+                modifiedDateTime = '2026-11-03T16:09:00Z'
+                deletedDateTime  = $null
+                displayName      = 'CA201'
+                state            = 'enabled'
+                conditions       = @{
+                    clientAppTypes              = @('all')
+                    signInRiskLevels            = @()
+                    userRiskLevels              = @()
+                    servicePrincipalRiskLevels  = @()
+                    platforms                   = $null
+                    locations                   = $null
+                    devices                     = $null
+                    clientApplications          = $null
+                    authenticationFlows         = $null
+                    insiderRiskLevels           = $null
+                    users                       = @{
+                        includeUsers                     = @('All')
+                        excludeUsers                     = @()
+                        includeGroups                    = @()
+                        excludeGroups                    = @()
+                        includeRoles                     = @()
+                        excludeRoles                     = @()
+                        includeGuestsOrExternalUsers     = $null
+                        excludeGuestsOrExternalUsers     = $null
+                    }
+                    applications                = @{
+                        includeApplications                         = @('All')
+                        excludeApplications                         = @()
+                        includeUserActions                          = @()
+                        includeAuthenticationContextClassReferences = @()
+                        applicationFilter                           = $null
+                    }
+                }
+                grantControls    = @{
+                    operator                    = 'OR'
+                    builtInControls             = @('mfa')
+                    customAuthenticationFactors = @()
+                    termsOfUse                  = @()
+                    authenticationStrength      = $null
+                }
+                sessionControls  = $null
+            }
+            $script:CurrentPolicy = $null
+
+            $Result.Response.StatusCode | Should -Be ([System.Net.HttpStatusCode]::OK)
+            $Result.Sent.state | Should -Be 'enabled'
+            $Result.Sent.displayName | Should -Be 'CA201'
+            $Result.Sent.sessionControls | Should -BeNullOrEmpty
+            $Result.Sent.grantControls.authenticationStrength | Should -BeNullOrEmpty
+            $Result.Sent.grantControls.builtInControls | Should -Be @('mfa')
+            $Result.Sent.conditions.users.includeUsers | Should -Be @('All')
+            $Result.Sent.conditions.users.excludeUsers | Should -BeNullOrEmpty
+            $Result.Sent.conditions.platforms | Should -BeNullOrEmpty
+            $Names = $Result.Sent.PSObject.Properties.Name
+            @($Names | Where-Object { $_ -notin @('displayName', 'state', 'conditions', 'grantControls', 'sessionControls') }) | Should -BeNullOrEmpty
+            $script:LastPatch.Body | Should -Not -Match '@odata|createdDateTime|modifiedDateTime|deletedDateTime|templateId|policy-guid'
         }
     }
 

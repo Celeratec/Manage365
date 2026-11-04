@@ -8,6 +8,42 @@ function Invoke-ExecEditCAPolicyFull {
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
+    # Graph's beta GET returns annotations and read-only fields the policy schema rejects on PATCH
+    # (1007). @odata.type stays: externalTenants is polymorphic and the schema requires it.
+    function Remove-CIPPCAPolicyServerFields {
+        param($Node, [bool]$PolicyRoot = $false)
+        if ($null -eq $Node -or $Node -is [string] -or $Node -is [ValueType]) { return }
+        if ($Node -isnot [System.Management.Automation.PSCustomObject]) {
+            foreach ($Item in @($Node)) { Remove-CIPPCAPolicyServerFields -Node $Item }
+            return
+        }
+
+        $ReadOnly = if ($PolicyRoot) {
+            @('id', 'createdDateTime', 'modifiedDateTime', 'deletedDateTime', 'templateId', 'partialEnablementStrategy')
+        } else {
+            @('createdDateTime', 'modifiedDateTime', 'deletedDateTime')
+        }
+        foreach ($Name in @($Node.PSObject.Properties.Name)) {
+            $Annotation = $Name -like '*@odata*' -and $Name -ne '@odata.type'
+            if ($Annotation -or $Name -in $ReadOnly) {
+                $Node.PSObject.Properties.Remove($Name)
+            }
+        }
+        foreach ($Prop in @($Node.PSObject.Properties)) {
+            # A GET expands authenticationStrength into the full policy. PATCH accepts { id } or null.
+            if ($Prop.Name -eq 'authenticationStrength' -and $null -ne $Prop.Value -and $Prop.Value -is [System.Management.Automation.PSCustomObject]) {
+                $StrengthId = [string]$Prop.Value.id
+                $Node.authenticationStrength = if ([string]::IsNullOrWhiteSpace($StrengthId)) {
+                    $null
+                } else {
+                    [pscustomobject]@{ id = $StrengthId }
+                }
+                continue
+            }
+            Remove-CIPPCAPolicyServerFields -Node $Prop.Value
+        }
+    }
+
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
     $TenantFilter = $Request.Query.tenantFilter ?? $Request.Body.tenantFilter
@@ -36,12 +72,14 @@ function Invoke-ExecEditCAPolicyFull {
             }
         }
 
-        # Strip read-only properties that cannot be PATCHed. Start from the live policy so a
-        # partial body cannot silently drop grant controls, session controls, conditions, or
-        # excluded users and groups.
-        $CleanBody = $PolicyBody | Select-Object -Property * -ExcludeProperty id, createdDateTime, modifiedDateTime, templateId
+        # Start from the live policy so a partial body cannot silently drop grant controls,
+        # session controls, conditions, or excluded users and groups. Strip server fields
+        # before the merge so they are not copied onto the PATCH.
         $Current = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$PolicyId" -tenantid $TenantFilter -asApp $true -noPagination $true
-        $CurrentClean = $Current | Select-Object -Property * -ExcludeProperty id, createdDateTime, modifiedDateTime, templateId
+        $CleanBody = $PolicyBody | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        $CurrentClean = $Current | ConvertTo-Json -Depth 30 | ConvertFrom-Json
+        Remove-CIPPCAPolicyServerFields -Node $CleanBody -PolicyRoot $true
+        Remove-CIPPCAPolicyServerFields -Node $CurrentClean -PolicyRoot $true
         $PolicyObject = Merge-CIPPCAPolicyUpdate -Current $CurrentClean -Patch $CleanBody
         Format-CIPPCAPolicy -Policy $PolicyObject
         $ConfirmRemoval = @($Request.Body.ConfirmRemoval | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
