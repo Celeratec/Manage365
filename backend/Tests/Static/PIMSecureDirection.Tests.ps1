@@ -73,10 +73,16 @@ Describe 'PIM secure-direction invariants' {
 
     It 'keeps every secure-direction action inside Invoke-CIPPPIMAssignmentAction or the builder' {
         # The endpoint and the standards must delegate; they may not post schedule requests directly.
+        # ExecPIMRoleAssignment calls the builder only to reject an over-long window before the
+        # write. The write itself still goes through Invoke-CIPPPIMAssignmentAction. Schedule URIs
+        # stay in the builder, which the test above already enforces.
+        $Allowed = @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1', 'Invoke-ExecPIMRoleAssignment.ps1')
         $Direct = @($script:Sources | Where-Object {
-                $_.Name -notin @('New-CIPPPIMScheduleRequest.ps1', 'Invoke-CIPPPIMAssignmentAction.ps1') -and
+                $_.Name -notin $Allowed -and
                 $_.Text -match 'New-CIPPPIMScheduleRequest\b'
             } | ForEach-Object { $_.Name })
         $Direct | Should -BeNullOrEmpty
+        $Endpoint = @($script:Sources | Where-Object { $_.Name -eq 'Invoke-ExecPIMRoleAssignment.ps1' })
+        $Endpoint[0].Text | Should -Match 'Invoke-CIPPPIMAssignmentAction\b'
     }
 }
