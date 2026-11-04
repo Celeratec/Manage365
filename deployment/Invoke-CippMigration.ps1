@@ -59,7 +59,7 @@ param (
 
     [string]$CippUrl = '',
 
-    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.30',
+    [string]$ContainerImage = 'DOCKER|ghcr.io/celeratec/manage365:v6.1.31',
 
     [switch]$TestOnly,
 
