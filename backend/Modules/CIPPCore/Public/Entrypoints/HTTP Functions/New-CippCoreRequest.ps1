@@ -214,6 +214,8 @@ function New-CippCoreRequest {
                     }
                 }
             } catch {
+                # Adapt: map known auth/input exceptions to 4xx (upstream Get-CippErrorStatusCode)
+                # while keeping Manage365's structured JSON error body.
                 $ErrorMessage = Get-CippException -Exception $_
                 Write-Warning "Exception occurred on HTTP trigger ($FunctionName): $($ErrorMessage.NormalizedError)"
                 $HttpTotalStopwatch.Stop()
@@ -222,7 +224,7 @@ function New-CippCoreRequest {
                 foreach ($Key in ($HttpTimings.Keys | Sort-Object)) { $HttpTimingsRounded[$Key] = [math]::Round($HttpTimings[$Key], 2) }
                 Write-Debug "#### HTTP Request Timings #### $($HttpTimingsRounded | ConvertTo-Json -Compress)"
                 return ([HttpResponseContext]@{
-                        StatusCode  = [HttpStatusCode]::InternalServerError
+                        StatusCode  = Get-CippErrorStatusCode -ErrorRecord $_
                         ContentType = 'application/json'
                         Body        = @{
                             error   = $ErrorMessage.NormalizedError
