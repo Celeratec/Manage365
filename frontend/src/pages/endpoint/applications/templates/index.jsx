@@ -1,28 +1,22 @@
 import { useState } from 'react'
 import { CippIcons } from '../../../../utils/icon-registry'
 import { Layout as DashboardLayout } from '../../../../layouts/index'
-import { CippTablePage } from '../../../../components/CippComponents/CippTablePage'
+import { CippTablePage } from '../../../../components/CippComponents/CippTablePage.jsx'
 import { CippAppTemplateDrawer } from '../../../../components/CippComponents/CippAppTemplateDrawer'
 import CippJsonView from '../../../../components/CippFormPages/CippJSONView'
 import { Box } from '@mui/material'
 import { ApiGetCall } from '../../../../api/ApiCall'
-import { TrashIcon } from '@heroicons/react/24/outline'
-import {
-  Edit,
-  RocketLaunch,
-  GitHub,
-} from '@mui/icons-material'
 
 const Page = () => {
-  const pageTitle = "Application Templates";
-  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
-  const [editTemplate, setEditTemplate] = useState(null);
+  const pageTitle = 'Application Templates'
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false)
+  const [editTemplate, setEditTemplate] = useState(null)
   const integrations = ApiGetCall({
-    url: "/api/ListExtensionsConfig",
-    queryKey: "Integrations",
+    url: '/api/ListExtensionsConfig',
+    queryKey: 'Integrations',
     refetchOnMount: false,
     refetchOnReconnect: false,
-  });
+  })
 
   const actions = [
     {
@@ -32,10 +26,9 @@ const Page = () => {
       color: 'info',
       noConfirm: true,
       customFunction: (row) => {
-        setEditTemplate({ ...row });
-        setEditDrawerOpen(true);
+        setEditTemplate({ ...row })
+        setEditDrawerOpen(true)
       },
-      category: "edit",
     },
     {
       label: 'Save to GitHub',
@@ -43,44 +36,43 @@ const Page = () => {
       url: '/api/ExecCommunityRepo',
       icon: <CippIcons.GitHub />,
       data: {
-        Action: "UploadTemplate",
-        GUID: "GUID",
+        Action: 'UploadTemplate',
+        GUID: 'GUID',
       },
       fields: [
         {
-          label: "Repository",
-          name: "FullName",
-          type: "select",
+          label: 'Repository',
+          name: 'FullName',
+          type: 'select',
           api: {
-            url: "/api/ListCommunityRepos",
+            url: '/api/ListCommunityRepos',
             data: {
               WriteAccess: true,
             },
-            queryKey: "CommunityRepos-Write",
-            dataKey: "Results",
-            valueField: "FullName",
-            labelField: "FullName",
+            queryKey: 'CommunityRepos-Write',
+            dataKey: 'Results',
+            valueField: 'FullName',
+            labelField: 'FullName',
           },
           multiple: false,
           creatable: false,
           required: true,
           validators: {
-            required: { value: true, message: "This field is required" },
+            required: { value: true, message: 'This field is required' },
           },
         },
         {
-          label: "Commit Message",
-          placeholder: "Enter a commit message for adding this file to GitHub",
-          name: "Message",
-          type: "textField",
+          label: 'Commit Message',
+          placeholder: 'Enter a commit message for adding this file to GitHub',
+          name: 'Message',
+          type: 'textField',
           multiline: true,
           required: true,
           rows: 4,
         },
       ],
-      confirmText: "Are you sure you want to save this template to the selected repository?",
+      confirmText: 'Are you sure you want to save this template to the selected repository?',
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
-      category: "manage",
     },
     {
       label: 'Deploy Template',
@@ -90,27 +82,27 @@ const Page = () => {
       color: 'info',
       fields: [
         {
-          type: "autoComplete",
-          name: "selectedTenants",
-          label: "Select Tenants",
+          type: 'autoComplete',
+          name: 'selectedTenants',
+          label: 'Select Tenants',
           multiple: true,
           creatable: false,
           api: {
-            url: "/api/ListTenants?AllTenantSelector=true",
-            queryKey: "ListTenants-AppTemplateDeploy",
+            url: '/api/ListTenants?AllTenantSelector=true',
+            queryKey: 'ListTenants-AppTemplateDeploy',
             labelField: (tenant) => `${tenant.displayName} (${tenant.defaultDomainName})`,
-            valueField: "defaultDomainName",
+            valueField: 'defaultDomainName',
             addedField: {
-              customerId: "customerId",
-              defaultDomainName: "defaultDomainName",
+              customerId: 'customerId',
+              defaultDomainName: 'defaultDomainName',
             },
           },
-          validators: { required: "Please select at least one tenant" },
+          validators: { required: 'Please select at least one tenant' },
         },
         {
-          type: "radio",
-          name: "AssignTo",
-          label: "Override Assignment (optional)",
+          type: 'radio',
+          name: 'AssignTo',
+          label: 'Override Assignment (optional)',
           options: [
             { label: 'Keep template assignment', value: '' },
             { label: 'Do Not Assign', value: 'On' },
@@ -121,9 +113,14 @@ const Page = () => {
           ],
         },
         {
-          type: "textField",
-          name: "customGroup",
-          label: "Custom Group Names (comma separated, wildcards allowed)",
+          type: 'textField',
+          name: 'customGroup',
+          label: 'Custom Group Names (comma separated, wildcards allowed)',
+        },
+        {
+          type: 'textField',
+          name: 'excludeGroup',
+          label: 'Exclude Group Names (comma separated, wildcards allowed)',
         },
       ],
       customDataformatter: (row, action, formData) => ({
@@ -132,28 +129,27 @@ const Page = () => {
           defaultDomainName: t.value,
           customerId: t.addedFields?.customerId,
         })),
-        AssignTo: formData?.AssignTo || "",
-        customGroup: formData?.customGroup || "",
+        AssignTo: formData?.AssignTo || '',
+        customGroup: formData?.customGroup || '',
+        excludeGroup: formData?.excludeGroup || '',
       }),
       confirmText: 'Deploy "[displayName]" ([appCount] apps) to the selected tenants?',
-      category: "manage",
     },
     {
-      label: "Delete Template",
-      type: "POST",
-      url: "/api/RemoveAppTemplate",
-      data: { ID: "GUID" },
+      label: 'Delete Template',
+      type: 'POST',
+      url: '/api/RemoveAppTemplate',
+      data: { ID: 'GUID' },
       confirmText: 'Delete the template "[displayName]"?',
       icon: <CippIcons.Delete />,
       color: 'danger',
-      category: "danger",
     },
-  ];
+  ]
 
   const offCanvas = {
     children: (row) => <CippJsonView object={row} type="intune" defaultOpen={true} />,
-    size: "lg",
-  };
+    size: 'lg',
+  }
 
   return (
     <>
@@ -163,10 +159,10 @@ const Page = () => {
         apiUrl="/api/ListAppTemplates"
         actions={actions}
         offCanvas={offCanvas}
-        simpleColumns={["displayName", "description", "appCount", "appTypes", "appNames"]}
+        simpleColumns={['displayName', 'description', 'appCount', 'appTypes', 'appNames']}
         queryKey="ListAppTemplates"
         cardButton={
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: 'flex', gap: 1 }}>
             <CippAppTemplateDrawer />
           </Box>
         }
@@ -175,13 +171,13 @@ const Page = () => {
         editData={editTemplate}
         open={editDrawerOpen}
         onClose={() => {
-          setEditDrawerOpen(false);
-          setEditTemplate(null);
+          setEditDrawerOpen(false)
+          setEditTemplate(null)
         }}
       />
     </>
-  );
-};
+  )
+}
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
-export default Page;
+Page.getLayout = (page) => <DashboardLayout usesTenant={false}>{page}</DashboardLayout>
+export default Page
