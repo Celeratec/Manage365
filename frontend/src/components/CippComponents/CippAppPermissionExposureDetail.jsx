@@ -268,6 +268,23 @@ export const CippAppPermissionExposureDetail = ({ row, embedded = false }) => {
     { label: 'Delegated permissions', value: row.DelegatedPermissionCount },
     { label: 'Directory roles', value: row.DirectoryRoleCount },
     { label: 'Admin consent for all users', value: row.HasAllPrincipalsGrant },
+    { label: 'Disabled by Microsoft', value: row.DisabledByMicrosoftStatus },
+    {
+      label: 'Identity Protection',
+      value: row.IdentityProtectionRiskState
+        ? `${row.IdentityProtectionRiskState} (${row.IdentityProtectionRiskLevel})`
+        : null,
+    },
+    {
+      label: 'Owners (can add credentials)',
+      value:
+        Array.isArray(row.Owners) && row.Owners.length > 0
+          ? row.Owners.map(
+              (owner) =>
+                `${owner.UserPrincipalName || owner.DisplayName}${owner.UserType === 'Guest' ? ' (guest)' : ''}`
+            ).join(', ')
+          : null,
+    },
   ]
     .map((prop) => ({ ...prop, value: formatValue(prop.value) }))
     .filter((prop) => prop.value !== null && !(embedded && identityLabels.has(prop.label)))
@@ -312,6 +329,9 @@ export const CippAppPermissionExposureDetail = ({ row, embedded = false }) => {
           />
         )}
         {row.IsCippApp && <Chip size="small" variant="outlined" color="info" label="CIPP" />}
+        {row.DisabledByMicrosoftStatus && (
+          <Chip size="small" color="error" label="Disabled by Microsoft" />
+        )}
       </Stack>
 
       {row.IsCippApp && (
@@ -363,7 +383,23 @@ export const CippAppPermissionExposureDetail = ({ row, embedded = false }) => {
             noCard={true}
             title="Credentials"
             data={row.CredentialDetails}
-            simpleColumns={['Location', 'Type', 'Purpose', 'Expired', 'DisplayName', 'StartDateTime', 'AddedDateTime', 'AddedBy', 'EndDateTime']}
+            simpleColumns={[
+              'Location',
+              'Type',
+              'Purpose',
+              'Expired',
+              'DisplayName',
+              // Federated credentials have no dates; they say whose tokens they trust instead.
+              ...(row.CredentialDetails.some((c) => c.Type === 'Federated')
+                ? ['Issuer', 'Subject', 'Trust']
+                : []),
+              'StartDateTime',
+              'AddedDateTime',
+              'AddedBy',
+              'EndDateTime',
+              'LastSignInDateTime',
+              'Flags',
+            ]}
           />
         </Box>
       )}

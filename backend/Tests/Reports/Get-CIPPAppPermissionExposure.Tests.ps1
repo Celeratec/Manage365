@@ -4,6 +4,7 @@
 BeforeAll {
     $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
     $env:CIPPRootPath = $RepoRoot
+    Add-Type -Path (Join-Path $RepoRoot 'Shared/CIPPSharp/bin/CIPPSharp.dll')
 
     function New-CIPPDbRequest { param($TenantFilter, $Type, $Fields, $Rows) }
     function Get-CIPPDbItem { param($TenantFilter, $Type) }
@@ -69,7 +70,8 @@ Describe 'Get-CIPPAppPermissionExposure' {
         # Raw rows carry the parsed objects; New-CIPPDbRequest hands them back as if parsed.
         Mock Get-CIPPDbItem {
             if (-not $script:Collected[$TenantFilter] -or -not $script:Caches[$TenantFilter].ContainsKey($Type)) { return }
-            [pscustomobject]@{ RowKey = "$Type-Count"; Timestamp = [datetime]'2026-10-01T00:00:00Z' }
+            # a table row's Timestamp is a DateTimeOffset
+            [pscustomobject]@{ RowKey = "$Type-Count"; Timestamp = [datetimeoffset]'2026-10-01T00:00:00Z' }
             foreach ($Item in @($script:Caches[$TenantFilter][$Type])) { [pscustomobject]@{ RowKey = "$Type-x"; Parsed = $Item } }
         }
         Mock New-CIPPDbRequest { foreach ($Row in $Rows) { $Row.Parsed } }
@@ -97,6 +99,8 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Backup.DelegatedPermissionCount | Should -Be 1
             $Backup.HasAllPrincipalsGrant | Should -BeTrue
             @($Backup.PermissionDetails).Name | Should -Be @('Mail.Read', 'Mail.ReadWrite', 'Directory.Read.All')
+            $Backup.CacheTimestamp | Should -BeOfType [datetime]
+            [CIPP.CippJson]::ToJson($Rows, 20) | Should -Not -BeNullOrEmpty -Because 'every value in a row must be storable by CippJson'
         }
 
         It 'classifies ownership and flags the CIPP app' {
@@ -169,6 +173,10 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Rows[0].AppId | Should -BeExactly 'app-backup'
 
             @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -ServicePrincipalId 'res-graph').Count | Should -Be 0
+            $Uncatalogued = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -ServicePrincipalId 'res-graph' -IncludeUncatalogued)
+            $Uncatalogued.Count | Should -Be 1 -Because 'the NHI check rates every app it investigates'
+            $Uncatalogued[0].PermissionCount | Should -Be 0
+            @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -ServicePrincipalId 'no-such-sp' -IncludeUncatalogued).Count | Should -Be 0
         }
 
         It 'skips delegated grants and the grant cache with -ExcludeDelegated' {
@@ -382,6 +390,8 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Victim.Suspicion | Should -BeExactly 'Critical'
             $Victim.RiskReasons | Should -Contain 'Secret added to its app registration by the app Rogue App rather than by a person (suspicion two steps higher)'
             $Victim.CredentialDetails[0].AddedBy | Should -BeExactly 'Rogue App'
+            $Victim.CredentialDetails[0].Flags | Should -Contain 'AddedByApp'
+            (script:Get-Row 'sp-rotates').CredentialDetails[0].Flags | Should -Not -Contain 'AddedByApp'
             (script:Get-Row 'sp-rotates').Suspicion | Should -BeExactly 'High' -Because 'an app rotating its own secret is not another app'
         }
 
@@ -418,6 +428,8 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Backdated.CredentialDetails[0].StartDateTime | Should -BeLessThan $Backdated.CredentialDetails[0].AddedDateTime
             @((& $Row 'sp-cert').RiskReasons) -like 'Certificate on its app registration added * but valid from *: backdated, or reused or uploaded long after it was issued (suspicion two steps higher)' | Should -HaveCount 1
             @((& $Row 'sp-skew').RiskReasons) -like '*backdated*' | Should -HaveCount 0
+            $Backdated.CredentialDetails[0].Flags | Should -Be @('Backdated', 'AddedRecently')
+            (& $Row 'sp-skew').CredentialDetails[0].Flags | Should -Be @('AddedRecently')
             @((& $Row 'sp-future').RiskReasons) -like '*backdated*' | Should -HaveCount 0
         }
 
@@ -594,6 +606,106 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Row.RiskReasons[-1] | Should -BeLike 'Disabled:*'
         }
 
+        It 'raises a recently added credential one more step once it has signed in, and lists when each credential last did' {
+            $Old = [datetime]::UtcNow.AddDays(-400).ToString('o')
+            $script:Caches['contoso.onmicrosoft.com'].Apps = @()
+            foreach ($Id in 'sp-used', 'sp-unused') {
+                $null = script:Add-App -Id $Id -Owner 'contoso-id' -AppRoles $script:Ids.MailRead
+                $script:Caches['contoso.onmicrosoft.com'].Apps += [pscustomobject]@{
+                    id = "reg-$Id"; appId = "app-$Id"; createdDateTime = $Old; keyCredentials = @()
+                    passwordCredentials = @([pscustomobject]@{ keyId = "s-$Id"; startDateTime = [datetime]::UtcNow.AddDays(-20).ToString('o') })
+                }
+            }
+            $LastUsed = [datetime]::UtcNow.AddDays(-2)
+            $script:Caches['contoso.onmicrosoft.com'].AppCredentialSignInActivities = @([pscustomobject]@{ keyId = 'S-SP-USED'; signInActivity = [pscustomobject]@{ lastSignInDateTime = $LastUsed.ToString('o') } })
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Used = $Rows | Where-Object ServicePrincipalId -EQ 'sp-used'
+            $Unused = $Rows | Where-Object ServicePrincipalId -EQ 'sp-unused'
+
+            $Used.Suspicion | Should -BeExactly 'Critical'
+            $Used.RiskReasons | Should -Contain 'The secret added to its app registration has already signed in (suspicion one step higher)'
+            $Used.CredentialDetails[0].LastSignInDateTime | Should -Be $LastUsed.ToUniversalTime()
+            $Unused.Suspicion | Should -BeExactly 'High'
+            $Unused.CredentialDetails[0].LastSignInDateTime | Should -BeNullOrEmpty
+        }
+
+        It 'makes suspicion Critical for an app Microsoft disabled' {
+            $Sp = script:Add-App -Id 'sp-banned' -AppRoles $script:Ids.MailRead -Publisher 'Verified Co'
+            $Sp | Add-Member -NotePropertyName disabledByMicrosoftStatus -NotePropertyValue 'DisabledDueToViolationOfServicesAgreement'
+            $null = script:Add-App -Id 'sp-fine' -AppRoles $script:Ids.MailRead -Publisher 'Verified Co'
+            $script:Caches['contoso.onmicrosoft.com'].ServicePrincipals[-1] | Add-Member -NotePropertyName disabledByMicrosoftStatus -NotePropertyValue 'NotDisabled'
+
+            $Banned = script:Get-Row 'sp-banned'
+            $Banned.Suspicion | Should -BeExactly 'Critical'
+            $Banned.DisabledByMicrosoftStatus | Should -BeExactly 'DisabledDueToViolationOfServicesAgreement'
+            $Banned.RiskReasons | Should -Contain 'Microsoft disabled this app (DisabledDueToViolationOfServicesAgreement): it gets no tokens, but Microsoft found it malicious or abusive. Review what it did and remove it (suspicion Critical)'
+            (script:Get-Row 'sp-fine').DisabledByMicrosoftStatus | Should -BeNullOrEmpty
+            (script:Get-Row 'sp-fine').Suspicion | Should -BeExactly 'Low'
+        }
+
+        It 'raises an app Identity Protection rates risky, to Critical when confirmed compromised, and ignores a dismissed risk' {
+            foreach ($Id in 'sp-risk-high', 'sp-risk-medium', 'sp-confirmed', 'sp-dismissed') { $null = script:Add-App -Id $Id -AppRoles $script:Ids.MailRead -Publisher 'Verified Co' }
+            $script:Caches['contoso.onmicrosoft.com'].RiskyServicePrincipals = @(
+                [pscustomobject]@{ id = 'sp-risk-high'; riskLevel = 'high'; riskState = 'atRisk'; riskDetail = 'none' }
+                [pscustomobject]@{ id = 'sp-risk-medium'; riskLevel = 'medium'; riskState = 'atRisk'; riskDetail = 'none' }
+                [pscustomobject]@{ id = 'sp-confirmed'; riskLevel = 'high'; riskState = 'confirmedCompromised'; riskDetail = 'adminConfirmedServicePrincipalCompromised' }
+                [pscustomobject]@{ id = 'sp-dismissed'; riskLevel = 'none'; riskState = 'dismissed'; riskDetail = 'adminDismissedAllRiskForServicePrincipal' }
+            )
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Row = { param($Id) $Rows | Where-Object ServicePrincipalId -EQ $Id }
+
+            (& $Row 'sp-risk-high').Suspicion | Should -BeExactly 'High'
+            (& $Row 'sp-risk-high').IdentityProtectionRiskLevel | Should -BeExactly 'high'
+            (& $Row 'sp-risk-medium').Suspicion | Should -BeExactly 'Medium'
+            (& $Row 'sp-confirmed').Suspicion | Should -BeExactly 'Critical'
+            (& $Row 'sp-confirmed').IdentityProtectionRiskState | Should -BeExactly 'confirmedCompromised'
+            (& $Row 'sp-dismissed').Suspicion | Should -BeExactly 'Low'
+            (& $Row 'sp-dismissed').IdentityProtectionRiskState | Should -BeNullOrEmpty
+        }
+
+        It 'raises an unverified app owned elsewhere that is named like a Microsoft product, but not a verified one' {
+            foreach ($Case in @(@{ Id = 'sp-fake'; Publisher = $null }, @{ Id = 'sp-real'; Publisher = 'Verified Co' })) {
+                $Sp = script:New-Sp -Id $Case.Id -AppId "app-$($Case.Id)" -Name 'Outlook Mail Sync' -Publisher $Case.Publisher
+                $script:Caches['contoso.onmicrosoft.com'].ServicePrincipals += $Sp
+                $script:Caches['contoso.onmicrosoft.com'].AppRoleAssignments += script:New-Assignment -PrincipalId $Case.Id -AppRoleId $script:Ids.MailRead
+            }
+
+            $Fake = script:Get-Row 'sp-fake'
+            $Fake.Suspicion | Should -BeExactly 'High' -Because 'unverified (one step) and impersonating (one step)'
+            $Fake.RiskReasons | Should -Contain 'Named like a Microsoft product (Outlook) but neither owned by Microsoft nor from a verified publisher (suspicion one step higher)'
+            $Fake.ImpersonatedProduct | Should -BeExactly 'Outlook'
+            (script:Get-Row 'sp-real').RiskReasons | Should -Not -BeLike 'Named like a Microsoft product*'
+        }
+
+        It 'reads the app registration''s redirect URIs, owners and audience' {
+            $null = script:Add-App -Id 'sp-own-reg' -Owner 'contoso-id' -AppRoles $script:Ids.MailRead
+            $script:Caches['contoso.onmicrosoft.com'].Apps = @([pscustomobject]@{
+                    id = 'reg-sp-own-reg'; appId = 'app-sp-own-reg'; createdDateTime = [datetime]::UtcNow.AddDays(-400).ToString('o'); keyCredentials = @(); passwordCredentials = @()
+                    web = [pscustomobject]@{ redirectUris = @('https://app.contoso.com/callback', 'https://abc123.ngrok-free.app/callback', 'http://203.0.113.9/cb') }
+                    publicClient = [pscustomobject]@{ redirectUris = @('http://localhost:8400', 'ms-appx-web://microsoft.aad.brokerplugin/app') }
+                    signInAudience = 'AzureADMultipleOrgs'
+                    servicePrincipalLockConfiguration = [pscustomobject]@{ isEnabled = $false }
+                    owners = @(
+                        [pscustomobject]@{ id = 'u1'; displayName = 'Ann'; userPrincipalName = 'ann@contoso.com'; userType = 'Member' }
+                        [pscustomobject]@{ id = 'u2'; displayName = 'Bob'; userPrincipalName = 'bob_fabrikam.com#EXT#@contoso.onmicrosoft.com'; userType = 'Guest' }
+                        [pscustomobject]@{ '@odata.type' = '#microsoft.graph.servicePrincipal'; id = 'sp-x'; displayName = 'Deploy Bot'; appId = 'app-x' }
+                    )
+                })
+
+            $Row = script:Get-Row 'sp-own-reg'
+
+            $Row.Suspicion | Should -BeExactly 'Critical' -Because 'one step each for the redirect URIs, the guest owner and the app owner'
+            $Row.RiskReasons | Should -Contain 'Redirect URI https://abc123.ngrok-free.app/callback, http://203.0.113.9/cb on its app registration uses plain http, a raw IP address or a tunnelling service: sign-in codes and tokens for this app can be sent there (suspicion one step higher)'
+            $Row.RiskReasons | Should -Contain '3 owner(s) of its app registration (ann@contoso.com, bob_fabrikam.com#EXT#@contoso.onmicrosoft.com, Deploy Bot) can add a credential and act with all of this access'
+            $Row.RiskReasons | Should -Contain 'Owned by guest account(s) bob_fabrikam.com#EXT#@contoso.onmicrosoft.com: someone outside the organisation can add a credential to it (suspicion one step higher)'
+            $Row.RiskReasons | Should -Contain 'Owned by the app(s) Deploy Bot: whoever controls that app can add a credential to this one (suspicion one step higher)'
+            @($Row.RiskReasons | Where-Object { $_ -like 'Registered here for other organisations*lock is off*' }).Count | Should -Be 1
+            @($Row.Owners).Count | Should -Be 3
+            $Row.Owners[1].UserType | Should -BeExactly 'Guest'
+        }
+
         It 'sorts by risk first' {
             $null = script:Add-App -Id 'sp-crit' -AppRoles $script:Ids.RoleManagementRW
             $null = script:Add-App -Id 'sp-low' -AppRoles $script:Ids.DirectoryRead -Publisher 'Verified Co'
@@ -742,6 +854,242 @@ Describe 'Get-CIPPAppPermissionExposure' {
         }
     }
 
+    Context 'Exchange application roles' {
+        BeforeAll {
+            function script:Add-ExoRole {
+                param($Id, $Role, $Owner = 'vendor-tenant', $Publisher = 'Verified Co', $Scope, $Filter, $AdminUnit, $DaysAgo = 400, $Enabled = $true)
+                $Cache = $script:Caches['contoso.onmicrosoft.com']
+                if (-not $Cache.ContainsKey('ExoAppRoleAssignments')) { $Cache.ExoAppRoleAssignments = @() }
+                if ($Id -notin $Cache.ServicePrincipals.id) { $Cache.ServicePrincipals += script:New-Sp -Id $Id -AppId "app-$Id" -Name $Id -Owner $Owner -Publisher $Publisher }
+                $Cache.ExoAppRoleAssignments += [pscustomobject]@{
+                    role = $Role; servicePrincipalId = $Id; enabled = $Enabled; customResourceScope = $Scope; customResourceScopeFilter = $Filter
+                    recipientAdministrativeUnitScope = $AdminUnit; whenCreatedUTC = [datetime]::UtcNow.AddDays(-$DaysAgo).ToString('o')
+                }
+            }
+            function script:Get-Row { param($Id) @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com') | Where-Object ServicePrincipalId -EQ $Id }
+        }
+
+        It 'reports an app whose mailbox access is granted only in Exchange, ignoring disabled assignments and apps not in Entra' {
+            script:Add-ExoRole -Id 'sp-exo' -Role 'Application Mail.ReadWrite'
+            script:Add-ExoRole -Id 'sp-exo' -Role 'Application Mail.Send' -Enabled $false
+            $script:Caches['contoso.onmicrosoft.com'].ExoAppRoleAssignments += [pscustomobject]@{ role = 'Application Mail.Read'; servicePrincipalId = 'sp-gone'; enabled = $true }
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Row = $Rows | Where-Object ServicePrincipalId -EQ 'sp-exo'
+
+            $Rows.ServicePrincipalId | Should -Not -Contain 'sp-gone'
+            $Row.Risk | Should -BeExactly 'Critical'
+            $Row.ExchangeRoleCount | Should -Be 1
+            $Row.ApplicationPermissionCount | Should -Be 0
+            $Row.DelegatedPermissionCount | Should -Be 0
+            $Row.PermissionDetails[0].Type | Should -BeExactly 'ExchangeRole'
+            $Row.PermissionDetails[0].Scope | Should -BeExactly 'Organization'
+            $Row.PermissionDetails[0].AddedDateTime | Should -BeOfType [datetime]
+            $Row.Permissions | Should -BeExactly 'Exchange Online: Application Mail.ReadWrite (Exchange application role, suspicion High, impact Critical)'
+            $Row.RiskReasons[0] | Should -BeLike 'Permissions and Exchange application roles:*'
+        }
+
+        It 'lowers impact for a scoped role, and says when an Entra permission makes the scope restrict nothing' {
+            script:Add-ExoRole -Id 'sp-scoped' -Role 'Application Mail.Read' -AdminUnit 'au-finance'
+            script:Add-ExoRole -Id 'sp-backup' -Role 'Application Mail.Read' -Scope 'Finance' -Filter "Department -eq 'Finance'"
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Scoped = $Rows | Where-Object ServicePrincipalId -EQ 'sp-scoped'
+            $Backup = $Rows | Where-Object ServicePrincipalId -EQ 'sp-backup'
+            $BackupRole = @($Backup.PermissionDetails | Where-Object Type -EQ 'ExchangeRole')[0]
+
+            $Scoped.PermissionDetails[0].Scope | Should -BeExactly 'Administrative unit'
+            $Scoped.PermissionDetails[0].Impact | Should -BeExactly 'High'
+            $Scoped.HighestImpact | Should -BeExactly 'High'
+            $Scoped.Permissions | Should -BeLike '*scoped to administrative unit au-finance*'
+            @($Scoped.RiskReasons | Where-Object { $_ -like '*restricts nothing*' }).Count | Should -Be 0
+            $BackupRole.ScopeName | Should -BeExactly 'Finance'
+            $BackupRole.ScopeFilter | Should -BeExactly "Department -eq 'Finance'"
+            $BackupRole.Reason | Should -BeLike "*management scope Finance (Department -eq 'Finance'): impact one step lower."
+            $Backup.RiskReasons | Should -Contain 'Application Mail.Read is scoped in Exchange to the management scope Finance, but the app also holds Microsoft Graph Mail.Read in Entra, which reaches every mailbox unless an application access policy limits it: the Exchange scope restricts nothing'
+        }
+
+        It 'raises a role assigned in the last 7 days, also on a Microsoft app' {
+            script:Add-ExoRole -Id 'sp-new' -Role 'Application Calendars.Read' -DaysAgo 3
+            script:Add-ExoRole -Id 'sp-old' -Role 'Application Calendars.Read' -DaysAgo 40
+            script:Add-ExoRole -Id 'sp-ms' -Role 'Application Calendars.Read' -DaysAgo 2 -Owner $script:MicrosoftTenant
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $New = $Rows | Where-Object ServicePrincipalId -EQ 'sp-new'
+
+            $New.Suspicion | Should -BeExactly 'High'
+            $New.RiskReasons | Should -Contain 'Exchange application role Application Calendars.Read assigned in the last 7 days (suspicion two steps higher)'
+            ($Rows | Where-Object ServicePrincipalId -EQ 'sp-old').Suspicion | Should -BeExactly 'Low'
+            ($Rows | Where-Object ServicePrincipalId -EQ 'sp-ms').Suspicion | Should -BeExactly 'High'
+        }
+
+        It 'rates an application role outside the catalog as mailbox access' {
+            script:Add-ExoRole -Id 'sp-future' -Role 'Application Tasks.ReadWrite'
+
+            $Detail = (script:Get-Row 'sp-future').PermissionDetails[0]
+            "$($Detail.Suspicion)/$($Detail.Impact)" | Should -BeExactly 'Medium/High'
+            $Detail.Reason | Should -BeLike 'Exchange application role not in the catalog*'
+        }
+
+        It 'keeps full impact for an app holding an Exchange role next to per-user delegated grants' {
+            $script:Caches['contoso.onmicrosoft.com'].OAuth2PermissionGrants += [pscustomobject]@{ clientId = 'sp-mix'; resourceId = 'res-graph'; consentType = 'Principal'; scope = 'Mail.Read' }
+            script:Add-ExoRole -Id 'sp-mix' -Role 'Application Calendars.Read'
+
+            (script:Get-Row 'sp-mix').RiskReasons | Should -Not -Contain 'Only delegated permissions, each consented by individual users: limited to what those users can reach (impact one step lower)'
+        }
+    }
+
+    Context 'federated credentials' {
+        BeforeEach {
+            $script:HomeTenant = '11111111-2222-3333-4444-555555555555'
+            Mock Get-Tenants { [pscustomobject]@{ defaultDomainName = $TenantFilter; customerId = $script:HomeTenant } }
+        }
+        BeforeAll {
+            # An app registered in this tenant holding Mail.Read (suspicion Low), with its federated credentials.
+            function script:Add-FederatedApp {
+                param($Id, [object[]]$Federated)
+                $Cache = $script:Caches['contoso.onmicrosoft.com']
+                $Cache.ServicePrincipals += script:New-Sp -Id $Id -AppId "app-$Id" -Name $Id -Owner $script:HomeTenant
+                $Cache.AppRoleAssignments += script:New-Assignment -PrincipalId $Id -AppRoleId $script:Ids.MailRead
+                if (-not $Cache.ContainsKey('Apps')) { $Cache.Apps = @() }
+                $Cache.Apps += [pscustomobject]@{ id = "obj-$Id"; appId = "app-$Id"; passwordCredentials = @(); keyCredentials = @() }
+                if (-not $Cache.ContainsKey('AppFederatedCredentials')) { $Cache.AppFederatedCredentials = @() }
+                foreach ($Credential in $Federated) {
+                    $Cache.AppFederatedCredentials += [pscustomobject]@{ appId = "app-$Id"; credentialId = [guid]::NewGuid().ToString(); name = $Credential.Name; issuer = $Credential.Issuer; subject = 'sub-1'; audiences = @('api://AzureADTokenExchange') }
+                }
+            }
+            function script:Get-AppRow { param($Id) @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com') | Where-Object ServicePrincipalId -EQ $Id }
+        }
+
+        It 'lists a credential trusting a recognised provider without raising suspicion' {
+            script:Add-FederatedApp -Id 'sp-gh' -Federated @(@{ Name = 'deploy'; Issuer = 'https://token.actions.githubusercontent.com' }, @{ Name = 'self'; Issuer = "https://login.microsoftonline.com/$script:HomeTenant/v2.0" })
+
+            $Row = script:Get-AppRow 'sp-gh'
+            $Federated = @($Row.CredentialDetails | Where-Object Type -EQ 'Federated')
+
+            $Row.FederatedCredentialCount | Should -Be 2
+            $Federated.Trust | Should -Be @('GitHub Actions', 'This tenant (a managed identity or app here)')
+            $Federated[0].Location | Should -BeExactly 'App registration'
+            $Row.Suspicion | Should -BeExactly 'Low'
+            $Row.RiskReasons | Should -Contain '2 federated credential(s) on its app registration, each trusting a recognised identity provider: tokens it issues for the configured subject sign in as this app with no secret'
+        }
+
+        It 'raises suspicion two steps for an unrecognised issuer and one for another Entra tenant, by the most any one does' {
+            script:Add-FederatedApp -Id 'sp-odd' -Federated @(@{ Name = 'oidc'; Issuer = 'https://evil.example.net/issuer' }, @{ Name = 'x-tenant'; Issuer = 'https://login.microsoftonline.com/99999999-8888-7777-6666-555555555555/v2.0' })
+            script:Add-FederatedApp -Id 'sp-xt' -Federated @(@{ Name = 'x-tenant'; Issuer = 'https://sts.windows.net/99999999-8888-7777-6666-555555555555/' })
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Odd = $Rows | Where-Object ServicePrincipalId -EQ 'sp-odd'
+            $CrossTenant = $Rows | Where-Object ServicePrincipalId -EQ 'sp-xt'
+
+            $Odd.Suspicion | Should -BeExactly 'High'
+            @($Odd.RiskReasons | Where-Object { $_ -like "Federated credential 'oidc'*not a recognised identity provider*" }).Count | Should -Be 1
+            @($Odd.RiskReasons | Where-Object { $_ -like "Federated credential 'x-tenant'*another Entra tenant*" }).Count | Should -Be 1
+            $CrossTenant.Suspicion | Should -BeExactly 'Medium'
+            @($CrossTenant.CredentialDetails | Where-Object Type -EQ 'Federated')[0].Trust | Should -BeExactly 'Another Entra tenant (99999999-8888-7777-6666-555555555555)'
+            @($Odd.CredentialDetails | Where-Object { $_.Flags -contains 'UntrustedIssuer' }).Count | Should -Be 2
+        }
+
+        It 'leaves the count unknown when the federated credentials were never collected' {
+            script:Add-FederatedApp -Id 'sp-none' -Federated @()
+            $script:Caches['contoso.onmicrosoft.com'].Remove('AppFederatedCredentials')
+
+            (script:Get-AppRow 'sp-none').FederatedCredentialCount | Should -BeNullOrEmpty
+        }
+    }
+
+    Context 'Exchange application access policies' {
+        BeforeAll {
+            function script:Add-MailApp {
+                param($Id)
+                $Cache = $script:Caches['contoso.onmicrosoft.com']
+                $Cache.ServicePrincipals += script:New-Sp -Id $Id -AppId "app-$Id" -Name $Id -Publisher 'Verified Co'
+                $Cache.AppRoleAssignments += script:New-Assignment -PrincipalId $Id -AppRoleId $script:Ids.MailRead
+                $Cache.AppRoleAssignments += script:New-Assignment -PrincipalId $Id -AppRoleId $script:Ids.DirectoryRead
+            }
+            function script:Add-AccessPolicy {
+                param($AppId, $AccessRight, $Group, $IsValid = $true)
+                $Cache = $script:Caches['contoso.onmicrosoft.com']
+                if (-not $Cache.ContainsKey('ExoApplicationAccessPolicies')) { $Cache.ExoApplicationAccessPolicies = @() }
+                $Cache.ExoApplicationAccessPolicies += [pscustomobject]@{ appId = $AppId; accessRight = $AccessRight; scopeName = $Group; scopeIdentity = $Group; isValid = $IsValid }
+            }
+            function script:Get-MailRead { param($Row) @($Row.PermissionDetails | Where-Object { $_.Type -eq 'Application' -and $_.Name -eq 'Mail.Read' })[0] }
+            function script:Get-AppRow { param($Id) @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com') | Where-Object ServicePrincipalId -EQ $Id }
+        }
+
+        It 'lowers the impact of mailbox permissions a RestrictAccess policy limits, also with a DenyAccess policy next to it' {
+            script:Add-MailApp -Id 'sp-restricted'
+            script:Add-AccessPolicy -AppId 'APP-SP-RESTRICTED' -AccessRight 'RestrictAccess' -Group 'Sales Mailboxes'
+            script:Add-AccessPolicy -AppId 'app-sp-restricted' -AccessRight 'DenyAccess' -Group 'Executives'
+
+            $Row = script:Get-AppRow 'sp-restricted'
+            $MailRead = script:Get-MailRead $Row
+            $DirectoryRead = @($Row.PermissionDetails | Where-Object Name -EQ 'Directory.Read.All')[0]
+
+            $MailRead.Impact | Should -BeExactly 'High'
+            $MailRead.AccessPolicy | Should -BeExactly 'RestrictAccess'
+            $MailRead.AccessPolicyScope | Should -BeExactly 'Sales Mailboxes'
+            $MailRead.Reason | Should -BeLike '*Limited by an application access policy to the members of Sales Mailboxes except those of Executives: impact one step lower.'
+            $DirectoryRead.PSObject.Properties['AccessPolicy'] | Should -BeNullOrEmpty
+            $Row.HighestImpact | Should -BeExactly 'High'
+        }
+
+        It 'lowers nothing for a DenyAccess policy alone' {
+            script:Add-MailApp -Id 'sp-denied'
+            script:Add-AccessPolicy -AppId 'app-sp-denied' -AccessRight 'DenyAccess' -Group 'Executives'
+
+            $MailRead = script:Get-MailRead (script:Get-AppRow 'sp-denied')
+
+            $MailRead.Impact | Should -BeExactly 'Critical'
+            $MailRead.AccessPolicy | Should -BeExactly 'DenyAccess'
+            $MailRead.Reason | Should -BeLike '*keeps it from the members of Executives, but it still reaches every other mailbox.'
+        }
+
+        It 'applies a policy for every app, and does not count one Exchange marks invalid' {
+            script:Add-MailApp -Id 'sp-any'
+            script:Add-MailApp -Id 'sp-broken'
+            script:Add-AccessPolicy -AppId 'app-sp-any' -AccessRight 'RestrictAccess' -Group 'All Staff'
+            script:Add-AccessPolicy -AppId 'app-sp-broken' -AccessRight 'RestrictAccess' -Group 'Deleted Group' -IsValid $false
+            script:Add-AccessPolicy -AppId '*' -AccessRight 'DenyAccess' -Group 'Board'
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+            $Any = script:Get-MailRead ($Rows | Where-Object ServicePrincipalId -EQ 'sp-any')
+            $Broken = script:Get-MailRead ($Rows | Where-Object ServicePrincipalId -EQ 'sp-broken')
+
+            $Any.Reason | Should -BeLike '*members of All Staff except those of Board:*'
+            $Broken.AccessPolicy | Should -BeExactly 'DenyAccess'
+            $Broken.Impact | Should -BeExactly 'Critical'
+            $Broken.Reason | Should -BeLike '*marks the application access policy for Deleted Group invalid (its group may be gone): not counted.'
+        }
+
+        It 'does not limit Exchange application roles' {
+            script:Add-AccessPolicy -AppId 'app-sp-exo' -AccessRight 'RestrictAccess' -Group 'Sales Mailboxes'
+            $Cache = $script:Caches['contoso.onmicrosoft.com']
+            $Cache.ServicePrincipals += script:New-Sp -Id 'sp-exo' -AppId 'app-sp-exo' -Name 'Exo App'
+            $Cache.ExoAppRoleAssignments = @([pscustomobject]@{ role = 'Application Mail.Read'; servicePrincipalId = 'sp-exo'; enabled = $true })
+
+            $Role = (script:Get-AppRow 'sp-exo').PermissionDetails[0]
+
+            $Role.Impact | Should -BeExactly 'Critical'
+            $Role.PSObject.Properties['AccessPolicy'] | Should -BeNullOrEmpty
+        }
+
+        It 'says a scoped Exchange role restricts nothing only when no RestrictAccess policy limits the Entra permission' {
+            $Cache = $script:Caches['contoso.onmicrosoft.com']
+            script:Add-MailApp -Id 'sp-limited'
+            script:Add-AccessPolicy -AppId 'app-sp-limited' -AccessRight 'RestrictAccess' -Group 'Finance Mailboxes'
+            $Cache.ExoAppRoleAssignments = @(
+                [pscustomobject]@{ role = 'Application Mail.Read'; servicePrincipalId = 'sp-limited'; enabled = $true; customResourceScope = 'Finance' }
+                [pscustomobject]@{ role = 'Application Mail.Read'; servicePrincipalId = 'sp-backup'; enabled = $true; customResourceScope = 'Finance' }
+            )
+
+            $Rows = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com')
+
+            @(($Rows | Where-Object ServicePrincipalId -EQ 'sp-limited').RiskReasons | Where-Object { $_ -like '*restricts nothing*' }).Count | Should -Be 0
+            ($Rows | Where-Object ServicePrincipalId -EQ 'sp-backup').RiskReasons | Should -Contain 'Application Mail.Read is scoped in Exchange to the management scope Finance, but the app also holds Microsoft Graph Mail.Read in Entra, which no application access policy limits to a group: the Exchange scope restricts nothing'
+        }
+    }
+
     Context 'sign-in activity from the reporting database' {
         It 'reports the last sign-in of any kind and how stale it is' {
             $Recent = [datetime]::UtcNow.AddDays(-10).ToString('o')
@@ -819,7 +1167,8 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Rows[0].AppId | Should -BeExactly 'app-backup'
             $Rows[0].CacheTimestamp | Should -BeNullOrEmpty
             Should -Invoke New-GraphGetRequest -Times 1 -Exactly -ParameterFilter { $uri -like '*appRoleAssignedTo*' }
-            Should -Invoke Get-CIPPDbItem -Times 0 -ParameterFilter { $Type -ne 'ServicePrincipalSignInActivities' }
+            # the sign-in activity reports are too slow to call while a page waits: read from the cache even live
+            Should -Invoke Get-CIPPDbItem -Times 0 -ParameterFilter { $Type -notin 'ServicePrincipalSignInActivities', 'AppCredentialSignInActivities' }
         }
 
         It 'reads sign-in activity from the cache instead of calling the slow report endpoint' {
@@ -841,7 +1190,9 @@ Describe 'Get-CIPPAppPermissionExposure' {
             $Row = @(Get-CIPPAppPermissionExposure -TenantFilter 'contoso.onmicrosoft.com' -Live)[0]
 
             $Row.SignInActivity | Should -BeExactly 'Idle 30+ days'
-            $Row.SignInActivityTimestamp | Should -Be ([datetime]'2026-10-01T00:00:00Z')
+            $Row.SignInActivityTimestamp | Should -Be ([datetimeoffset]'2026-10-01T00:00:00Z').UtcDateTime
+            $Row.SignInActivityTimestamp | Should -BeOfType [datetime]
+            [CIPP.CippJson]::ToJson($Row, 20) | Should -Not -BeNullOrEmpty -Because 'the NHI check keeps the row in its run state, which CippJson writes'
             Should -Invoke New-GraphGetRequest -Times 0 -ParameterFilter { $uri -like '*SignInActivities*' }
             Should -Invoke New-GraphBulkRequest -Times 0
         }
