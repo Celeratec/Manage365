@@ -63,6 +63,7 @@ import {
 } from "@mui/icons-material";
 import { getCippFormatting } from "../../../../utils/get-cipp-formatting";
 import CippUserAvatar from "../../../../components/CippComponents/CippUserAvatar";
+import { isMultiTenant } from "../../../../utils/tenant-selection";
 
 // Custom sort function moved outside component to avoid recreation on each render
 // Licensed users first (alphabetically by surname), then unlicensed (alphabetically by surname)
@@ -92,6 +93,7 @@ const Page = () => {
   const router = useRouter();
   const pageTitle = "Users";
   const tenant = useSettings().currentTenant;
+  const tenantQuery = isMultiTenant(tenant) ? "[Tenant]" : tenant;
   const cardButtonPermissions = ["Identity.User.ReadWrite"];
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -1104,7 +1106,7 @@ const Page = () => {
 };
 
 Page.getLayout = (page) => (
-  <DashboardLayout>
+  <DashboardLayout tenantGroupSupport={true}>
     <TabbedLayout tabOptions={tabOptions}>{page}</TabbedLayout>
   </DashboardLayout>
 )

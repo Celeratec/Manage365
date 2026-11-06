@@ -40,6 +40,7 @@ import {
   expandRecycleRestoreRows,
 } from '../../../utils/sharepoint-recycle-bin-tree'
 import { useSharePointBrowserRecents } from '../../../hooks/use-sharepoint-browser-recents'
+import { isMultiTenant } from '../../../utils/tenant-selection'
 
 const optionValue = (value) =>
   value && typeof value === 'object' && 'value' in value ? value.value : value
@@ -208,7 +209,7 @@ const SharePointBrowserMobile = ({ tenantFilter, canReadSite, canWriteSite }) =>
     </Button>
   ) : null
 
-  if (!tenantFilter || tenantFilter === 'AllTenants') {
+  if (!tenantFilter || isMultiTenant(tenantFilter)) {
     return (
       <Typography sx={{
         color: "text.secondary"
@@ -313,7 +314,7 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
       router.isReady &&
       resolvingSiteUrl &&
       !!tenantFilter &&
-      tenantFilter !== 'AllTenants',
+      !isMultiTenant(tenantFilter),
   })
 
   useEffect(() => {
@@ -330,7 +331,7 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
     url: '/api/ListSiteBrowser',
     data: { tenantFilter },
     queryKey: rootQueryKey,
-    waiting: router.isReady && !!tenantFilter && tenantFilter !== 'AllTenants' && !resolvingSiteUrl,
+    waiting: router.isReady && !!tenantFilter && !isMultiTenant(tenantFilter) && !resolvingSiteUrl,
   })
   const browserApi = ApiGetCall({
     url: '/api/ListSiteBrowser',
@@ -342,7 +343,7 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
     waiting:
       router.isReady &&
       !!tenantFilter &&
-      tenantFilter !== 'AllTenants' &&
+      !isMultiTenant(tenantFilter) &&
       !resolvingSiteUrl,
   })
 
@@ -358,7 +359,7 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
       inRecycle &&
       router.isReady &&
       !!tenantFilter &&
-      tenantFilter !== 'AllTenants' &&
+      !isMultiTenant(tenantFilter) &&
       !!openedSite?.webUrl,
   })
 
@@ -819,7 +820,7 @@ const SharePointBrowserDesktop = ({ tenantFilter, canReadSite, canWriteSite }) =
       : `${restoreItems.length} items`
   })()
 
-  if (!tenantFilter || tenantFilter === 'AllTenants') {
+  if (!tenantFilter || isMultiTenant(tenantFilter)) {
     return (
       <Typography sx={{
         color: "text.secondary"

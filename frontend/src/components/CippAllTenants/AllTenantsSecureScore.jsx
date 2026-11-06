@@ -14,11 +14,13 @@ import {
 import { Grid } from '@mui/system'
 import Link from 'next/link'
 import { ApiGetCall } from '../../api/ApiCall.jsx'
+import { useMultiTenantScope } from '../../hooks/use-multi-tenant-scope'
 import { getCippError } from '../../utils/get-cipp-error'
 import { CippInfoBar } from '../CippCards/CippInfoBar'
 import { CippDataTable } from '../CippTable/CippDataTable'
 import { AllTenantsTrendChart, severityColor } from './AllTenantsPrimitives'
 import { asArray, deriveSecureScoreSummary } from './useAllTenantsDashboard'
+import { tenantScope } from '../../utils/tenant-selection'
 
 /**
  * Estate-wide secure score, rendered by the secure score tabs when the tenant selector is on
@@ -27,16 +29,210 @@ import { asArray, deriveSecureScoreSummary } from './useAllTenantsDashboard'
  * Tenants dashboard card — both tabs and the dashboard resolve from one request.
  */
 const useSecureScoreReport = () => {
+  const scope = useMultiTenantScope()
   const reportApi = ApiGetCall({
     url: '/api/ListSecureScoreReport',
-    data: { tenantFilter: 'AllTenants', includeHistory: 'true' },
-    queryKey: 'AllTenantsDashboard-SecureScore',
+    data: { ...tenantScope(scope), includeHistory: 'true' },
+    queryKey: `AllTenantsDashboard-SecureScore-${scope}`,
   })
 
   const rows = useMemo(() => asArray(reportApi.data), [reportApi.data])
   const summary = useMemo(() => deriveSecureScoreSummary(rows), [rows])
 
   return { reportApi, rows, summary }
+}
+
+// Bucket labels never contain one another, so the table's default `contains` preset filter
+// can't match 'Complete' rows when asked for 'Partial' or the other way round.
+export const scoreBucket = (percent) => {
+  if (percent === null || percent === undefined || Number.isNaN(Number(percent))) return 'No data'
+  const value = Number(percent)
+  if (value >= 100) return 'Complete'
+  if (value <= 0) return 'Not started'
+  return 'Partial'
+}
+
+// Points moved across the retained history window, oldest to newest.
+export const tenantChange = (history) => {
+  const points = asArray(history)
+  if (points.length < 2) return null
+  const first = Number(points[0]?.PercentageScore)
+  const last = Number(points[points.length - 1]?.PercentageScore)
+  if (Number.isNaN(first) || Number.isNaN(last)) return null
+  return Math.round((last - first) * 100) / 100
+}
+
+// customerId -> 'Group A, Group B' from the ListTenantGroups payload.
+export const tenantGroupLookup = (groups) => {
+  const lookup = new Map()
+  asArray(groups).forEach((group) => {
+    asArray(group?.Members).forEach((member) => {
+      if (!member?.customerId || !group?.Name) return
+      lookup.set(member.customerId, [...(lookup.get(member.customerId) ?? []), group.Name])
+    })
+  })
+  return new Map([...lookup].map(([id, names]) => [id, names.sort().join(', ')]))
+}
+
+// customerIds in any of the selected tenant groups, or null for "all tenants". Membership is
+// matched by id, never by the joined TenantGroups text, so 'Production' never picks up
+// 'NonProduction' tenants.
+export const groupMembers = (groups, groupIds) => {
+  const selected = new Set(asArray(groupIds))
+  if (selected.size === 0) return null
+  return new Set(
+    asArray(groups)
+      .filter((group) => selected.has(group?.Id))
+      .flatMap((group) => asArray(group?.Members).map((member) => member?.customerId))
+      .filter(Boolean)
+  )
+}
+
+// Tenant group picker for the estate-wide tables (rendered as the table's cardButton) plus the
+// membership set the caller filters its rows with before they reach the table.
+const useTenantGroupFilter = () => {
+  const [groupIds, setGroupIds] = useState([])
+  const groupsApi = ApiGetCall({ url: '/api/ListTenantGroups', queryKey: 'TenantGroupSelector' })
+  const groups = useMemo(() => asArray(groupsApi.data), [groupsApi.data])
+  const members = useMemo(() => groupMembers(groups, groupIds), [groups, groupIds])
+
+  const groupSelect =
+    groups.length > 0 ? (
+      <TextField
+        select
+        size="small"
+        value={groupIds}
+        onChange={(event) => setGroupIds(asArray(event.target.value))}
+        // No floating label: in the card header slot it overlapped the outline. The empty
+        // selection renders as "All tenant groups" instead, so the field always says what it filters.
+        slotProps={{
+          select: {
+            multiple: true,
+            displayEmpty: true,
+            renderValue: (selected) =>
+              selected.length === 0
+                ? 'All tenant groups'
+                : groups
+                    .filter((group) => selected.includes(group.Id))
+                    .map((group) => group.Name)
+                    .join(', '),
+          },
+          htmlInput: { 'aria-label': 'Tenant groups' },
+        }}
+        sx={{ minWidth: 220, maxWidth: 360 }}
+      >
+        {groups.map((group) => (
+          <MenuItem key={group.Id} value={group.Id}>
+            <Checkbox size="small" checked={groupIds.includes(group.Id)} sx={{ p: 0, mr: 1 }} />
+            {group.Name}
+          </MenuItem>
+        ))}
+      </TextField>
+    ) : null
+
+  return { groups, members, groupSelect }
+}
+
+// One row per tenant x reported control, joining the shared catalog back onto the slim
+// per-tenant control scores the report sends.
+export const flattenControlRows = (tenants, catalog = {}, groups = new Map()) =>
+  asArray(tenants).flatMap((tenant) =>
+    asArray(tenant?.Controls).map((control) => {
+      const meta = catalog?.[control.controlName] ?? {}
+      const percent =
+        control.scoreInPercentage === null || control.scoreInPercentage === undefined
+          ? null
+          : Number(control.scoreInPercentage)
+      return {
+        Tenant: tenant.Tenant,
+        TenantId: tenant.TenantId,
+        TenantName: tenant.TenantName,
+        TenantGroups: groups.get(tenant.TenantId) ?? '',
+        ControlName: control.controlName,
+        Title: meta.title ?? control.controlName,
+        ScorePercent: percent,
+        Points: `${control.score ?? 0} / ${meta.maxScore ?? 0}`,
+        ScoreBucket: scoreBucket(percent),
+        Tier: meta.tier ?? '',
+        State: control.state || 'Default',
+        Category: meta.controlCategory ?? '',
+        UserImpact: meta.userImpact ?? '',
+        ImplementationCost: meta.implementationCost ?? '',
+        Threats: asArray(meta.threats).join(', '),
+        StateBy: control.stateBy ?? '',
+        StateDate: control.stateDate ?? '',
+        StateComment: control.stateComment ?? '',
+      }
+    })
+  )
+
+// Per-control spread across the filtered tenant rows. "No data" counts tenants in scope that
+// don't report the control at all, plus reported rows without a percentage.
+export const rollupControls = (rows, tenantCount) => {
+  const byControl = new Map()
+  asArray(rows).forEach((row) => {
+    const entry = byControl.get(row.ControlName) ?? {
+      ControlName: row.ControlName,
+      Title: row.Title,
+      Tier: row.Tier,
+      Category: row.Category,
+      Reporting: 0,
+      Complete: 0,
+      Partial: 0,
+      NotStarted: 0,
+      NoScore: 0,
+      sum: 0,
+      scored: 0,
+    }
+    entry.Reporting += 1
+    if (row.ScoreBucket === 'Complete') entry.Complete += 1
+    else if (row.ScoreBucket === 'Partial') entry.Partial += 1
+    else if (row.ScoreBucket === 'Not started') entry.NotStarted += 1
+    else entry.NoScore += 1
+    if (row.ScorePercent !== null && !Number.isNaN(row.ScorePercent)) {
+      entry.sum += row.ScorePercent
+      entry.scored += 1
+    }
+    byControl.set(row.ControlName, entry)
+  })
+
+  return [...byControl.values()]
+    .map(({ sum, scored, NoScore, ...entry }) => ({
+      ...entry,
+      NoData: Math.max(0, tenantCount - entry.Reporting) + NoScore,
+      AveragePercent: scored ? Math.round((sum / scored) * 100) / 100 : null,
+    }))
+    .sort((a, b) => (a.AveragePercent ?? -1) - (b.AveragePercent ?? -1))
+}
+
+// Tenant x control data for the Table Overview and Controls tabs. One request shared by both
+// (react-query key), separate from the dashboard's lighter call that never carries controls.
+const useSecureScoreControls = () => {
+  const scope = useMultiTenantScope()
+  const reportApi = ApiGetCall({
+    url: '/api/ListSecureScoreReport',
+    data: { ...tenantScope(scope), includeControls: 'true' },
+    queryKey: `AllTenantsSecureScore-Controls-${scope}`,
+  })
+  const { groups, members, groupSelect } = useTenantGroupFilter()
+
+  const tenants = useMemo(
+    () => asArray(reportApi.data).filter((tenant) => !members || members.has(tenant.TenantId)),
+    [reportApi.data, members]
+  )
+  const rows = useMemo(
+    () => flattenControlRows(tenants, reportApi.data?.Catalog, tenantGroupLookup(groups)),
+    [tenants, reportApi.data, groups]
+  )
+
+  // Empty means nothing cached at all, not "the selected group has no rows" — the table and its
+  // group picker must stay up for that.
+  const hasControls = useMemo(
+    () => asArray(reportApi.data).some((tenant) => asArray(tenant?.Controls).length > 0),
+    [reportApi.data]
+  )
+
+  return { reportApi, tenants, rows, groupSelect, hasControls }
 }
 
 const scoreSeverity = (value) => (value >= 75 ? 'ok' : value >= 50 ? 'warning' : 'critical')

@@ -44,6 +44,8 @@ import {
 import { EyeIcon } from "@heroicons/react/24/outline";
 import { getCippFormatting } from "../../../utils/get-cipp-formatting";
 import { useSettings } from "../../../hooks/use-settings.js";
+import { isMultiTenant, isTenantGroup, tenantGroupId } from "../../../utils/tenant-selection";
+import { useTenantLabel } from "../../../hooks/use-tenant-label";
 
 const offcanvas = {
   extendedInfoFields: ["DateTime", "API", "Severity", "Message", "User", "AppId", "IP", "LogData"],
@@ -109,6 +111,7 @@ const Page = () => {
       username: "",
       severity: [],
       api: [],
+      tenantOnly: false,
     },
   });
 
@@ -122,6 +125,10 @@ const Page = () => {
   const [activePreset, setActivePreset] = useState(null);
   const settings = useSettings();
   const currentTenant = settings?.currentTenant;
+  const tenantLabel = useTenantLabel(currentTenant);
+  const canLimitToTenant = !!currentTenant && !isMultiTenant(currentTenant);
+  const watchTenantOnly = formControl.watch("tenantOnly");
+  const limitedTenant = watchTenantOnly && canLimitToTenant ? currentTenant : null;
 
   const watchStartDate = formControl.watch("startDate");
   const watchEndDate = formControl.watch("endDate");
@@ -516,6 +523,19 @@ const Page = () => {
 
                   {/* Date Range Warning */}
                   <DateRangeWarning />
+                  <Grid size={{ xs: 12, md: 7 }}>
+                    <CippFormComponent
+                      type="switch"
+                      name="tenantOnly"
+                      label={
+                        canLimitToTenant
+                          ? `Only show logs for ${tenantLabel}`
+                          : "Only show logs for the selected tenant (select a tenant first)"
+                      }
+                      disabled={!canLimitToTenant}
+                      formControl={formControl}
+                    />
+                  </Grid>
 
                   {/* Username Filter */}
                   <Grid size={{ xs: 12, sm: 6, md: 4 }}>
@@ -613,11 +633,15 @@ const Page = () => {
         Severity: severity,
         API: api,
         Filter: filterEnabled,
-        Tenant: currentTenant,
-        manualPagination: true,
-        // ListLogs pages date ranges via Metadata.nextLink. tenantFilter must not be
-        // "AllTenants" or getNextPageParam stops pagination after the first batch.
+        // Only when the tenant switch is on; a group goes as tenantGroup
+        Tenant: isTenantGroup(limitedTenant) ? null : limitedTenant,
+        // CippTablePage sends the selector's tenant scope, but ListLogs reads Tenant instead,
+        // and a literal 'AllTenants' tenantFilter would stop the pager after page one. Null drops the param.
         tenantFilter: null,
+        tenantGroup: tenantGroupId(limitedTenant),
+        // ListLogs always pages; without this the multi-tenant rule in the pager stops after page one
+        manualPagination:
+          limitedTenant == null ? true : isTenantGroup(limitedTenant) ? true : undefined,
       }}
       actions={actions}
       spacing={1}
@@ -625,6 +649,6 @@ const Page = () => {
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout tenantGroupSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

@@ -25,6 +25,8 @@ import { useDialog } from '../../../../hooks/use-dialog.js'
 import { useCippReportDB } from '../../../../components/CippComponents/CippReportDBControls'
 import { getCippFormatting } from '../../../../utils/get-cipp-formatting'
 import { getInitials, stringToColor } from '../../../../utils/get-initials'
+import { isMultiTenant, tenantScope } from '../../../../utils/tenant-selection'
+import { useTenantLabel } from '../../../../hooks/use-tenant-label'
 
 const assignmentIntentOptions = [
   { label: 'Required', value: 'Required' },
@@ -70,6 +72,7 @@ const Page = () => {
   const pageTitle = 'Applications'
   const syncDialog = useDialog()
   const tenant = useSettings().currentTenant
+  const tenantLabel = useTenantLabel(tenant)
 
   const reportDB = useCippReportDB({
     apiUrl: '/api/ListApps',
@@ -157,9 +160,9 @@ const Page = () => {
   const makeAssignFormatter = (getRowData) => (row, action, formData) => {
     const formatRow = (singleRow) => {
       const tenantFilterValue =
-        tenant === 'AllTenants' && singleRow?.Tenant ? singleRow.Tenant : tenant
+        isMultiTenant(tenant) && singleRow?.Tenant ? singleRow.Tenant : tenant
       return {
-        tenantFilter: tenantFilterValue,
+        ...tenantScope(tenantFilterValue),
         ID: singleRow?.id,
         AppType: getAppAssignmentSettingsType(singleRow?.['@odata.type']),
         AssignmentFilterName: formData?.assignmentFilter?.value || null,
@@ -705,7 +708,7 @@ const Page = () => {
           type: 'POST',
           url: '/api/ExecSyncVPP',
           data: {},
-          confirmText: `Are you sure you want to sync Apple Volume Purchase Program (VPP) tokens? This will sync all VPP tokens for ${tenant}.`,
+          confirmText: `Are you sure you want to sync Apple Volume Purchase Program (VPP) tokens? This will sync all VPP tokens for ${tenantLabel}.`,
         }}
       />
       {reportDB.syncDialog}
@@ -713,5 +716,5 @@ const Page = () => {
   );
 }
 
-Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>
+Page.getLayout = (page) => <DashboardLayout tenantGroupSupport={true} allTenantsSupport={true}>{page}</DashboardLayout>
 export default Page

@@ -53,11 +53,14 @@ import {
   getInitials,
   stringToColor,
 } from '../../../../utils/get-initials'
+import { isMultiTenant } from '../../../../utils/tenant-selection'
+import { useTenantLabel } from '../../../../hooks/use-tenant-label'
 
 const Page = () => {
   const pageTitle = "Devices";
   const router = useRouter();
   const tenantFilter = useSettings().currentTenant;
+  const tenantLabel = useTenantLabel(tenantFilter);
   const theme = useTheme();
   const depSyncDialog = useDialog();
 
@@ -694,7 +697,7 @@ const Page = () => {
         offCanvas={offCanvas}
         rowOpen={{
           link:
-            tenantFilter === 'AllTenants'
+            isMultiTenant(tenantFilter)
               ? '/endpoint/MEM/devices/device?deviceId=[id]&tenantFilter=[Tenant]'
               : `/endpoint/MEM/devices/device?deviceId=[id]&tenantFilter=${tenantFilter}`,
           condition: (row) => Boolean(row?.id),
@@ -718,13 +721,13 @@ const Page = () => {
           type: "POST",
           url: "/api/ExecSyncDEP",
           data: {},
-          confirmText: `Are you sure you want to sync Apple Device Enrollment Program (DEP) tokens? This will sync all DEP tokens for ${tenantFilter}. This may take several minutes to complete in the background, and can only be done every 15 minutes.`,
+          confirmText: `Are you sure you want to sync Apple Device Enrollment Program (DEP) tokens? This will sync all DEP tokens for ${tenantLabel}. This may take several minutes to complete in the background, and can only be done every 15 minutes.`,
         }}
       />
     </>
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout tenantGroupSupport={true}>{page}</DashboardLayout>;
 
 export default Page;

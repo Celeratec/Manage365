@@ -1,7 +1,7 @@
 Function Invoke-ListCalendarPermissions {
     <#
     .FUNCTIONALITY
-        Entrypoint
+        Entrypoint,TenantGroup
     .ROLE
         Exchange.Mailbox.Read
     #>
