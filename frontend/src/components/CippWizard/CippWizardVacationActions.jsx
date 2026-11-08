@@ -299,6 +299,7 @@ export const CippWizardVacationActions = (props) => {
                         : null
                     }
                     multiple={true}
+                    sortOptions={true}
                     formControl={formControl}
                     validators={{
                       validate: (option) => {
