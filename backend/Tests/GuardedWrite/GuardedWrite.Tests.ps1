@@ -125,7 +125,8 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         $Valid.Parameters.Identity | Should -Be 'contoso.com'
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'InternalRelay' }).Allowed | Should -BeTrue
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'ExternalRelay' }).Allowed | Should -BeTrue
-        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '  sub.domain.example.org  '; DomainType = 'Authoritative' }).Parameters.Identity | Should -Be 'sub.domain.example.org'
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'sub.domain.example.org'; DomainType = 'Authoritative' }).Parameters.Identity | Should -Be 'sub.domain.example.org'
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '  sub.domain.example.org  '; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
     }
 
     It 'rejects Set-AcceptedDomain with missing required parameters' {
@@ -191,9 +192,11 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'true' }).Parameters.Enabled | Should -Be $true
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'True' }).Parameters.Enabled | Should -Be $true
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = '1' }).Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 1 }).Parameters.Enabled | Should -Be $true
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'false' }).Parameters.Enabled | Should -Be $false
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'False' }).Parameters.Enabled | Should -Be $false
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = '0' }).Parameters.Enabled | Should -Be $false
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 0 }).Parameters.Enabled | Should -Be $false
     }
 
     It 'rejects Set-DkimSigningConfig with missing required parameters' {
@@ -255,6 +258,8 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
 Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
     BeforeAll {
         class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
+        $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
+        if (-not $Accelerators::Get.ContainsKey('HttpStatusCode')) { $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode]) }
         $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
         . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Test-CIPPGuardedWriteRequest.ps1')
         . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Get-CIPPExoAllowlistedCmdletPlan.ps1')

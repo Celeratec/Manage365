@@ -70,15 +70,28 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         if ($Id -is [array] -or $Id -is [hashtable] -or $null -eq $Id -or ($Id -is [PSCustomObject])) {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a scalar string.' }
         }
-        $IdStr = ([string]$Id).Trim()
+        $IdRaw = [string]$Id
+        if ($IdRaw -match '[\x00-\x1F\x7F]') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain control characters.' }
+        }
+        $IdStr = $IdRaw.Trim()
+        if ($IdRaw -ne $IdStr) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not have leading or trailing whitespace.' }
+        }
         if ($IdStr.Length -eq 0 -or $IdStr.Length -gt 253) {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be 1 to 253 characters.' }
         }
-        if ($IdStr -match '[\r\n\0\s]' -or $IdStr -match '%.*%' -or $IdStr -match '\*') {
-            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain whitespace, NUL, newlines, wildcards, or variable tokens.' }
+        if ($IdStr -match '%.*%' -or $IdStr -match '\*') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain wildcards or variable tokens.' }
         }
-        if ($IdStr -notmatch '^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?$') {
+        if ($IdStr -notmatch '\A([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\z') {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a valid domain name (labels of letters, digits, and hyphens separated by dots).' }
+        }
+        $Labels = $IdStr -split '\.'
+        foreach ($Label in $Labels) {
+            if ($Label.Length -gt 63) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Identity domain name labels must be at most 63 characters each.' }
+            }
         }
         $Incoming.Identity = $IdStr
         $Type = $Incoming.DomainType
@@ -102,15 +115,28 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         if ($Id -is [array] -or $Id -is [hashtable] -or $null -eq $Id -or ($Id -is [PSCustomObject])) {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a scalar string.' }
         }
-        $IdStr = ([string]$Id).Trim()
+        $IdRaw = [string]$Id
+        if ($IdRaw -match '[\x00-\x1F\x7F]') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain control characters.' }
+        }
+        $IdStr = $IdRaw.Trim()
+        if ($IdRaw -ne $IdStr) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not have leading or trailing whitespace.' }
+        }
         if ($IdStr.Length -eq 0 -or $IdStr.Length -gt 253) {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be 1 to 253 characters.' }
         }
-        if ($IdStr -match '[\r\n\0\s]' -or $IdStr -match '%.*%' -or $IdStr -match '\*') {
-            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain whitespace, NUL, newlines, wildcards, or variable tokens.' }
+        if ($IdStr -match '%.*%' -or $IdStr -match '\*') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain wildcards or variable tokens.' }
         }
-        if ($IdStr -notmatch '^([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?$') {
+        if ($IdStr -notmatch '\A([a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9\-]*[a-zA-Z0-9])?\z') {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a valid domain name (labels of letters, digits, and hyphens separated by dots).' }
+        }
+        $Labels = $IdStr -split '\.'
+        foreach ($Label in $Labels) {
+            if ($Label.Length -gt 63) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Identity domain name labels must be at most 63 characters each.' }
+            }
         }
         $Incoming.Identity = $IdStr
         $Flag = $Incoming.Enabled
