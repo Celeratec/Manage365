@@ -10,5 +10,7 @@
   "Test-ApplicationAccessPolicy": ["Identity", "AppId"],
   "Enable-OrganizationCustomization": [],
   "Set-AdminAuditLogConfig": ["UnifiedAuditLogIngestionEnabled"],
-  "Set-MailboxJunkEmailConfiguration": ["Identity", "TrustedSendersAndDomains", "BlockedSendersAndDomains"]
+  "Set-MailboxJunkEmailConfiguration": ["Identity", "TrustedSendersAndDomains", "BlockedSendersAndDomains"],
+  "Set-AcceptedDomain": ["Identity", "DomainType"],
+  "Set-DkimSigningConfig": ["Identity", "Enabled"]
 }

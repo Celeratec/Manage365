@@ -41,6 +41,10 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 
+## Release 6.1.33 (November 2026)
+
+`ExecExoAllowlistedCmdlet` accepts `Set-AcceptedDomain` (Identity, DomainType) and `Set-DkimSigningConfig` (Identity, Enabled) with comprehensive input validation. Identity must be 1-253 characters with no leading or trailing whitespace and no control characters; validated as a domain name with labels up to 63 characters each. Injection characters (`;`, `|`, `` ` ``, `$()`, newlines, NUL), wildcards, and `%...%` tokens are rejected. DomainType is limited to Authoritative, InternalRelay, or ExternalRelay. Enabled coerces `true`/`false`/`1`/`0` strings to real booleans. Both parameters are required and reject arrays or dictionaries. Extra parameters including `-Confirm`, `-WhatIf`, `-ErrorAction`, and abbreviations are refused. `dryRun` calls only the corresponding `Get-*` cmdlet against Exchange Online and never executes `Set-*`. Ticket reference, audit logging, tenant scoping, and role-based access control (`Exchange.Security.ReadWrite`) remain enforced. CIPP baseline stays **11.2.1**.
+
 ## Release 6.1.32 (November 2026)
 
 A full Conditional Access save stays on the beta policy endpoint and drops properties that schema does not accept, including `includeAgentActions`, `agents`, and `actionsAndDestinations`. Adding an excluded user no longer fails with Graph `1007`, and a block the request leaves out is still not cleared. A Graph client error is returned with Graph's status and message. `GetVersion` reports the running image tag from `version.json`. CIPP baseline stays **11.2.1**.

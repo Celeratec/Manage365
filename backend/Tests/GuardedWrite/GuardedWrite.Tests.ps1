@@ -118,6 +118,244 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Remove-ManagementScope' -Parameters @{ Identity = 'scope' }).Allowed | Should -BeTrue
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Remove-ManagementScope' -Parameters @{ Identity = 'scope'; Name = 'extra' }).Allowed | Should -BeFalse
     }
+
+    It 'accepts Set-AcceptedDomain with valid Identity and DomainType' {
+        $Valid = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative' }
+        $Valid.Allowed | Should -BeTrue
+        $Valid.Parameters.Identity | Should -Be 'contoso.com'
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'InternalRelay' }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'ExternalRelay' }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'sub.domain.example.org'; DomainType = 'Authoritative' }).Parameters.Identity | Should -Be 'sub.domain.example.org'
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '  sub.domain.example.org  '; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-AcceptedDomain with missing required parameters' {
+        $NoIdentity = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ DomainType = 'Authoritative' }
+        $NoIdentity.Allowed | Should -BeFalse
+        $NoIdentity.Reason | Should -Match 'requires Identity'
+        $NoDomainType = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com' }
+        $NoDomainType.Allowed | Should -BeFalse
+        $NoDomainType.Reason | Should -Match 'requires DomainType'
+    }
+
+    It 'rejects Set-AcceptedDomain with extra parameters or invalid DomainType' {
+        $Extra = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; DomainName = 'extra' }
+        $Extra.Allowed | Should -BeFalse
+        $Extra.Reason | Should -Match 'not allowed'
+        $InvalidType = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'InvalidType' }
+        $InvalidType.Allowed | Should -BeFalse
+        $InvalidType.Reason | Should -Match 'Authoritative, InternalRelay, or ExternalRelay'
+    }
+
+    It 'rejects Set-AcceptedDomain Identity with invalid characters or format' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = ''; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '   '; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`n"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`r"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`0"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '*.contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = '%var%.contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = ('a' * 254); DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-AcceptedDomain Identity with injection characters' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com;whoami'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com|whoami'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com`whoami'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com$(whoami)'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`nwhoami"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`0"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com$([char]0x2028)"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com$([char]0x2029)"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-AcceptedDomain with common parameter names and abbreviations' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; WhatIf = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; ErrorAction = 'Stop' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; Ident = 'contoso.com' }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-AcceptedDomain with array or hashtable parameters' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = @('contoso.com'); DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = @('Authoritative') }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = @{ Name = 'contoso.com' }; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+    }
+
+    It 'accepts Set-DkimSigningConfig with valid Identity and Enabled' {
+        $Valid = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true }
+        $Valid.Allowed | Should -BeTrue
+        $Valid.Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'example.com'; Enabled = $false }).Parameters.Enabled | Should -Be $false
+    }
+
+    It 'coerces Set-DkimSigningConfig Enabled to boolean' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'true' }).Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'True' }).Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = '1' }).Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 1 }).Parameters.Enabled | Should -Be $true
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'false' }).Parameters.Enabled | Should -Be $false
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'False' }).Parameters.Enabled | Should -Be $false
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = '0' }).Parameters.Enabled | Should -Be $false
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 0 }).Parameters.Enabled | Should -Be $false
+    }
+
+    It 'rejects Set-DkimSigningConfig with missing required parameters' {
+        $NoIdentity = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Enabled = $true }
+        $NoIdentity.Allowed | Should -BeFalse
+        $NoIdentity.Reason | Should -Match 'requires Identity'
+        $NoEnabled = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com' }
+        $NoEnabled.Allowed | Should -BeFalse
+        $NoEnabled.Reason | Should -Match 'requires Enabled'
+    }
+
+    It 'rejects Set-DkimSigningConfig with extra parameters or invalid Enabled' {
+        $Extra = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; KeySize = 2048 }
+        $Extra.Allowed | Should -BeFalse
+        $Extra.Reason | Should -Match 'not allowed'
+        $ExtraForce = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; Force = $true }
+        $ExtraForce.Allowed | Should -BeFalse
+        $ExtraForce.Reason | Should -Match 'not allowed'
+        $InvalidEnabled = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'yes' }
+        $InvalidEnabled.Allowed | Should -BeFalse
+        $InvalidEnabled.Reason | Should -Match 'boolean'
+    }
+
+    It 'rejects Set-DkimSigningConfig Identity with invalid characters or format' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = ''; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = '   '; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = "contoso.com`n"; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = '*.contoso.com'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = '%var%.contoso.com'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso com'; Enabled = $true }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-DkimSigningConfig Identity with injection characters' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com;whoami'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com|whoami'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com`whoami'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com$(whoami)'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = "contoso.com$([char]0x2028)"; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = "contoso.com$([char]0x2029)"; Enabled = $true }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-DkimSigningConfig with common parameter names and abbreviations' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; WhatIf = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; ErrorAction = 'Stop' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; Ident = 'contoso.com' }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Set-DkimSigningConfig with array or hashtable parameters' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = @('contoso.com'); Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = @($true) }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = @{ Name = 'contoso.com' }; Enabled = $true }).Allowed | Should -BeFalse
+    }
+
+    It 'accepts case-insensitive parameter names for new cmdlets' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ identity = 'contoso.com'; domaintype = 'Authoritative' }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ IDENTITY = 'contoso.com'; ENABLED = $true }).Allowed | Should -BeTrue
+    }
+}
+
+Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
+    BeforeAll {
+        class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
+        $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
+        if (-not $Accelerators::Get.ContainsKey('HttpStatusCode')) { $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode]) }
+        $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Test-CIPPGuardedWriteRequest.ps1')
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Get-CIPPExoAllowlistedCmdletPlan.ps1')
+        function Add-CIPPGuardedWriteAudit { param($Endpoint, $Tenant, $Ticket, $Caller, $Request, $Before, $After, [bool]$DryRun, [string]$Result) 'audit-1' }
+        function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev) }
+        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = 'exchange failed' } }
+        function New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, [switch]$useSystemMailbox)
+            $script:ExoCalls.Add([pscustomobject]@{ Cmdlet = $cmdlet; Params = $cmdParams })
+            if ($cmdlet -eq 'Get-AcceptedDomain') { return [pscustomobject]@{ Identity = 'contoso.com'; DomainType = 'Authoritative' } }
+            if ($cmdlet -eq 'Get-DkimSigningConfig') { return [pscustomobject]@{ Identity = 'contoso.com'; Enabled = $false } }
+            if ($cmdlet -eq 'Set-AcceptedDomain') { return [pscustomobject]@{ Identity = 'contoso.com'; DomainType = 'InternalRelay' } }
+            if ($cmdlet -eq 'Set-DkimSigningConfig') { return [pscustomobject]@{ Identity = 'contoso.com'; Enabled = $true } }
+        }
+        . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecExoAllowlistedCmdlet.ps1')
+    }
+
+    BeforeEach {
+        $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+    }
+
+    It 'calls only Get-AcceptedDomain on dryRun and never Set-AcceptedDomain' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $true
+                Cmdlet       = 'Set-AcceptedDomain'
+                Parameters   = @{ Identity = 'contoso.com'; DomainType = 'InternalRelay' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'DryRun'
+        $Response.Body.Before | Should -Not -BeNullOrEmpty
+        $Response.Body.After | Should -BeNullOrEmpty
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Get-AcceptedDomain')
+    }
+
+    It 'calls only Get-DkimSigningConfig on dryRun and never Set-DkimSigningConfig' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $true
+                Cmdlet       = 'Set-DkimSigningConfig'
+                Parameters   = @{ Identity = 'contoso.com'; Enabled = $true }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'DryRun'
+        $Response.Body.Before | Should -Not -BeNullOrEmpty
+        $Response.Body.After | Should -BeNullOrEmpty
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Get-DkimSigningConfig')
+    }
+
+    It 'calls Get-AcceptedDomain then Set-AcceptedDomain when dryRun is false' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $false
+                Cmdlet       = 'Set-AcceptedDomain'
+                Parameters   = @{ Identity = 'contoso.com'; DomainType = 'InternalRelay' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'Success'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Get-AcceptedDomain', 'Set-AcceptedDomain')
+    }
+
+    It 'accepts case-insensitive Cmdlet and parameter names' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $true
+                cmdlet       = 'set-accepteddomain'
+                parameters   = @{ identity = 'contoso.com'; domaintype = 'Authoritative' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'DryRun'
+    }
 }
 
 Describe 'Teams app package' {
