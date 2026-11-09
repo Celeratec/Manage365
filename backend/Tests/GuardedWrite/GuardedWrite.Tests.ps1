@@ -118,6 +118,47 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Remove-ManagementScope' -Parameters @{ Identity = 'scope' }).Allowed | Should -BeTrue
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Remove-ManagementScope' -Parameters @{ Identity = 'scope'; Name = 'extra' }).Allowed | Should -BeFalse
     }
+
+    It 'accepts Set-AcceptedDomain with only Identity and DomainType' {
+        $Valid = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative' }
+        $Valid.Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'InternalRelay' }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'example.com'; DomainType = 'ExternalRelay' }).Allowed | Should -BeTrue
+    }
+
+    It 'rejects Set-AcceptedDomain with extra parameters or invalid DomainType' {
+        $Extra = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative'; DomainName = 'extra' }
+        $Extra.Allowed | Should -BeFalse
+        $Extra.Reason | Should -Match 'not allowed'
+        $InvalidType = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com'; DomainType = 'InvalidType' }
+        $InvalidType.Allowed | Should -BeFalse
+        $InvalidType.Reason | Should -Match 'Authoritative, InternalRelay, or ExternalRelay'
+        $EmptyIdentity = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = ''; DomainType = 'Authoritative' }
+        $EmptyIdentity.Allowed | Should -BeFalse
+        $EmptyIdentity.Reason | Should -Match 'non-empty'
+    }
+
+    It 'accepts Set-DkimSigningConfig with only Identity and Enabled' {
+        $Valid = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true }
+        $Valid.Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'example.com'; Enabled = $false }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'example.com'; Enabled = 'true' }).Allowed | Should -BeTrue
+    }
+
+    It 'rejects Set-DkimSigningConfig with extra parameters or invalid Enabled' {
+        $Extra = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; KeySize = 2048 }
+        $Extra.Allowed | Should -BeFalse
+        $Extra.Reason | Should -Match 'not allowed'
+        $ExtraForce = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = $true; Force = $true }
+        $ExtraForce.Allowed | Should -BeFalse
+        $ExtraForce.Reason | Should -Match 'not allowed'
+        $InvalidEnabled = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com'; Enabled = 'yes' }
+        $InvalidEnabled.Allowed | Should -BeFalse
+        $InvalidEnabled.Reason | Should -Match 'boolean'
+        $EmptyIdentity = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = ''; Enabled = $true }
+        $EmptyIdentity.Allowed | Should -BeFalse
+        $EmptyIdentity.Reason | Should -Match 'non-empty'
+    }
 }
 
 Describe 'Teams app package' {

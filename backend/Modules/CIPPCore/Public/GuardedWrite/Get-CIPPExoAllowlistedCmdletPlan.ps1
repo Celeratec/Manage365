@@ -59,6 +59,34 @@ function Get-CIPPExoAllowlistedCmdletPlan {
             return [pscustomobject]@{ Allowed = $false; Reason = 'UnifiedAuditLogIngestionEnabled must be a boolean.' }
         }
     }
+    if ($Cmdlet -eq 'Set-AcceptedDomain') {
+        if ($Incoming.ContainsKey('Identity')) {
+            $Id = [string]$Incoming.Identity
+            if ($Id -eq '' -or $Id -match '[\r\n]') {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a non-empty string with no newline characters.' }
+            }
+        }
+        if ($Incoming.ContainsKey('DomainType')) {
+            $Type = [string]$Incoming.DomainType
+            if ($Type -notin @('Authoritative', 'InternalRelay', 'ExternalRelay')) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'DomainType must be Authoritative, InternalRelay, or ExternalRelay.' }
+            }
+        }
+    }
+    if ($Cmdlet -eq 'Set-DkimSigningConfig') {
+        if ($Incoming.ContainsKey('Identity')) {
+            $Id = [string]$Incoming.Identity
+            if ($Id -eq '' -or $Id -match '[\r\n]') {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a non-empty string with no newline characters.' }
+            }
+        }
+        if ($Incoming.ContainsKey('Enabled')) {
+            $Flag = [string]$Incoming.Enabled
+            if ($Flag -notin @('true', 'false', 'True', 'False', '1', '0')) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Enabled must be a boolean.' }
+            }
+        }
+    }
 
     return [pscustomobject]@{
         Allowed    = $true

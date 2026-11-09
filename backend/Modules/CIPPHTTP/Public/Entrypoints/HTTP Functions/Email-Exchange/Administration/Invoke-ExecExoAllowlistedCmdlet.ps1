@@ -14,6 +14,8 @@ function Invoke-ExecExoAllowlistedCmdlet {
         Test-ServicePrincipalAuthorization: Identity and Resource. Test-ApplicationAccessPolicy: Identity and AppId.
         Enable-OrganizationCustomization takes no parameters. Set-AdminAuditLogConfig: UnifiedAuditLogIngestionEnabled boolean.
         Set-MailboxJunkEmailConfiguration: Identity, TrustedSendersAndDomains, and BlockedSendersAndDomains. TrustedSendersToAdd and BlockedSendersToAdd are rejected.
+        Set-AcceptedDomain: Identity and DomainType (Authoritative, InternalRelay, or ExternalRelay).
+        Set-DkimSigningConfig: Identity and Enabled boolean.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
