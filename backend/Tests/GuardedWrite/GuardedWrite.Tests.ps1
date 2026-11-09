@@ -166,6 +166,8 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = 'contoso.com$(whoami)'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`nwhoami"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com`0"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com$([char]0x2028)"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ Identity = "contoso.com$([char]0x2029)"; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
     }
 
     It 'rejects Set-AcceptedDomain with common parameter names and abbreviations' {
@@ -234,6 +236,8 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com|whoami'; Enabled = $true }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com`whoami'; Enabled = $true }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = 'contoso.com$(whoami)'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = "contoso.com$([char]0x2028)"; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-DkimSigningConfig' -Parameters @{ Identity = "contoso.com$([char]0x2029)"; Enabled = $true }).Allowed | Should -BeFalse
     }
 
     It 'rejects Set-DkimSigningConfig with common parameter names and abbreviations' {
