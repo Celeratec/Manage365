@@ -8,6 +8,7 @@ BeforeAll {
         }
         . $Path
     }
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Private/Resolve-CIPPGuardedWriteConfigPath.ps1')
     $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
 }
 
@@ -708,6 +709,117 @@ Describe 'GuardedTenantWrites off returns 503' {
                 Body    = @{ tenantFilter = 'contoso.onmicrosoft.com' }
             } -TriggerMetadata @{}
             [int]$Response.StatusCode | Should -Be 503
+        }
+    }
+}
+
+Describe 'GuardedWrite config path resolution (Freshdesk #3280061)' {
+    BeforeAll {
+        $script:RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+    }
+
+    It 'resolves ExoCmdletAllowlist.json in the source layout' {
+        $SourceLayout = Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/GuardedWrite'
+        $ConfigPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/ExoCmdletAllowlist.json' -PSScriptRoot $SourceLayout
+        $ConfigPath | Should -Not -BeNullOrEmpty
+        Test-Path -LiteralPath $ConfigPath -PathType Leaf | Should -BeTrue
+        $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+        $Allowlist.PSObject.Properties['Set-AcceptedDomain'] | Should -Not -BeNullOrEmpty
+        $Allowlist.'Set-AcceptedDomain' | Should -Contain 'Identity'
+        $Allowlist.'Set-AcceptedDomain' | Should -Contain 'DomainType'
+    }
+
+    It 'resolves GraphAllowlist.json in the source layout' {
+        $SourceLayout = Join-Path $script:RepoRoot 'Modules/CIPPCore/Public/GuardedWrite'
+        $ConfigPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/GraphAllowlist.json' -PSScriptRoot $SourceLayout
+        $ConfigPath | Should -Not -BeNullOrEmpty
+        Test-Path -LiteralPath $ConfigPath -PathType Leaf | Should -BeTrue
+        $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+        $Allowlist | Should -Not -BeNullOrEmpty
+        ($Allowlist | Where-Object { $_.method -eq 'POST' -and $_.path -match 'oauth2PermissionGrants' }) | Should -Not -BeNullOrEmpty
+    }
+
+    It 'resolves ExoCmdletAllowlist.json in a simulated compiled layout' {
+        $TempRoot = Join-Path $TestDrive 'SimulatedCompiled'
+        $ModulePath = Join-Path $TempRoot 'Modules/CIPPCore'
+        $ConfigPath = Join-Path $TempRoot 'Config/GuardedWrites'
+        New-Item -ItemType Directory -Path $ModulePath -Force | Out-Null
+        New-Item -ItemType Directory -Path $ConfigPath -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:RepoRoot 'Config/GuardedWrites/ExoCmdletAllowlist.json') `
+            -Destination (Join-Path $ConfigPath 'ExoCmdletAllowlist.json') -Force
+        $ResolvedPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/ExoCmdletAllowlist.json' -PSScriptRoot $ModulePath
+        $ResolvedPath | Should -Not -BeNullOrEmpty
+        Test-Path -LiteralPath $ResolvedPath -PathType Leaf | Should -BeTrue
+        $Allowlist = Get-Content -LiteralPath $ResolvedPath -Raw | ConvertFrom-Json
+        $Allowlist.'Set-AcceptedDomain' | Should -Contain 'Identity'
+    }
+
+    It 'resolves GraphAllowlist.json in a simulated compiled layout' {
+        $TempRoot = Join-Path $TestDrive 'SimulatedCompiled'
+        $ModulePath = Join-Path $TempRoot 'Modules/CIPPCore'
+        $ConfigPath = Join-Path $TempRoot 'Config/GuardedWrites'
+        New-Item -ItemType Directory -Path $ModulePath -Force | Out-Null
+        New-Item -ItemType Directory -Path $ConfigPath -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:RepoRoot 'Config/GuardedWrites/GraphAllowlist.json') `
+            -Destination (Join-Path $ConfigPath 'GraphAllowlist.json') -Force
+        $ResolvedPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/GraphAllowlist.json' -PSScriptRoot $ModulePath
+        $ResolvedPath | Should -Not -BeNullOrEmpty
+        Test-Path -LiteralPath $ResolvedPath -PathType Leaf | Should -BeTrue
+        $Allowlist = Get-Content -LiteralPath $ResolvedPath -Raw | ConvertFrom-Json
+        $Allowlist | Should -Not -BeNullOrEmpty
+    }
+
+    It 'uses CIPPRootPath when set' {
+        $TempRoot = Join-Path $TestDrive 'CIPPRootPathTest'
+        $ConfigPath = Join-Path $TempRoot 'Config/GuardedWrites'
+        New-Item -ItemType Directory -Path $ConfigPath -Force | Out-Null
+        Copy-Item -Path (Join-Path $script:RepoRoot 'Config/GuardedWrites/ExoCmdletAllowlist.json') `
+            -Destination (Join-Path $ConfigPath 'ExoCmdletAllowlist.json') -Force
+        $OriginalCIPPRootPath = $env:CIPPRootPath
+        try {
+            $env:CIPPRootPath = $TempRoot
+            $ResolvedPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/ExoCmdletAllowlist.json' `
+                -PSScriptRoot '/this/path/does/not/exist'
+            $ResolvedPath | Should -Be (Join-Path $TempRoot 'Config/GuardedWrites/ExoCmdletAllowlist.json')
+            Test-Path -LiteralPath $ResolvedPath -PathType Leaf | Should -BeTrue
+        } finally {
+            $env:CIPPRootPath = $OriginalCIPPRootPath
+        }
+    }
+
+    It 'throws a clear error when no config file is found' {
+        { Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/NonExistent.json' `
+                -PSScriptRoot '/nonexistent/path' -ErrorAction Stop
+        } | Should -Throw -ExpectedMessage '*GuardedWrite config file not found*'
+    }
+
+    It 'Get-CIPPExoAllowlistedCmdletPlan loads the allowlist and accepts Set-AcceptedDomain' {
+        $Plan = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' `
+            -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative' }
+        $Plan.Allowed | Should -BeTrue
+        $Plan.Cmdlet | Should -Be 'Set-AcceptedDomain'
+    }
+
+    It 'Get-CIPPGraphWritePlan loads the allowlist and accepts oauth2PermissionGrants' {
+        $Plan = Get-CIPPGraphWritePlan -Method POST -Path 'oauth2PermissionGrants' -ApiVersion v1.0 -Body @{}
+        $Plan.Allowed | Should -BeTrue
+        $Plan.Method | Should -Be 'POST'
+    }
+
+    It 'throws when allowlist JSON is malformed' {
+        $TempRoot = Join-Path $TestDrive 'MalformedJSON'
+        $ConfigPath = Join-Path $TempRoot 'Config/GuardedWrites'
+        New-Item -ItemType Directory -Path $ConfigPath -Force | Out-Null
+        Set-Content -Path (Join-Path $ConfigPath 'ExoCmdletAllowlist.json') -Value '{ invalid json' -Force
+        $OriginalCIPPRootPath = $env:CIPPRootPath
+        try {
+            $env:CIPPRootPath = $TempRoot
+            {
+                Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' `
+                    -Parameters @{ Identity = 'contoso.com'; DomainType = 'Authoritative' }
+            } | Should -Throw -ExpectedMessage '*Failed to load or parse*'
+        } finally {
+            $env:CIPPRootPath = $OriginalCIPPRootPath
         }
     }
 }

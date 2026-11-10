@@ -15,8 +15,16 @@ function Get-CIPPExoAllowlistedCmdletPlan {
     )
 
     if (-not $Allowlist) {
-        $ConfigPath = Join-Path $PSScriptRoot '../../../../Config/GuardedWrites/ExoCmdletAllowlist.json'
-        $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
+        $HelperPath = Join-Path $PSScriptRoot '../../Private/Resolve-CIPPGuardedWriteConfigPath.ps1'
+        if (Test-Path -LiteralPath $HelperPath) {
+            . $HelperPath
+        }
+        $ConfigPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/ExoCmdletAllowlist.json' -PSScriptRoot $PSScriptRoot
+        try {
+            $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+        } catch {
+            throw "Failed to load or parse GuardedWrite allowlist from '$ConfigPath': $($_.Exception.Message)"
+        }
     }
     $AllowedNames = @($Allowlist.$Cmdlet)
     if ($null -eq $Allowlist.PSObject.Properties[$Cmdlet]) {
