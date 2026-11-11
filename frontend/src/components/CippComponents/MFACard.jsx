@@ -29,12 +29,18 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
     let notRegisteredSD = 0;
     let notRegisteredPerUser = 0;
     let notRegisteredNone = 0;
+    let registeredUnknown = 0;
+    let notRegisteredUnknown = 0;
 
     enabledUsers.forEach((user) => {
       const hasRegistered = user.MFARegistration === true;
       const coveredByCA = user.CoveredByCA?.startsWith("Enforced") || false;
       const coveredBySD = user.CoveredBySD === true;
       const perUserEnabled = user.PerUser === "enforced" || user.PerUser === "enabled";
+      // CoveredByCA carries an error text when the policies could not be read, and CoveredBySD is
+      // null when security defaults could not be read. Neither means MFA is not enforced.
+      const enforcementUnknown =
+        (!coveredByCA && user.CoveredByCA !== "Not Enforced") || user.CoveredBySD == null;
 
       if (hasRegistered || perUserEnabled) {
         registeredUsers++;
@@ -44,6 +50,8 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
           registeredCA++;
         } else if (coveredBySD) {
           registeredSD++;
+        } else if (enforcementUnknown) {
+          registeredUnknown++;
         } else {
           registeredNone++;
         }
@@ -53,6 +61,8 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
           notRegisteredCA++;
         } else if (coveredBySD) {
           notRegisteredSD++;
+        } else if (enforcementUnknown) {
+          notRegisteredUnknown++;
         } else {
           notRegisteredNone++;
         }
@@ -78,6 +88,8 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
       links.push({ source: "MFA registered", target: "Per-user MFA", value: registeredPerUser });
     if (registeredNone > 0)
       links.push({ source: "MFA registered", target: "No enforcement", value: registeredNone });
+    if (registeredUnknown > 0)
+      links.push({ source: "MFA registered", target: "Unknown", value: registeredUnknown });
 
     if (notRegisteredCA > 0)
       links.push({ source: "Not registered", target: "CA policy", value: notRegisteredCA });
@@ -91,6 +103,8 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
       links.push({ source: "Not registered", target: "Per-user MFA", value: notRegisteredPerUser });
     if (notRegisteredNone > 0)
       links.push({ source: "Not registered", target: "No enforcement", value: notRegisteredNone });
+    if (notRegisteredUnknown > 0)
+      links.push({ source: "Not registered", target: "Unknown", value: notRegisteredUnknown });
 
     const description = `${registeredPercentage}% of enabled users have registered MFA methods. ${protectedPercentage}% are protected by policies requiring MFA.`;
 
@@ -103,6 +117,7 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
         { id: "Security defaults", nodeColor: "hsl(160, 50%, 72%)" },
         { id: "Per-user MFA", nodeColor: "hsl(200, 55%, 72%)" },
         { id: "No enforcement", nodeColor: "hsl(0, 55%, 72%)" },
+        { id: "Unknown", nodeColor: "hsl(0, 0%, 70%)" },
       ],
       links,
       description,
@@ -172,7 +187,10 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
     } else if (link.source.id === "MFA registered" && link.target.id === "Per-user MFA") {
       filters = [{ id: "AccountEnabled", value: "Yes" }];
       // Note: Per-user MFA can be "enabled" or "enforced"
-    } else if (link.source.id === "MFA registered" && link.target.id === "No enforcement") {
+    } else if (
+      link.source.id === "MFA registered" &&
+      (link.target.id === "No enforcement" || link.target.id === "Unknown")
+    ) {
       filters = [
         { id: "AccountEnabled", value: "Yes" },
         { id: "MFARegistration", value: "Yes" },
@@ -193,7 +211,10 @@ export const MFACard = ({ data, isLoading, compact = false }) => {
         { id: "AccountEnabled", value: "Yes" },
         { id: "MFARegistration", value: "No" },
       ];
-    } else if (link.source.id === "Not registered" && link.target.id === "No enforcement") {
+    } else if (
+      link.source.id === "Not registered" &&
+      (link.target.id === "No enforcement" || link.target.id === "Unknown")
+    ) {
       filters = [
         { id: "AccountEnabled", value: "Yes" },
         { id: "MFARegistration", value: "No" },
