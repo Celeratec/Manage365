@@ -16,7 +16,9 @@ function New-GraphBulkRequest {
         $Headers
     )
 
-    if ($NoAuthCheck -or (Get-AuthorisedRequest -Uri $uri -TenantID $tenantid)) {
+    # Each sub-request URL gets the same check as a single request to that URL.
+    $Refused = { -not (Get-AuthorisedRequest -Uri "https://graph.microsoft.com/$Version/$("$($_.url)".TrimStart('/'))" -TenantID $tenantid) }
+    if ($NoAuthCheck -or ((Get-AuthorisedRequest -TenantID $tenantid) -and -not @($Requests).Where($Refused, 'First'))) {
         if ($Headers) {
             $Headers = $Headers
         } else {
