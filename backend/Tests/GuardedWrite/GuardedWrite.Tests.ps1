@@ -374,7 +374,7 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
     It 'rejects parameter names with Unicode tricks' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Arch`u{200B}ive" = $true; Identity = 'user@contoso.com'; Confirm = $false }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Con`u{200D}firm" = $false; Identity = 'user@contoso.com'; Archive = $true }).Allowed | Should -BeFalse
-        (Get-CIPPExoAllowlistedCmdlet -Cmdlet 'Disable-Mailbox' -Parameters @{ "Identity`0" = 'user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Identity`0" = 'user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Ｉdentity' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Identity-Extra' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ '1Identity' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
