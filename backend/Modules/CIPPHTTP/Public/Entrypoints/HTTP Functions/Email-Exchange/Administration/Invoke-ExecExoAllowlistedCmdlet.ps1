@@ -16,6 +16,7 @@ function Invoke-ExecExoAllowlistedCmdlet {
         Set-MailboxJunkEmailConfiguration: Identity, TrustedSendersAndDomains, and BlockedSendersAndDomains. TrustedSendersToAdd and BlockedSendersToAdd are rejected.
         Set-AcceptedDomain: Identity (domain name, 1-253 characters, no leading/trailing whitespace, no control characters, each label ≤63 characters) and DomainType (Authoritative, InternalRelay, or ExternalRelay).
         Set-DkimSigningConfig: Identity (domain name, same constraints as Set-AcceptedDomain) and Enabled (true/false/1/0, coerced to bool).
+        Disable-Mailbox: Identity, Archive (must be true), and Confirm (must be false). Only archive disable is allowed; full mailbox disable is rejected.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -37,14 +38,34 @@ function Invoke-ExecExoAllowlistedCmdlet {
     }
 
     $Before = $null
-    if ($Cmdlet -like 'Set-*' -or $Cmdlet -like 'Remove-*') {
-        $GetCmdlet = $Cmdlet -replace '^(Set|Remove)-', 'Get-'
+    if ($Cmdlet -like 'Set-*' -or $Cmdlet -like 'Remove-*' -or $Cmdlet -like 'Disable-*') {
+        $GetCmdlet = $Cmdlet -replace '^(Set|Remove|Disable)-', 'Get-'
         try {
             $GetParams = @{}
             if ($Plan.Parameters.ContainsKey('Identity')) { $GetParams.Identity = $Plan.Parameters.Identity }
             $Before = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $GetCmdlet -cmdParams $GetParams -useSystemMailbox $true
         } catch {
             $Before = $null
+        }
+    }
+
+    if ($Cmdlet -eq 'Disable-Mailbox' -and $Plan.Parameters.Archive -eq $true) {
+        if ($null -eq $Before) {
+            $Reason = 'Failed to read mailbox state. Verify the Identity and tenant permissions.'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
+        }
+        $HasArchive = $false
+        $ParsedGuid = [guid]::Empty
+        $HasValidGuid = [guid]::TryParse($Before.ArchiveGuid, [ref]$ParsedGuid) -and $ParsedGuid -ne [guid]::Empty
+        $HasActiveArchive = $Before.ArchiveStatus -eq 'Active' -or $null -ne $Before.ArchiveDatabase
+        if ($HasValidGuid -and $HasActiveArchive) {
+            $HasArchive = $true
+        }
+        if (-not $HasArchive) {
+            $Reason = 'Mailbox has no active archive to disable (ArchiveGuid is not a valid non-zero GUID, or ArchiveStatus is not Active and ArchiveDatabase is null).'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
         }
     }
 
@@ -59,6 +80,14 @@ function Invoke-ExecExoAllowlistedCmdlet {
 
     try {
         $After = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $Plan.Cmdlet -cmdParams $Plan.Parameters -useSystemMailbox $true
+        if ($Cmdlet -like 'Disable-*' -and $Plan.Parameters.ContainsKey('Identity')) {
+            try {
+                $GetCmdlet = $Cmdlet -replace '^Disable-', 'Get-'
+                $After = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $GetCmdlet -cmdParams @{ Identity = $Plan.Parameters.Identity } -useSystemMailbox $true
+            } catch {
+                $After = $null
+            }
+        }
         $Summary = "$Cmdlet completed for $($Gate.Tenant)."
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $Gate.Tenant -message $Summary -Sev 'Info'
         $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result 'Success'

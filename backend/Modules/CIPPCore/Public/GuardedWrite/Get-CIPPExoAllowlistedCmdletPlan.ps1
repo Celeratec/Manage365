@@ -38,10 +38,23 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         foreach ($Prop in $Parameters.PSObject.Properties) { $Incoming[$Prop.Name] = $Prop.Value }
     }
 
-    $Unknown = @($Incoming.Keys | Where-Object { $_ -notin $AllowedNames })
-    if ($Unknown.Count -gt 0) {
-        return [pscustomobject]@{ Allowed = $false; Reason = "Parameter '$($Unknown -join ', ')' is not allowed on $Cmdlet." }
+    $AllowedSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($Name in $AllowedNames) { $null = $AllowedSet.Add($Name) }
+
+    $Validated = @{}
+    foreach ($Key in @($Incoming.Keys)) {
+        $KeyStr = [string]$Key
+        if ($KeyStr -cnotmatch '\A[A-Za-z][A-Za-z0-9]*\z') {
+            return [pscustomobject]@{ Allowed = $false; Reason = "Parameter name '$KeyStr' must start with an ASCII letter and contain only ASCII letters and digits." }
+        }
+        if (-not $AllowedSet.Contains($KeyStr)) {
+            return [pscustomobject]@{ Allowed = $false; Reason = "Parameter '$KeyStr' is not allowed on $Cmdlet." }
+        }
+        $CanonicalName = $AllowedNames | Where-Object { $AllowedSet.Comparer.Equals($_, $KeyStr) } | Select-Object -First 1
+        if (-not $CanonicalName) { $CanonicalName = $KeyStr }
+        $Validated[$CanonicalName] = $Incoming[$Key]
     }
+    $Incoming = $Validated
     if ($Cmdlet -eq 'Set-MailboxJunkEmailConfiguration' -and @($Incoming.Keys) -match 'ToAdd$') {
         return [pscustomobject]@{ Allowed = $false; Reason = 'Set-MailboxJunkEmailConfiguration does not accept TrustedSendersToAdd or BlockedSendersToAdd. Send TrustedSendersAndDomains or BlockedSendersAndDomains.' }
     }
@@ -161,6 +174,83 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         } else {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Enabled must be a boolean.' }
         }
+    }
+    if ($Cmdlet -eq 'Disable-Mailbox') {
+        if (-not $Incoming.ContainsKey('Identity')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Identity.' }
+        }
+        if (-not $Incoming.ContainsKey('Archive')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Archive parameter. Only archive disable is allowed.' }
+        }
+        if (-not $Incoming.ContainsKey('Confirm')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Confirm parameter set to false.' }
+        }
+        $Id = $Incoming.Identity
+        if ($Id -is [array] -or $Id -is [hashtable] -or $null -eq $Id -or ($Id -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a scalar string.' }
+        }
+        $IdRaw = [string]$Id
+        if ($IdRaw -match '[\x00-\x1F\x7F]') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain control characters.' }
+        }
+        $IdStr = $IdRaw.Trim()
+        if ($IdRaw -ne $IdStr) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not have leading or trailing whitespace.' }
+        }
+        if ($IdStr.Length -eq 0 -or $IdStr.Length -gt 320) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be 1 to 320 characters.' }
+        }
+        if ($IdStr -match '\*') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain wildcards.' }
+        }
+        if ($IdStr -match '%.*%') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain variable tokens.' }
+        }
+        $IsUPN = $IdStr -cmatch '\A[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+\z'
+        $IsSMTP = $IdStr -cmatch '\A[Ss][Mm][Tt][Pp]:[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+\z'
+        $IsGUID = $IdStr -cmatch '\A[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\z'
+        if (-not ($IsUPN -or $IsSMTP -or $IsGUID)) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a valid UPN, SMTP address, or GUID.' }
+        }
+        $Incoming.Identity = $IdStr
+        $Archive = $Incoming.Archive
+        if ($Archive -is [array] -or $Archive -is [hashtable] -or ($Archive -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be a scalar boolean.' }
+        }
+        $ArchiveStr = [string]$Archive
+        $ArchiveBool = $null
+        if ($ArchiveStr -iin @('true', '1')) {
+            $ArchiveBool = $true
+        } elseif ($ArchiveStr -iin @('false', '0')) {
+            $ArchiveBool = $false
+        } elseif ($Archive -is [bool]) {
+            $ArchiveBool = $Archive
+        } else {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be a boolean.' }
+        }
+        if ($ArchiveBool -ne $true) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be true. Full mailbox disable is not allowed.' }
+        }
+        $Incoming.Archive = $true
+        $Confirm = $Incoming.Confirm
+        if ($Confirm -is [array] -or $Confirm -is [hashtable] -or ($Confirm -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be a scalar boolean.' }
+        }
+        $ConfirmStr = [string]$Confirm
+        $ConfirmBool = $null
+        if ($ConfirmStr -iin @('true', '1')) {
+            $ConfirmBool = $true
+        } elseif ($ConfirmStr -iin @('false', '0')) {
+            $ConfirmBool = $false
+        } elseif ($Confirm -is [bool]) {
+            $ConfirmBool = $Confirm
+        } else {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be a boolean.' }
+        }
+        if ($ConfirmBool -ne $false) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be false.' }
+        }
+        $Incoming.Confirm = $false
     }
 
     return [pscustomobject]@{

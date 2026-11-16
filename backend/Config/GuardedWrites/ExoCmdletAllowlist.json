@@ -12,5 +12,6 @@
   "Set-AdminAuditLogConfig": ["UnifiedAuditLogIngestionEnabled"],
   "Set-MailboxJunkEmailConfiguration": ["Identity", "TrustedSendersAndDomains", "BlockedSendersAndDomains"],
   "Set-AcceptedDomain": ["Identity", "DomainType"],
-  "Set-DkimSigningConfig": ["Identity", "Enabled"]
+  "Set-DkimSigningConfig": ["Identity", "Enabled"],
+  "Disable-Mailbox": ["Identity", "Archive", "Confirm"]
 }
