@@ -57,14 +57,13 @@ function Invoke-ExecExoAllowlistedCmdlet {
         }
         $HasArchive = $false
         $ParsedGuid = [guid]::Empty
-        if ([guid]::TryParse($Before.ArchiveGuid, [ref]$ParsedGuid) -and $ParsedGuid -ne [guid]::Empty) {
-            $HasArchive = $true
-        }
-        if (-not $HasArchive -and ($Before.ArchiveStatus -eq 'Active' -or $null -ne $Before.ArchiveDatabase)) {
+        $HasValidGuid = [guid]::TryParse($Before.ArchiveGuid, [ref]$ParsedGuid) -and $ParsedGuid -ne [guid]::Empty
+        $HasActiveArchive = $Before.ArchiveStatus -eq 'Active' -or $null -ne $Before.ArchiveDatabase
+        if ($HasValidGuid -and $HasActiveArchive) {
             $HasArchive = $true
         }
         if (-not $HasArchive) {
-            $Reason = 'Mailbox has no active archive to disable (ArchiveGuid is not a valid non-zero GUID, and ArchiveStatus is not Active or ArchiveDatabase is null).'
+            $Reason = 'Mailbox has no active archive to disable (ArchiveGuid is not a valid non-zero GUID, or ArchiveStatus is not Active and ArchiveDatabase is null).'
             $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
             return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
         }

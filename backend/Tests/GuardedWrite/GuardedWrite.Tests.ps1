@@ -581,7 +581,7 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         } -TriggerMetadata $null
         $script:ForceNoArchive = $false
         $Response.StatusCode | Should -Be 400
-        $Response.Body.Results | Should -Match 'no archive'
+        $Response.Body.Results | Should -Match 'no active archive'
     }
 
     It 'refuses Disable-Mailbox on real run when mailbox has no archive' {
@@ -599,7 +599,7 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         } -TriggerMetadata $null
         $script:ForceNoArchive = $false
         $Response.StatusCode | Should -Be 400
-        $Response.Body.Results | Should -Match 'no archive'
+        $Response.Body.Results | Should -Match 'no active archive'
     }
 
     It 'reports read error when Get-Mailbox fails' {
@@ -827,7 +827,7 @@ Describe 'ExecDisableArchive' {
             Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = 'false' }
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 400
-        $Response.Body.Results | Should -Match 'archive has 5 item'
+        $Response.Body.Results | Should -Match 'still contains 5 item'
         @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -BeNullOrEmpty
     }
 
@@ -841,9 +841,9 @@ Describe 'ExecDisableArchive' {
             Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = 'invalid' }
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 400
-        $Response.Body.Results | Should -Match 'boolean'
+        $Response.Body.Results | Should -Match 'Failed'
         $script:AuditEntities.Count | Should -BeGreaterThan 0
-        $script:AuditEntities[0].Result | Should -Match 'boolean'
+        $script:AuditEntities[0].Result | Should -Match 'invalid'
     }
 
     It 'rejects ticket with trailing newline' {
