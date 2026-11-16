@@ -16,6 +16,7 @@ function Invoke-ExecExoAllowlistedCmdlet {
         Set-MailboxJunkEmailConfiguration: Identity, TrustedSendersAndDomains, and BlockedSendersAndDomains. TrustedSendersToAdd and BlockedSendersToAdd are rejected.
         Set-AcceptedDomain: Identity (domain name, 1-253 characters, no leading/trailing whitespace, no control characters, each label ≤63 characters) and DomainType (Authoritative, InternalRelay, or ExternalRelay).
         Set-DkimSigningConfig: Identity (domain name, same constraints as Set-AcceptedDomain) and Enabled (true/false/1/0, coerced to bool).
+        Disable-Mailbox: Identity, Archive (must be true), and Confirm (must be false). Only archive disable is allowed; full mailbox disable is rejected.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)

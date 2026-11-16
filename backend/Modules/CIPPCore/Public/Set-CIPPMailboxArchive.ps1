@@ -16,9 +16,12 @@ function Set-CIPPMailboxArchive {
         if ($AutoExpandingArchive.IsPresent -eq $true) {
             $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Enable-Mailbox' -cmdParams @{Identity = $UserID; AutoExpandingArchive = $true }
             $Message = "Successfully enabled $OperationType for $Username"
+        } elseif ($ArchiveEnabled) {
+            $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Enable-Mailbox' -cmdParams @{Identity = $UserID; Archive = $true }
+            $Message = "Successfully enabled $OperationType for $Username"
         } else {
-            $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Enable-Mailbox' -cmdParams @{Identity = $UserID; Archive = $ArchiveEnabled }
-            $Message = "Successfully set $OperationType for $Username to $ArchiveEnabled"
+            $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Disable-Mailbox' -cmdParams @{Identity = $UserID; Archive = $true; Confirm = $false }
+            $Message = "Successfully disabled $OperationType for $Username"
         }
 
         Write-LogMessage -Headers $Headers -API $APIName -tenant $TenantFilter -message $Message -Sev 'Info'

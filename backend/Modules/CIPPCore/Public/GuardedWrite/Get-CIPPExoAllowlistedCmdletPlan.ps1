@@ -162,6 +162,55 @@ function Get-CIPPExoAllowlistedCmdletPlan {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Enabled must be a boolean.' }
         }
     }
+    if ($Cmdlet -eq 'Disable-Mailbox') {
+        if (-not $Incoming.ContainsKey('Identity')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Identity.' }
+        }
+        if (-not $Incoming.ContainsKey('Archive')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Archive parameter. Only archive disable is allowed.' }
+        }
+        if (-not $Incoming.ContainsKey('Confirm')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Disable-Mailbox requires Confirm parameter set to false.' }
+        }
+        $Archive = $Incoming.Archive
+        if ($Archive -is [array] -or $Archive -is [hashtable] -or ($Archive -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be a scalar boolean.' }
+        }
+        $ArchiveStr = [string]$Archive
+        $ArchiveBool = $null
+        if ($ArchiveStr -iin @('true', '1')) {
+            $ArchiveBool = $true
+        } elseif ($ArchiveStr -iin @('false', '0')) {
+            $ArchiveBool = $false
+        } elseif ($Archive -is [bool]) {
+            $ArchiveBool = $Archive
+        } else {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be a boolean.' }
+        }
+        if ($ArchiveBool -ne $true) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Archive must be true. Full mailbox disable is not allowed.' }
+        }
+        $Incoming.Archive = $true
+        $Confirm = $Incoming.Confirm
+        if ($Confirm -is [array] -or $Confirm -is [hashtable] -or ($Confirm -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be a scalar boolean.' }
+        }
+        $ConfirmStr = [string]$Confirm
+        $ConfirmBool = $null
+        if ($ConfirmStr -iin @('true', '1')) {
+            $ConfirmBool = $true
+        } elseif ($ConfirmStr -iin @('false', '0')) {
+            $ConfirmBool = $false
+        } elseif ($Confirm -is [bool]) {
+            $ConfirmBool = $Confirm
+        } else {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be a boolean.' }
+        }
+        if ($ConfirmBool -ne $false) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Confirm must be false.' }
+        }
+        $Incoming.Confirm = $false
+    }
 
     return [pscustomobject]@{
         Allowed    = $true
