@@ -841,9 +841,9 @@ Describe 'ExecDisableArchive' {
             Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = 'invalid' }
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 400
-        $Response.Body.Results | Should -Match 'Failed'
+        $Response.Body.Results | Should -Match 'boolean'
         $script:AuditEntities.Count | Should -BeGreaterThan 0
-        $script:AuditEntities[0].Result | Should -Match 'invalid'
+        $script:AuditEntities[0].Result | Should -Match 'boolean'
     }
 
     It 'rejects ticket with trailing newline' {
