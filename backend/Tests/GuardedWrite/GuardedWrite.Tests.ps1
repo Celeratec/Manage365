@@ -378,6 +378,7 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Ｉdentity' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Identity-Extra' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ '1Identity' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-Mailbox' -Parameters @{ Identity123 = 'not-allowed'; Identity = 'user@contoso.com' }).Allowed | Should -BeFalse
     }
 
     It 'accepts alphanumeric parameter names like CustomAttribute1' {
@@ -618,6 +619,69 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results | Should -Match 'Failed to read mailbox'
     }
+
+    It 'refuses Disable-Mailbox when ArchiveGuid is braced zero GUID' {
+        Mock New-ExoRequest {
+            if ($cmdlet -eq 'Get-Mailbox') {
+                [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveGuid = '{00000000-0000-0000-0000-000000000000}'; ArchiveStatus = 'None'; ArchiveDatabase = $null }
+            } else { [pscustomobject]@{ Identity = 'user@contoso.com' } }
+        }
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $true
+                Cmdlet       = 'Disable-Mailbox'
+                Parameters   = @{ Identity = 'user@contoso.com'; Archive = $true; Confirm = $false }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match 'no active archive'
+    }
+
+    It 'refuses Disable-Mailbox when ArchiveGuid is string false' {
+        Mock New-ExoRequest {
+            if ($cmdlet -eq 'Get-Mailbox') {
+                [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveGuid = 'false'; ArchiveStatus = 'None'; ArchiveDatabase = $null }
+            } else { [pscustomobject]@{ Identity = 'user@contoso.com' } }
+        }
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $true
+                Cmdlet       = 'Disable-Mailbox'
+                Parameters   = @{ Identity = 'user@contoso.com'; Archive = $true; Confirm = $false }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match 'no active archive'
+    }
+
+    It 'refuses Disable-Mailbox when valid GUID but ArchiveDatabase null and ArchiveStatus None' {
+        Mock New-ExoRequest {
+            if ($cmdlet -eq 'Get-Mailbox') {
+                [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveGuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'; ArchiveStatus = 'None'; ArchiveDatabase = $null }
+            } else { [pscustomobject]@{ Identity = 'user@contoso.com' } }
+        }
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $false
+                Cmdlet       = 'Disable-Mailbox'
+                Parameters   = @{ Identity = 'user@contoso.com'; Archive = $true; Confirm = $false }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match 'no active archive'
+    }
 }
 
 Describe 'Set-CIPPMailboxArchive' {
@@ -651,6 +715,47 @@ Describe 'Set-CIPPMailboxArchive' {
         @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Disable-Mailbox')
         $script:ExoCalls[0].Params.Archive | Should -Be $true
         $script:ExoCalls[0].Params.Confirm | Should -Be $false
+    }
+
+    It 'calls Enable-Mailbox with AutoExpandingArchive when passed' {
+        $Result = Set-CIPPMailboxArchive -UserID 'user@contoso.com' -TenantFilter 'contoso.onmicrosoft.com' -ArchiveEnabled $true -AutoExpandingArchive
+        $Result | Should -Match 'auto-expanding'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Enable-Mailbox')
+        $script:ExoCalls[0].Params.AutoExpandingArchive | Should -Be $true
+    }
+}
+
+Describe 'Invoke-ExecEnableAutoExpandingArchive' {
+    BeforeAll {
+        class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
+        $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
+        if (-not $Accelerators::Get.ContainsKey('HttpStatusCode')) { $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode]) }
+        if (-not $Accelerators::Get.ContainsKey('HttpResponseContext')) { $Accelerators::Add('HttpResponseContext', [HttpResponseContext]) }
+        $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Set-CIPPMailboxArchive.ps1')
+        . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecEnableAutoExpandingArchive.ps1')
+        function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = if ($Exception.Exception) { $Exception.Exception.Message } else { $Exception.Message } } }
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+        function New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, [switch]$useSystemMailbox)
+            $script:ExoCalls.Add([pscustomobject]@{ Cmdlet = $cmdlet; Params = $cmdParams })
+            [pscustomobject]@{ Identity = 'user@contoso.com' }
+        }
+    }
+
+    BeforeEach {
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+    }
+
+    It 'passes ArchiveEnabled true to Set-CIPPMailboxArchive' {
+        $Response = Invoke-ExecEnableAutoExpandingArchive -Request @{
+            Headers = @{}
+            Body    = @{ ID = 'user@contoso.com'; tenantFilter = 'contoso.onmicrosoft.com'; username = 'user@contoso.com' }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Enable-Mailbox')
+        $script:ExoCalls[0].Params.AutoExpandingArchive | Should -Be $true
     }
 }
 
@@ -713,18 +818,22 @@ Describe 'ExecDisableArchive' {
         $Response.StatusCode | Should -Be 200
     }
 
-    It 'parses Force as string false correctly' {
+    It 'refuses Force string false when archive has items' {
+        Mock Get-CIPPMoveArchiveItemsPreview { [pscustomobject]@{ ArchiveItemCount = 5; ArchiveTotalBytes = 1000; PrimaryItemCount = 100; PrimaryTotalBytes = 1000000 } }
         $Response = Invoke-ExecDisableArchive -Request @{
             Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
             Headers = @{}
             Query   = @{}
             Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = 'false' }
         } -TriggerMetadata $null
-        $Response.StatusCode | Should -Be 200
-        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Disable-Mailbox')
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match 'archive has 5 item'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -BeNullOrEmpty
     }
 
-    It 'rejects invalid Force value' {
+    It 'rejects invalid Force value and writes audit' {
+        $script:AuditEntities = [System.Collections.Generic.List[object]]::new()
+        Mock Add-CIPPAzDataTableEntity { param($Table, $Entity, [switch]$Force) $script:AuditEntities.Add($Entity) }
         $Response = Invoke-ExecDisableArchive -Request @{
             Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
             Headers = @{}
@@ -733,6 +842,8 @@ Describe 'ExecDisableArchive' {
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results | Should -Match 'boolean'
+        $script:AuditEntities.Count | Should -BeGreaterThan 0
+        $script:AuditEntities[0].Result | Should -Match 'boolean'
     }
 
     It 'rejects ticket with trailing newline' {

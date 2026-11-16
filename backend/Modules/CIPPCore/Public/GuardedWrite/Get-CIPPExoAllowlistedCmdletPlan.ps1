@@ -44,7 +44,7 @@ function Get-CIPPExoAllowlistedCmdletPlan {
     $Validated = @{}
     foreach ($Key in @($Incoming.Keys)) {
         $KeyStr = [string]$Key
-        if ($KeyStr -notmatch '\A[A-Za-z][A-Za-z0-9]*\z') {
+        if ($KeyStr -cnotmatch '\A[A-Za-z][A-Za-z0-9]*\z') {
             return [pscustomobject]@{ Allowed = $false; Reason = "Parameter name '$KeyStr' must start with an ASCII letter and contain only ASCII letters and digits." }
         }
         if (-not $AllowedSet.Contains($KeyStr)) {
