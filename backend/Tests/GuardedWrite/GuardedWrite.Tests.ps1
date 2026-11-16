@@ -333,6 +333,49 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ identity = 'user@contoso.com'; archive = $true; confirm = $false }).Allowed | Should -BeTrue
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ IDENTITY = 'user@contoso.com'; ARCHIVE = $true; CONFIRM = $false }).Allowed | Should -BeTrue
     }
+
+    It 'rejects Disable-Mailbox Identity with invalid format' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = ''; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = '   '; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = $null; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = @('user@contoso.com'); Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = @{ Name = 'user' }; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = ('a' * 321); Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = ('a' * 10000); Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Disable-Mailbox Identity with control characters or wildcards' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = "user@contoso.com`n"; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = "user@contoso.com`r"; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = "user@contoso.com`0"; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = '*@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'Discovery*'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = '%UserName%'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = '  user@contoso.com  '; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+    }
+
+    It 'rejects Disable-Mailbox Identity that is not a UPN, SMTP or GUID' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'notanemail'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'bad@'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = '@bad.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'not-a-guid-12345'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+    }
+
+    It 'accepts valid UPN, SMTP and GUID formats for Disable-Mailbox Identity' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'SMTP:user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'smtp:user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ Identity = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'; Archive = $true; Confirm = $false }).Allowed | Should -BeTrue
+    }
+
+    It 'rejects parameter names with Unicode tricks' {
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Arch`u{200B}ive" = $true; Identity = 'user@contoso.com'; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Con`u{200D}firm" = $false; Identity = 'user@contoso.com'; Archive = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-Mailbox' -Parameters @{ "Identity`0" = 'user@contoso.com'; Archive = $true; Confirm = $false }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Ｉdentity' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Identity123' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-AcceptedDomain' -Parameters @{ 'Identity-Extra' = 'contoso.com'; DomainType = 'Authoritative' }).Allowed | Should -BeFalse
+    }
 }
 
 Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
@@ -353,7 +396,7 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
             if ($cmdlet -eq 'Get-DkimSigningConfig') { return [pscustomobject]@{ Identity = 'contoso.com'; Enabled = $false } }
             if ($cmdlet -eq 'Set-AcceptedDomain') { return [pscustomobject]@{ Identity = 'contoso.com'; DomainType = 'InternalRelay' } }
             if ($cmdlet -eq 'Set-DkimSigningConfig') { return [pscustomobject]@{ Identity = 'contoso.com'; Enabled = $true } }
-            if ($cmdlet -eq 'Get-Mailbox') { return [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveStatus = 'Active' } }
+            if ($cmdlet -eq 'Get-Mailbox') { return [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveStatus = 'Active'; ArchiveGuid = 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' } }
             if ($cmdlet -eq 'Disable-Mailbox') { return [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveStatus = 'None' } }
         }
         . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecExoAllowlistedCmdlet.ps1')
@@ -452,6 +495,130 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 200
         $Response.Body.Status | Should -Be 'DryRun'
+    }
+
+    It 'calls Get-Mailbox then Disable-Mailbox then Get-Mailbox again when dryRun is false' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{ 'x-ms-client-principal-name' = 'admin@msp.com' }
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3280061'
+                dryRun       = $false
+                Cmdlet       = 'Disable-Mailbox'
+                Parameters   = @{ Identity = 'user@contoso.com'; Archive = $true; Confirm = $false }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'Success'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Get-Mailbox', 'Disable-Mailbox', 'Get-Mailbox')
+        $script:ExoCalls[1].Params.Archive | Should -Be $true
+        $script:ExoCalls[1].Params.Confirm | Should -Be $false
+        $script:ExoCalls[1].Params.Identity | Should -Be 'user@contoso.com'
+    }
+}
+
+Describe 'Set-CIPPMailboxArchive' {
+    BeforeAll {
+        $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Set-CIPPMailboxArchive.ps1')
+        function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = 'exchange failed' } }
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+        function New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, [switch]$useSystemMailbox)
+            $script:ExoCalls.Add([pscustomobject]@{ Cmdlet = $cmdlet; Params = $cmdParams })
+            [pscustomobject]@{ Identity = 'user@contoso.com' }
+        }
+    }
+
+    BeforeEach {
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+    }
+
+    It 'calls Enable-Mailbox with Archive true when ArchiveEnabled is true' {
+        $Result = Set-CIPPMailboxArchive -UserID 'user@contoso.com' -TenantFilter 'contoso.onmicrosoft.com' -ArchiveEnabled $true
+        $Result | Should -Match 'enabled'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Enable-Mailbox')
+        $script:ExoCalls[0].Params.Archive | Should -Be $true
+    }
+
+    It 'calls Disable-Mailbox with Archive true and Confirm false when ArchiveEnabled is false' {
+        $Result = Set-CIPPMailboxArchive -UserID 'user@contoso.com' -TenantFilter 'contoso.onmicrosoft.com' -ArchiveEnabled $false
+        $Result | Should -Match 'disabled'
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Disable-Mailbox')
+        $script:ExoCalls[0].Params.Archive | Should -Be $true
+        $script:ExoCalls[0].Params.Confirm | Should -Be $false
+    }
+}
+
+Describe 'ExecDisableArchive' {
+    BeforeAll {
+        class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
+        $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
+        if (-not $Accelerators::Get.ContainsKey('HttpStatusCode')) { $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode]) }
+        $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Set-CIPPMailboxArchive.ps1')
+        . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Add-CIPPMoveArchiveItemsAudit.ps1')
+        . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecDisableArchive.ps1')
+        function Get-CIPPMoveArchiveItemsPreview { param($TenantFilter, $UserPrincipalName) [pscustomobject]@{ ArchiveItemCount = 0; ArchiveTotalBytes = 0; PrimaryItemCount = 100; PrimaryTotalBytes = 1000000 } }
+        function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = $Exception.Message } }
+        function Get-CippTable { param($tablename) @{ TableName = $tablename } }
+        function Add-CIPPAzDataTableEntity { param($Table, $Entity, [switch]$Force) }
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+        function New-ExoRequest {
+            param($tenantid, $cmdlet, $cmdParams, [switch]$useSystemMailbox)
+            $script:ExoCalls.Add([pscustomobject]@{ Cmdlet = $cmdlet; Params = $cmdParams })
+            [pscustomobject]@{ Identity = 'user@contoso.com' }
+        }
+    }
+
+    BeforeEach {
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+    }
+
+    It 'rejects non-numeric TicketNumber' {
+        $Response = Invoke-ExecDisableArchive -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
+            Headers = @{}
+            Query   = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = 'abc123' }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match '6 to 8 digit'
+    }
+
+    It 'rejects TicketNumber shorter than 6 digits' {
+        $Response = Invoke-ExecDisableArchive -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
+            Headers = @{}
+            Query   = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '12345' }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        $Response.Body.Results | Should -Match '6 to 8 digit'
+    }
+
+    It 'accepts Force as boolean true' {
+        $Response = Invoke-ExecDisableArchive -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
+            Headers = @{}
+            Query   = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = $true; Reason = 'Test reason' }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+    }
+
+    It 'rejects Force as string false parsed as true' {
+        $Response = Invoke-ExecDisableArchive -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecDisableArchive' }
+            Headers = @{}
+            Query   = @{}
+            Body    = @{ tenantFilter = 'contoso.onmicrosoft.com'; UserPrincipalName = 'user@contoso.com'; TicketNumber = '3278856'; Force = 'false' }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Be @('Disable-Mailbox')
     }
 }
 

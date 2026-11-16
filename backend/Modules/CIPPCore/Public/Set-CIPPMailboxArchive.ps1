@@ -6,6 +6,7 @@ function Set-CIPPMailboxArchive {
         $Username,
         $APIName = 'Mailbox Archive',
         $TenantFilter,
+        [Parameter(Mandatory = $true)]
         [bool]$ArchiveEnabled,
         [switch]$AutoExpandingArchive
     )

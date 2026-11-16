@@ -38,8 +38,8 @@ function Invoke-ExecExoAllowlistedCmdlet {
     }
 
     $Before = $null
-    if ($Cmdlet -like 'Set-*' -or $Cmdlet -like 'Remove-*') {
-        $GetCmdlet = $Cmdlet -replace '^(Set|Remove)-', 'Get-'
+    if ($Cmdlet -like 'Set-*' -or $Cmdlet -like 'Remove-*' -or $Cmdlet -like 'Disable-*') {
+        $GetCmdlet = $Cmdlet -replace '^(Set|Remove|Disable)-', 'Get-'
         try {
             $GetParams = @{}
             if ($Plan.Parameters.ContainsKey('Identity')) { $GetParams.Identity = $Plan.Parameters.Identity }
@@ -58,8 +58,25 @@ function Invoke-ExecExoAllowlistedCmdlet {
         }
     }
 
+    if ($Cmdlet -eq 'Disable-Mailbox' -and $Plan.Parameters.Archive -eq $true) {
+        if (-not $Before -or -not $Before.ArchiveGuid -or $Before.ArchiveGuid -eq '00000000-0000-0000-0000-000000000000' -or $Before.ArchiveStatus -eq 'None') {
+            $Reason = 'Mailbox has no archive to disable.'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $false -Result $Reason
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
+        }
+    }
+
     try {
-        $After = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $Plan.Cmdlet -cmdParams $Plan.Parameters -useSystemMailbox $true
+        $null = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $Plan.Cmdlet -cmdParams $Plan.Parameters -useSystemMailbox $true
+        $After = $null
+        if ($Cmdlet -like 'Disable-*' -and $Plan.Parameters.ContainsKey('Identity')) {
+            try {
+                $GetCmdlet = $Cmdlet -replace '^Disable-', 'Get-'
+                $After = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $GetCmdlet -cmdParams @{ Identity = $Plan.Parameters.Identity } -useSystemMailbox $true
+            } catch {
+                $After = $null
+            }
+        }
         $Summary = "$Cmdlet completed for $($Gate.Tenant)."
         Write-LogMessage -headers $Request.Headers -API $APIName -tenant $Gate.Tenant -message $Summary -Sev 'Info'
         $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result 'Success'

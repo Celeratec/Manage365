@@ -19,12 +19,27 @@ function Invoke-ExecDisableArchive {
         $TicketNumber = $TicketNumber.value
     }
     $ForceRaw = $Request.Query.Force ?? $Body.Force
-    $Force = if ($null -eq $ForceRaw) { $false } else { [bool]$ForceRaw }
+    $ForceStr = [string]$ForceRaw
+    $Force = $false
+    if ($ForceStr -ieq 'true' -or $ForceStr -eq '1') {
+        $Force = $true
+    } elseif ($ForceStr -ieq 'false' -or $ForceStr -eq '0' -or [string]::IsNullOrWhiteSpace($ForceStr)) {
+        $Force = $false
+    } elseif ($ForceRaw -is [bool]) {
+        $Force = $ForceRaw
+    } else {
+        $GraphRequest = @{ Results = 'Force must be a boolean (true/false/1/0).' }
+        $StatusCode = [HttpStatusCode]::BadRequest
+        return ([HttpResponseContext]@{
+            StatusCode = $StatusCode
+            Body       = $GraphRequest
+        })
+    }
     $Reason = $Request.Query.Reason ?? $Body.Reason
 
     try {
-        if ([string]::IsNullOrWhiteSpace($TicketNumber) -or $TicketNumber -notmatch '^\d+$') {
-            throw 'TicketNumber is required and must be numeric (Freshdesk ticket ID).'
+        if ([string]::IsNullOrWhiteSpace($TicketNumber) -or $TicketNumber -notmatch '^\d{6,8}$') {
+            throw 'TicketNumber is required and must be a 6 to 8 digit number (Freshdesk ticket ID).'
         }
         if ($Force -and [string]::IsNullOrWhiteSpace($Reason)) {
             throw 'Reason is required when Force is true.'
@@ -52,7 +67,10 @@ function Invoke-ExecDisableArchive {
         $GraphRequest = @{ Results = $Result; StatsBackup = $StatsBackup }
         $StatusCode = [HttpStatusCode]::OK
     } catch {
-        $GraphRequest = @{ Results = (Get-CippException -Exception $_).NormalizedError }
+        $ErrorMessage = (Get-CippException -Exception $_).NormalizedError
+        $Caller = $Headers.'x-ms-client-principal-name' ?? 'API'
+        $null = Add-CIPPMoveArchiveItemsAudit -TenantFilter $TenantFilter -UserPrincipalName $UserPrincipalName -TicketNumber $TicketNumber -Operation 'DisableArchive' -Result 'Failed' -DryRun $false -Caller $Caller -ErrorSummary $ErrorMessage
+        $GraphRequest = @{ Results = $ErrorMessage }
         $StatusCode = [HttpStatusCode]::BadRequest
     }
 
