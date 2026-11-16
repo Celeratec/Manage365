@@ -557,13 +557,14 @@ Describe 'ExecDisableArchive' {
         class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
         $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
         if (-not $Accelerators::Get.ContainsKey('HttpStatusCode')) { $Accelerators::Add('HttpStatusCode', [System.Net.HttpStatusCode]) }
+        if (-not $Accelerators::Get.ContainsKey('HttpResponseContext')) { $Accelerators::Add('HttpResponseContext', [HttpResponseContext]) }
         $RepoRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $PSCommandPath))
         . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Set-CIPPMailboxArchive.ps1')
         . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Add-CIPPMoveArchiveItemsAudit.ps1')
         . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecDisableArchive.ps1')
         function Get-CIPPMoveArchiveItemsPreview { param($TenantFilter, $UserPrincipalName) [pscustomobject]@{ ArchiveItemCount = 0; ArchiveTotalBytes = 0; PrimaryItemCount = 100; PrimaryTotalBytes = 1000000 } }
         function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
-        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = $Exception.Message } }
+        function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = if ($Exception.Exception) { $Exception.Exception.Message } else { $Exception.Message } } }
         function Get-CippTable { param($tablename) @{ TableName = $tablename } }
         function Add-CIPPAzDataTableEntity { param($Table, $Entity, [switch]$Force) }
         $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
