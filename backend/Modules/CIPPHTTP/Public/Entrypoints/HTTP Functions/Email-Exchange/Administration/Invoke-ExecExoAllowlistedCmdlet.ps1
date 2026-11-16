@@ -49,6 +49,25 @@ function Invoke-ExecExoAllowlistedCmdlet {
         }
     }
 
+    if ($Cmdlet -eq 'Disable-Mailbox' -and $Plan.Parameters.Archive -eq $true) {
+        if ($null -eq $Before) {
+            $Reason = 'Failed to read mailbox state. Verify the Identity and tenant permissions.'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
+        }
+        $HasArchive = $false
+        if ($Before.ArchiveGuid -and $Before.ArchiveGuid -ne '00000000-0000-0000-0000-000000000000') {
+            $HasArchive = $true
+        } elseif ($Before.ArchiveDatabase -or $Before.ArchiveState -eq 'Local') {
+            $HasArchive = $true
+        }
+        if (-not $HasArchive) {
+            $Reason = 'Mailbox has no archive to disable (ArchiveGuid is empty or zero, and no ArchiveDatabase).'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
+        }
+    }
+
     $WhatIfPlan = @([pscustomobject]@{ Cmdlet = $Plan.Cmdlet; Parameters = $Plan.Parameters })
     if ($Gate.WhatIf) {
         $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $true -Result 'DryRun'
@@ -58,17 +77,8 @@ function Invoke-ExecExoAllowlistedCmdlet {
         }
     }
 
-    if ($Cmdlet -eq 'Disable-Mailbox' -and $Plan.Parameters.Archive -eq $true) {
-        if (-not $Before -or -not $Before.ArchiveGuid -or $Before.ArchiveGuid -eq '00000000-0000-0000-0000-000000000000' -or $Before.ArchiveStatus -eq 'None') {
-            $Reason = 'Mailbox has no archive to disable.'
-            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $false -Result $Reason
-            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
-        }
-    }
-
     try {
-        $null = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $Plan.Cmdlet -cmdParams $Plan.Parameters -useSystemMailbox $true
-        $After = $null
+        $After = New-ExoRequest -tenantid $Gate.Tenant -cmdlet $Plan.Cmdlet -cmdParams $Plan.Parameters -useSystemMailbox $true
         if ($Cmdlet -like 'Disable-*' -and $Plan.Parameters.ContainsKey('Identity')) {
             try {
                 $GetCmdlet = $Cmdlet -replace '^Disable-', 'Get-'

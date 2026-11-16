@@ -44,8 +44,8 @@ function Get-CIPPExoAllowlistedCmdletPlan {
     $Validated = @{}
     foreach ($Key in @($Incoming.Keys)) {
         $KeyStr = [string]$Key
-        if ($KeyStr -notmatch '^\A[A-Za-z]+\z') {
-            return [pscustomobject]@{ Allowed = $false; Reason = "Parameter name '$KeyStr' must contain only ASCII letters." }
+        if ($KeyStr -notmatch '\A[A-Za-z][A-Za-z0-9]*\z') {
+            return [pscustomobject]@{ Allowed = $false; Reason = "Parameter name '$KeyStr' must start with an ASCII letter and contain only ASCII letters and digits." }
         }
         if (-not $AllowedSet.Contains($KeyStr)) {
             return [pscustomobject]@{ Allowed = $false; Reason = "Parameter '$KeyStr' is not allowed on $Cmdlet." }
@@ -206,9 +206,9 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         if ($IdStr -match '%.*%') {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain variable tokens.' }
         }
-        $IsUPN = $IdStr -match '\A[a-zA-Z0-9!#$%&''*+/=?^_`{|}~.-]+@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\z'
-        $IsSMTP = $IdStr -match '\A[Ss][Mm][Tt][Pp]:[a-zA-Z0-9!#$%&''*+/=?^_`{|}~.-]+@[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\z'
-        $IsGUID = $IdStr -match '\A[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\z'
+        $IsUPN = $IdStr -cmatch '\A[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+\z'
+        $IsSMTP = $IdStr -cmatch '\A[Ss][Mm][Tt][Pp]:[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&''*+/=?^_`{|}~-]+)*@[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+\z'
+        $IsGUID = $IdStr -cmatch '\A[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\z'
         if (-not ($IsUPN -or $IsSMTP -or $IsGUID)) {
             return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a valid UPN, SMTP address, or GUID.' }
         }
