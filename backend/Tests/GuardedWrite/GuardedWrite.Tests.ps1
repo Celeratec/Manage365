@@ -843,7 +843,8 @@ Describe 'ExecDisableArchive' {
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results | Should -Match 'boolean'
         $script:AuditEntities.Count | Should -BeGreaterThan 0
-        $script:AuditEntities[0].Result | Should -Match 'boolean'
+        $script:AuditEntities[0].Result | Should -Be 'Failed'
+        $script:AuditEntities[0].ErrorSummary | Should -Match 'boolean'
     }
 
     It 'rejects ticket with trailing newline' {
