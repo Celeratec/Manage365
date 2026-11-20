@@ -286,3 +286,167 @@ Describe 'Resolve-CIPPMailboxFolder and Get-CIPPMailboxFolderBeforeState' {
         ($dateWarn -join ' ') | Should -Match 'date lookup failed'
     }
 }
+
+Describe 'Invoke-CIPPMailboxFolderSoftDelete' {
+    BeforeAll {
+        foreach ($F in 'Get-CIPPMailboxFolderWellKnownNames', 'Test-CIPPMailboxFolderSoftDeleteGuards', 'Resolve-CIPPMailboxFolder', 'Get-CIPPMailboxFolderBeforeState', 'Invoke-CIPPMailboxFolderSoftDelete') {
+            . (Join-Path $PSScriptRoot "../../Modules/CIPPCore/Public/MailboxFolder/$F.ps1")
+        }
+
+        function New-GraphGetRequest { param($uri, $tenantid, $AsApp, $noPagination, $NoAuthCheck, [switch]$ComplexFilter) }
+        function New-GraphPOSTRequest { param($uri, $tenantid, $body, $type, $AsApp) }
+        function New-GraphBulkRequest { param($tenantid, $Requests, $AsApp) }
+
+        $script:Tree = @{
+            'ROOT'  = [pscustomobject]@{ id = 'ROOT'; displayName = 'Top of Information Store'; parentFolderId = $null; wellKnownName = 'msgfolderroot' }
+            'INBOX' = [pscustomobject]@{ id = 'INBOX'; displayName = 'Inbox'; parentFolderId = 'ROOT'; wellKnownName = 'inbox'; totalItemCount = 5; sizeInBytes = 100 }
+            'PROJ'  = [pscustomobject]@{ id = 'PROJ'; displayName = 'Projects'; parentFolderId = 'INBOX'; wellKnownName = $null; totalItemCount = 12; unreadItemCount = 2; childFolderCount = 0; sizeInBytes = 4096; isHidden = $false }
+            'DEL'   = [pscustomobject]@{ id = 'DEL'; displayName = 'Deleted Items'; parentFolderId = 'ROOT'; wellKnownName = 'deleteditems' }
+        }
+
+        # State flags driven per test.
+        $script:Moved = $false
+        $script:NewFolder = $null
+        $script:OldIdError = '404 ErrorItemNotFound: The specified object was not found in the store.'
+
+        $script:GraphMock = {
+            param($uri, $tenantid, $AsApp)
+            $Path = ($uri -split '\?')[0]
+            $Prefix = 'https://graph.microsoft.com/v1.0/users/user%40contoso.com/'
+            if (-not $Path.StartsWith($Prefix)) { throw "Unexpected URI $uri" }
+            $Rel = $Path.Substring($Prefix.Length)
+            switch -Regex ($Rel) {
+                '^mailFolders/deleteditems$' { return $script:Tree['DEL'] }
+                '^mailFolders/msgfolderroot$' { return $script:Tree['ROOT'] }
+                '^mailFolders/([^/]+)/messages$' { return @([pscustomobject]@{ receivedDateTime = '2020-01-01T00:00:00Z' }) }
+                '^mailFolders/([^/]+)$' {
+                    $Id = [uri]::UnescapeDataString($Matches[1])
+                    if ($Id -eq 'PROJ' -and $script:Moved) { throw $script:OldIdError }
+                    if ($null -ne $script:NewFolder -and $Id -eq $script:NewFolder.id -and $script:Moved) { return $script:NewFolder }
+                    if ($script:Tree.ContainsKey($Id)) { return $script:Tree[$Id] }
+                    throw "404 $Id"
+                }
+                default { throw "Unmocked path $Rel" }
+            }
+        }
+        $script:Parsed = [pscustomobject]@{ UserId = 'user@contoso.com'; FolderId = 'PROJ'; FolderPath = $null; FolderType = 'mail' }
+    }
+
+    BeforeEach {
+        $script:Moved = $false
+        $script:PostCalls = 0
+        $script:PostUris = @()
+        $script:OldIdError = '404 ErrorItemNotFound: The specified object was not found in the store.'
+        $script:NewFolder = [pscustomobject]@{ id = 'NEWID'; displayName = 'Projects'; parentFolderId = 'DEL'; totalItemCount = 12 }
+        Mock New-GraphGetRequest $script:GraphMock
+        Mock New-GraphBulkRequest { throw 'Bulk must not be called' }
+        Mock New-GraphPOSTRequest {
+            $script:PostCalls++
+            $script:PostUris += $uri
+            $script:Moved = $true
+            return [pscustomobject]@{ id = 'NEWID'; parentFolderId = 'DEL'; displayName = 'Projects' }
+        }
+    }
+
+    It 'makes zero Graph write calls in preview and returns DryRun with Before and PlannedMove' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; throw 'write should not run in preview' }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $true
+        $Result.Status | Should -Be 'DryRun'
+        $script:PostCalls | Should -Be 0
+        Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
+        Should -Invoke New-GraphBulkRequest -Times 0 -Exactly
+        $Result.Before.id | Should -Be 'PROJ'
+        $Result.Before.path | Should -Be '\Inbox\Projects'
+        $Result.Before.itemCount | Should -Be 12
+        $Result.PlannedMove.destinationId | Should -Be 'deleteditems'
+        $Result.PlannedMove.folderId | Should -Be 'PROJ'
+        $Result.PSObject.Properties.Name | Should -Not -Contain 'deletedFolderId'
+    }
+
+    It 'defaults to preview when -Preview is omitted' {
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed
+        $Result.Status | Should -Be 'DryRun'
+        Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
+    }
+
+    It 'refuses guarded folders with Failed/400 and never POSTs, even on a real run' {
+        $Parsed = [pscustomobject]@{ UserId = 'user@contoso.com'; FolderId = 'INBOX'; FolderPath = $null; FolderType = 'mail' }
+        foreach ($P in $true, $false) {
+            $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $Parsed -Preview $P
+            $Result.Status | Should -Be 'Failed'
+            $Result.StatusCode | Should -Be 400
+            $Result.Reason | Should -Match 'well-known|default'
+        }
+        Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
+    }
+
+    It 'returns Success with deletedFolderId and originalParentId when verification matches' {
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Success'
+        $Result.deletedFolderId | Should -Be 'NEWID'
+        $Result.originalParentId | Should -Be 'INBOX'
+        $Result.After.parentId | Should -Be 'DEL'
+        $Result.After.itemCount | Should -Be 12
+        $Result.Before.id | Should -Be 'PROJ'
+    }
+
+    It 'POSTs exactly one move to deleteditems with -AsApp $true and the POST verb' {
+        Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false | Out-Null
+        Should -Invoke New-GraphPOSTRequest -Times 1 -Exactly -ParameterFilter {
+            $uri -eq 'https://graph.microsoft.com/v1.0/users/user%40contoso.com/mailFolders/PROJ/move' -and
+            $AsApp -eq $true -and $type -eq 'POST' -and $tenantid -eq 'contoso.com' -and
+            (($body | ConvertFrom-Json).destinationId -eq 'deleteditems')
+        }
+        Should -Invoke New-GraphPOSTRequest -ParameterFilter { $type -eq 'DELETE' } -Times 0 -Exactly
+    }
+
+    It 'fails loudly when after-state item count mismatches' {
+        $script:NewFolder = [pscustomobject]@{ id = 'NEWID'; displayName = 'Projects'; parentFolderId = 'DEL'; totalItemCount = 3 }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        $Result.Status | Should -Not -Be 'Success'
+        ($Result.Results -join ' ') | Should -Match 'item count'
+    }
+
+    It 'fails when the moved folder is not under Deleted Items' {
+        $script:NewFolder = [pscustomobject]@{ id = 'NEWID'; displayName = 'Projects'; parentFolderId = 'SOMEWHERE'; totalItemCount = 12 }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        ($Result.Results -join ' ') | Should -Match 'Deleted Items'
+    }
+
+    It 'fails when the old folder id still exists after the move' {
+        Mock New-GraphGetRequest {
+            if ($uri -match '/mailFolders/PROJ\?') { return $script:Tree['PROJ'] }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        ($Result.Results -join ' ') | Should -Match 'still exists'
+    }
+
+    It 'fails (not Success) when the old-id lookup errors with something other than not-found' {
+        $script:OldIdError = '429 Too Many Requests'
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+    }
+
+    It 'returns Failed when the move POST throws' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; throw 'Graph 403 forbidden' }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        ($Result.Results -join ' ') | Should -Match 'forbidden'
+    }
+
+    It 'returns Failed when the move response has no new folder id' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; return $null }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+    }
+
+    It 'contains no DELETE verb in the implementation' {
+        $Src = Get-Content -Raw (Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/MailboxFolder/Invoke-CIPPMailboxFolderSoftDelete.ps1')
+        ($Src -cmatch '\bDELETE\b') | Should -BeFalse
+        ($Src -match "(?i)type\s*=\s*['""]DELETE['""]") | Should -BeFalse
+    }
+}
