@@ -59695,7 +59695,7 @@
         "tags": [
           "Email-Exchange > Tools"
         ],
-        "description": "Executes a read-only Exchange Online cmdlet for a tenant (Get-* or Search-*). Also accepts Test-ServicePrincipalAuthorization and Test-ApplicationAccessPolicy when listed in ExoReadTestAllowlist.json; those require Tenant.AppGovernance.Read, strict cmdParams validation, and always use the system mailbox. For Test-ServicePrincipalAuthorization, Meta.OrganizationScopedGrant is true when any result row has ScopeType Organization.",
+        "description": "Executes a read-only Exchange Online cmdlet for a tenant. Accepts Get-* and Search-* as before.\nAlso accepts Test-ServicePrincipalAuthorization and Test-ApplicationAccessPolicy when listed in\nExoReadTestAllowlist.json, with Tenant.AppGovernance.Read and strict parameter validation.\nTest-* always uses the system mailbox. Response Meta.OrganizationScopedGrant is set for\nTest-ServicePrincipalAuthorization when any row has ScopeType Organization.",
         "requestBody": {
           "required": true,
           "content": {
