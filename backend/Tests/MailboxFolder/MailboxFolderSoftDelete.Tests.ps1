@@ -257,4 +257,32 @@ Describe 'Resolve-CIPPMailboxFolder and Get-CIPPMailboxFolderBeforeState' {
         $S.oldestItemDate | Should -BeNullOrEmpty
         $S.newestItemDate | Should -BeNullOrEmpty
     }
+
+    It 'skips date Graph queries when totalItemCount is zero' {
+        $Folder = [pscustomobject]@{
+            id               = 'EMPTY'
+            parentFolderId   = 'INBOX'
+            totalItemCount   = 0
+            childFolderCount = 0
+            sizeInBytes      = 0
+        }
+        $S = Get-CIPPMailboxFolderBeforeState -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Folder $Folder -Path '\Inbox\Empty'
+        Should -Not -Invoke New-GraphGetRequest -ParameterFilter { $uri -match '/messages|/events' }
+        $S.oldestItemDate | Should -BeNullOrEmpty
+        $S.newestItemDate | Should -BeNullOrEmpty
+    }
+
+    It 'writes a warning when messages date lookup fails' {
+        Mock New-GraphGetRequest {
+            if ($uri -match '/messages') { throw 'Graph throttled' }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $Folder = $script:Tree['PROJ']
+        $S = Get-CIPPMailboxFolderBeforeState -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Folder $Folder -Path '\Inbox\Projects' -WarningVariable dateWarn -WarningAction SilentlyContinue
+        $S.oldestItemDate | Should -BeNullOrEmpty
+        $S.newestItemDate | Should -BeNullOrEmpty
+        @($dateWarn) | Should -Not -BeNullOrEmpty
+        ($dateWarn -join ' ') | Should -Match 'PROJ'
+        ($dateWarn -join ' ') | Should -Match 'date lookup failed'
+    }
 }

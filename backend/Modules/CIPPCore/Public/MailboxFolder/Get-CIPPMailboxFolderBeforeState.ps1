@@ -26,27 +26,47 @@ function Get-CIPPMailboxFolderBeforeState {
         $ParentPath = if ($Idx -gt 0) { $Path.Substring(0, $Idx) } else { '\' }
     }
 
-    $GetDate = {
-        param([string]$Order)
-        try {
-            $Item = New-GraphGetRequest -uri "$Base/mailFolders/$FolderSeg/messages?`$select=receivedDateTime,createdDateTime&`$orderby=receivedDateTime $Order&`$top=1" -tenantid $TenantFilter -AsApp $true |
-                Select-Object -First 1
-        } catch {
-            $Item = $null
-        }
-        if ($null -ne $Item) { return ($Item.receivedDateTime ?? $Item.createdDateTime) }
-        if ($FolderType -eq 'calendar' -and -not [string]::IsNullOrWhiteSpace([string]$Folder.calendarId)) {
-            try {
-                $Event = New-GraphGetRequest -uri "$Base/calendars/$([System.Uri]::EscapeDataString([string]$Folder.calendarId))/events?`$select=createdDateTime&`$orderby=createdDateTime $Order&`$top=1" -tenantid $TenantFilter -AsApp $true |
-                    Select-Object -First 1
-                if ($null -ne $Event) { return $Event.createdDateTime }
-            } catch { }
-        }
-        return $null
+    $FolderId = [string]$Folder.id
+    $SkipDateQueries = $false
+    if ($null -ne $Folder.totalItemCount) {
+        $SkipDateQueries = ([int]$Folder.totalItemCount -eq 0)
+    } elseif (
+        (($null -eq $Folder.childFolderCount) -or ([int]$Folder.childFolderCount -eq 0)) -and
+        (($null -eq $Folder.unreadItemCount) -or ([int]$Folder.unreadItemCount -eq 0)) -and
+        (($null -ne $Folder.childFolderCount) -or ($null -ne $Folder.unreadItemCount))
+    ) {
+        $SkipDateQueries = $true
     }
 
-    $Oldest = & $GetDate 'asc'
-    $Newest = & $GetDate 'desc'
+    $Oldest = $null
+    $Newest = $null
+
+    if (-not $SkipDateQueries) {
+        $GetDate = {
+            param([string]$Order)
+            try {
+                $Item = New-GraphGetRequest -uri "$Base/mailFolders/$FolderSeg/messages?`$select=receivedDateTime,createdDateTime&`$orderby=receivedDateTime $Order&`$top=1" -tenantid $TenantFilter -AsApp $true |
+                    Select-Object -First 1
+            } catch {
+                Write-Warning "Mailbox folder before-state: date lookup failed for folder id $FolderId (messages)."
+                $Item = $null
+            }
+            if ($null -ne $Item) { return ($Item.receivedDateTime ?? $Item.createdDateTime) }
+            if ($FolderType -eq 'calendar' -and -not [string]::IsNullOrWhiteSpace([string]$Folder.calendarId)) {
+                try {
+                    $Event = New-GraphGetRequest -uri "$Base/calendars/$([System.Uri]::EscapeDataString([string]$Folder.calendarId))/events?`$select=createdDateTime&`$orderby=createdDateTime $Order&`$top=1" -tenantid $TenantFilter -AsApp $true |
+                        Select-Object -First 1
+                    if ($null -ne $Event) { return $Event.createdDateTime }
+                } catch {
+                    Write-Warning "Mailbox folder before-state: date lookup failed for folder id $FolderId (calendar events)."
+                }
+            }
+            return $null
+        }
+
+        $Oldest = & $GetDate 'asc'
+        $Newest = & $GetDate 'desc'
+    }
 
     [ordered]@{
         path           = $Path
