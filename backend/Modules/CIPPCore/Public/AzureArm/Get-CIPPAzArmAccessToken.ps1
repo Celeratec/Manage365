@@ -8,6 +8,7 @@ function Get-CIPPAzArmAccessToken {
         when absent. The CIPP SAM ApplicationID can never be used.
     #>
     [CmdletBinding()]
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingConvertToSecureStringWithPlainText', '', Justification = 'Wraps Key Vault PFX password for X509Certificate2; value is not persisted as plaintext')]
     param(
         [Parameter(Mandatory)]
         [string]$TenantFilter,
