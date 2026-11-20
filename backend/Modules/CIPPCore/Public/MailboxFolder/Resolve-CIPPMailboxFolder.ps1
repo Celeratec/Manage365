@@ -4,7 +4,8 @@ function Resolve-CIPPMailboxFolder {
         Resolve a mailbox folder (by id or path) via read-only Graph GETs.
     .DESCRIPTION
         Returns Folder (Graph mailFolder, enriched with folderClass, path, parentPath and, for calendars,
-        isShared/owner), DeletedItemsId and Path. Uses New-GraphGetRequest -AsApp $true only; never writes.
+        isShared/owner/isDefaultCalendar/calendarMatched), DeletedItemsId, Path and ReservedFolderIds (resolved
+        ids of well-known folders, for id-based default-folder protection). Uses New-GraphGetRequest -AsApp $true only; never writes.
     #>
     [CmdletBinding()]
     param(
@@ -37,6 +38,21 @@ function Resolve-CIPPMailboxFolder {
 
     $Root = & $Get "$Base/mailFolders/msgfolderroot?`$select=id,displayName"
     $RootId = [string]$Root.id
+
+    # Resolve well-known folder ids so default folders are protected by id, not only by wellKnownName/displayName.
+    # Not every mailbox has every folder (e.g. archive), so individual lookup failures are tolerated.
+    $ReservedFolderIds = [System.Collections.Generic.List[string]]::new()
+    foreach ($ReservedName in 'inbox', 'drafts', 'sentitems', 'junkemail', 'outbox', 'archive', 'calendar', 'contacts', 'tasks', 'notes') {
+        try {
+            $Reserved = & $Get "$Base/mailFolders/$ReservedName`?`$select=id"
+            if ($null -ne $Reserved -and -not [string]::IsNullOrWhiteSpace([string]$Reserved.id)) { $ReservedFolderIds.Add([string]$Reserved.id) }
+        } catch {
+            Write-Verbose "Well-known folder '$ReservedName' could not be resolved: $($_.Exception.Message)"
+        }
+    }
+    foreach ($Id in @($DeletedItemsId, $RootId)) {
+        if (-not [string]::IsNullOrWhiteSpace($Id)) { $ReservedFolderIds.Add($Id) }
+    }
 
     if ($HasPath) {
         $Segments = @($FolderPath -split '\\' | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
@@ -96,8 +112,11 @@ function Resolve-CIPPMailboxFolder {
     if ($FolderType -eq 'calendar') {
         # Shared/linked calendar detection: match the Graph calendar by name and merge isShared/owner for the guards.
         $Calendars = @(& $Get "$Base/calendars?`$select=id,name,isShared,owner,canEdit,isDefaultCalendar")
-        $Cal = @($Calendars | Where-Object { $_.name -ieq $Folder.displayName }) | Select-Object -First 1
-        if ($null -ne $Cal) {
+        $CalMatches = @($Calendars | Where-Object { $_.name -ieq $Folder.displayName })
+        # Fail closed: only enrich when exactly one calendar matches; otherwise calendarMatched stays $false and the guards refuse.
+        $Folder | Add-Member -NotePropertyName calendarMatched -NotePropertyValue ($CalMatches.Count -eq 1) -Force
+        if ($CalMatches.Count -eq 1) {
+            $Cal = $CalMatches[0]
             $Folder | Add-Member -NotePropertyName isShared -NotePropertyValue ($Cal.isShared -eq $true) -Force
             $Folder | Add-Member -NotePropertyName owner -NotePropertyValue $Cal.owner -Force
             $Folder | Add-Member -NotePropertyName isDefaultCalendar -NotePropertyValue ($Cal.isDefaultCalendar -eq $true) -Force
@@ -106,9 +125,10 @@ function Resolve-CIPPMailboxFolder {
     }
 
     [pscustomobject]@{
-        Folder         = $Folder
-        DeletedItemsId = $DeletedItemsId
-        Path           = $Path
-        ParentPath     = $ParentPath
+        Folder            = $Folder
+        DeletedItemsId    = $DeletedItemsId
+        ReservedFolderIds = @($ReservedFolderIds)
+        Path              = $Path
+        ParentPath        = $ParentPath
     }
 }

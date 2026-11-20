@@ -10,6 +10,6 @@ function Get-CIPPMailboxFolderWellKnownNames {
         'archive', 'clutter', 'conflicts', 'conversationhistory', 'localfailures',
         'serverfailures', 'syncissues', 'msgfolderroot', 'root', 'calendar',
         'contacts', 'notes', 'tasks', 'recoverableitemsroot', 'recoverableitemsdeletions',
-        'recoverableitemsversions', 'recoverableitemspurges'
+        'recoverableitemsversions', 'recoverableitemspurges', 'searchfolders', 'scheduled'
     )
 }

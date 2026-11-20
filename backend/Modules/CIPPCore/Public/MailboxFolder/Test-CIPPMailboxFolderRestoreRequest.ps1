@@ -9,17 +9,19 @@ function Test-CIPPMailboxFolderRestoreRequest {
     $FolderType = ([string]$Body.folderType).ToLowerInvariant()
     $Reason = [string]($Body.Reason ?? $Body.reason)
 
-    $PreviewRaw = $Body.preview
-    $DryRunRaw = $Body.dryRun
-    if ($null -eq $DryRunRaw -or "$DryRunRaw" -eq '') { $DryRunRaw = $Body.WhatIf }
-    $Preview = $true
-    if (($null -ne $PreviewRaw -and "$PreviewRaw" -ne '') -or ($null -ne $DryRunRaw -and "$DryRunRaw" -ne '')) {
-        $Raw = if ($null -ne $PreviewRaw -and "$PreviewRaw" -ne '') { $PreviewRaw } else { $DryRunRaw }
+    # preview / dryRun / WhatIf: fail closed toward preview. Any true wins; a true/false disagreement is a 400.
+    $FlagValues = [System.Collections.Generic.List[bool]]::new()
+    foreach ($Raw in @($Body.preview, $Body.dryRun, $Body.WhatIf)) {
+        if ($null -eq $Raw -or "$Raw" -eq '') { continue }
         if ("$Raw" -notin @('true', 'false', '1', '0', 'True', 'False')) {
             return [pscustomobject]@{ Ok = $false; StatusCode = 400; Message = 'preview/dryRun must be true or false.' }
         }
-        $Preview = "$Raw" -in @('true', 'True', '1')
+        $FlagValues.Add("$Raw" -in @('true', 'True', '1'))
     }
+    if ($FlagValues.Contains($true) -and $FlagValues.Contains($false)) {
+        return [pscustomobject]@{ Ok = $false; StatusCode = 400; Message = 'preview and dryRun conflict; send the same value for both or only one.' }
+    }
+    $Preview = ($FlagValues.Count -eq 0) -or $FlagValues.Contains($true)
     # Force dryRun on body so Test-CIPPGuardedWriteRequest does not default WhatIf to false
     if ($Body -is [hashtable] -or $Body -is [System.Collections.IDictionary]) {
         $Body['dryRun'] = $Preview

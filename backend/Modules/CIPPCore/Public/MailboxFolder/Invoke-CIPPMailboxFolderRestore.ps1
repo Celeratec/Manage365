@@ -51,9 +51,12 @@ function Invoke-CIPPMailboxFolderRestore {
     if ([string]$Folder.parentFolderId -ne $DeletedItemsId) {
         return & $Refuse 'Folder is not currently under Deleted Items; only soft-deleted folders can be restored.'
     }
-    # Guard 2: never restore a well-known/default folder.
+    # Guard 2: never restore a well-known/default folder (by name, default-calendar flag, or reserved id).
     if (-not [string]::IsNullOrWhiteSpace([string]$Folder.wellKnownName)) {
         return & $Refuse "Refusing to restore a well-known/default folder ('$($Folder.wellKnownName)')."
+    }
+    if ($Folder.isDefaultCalendar -eq $true -or @($Resolved.ReservedFolderIds) -ccontains [string]$Folder.id) {
+        return & $Refuse 'Refusing to restore a well-known/default folder.'
     }
     # Guard 3: destination is the original parent only and must not be Deleted Items or the folder itself.
     if ($OriginalParentId -eq $DeletedItemsId) {
@@ -96,9 +99,10 @@ function Invoke-CIPPMailboxFolderRestore {
         }
     }
 
+    # Failed outcome. After a successful move POST, PostSucceeded carries restoredFolderId/originalParentId for the operator.
     $Fail = {
-        param([string]$Message, $After)
-        [pscustomobject]@{
+        param([string]$Message, $After, [bool]$PostSucceeded = $false, [string]$MovedId = $null)
+        $Out = [ordered]@{
             Status      = 'Failed'
             StatusCode  = 500
             Before      = $Before
@@ -106,6 +110,11 @@ function Invoke-CIPPMailboxFolderRestore {
             After       = $After
             Results     = @($Message)
         }
+        if ($PostSucceeded) {
+            $Out.restoredFolderId = if ([string]::IsNullOrWhiteSpace($MovedId)) { $null } else { $MovedId }
+            $Out.originalParentId = $OriginalParentId
+        }
+        [pscustomobject]$Out
     }
 
     $Uri = "https://graph.microsoft.com/v1.0/users/$UserSeg/mailFolders/$([System.Uri]::EscapeDataString([string]$Folder.id))/move"
@@ -117,13 +126,13 @@ function Invoke-CIPPMailboxFolderRestore {
 
     $NewId = [string]$Moved.id
     if ([string]::IsNullOrWhiteSpace($NewId)) {
-        return & $Fail 'Move response did not include a restored folder id; outcome could not be verified.' $null
+        return & $Fail 'Move response did not include a restored folder id; outcome could not be verified.' $null $true $null
     }
 
     try {
         $New = New-GraphGetRequest -uri "https://graph.microsoft.com/v1.0/users/$UserSeg/mailFolders/$([System.Uri]::EscapeDataString($NewId))?`$select=id,displayName,parentFolderId,totalItemCount" -tenantid $TenantFilter -AsApp $true
     } catch {
-        return & $Fail "Verification failed: could not read the restored folder ($($_.Exception.Message))." $null
+        return & $Fail "Verification failed: could not read the restored folder ($($_.Exception.Message))." $null $true $NewId
     }
     $After = [ordered]@{
         id        = [string]$New.id
@@ -131,10 +140,10 @@ function Invoke-CIPPMailboxFolderRestore {
         itemCount = $New.totalItemCount
     }
     if ([string]$New.parentFolderId -ne $OriginalParentId) {
-        return & $Fail 'Verification failed: the restored folder is not under the original parent.' $After
+        return & $Fail 'Verification failed: the restored folder is not under the original parent.' $After $true $NewId
     }
     if ($null -eq $Before.itemCount -or $null -eq $New.totalItemCount -or [int]$Before.itemCount -ne [int]$New.totalItemCount) {
-        return & $Fail "Verification failed: item count mismatch (before: $($Before.itemCount), after: $($New.totalItemCount))." $After
+        return & $Fail "Verification failed: item count mismatch (before: $($Before.itemCount), after: $($New.totalItemCount))." $After $true $NewId
     }
 
     [pscustomobject]@{

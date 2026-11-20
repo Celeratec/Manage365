@@ -57,6 +57,86 @@ Describe 'Test-CIPPMailboxFolderSoftDeleteGuards' {
         $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -MailboxUpn 'user@contoso.com'
         $Result.Ok | Should -BeTrue
     }
+
+    It 'refuses the default calendar by isDefaultCalendar even when wellKnownName is null' {
+        $Folder = [pscustomobject]@{
+            id = 'defcal'; wellKnownName = $null; displayName = 'Agenda'; parentFolderId = 'msgroot'
+            isDefaultCalendar = $true; isShared = $false; calendarMatched = $true; folderClass = 'IPF.Appointment'
+        }
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -MailboxUpn 'user@contoso.com' -FolderType 'calendar'
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'default'
+    }
+
+    It 'refuses a folder whose id matches a reserved well-known folder id' {
+        $Folder = [pscustomobject]@{ id = 'CONTACTS-ID'; wellKnownName = $null; displayName = 'People'; parentFolderId = 'msgroot' }
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -ReservedFolderIds @('INBOX-ID', 'CONTACTS-ID')
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'well-known|default|reserved'
+    }
+
+    It 'allows a normal folder when ReservedFolderIds does not contain its id' {
+        $Folder = [pscustomobject]@{ id = 'ok'; wellKnownName = $null; displayName = 'Projects'; parentFolderId = 'inbox' }
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -ReservedFolderIds @('INBOX-ID')).Ok | Should -BeTrue
+    }
+
+    It 'refuses a calendar that was not matched to a unique Graph calendar (fail closed)' {
+        $Folder = [pscustomobject]@{ id = 'c1'; wellKnownName = $null; displayName = 'Shared Thing'; parentFolderId = 'cal-root'; calendarMatched = $false }
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -MailboxUpn 'user@contoso.com' -FolderType 'calendar'
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'matching calendar'
+    }
+
+    It 'refuses a calendar with no calendarMatched flag at all (fail closed)' {
+        $Folder = [pscustomobject]@{ id = 'c1'; wellKnownName = $null; displayName = 'X'; parentFolderId = 'cal-root' }
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -FolderType 'calendar').Ok | Should -BeFalse
+    }
+
+    It 'allows a uniquely matched, non-shared, non-default calendar' {
+        $Folder = [pscustomobject]@{
+            id = 'c1'; wellKnownName = $null; displayName = 'Team'; parentFolderId = 'cal-root'
+            calendarMatched = $true; isShared = $false; isDefaultCalendar = $false; folderClass = 'IPF.Appointment'
+        }
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -MailboxUpn 'user@contoso.com' -FolderType 'calendar').Ok | Should -BeTrue
+    }
+
+    It 'refuses folderType mail when the folder class is IPF.Appointment' {
+        $Folder = [pscustomobject]@{ id = 'c1'; wellKnownName = $null; displayName = 'Team'; parentFolderId = 'cal-root'; folderClass = 'IPF.Appointment' }
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -FolderType 'mail'
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'folder class|mismatch|calendar'
+    }
+
+    It 'refuses folderType calendar when the folder class is a mail class' {
+        $Folder = [pscustomobject]@{ id = 'm1'; wellKnownName = $null; displayName = 'Projects'; parentFolderId = 'inbox'; folderClass = 'IPF.Note'; calendarMatched = $true }
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id' -FolderType 'calendar').Ok | Should -BeFalse
+    }
+
+    It 'refuses search folders by @odata.type mailSearchFolder' {
+        $Folder = [pscustomobject]@{ id = 's'; wellKnownName = $null; parentFolderId = 'p'; displayName = 'Saved search' }
+        $Folder | Add-Member -NotePropertyName '@odata.type' -NotePropertyValue '#microsoft.graph.mailSearchFolder'
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id'
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'search'
+    }
+
+    It 'refuses search folders by wellKnownName searchfolders' {
+        $Folder = [pscustomobject]@{ id = 's'; wellKnownName = 'searchfolders'; parentFolderId = 'p'; displayName = 'Search Folders' }
+        $Result = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id'
+        $Result.Ok | Should -BeFalse
+        $Result.Reason | Should -Match 'search'
+    }
+
+    It 'refuses the scheduled well-known folder' {
+        $Folder = [pscustomobject]@{ id = 's'; wellKnownName = 'scheduled'; parentFolderId = 'p'; displayName = 'Scheduled' }
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Folder -DeletedItemsId 'del-id').Ok | Should -BeFalse
+    }
+
+    It 'lists searchfolders and scheduled as well-known names' {
+        $Names = Get-CIPPMailboxFolderWellKnownNames
+        $Names | Should -Contain 'searchfolders'
+        $Names | Should -Contain 'scheduled'
+    }
 }
 
 Describe 'Test-CIPPMailboxFolderSoftDeleteRequest' {
@@ -119,6 +199,43 @@ Describe 'Test-CIPPMailboxFolderSoftDeleteRequest' {
         $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
         $Parsed.Ok | Should -BeFalse
         $Parsed.Message | Should -Match 'folderType'
+    }
+
+    It 'returns 400 when preview and dryRun conflict' {
+        foreach ($Pair in @(@('true', 'false'), @('false', 'true'))) {
+            $Body = @{ tenantFilter = 't'; userId = 'u@t.com'; folderId = 'f'; folderType = 'mail'; TicketNumber = '3281353'; Reason = 'x' }
+            $Body.preview = $Pair[0]; $Body.dryRun = $Pair[1]
+            $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+            $Parsed.Ok | Should -BeFalse
+            $Parsed.StatusCode | Should -Be 400
+            $Parsed.Message | Should -Match 'conflict'
+        }
+    }
+
+    It 'returns 400 when preview and WhatIf conflict' {
+        $Body = @{ tenantFilter = 't'; userId = 'u@t.com'; folderId = 'f'; folderType = 'mail'; TicketNumber = '3281353'; Reason = 'x' }
+        $Body.preview = 'true'; $Body.WhatIf = 'false'
+        (Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }).StatusCode | Should -Be 400
+    }
+
+    It 'treats either flag true as preview (other absent or also true)' {
+        foreach ($Case in @(@{ preview = 'true' }, @{ dryRun = 'true' }, @{ WhatIf = 'true' }, @{ preview = 'true'; dryRun = 'true' })) {
+            $Body = @{ tenantFilter = 't'; userId = 'u@t.com'; folderId = 'f'; folderType = 'mail'; TicketNumber = '3281353'; Reason = 'x' }
+            foreach ($K in $Case.Keys) { $Body[$K] = $Case[$K] }
+            $Req = @{ Body = $Body; Headers = @{} }
+            $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request $Req
+            $Parsed.Ok | Should -BeTrue
+            $Parsed.Preview | Should -BeTrue
+            $Req.Body.dryRun | Should -BeTrue
+        }
+    }
+
+    It 'allows a real run only when every supplied flag is false' {
+        $Body = @{ tenantFilter = 't'; userId = 'u@t.com'; folderId = 'f'; folderType = 'mail'; TicketNumber = '3281353'; Reason = 'x' }
+        $Body.preview = 'false'; $Body.dryRun = 'false'
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeTrue
+        $Parsed.Preview | Should -BeFalse
     }
 }
 
@@ -216,6 +333,62 @@ Describe 'Resolve-CIPPMailboxFolder and Get-CIPPMailboxFolderBeforeState' {
         $R.Folder.owner.address | Should -Be 'cody@contoso.com'
         $Guard = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $R.Folder -DeletedItemsId $R.DeletedItemsId -MailboxUpn 'user@contoso.com'
         $Guard.Ok | Should -BeFalse
+    }
+
+    It 'returns resolved well-known folder ids as ReservedFolderIds' {
+        $R = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'PROJ' -FolderType 'mail'
+        $R.ReservedFolderIds | Should -Contain 'INBOX'
+        $R.ReservedFolderIds | Should -Contain 'DEL'
+        $R.ReservedFolderIds | Should -Contain 'CAL'
+        $R.ReservedFolderIds | Should -Not -Contain 'PROJ'
+        $Guard = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $R.Folder -DeletedItemsId $R.DeletedItemsId -ReservedFolderIds $R.ReservedFolderIds
+        $Guard.Ok | Should -BeTrue
+    }
+
+    It 'guards refuse the resolved Inbox by reserved id even if wellKnownName were missing' {
+        $R = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'INBOX' -FolderType 'mail'
+        $NoName = $R.Folder | Select-Object -Property * -ExcludeProperty wellKnownName
+        $NoName | Add-Member -NotePropertyName wellKnownName -NotePropertyValue $null
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $NoName -DeletedItemsId $R.DeletedItemsId -ReservedFolderIds $R.ReservedFolderIds).Ok | Should -BeFalse
+    }
+
+    It 'sets calendarMatched true for a unique calendar match and false when no calendar matches (guards refuse)' {
+        $Matched = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'CALW' -FolderType 'calendar'
+        $Matched.Folder.calendarMatched | Should -BeTrue
+
+        Mock New-GraphGetRequest {
+            if ($uri -match '/calendars\?') { return @([pscustomobject]@{ id = 'other'; name = 'Some Other Calendar'; isShared = $false; isDefaultCalendar = $false }) }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $Unmatched = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'CALW' -FolderType 'calendar'
+        $Unmatched.Folder.calendarMatched | Should -BeFalse
+        $Guard = Test-CIPPMailboxFolderSoftDeleteGuards -Folder $Unmatched.Folder -DeletedItemsId $Unmatched.DeletedItemsId -ReservedFolderIds $Unmatched.ReservedFolderIds -FolderType 'calendar'
+        $Guard.Ok | Should -BeFalse
+    }
+
+    It 'treats multiple same-name calendars as unmatched (fail closed)' {
+        Mock New-GraphGetRequest {
+            if ($uri -match '/calendars\?') {
+                return @(
+                    [pscustomobject]@{ id = 'a'; name = 'Cody Rogers'; isShared = $false; isDefaultCalendar = $false },
+                    [pscustomobject]@{ id = 'b'; name = 'Cody Rogers'; isShared = $true; isDefaultCalendar = $false }
+                )
+            }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $R = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'CALW' -FolderType 'calendar'
+        $R.Folder.calendarMatched | Should -BeFalse
+    }
+
+    It 'merges isDefaultCalendar onto a calendar whose wellKnownName is null and the guard refuses it' {
+        Mock New-GraphGetRequest {
+            if ($uri -match '/calendars\?') { return @([pscustomobject]@{ id = 'd'; name = 'Cody Rogers'; isShared = $false; isDefaultCalendar = $true }) }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $R = Resolve-CIPPMailboxFolder -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -FolderId 'CALW' -FolderType 'calendar'
+        $R.Folder.wellKnownName | Should -BeNullOrEmpty
+        $R.Folder.isDefaultCalendar | Should -BeTrue
+        (Test-CIPPMailboxFolderSoftDeleteGuards -Folder $R.Folder -DeletedItemsId $R.DeletedItemsId -ReservedFolderIds $R.ReservedFolderIds -FolderType 'calendar').Ok | Should -BeFalse
     }
 
     It 'only issues read-only Graph GETs with -AsApp $true and never POSTs' {
@@ -415,7 +588,7 @@ Describe 'Invoke-CIPPMailboxFolderSoftDelete' {
         ($Result.Results -join ' ') | Should -Match 'Deleted Items'
     }
 
-    It 'fails when the old folder id still exists after the move' {
+    It 'fails when the old folder id still exists under its original parent after the move' {
         Mock New-GraphGetRequest {
             if ($uri -match '/mailFolders/PROJ\?') { return $script:Tree['PROJ'] }
             & $script:GraphMock $uri $tenantid $AsApp
@@ -423,6 +596,83 @@ Describe 'Invoke-CIPPMailboxFolderSoftDelete' {
         $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
         $Result.Status | Should -Be 'Failed'
         ($Result.Results -join ' ') | Should -Match 'still exists'
+        $Result.deletedFolderId | Should -Be 'NEWID'
+        $Result.originalParentId | Should -Be 'INBOX'
+    }
+
+    It 'succeeds when the move preserves the folder id (old id resolves to the same folder under Deleted Items)' {
+        Mock New-GraphPOSTRequest {
+            $script:PostCalls++
+            $script:Moved = $true
+            return [pscustomobject]@{ id = 'PROJ'; parentFolderId = 'DEL'; displayName = 'Projects' }
+        }
+        Mock New-GraphGetRequest {
+            if ($uri -match '/mailFolders/PROJ\?' -and $script:Moved) {
+                return [pscustomobject]@{ id = 'PROJ'; displayName = 'Projects'; parentFolderId = 'DEL'; totalItemCount = 12 }
+            }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Success'
+        $Result.deletedFolderId | Should -Be 'PROJ'
+        $Result.originalParentId | Should -Be 'INBOX'
+    }
+
+    It 'succeeds when the old id still resolves but is now under Deleted Items (different new id)' {
+        Mock New-GraphGetRequest {
+            if ($uri -match '/mailFolders/PROJ\?' -and $script:Moved) {
+                return [pscustomobject]@{ id = 'PROJ'; parentFolderId = 'DEL' }
+            }
+            & $script:GraphMock $uri $tenantid $AsApp
+        }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Success'
+    }
+
+    It 'includes deletedFolderId and originalParentId on every Failed outcome after a successful POST' {
+        # parent mismatch
+        $script:NewFolder = [pscustomobject]@{ id = 'NEWID'; displayName = 'Projects'; parentFolderId = 'SOMEWHERE'; totalItemCount = 12 }
+        $R1 = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        # count mismatch
+        $script:Moved = $false
+        $script:NewFolder = [pscustomobject]@{ id = 'NEWID'; displayName = 'Projects'; parentFolderId = 'DEL'; totalItemCount = 3 }
+        $R2 = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        # new-id read throws
+        $script:Moved = $false
+        $script:NewFolder = $null
+        $R3 = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        foreach ($R in $R1, $R2, $R3) {
+            $R.Status | Should -Be 'Failed'
+            $R.deletedFolderId | Should -Be 'NEWID'
+            $R.originalParentId | Should -Be 'INBOX'
+        }
+    }
+
+    It 'includes originalParentId (null deletedFolderId) when the move response has no id' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; return $null }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        $Result.PSObject.Properties.Name | Should -Contain 'deletedFolderId'
+        $Result.deletedFolderId | Should -BeNullOrEmpty
+        $Result.originalParentId | Should -Be 'INBOX'
+    }
+
+    It 'omits recovery ids when the move POST itself failed' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; throw 'Graph 403 forbidden' }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.PSObject.Properties.Name | Should -Not -Contain 'deletedFolderId'
+    }
+
+    It 'refuses a search folder (odata type) with Failed/400 and never POSTs' {
+        $script:Tree['SRCH'] = [pscustomobject]@{ id = 'SRCH'; displayName = 'Saved'; parentFolderId = 'ROOT'; wellKnownName = $null; totalItemCount = 1 }
+        $script:Tree['SRCH'] | Add-Member -NotePropertyName '@odata.type' -NotePropertyValue '#microsoft.graph.mailSearchFolder'
+        $Parsed = [pscustomobject]@{ UserId = 'user@contoso.com'; FolderId = 'SRCH'; FolderPath = $null; FolderType = 'mail' }
+        $Result = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $Parsed -Preview $false
+        $script:Tree.Remove('SRCH')
+        $Result.Status | Should -Be 'Failed'
+        $Result.StatusCode | Should -Be 400
+        $Result.Reason | Should -Match 'search'
+        Should -Invoke New-GraphPOSTRequest -Times 0 -Exactly
     }
 
     It 'fails (not Success) when the old-id lookup errors with something other than not-found' {
@@ -511,6 +761,43 @@ Describe 'Test-CIPPMailboxFolderRestoreRequest' {
         $Body = & $script:NewBody
         $Body.preview = 'maybe'
         (Test-CIPPMailboxFolderRestoreRequest -Request @{ Body = $Body; Headers = @{} }).Ok | Should -BeFalse
+    }
+
+    It 'returns 400 when preview and dryRun conflict' {
+        foreach ($Pair in @(@('true', 'false'), @('false', 'true'))) {
+            $Body = & $script:NewBody
+            $Body.preview = $Pair[0]; $Body.dryRun = $Pair[1]
+            $Parsed = Test-CIPPMailboxFolderRestoreRequest -Request @{ Body = $Body; Headers = @{} }
+            $Parsed.Ok | Should -BeFalse
+            $Parsed.StatusCode | Should -Be 400
+            $Parsed.Message | Should -Match 'conflict'
+        }
+    }
+
+    It 'returns 400 when preview and WhatIf conflict' {
+        $Body = & $script:NewBody
+        $Body.preview = 'true'; $Body.WhatIf = 'false'
+        (Test-CIPPMailboxFolderRestoreRequest -Request @{ Body = $Body; Headers = @{} }).StatusCode | Should -Be 400
+    }
+
+    It 'treats either flag true as preview (other absent or also true)' {
+        foreach ($Case in @(@{ preview = 'true' }, @{ dryRun = 'true' }, @{ WhatIf = 'true' }, @{ preview = 'true'; dryRun = 'true' })) {
+            $Body = & $script:NewBody
+            foreach ($K in $Case.Keys) { $Body[$K] = $Case[$K] }
+            $Req = @{ Body = $Body; Headers = @{} }
+            $Parsed = Test-CIPPMailboxFolderRestoreRequest -Request $Req
+            $Parsed.Ok | Should -BeTrue
+            $Parsed.Preview | Should -BeTrue
+            $Req.Body.dryRun | Should -BeTrue
+        }
+    }
+
+    It 'allows a real run only when every supplied flag is false' {
+        $Body = & $script:NewBody
+        $Body.preview = 'false'; $Body.dryRun = 'false'
+        $Parsed = Test-CIPPMailboxFolderRestoreRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeTrue
+        $Parsed.Preview | Should -BeFalse
     }
 }
 
@@ -645,6 +932,33 @@ Describe 'Invoke-CIPPMailboxFolderRestore' {
         $Result = Invoke-CIPPMailboxFolderRestore -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
         $Result.Status | Should -Be 'Failed'
         ($Result.Results -join ' ') | Should -Match 'item count'
+    }
+
+    It 'includes restoredFolderId and originalParentId on Failed outcomes after a successful POST' {
+        $script:NewFolder = [pscustomobject]@{ id = 'RESTORED'; displayName = 'Projects'; parentFolderId = 'DEL'; totalItemCount = 12 }
+        $R1 = Invoke-CIPPMailboxFolderRestore -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $script:Moved = $false
+        $script:NewFolder = [pscustomobject]@{ id = 'RESTORED'; displayName = 'Projects'; parentFolderId = 'INBOX'; totalItemCount = 3 }
+        $R2 = Invoke-CIPPMailboxFolderRestore -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        foreach ($R in $R1, $R2) {
+            $R.Status | Should -Be 'Failed'
+            $R.restoredFolderId | Should -Be 'RESTORED'
+            $R.originalParentId | Should -Be 'INBOX'
+        }
+    }
+
+    It 'includes originalParentId when the restore move response has no id' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; return $null }
+        $Result = Invoke-CIPPMailboxFolderRestore -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.Status | Should -Be 'Failed'
+        $Result.originalParentId | Should -Be 'INBOX'
+        $Result.restoredFolderId | Should -BeNullOrEmpty
+    }
+
+    It 'omits recovery ids when the restore POST itself failed' {
+        Mock New-GraphPOSTRequest { $script:PostCalls++; throw 'Graph 403 forbidden' }
+        $Result = Invoke-CIPPMailboxFolderRestore -TenantFilter 'contoso.com' -UserId 'user@contoso.com' -Parsed $script:Parsed -Preview $false
+        $Result.PSObject.Properties.Name | Should -Not -Contain 'restoredFolderId'
     }
 
     It 'fails when the restored folder is not under the original parent' {
