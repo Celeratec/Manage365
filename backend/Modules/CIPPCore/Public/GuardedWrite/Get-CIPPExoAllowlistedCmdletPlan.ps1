@@ -19,11 +19,20 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         if (Test-Path -LiteralPath $HelperPath) {
             . $HelperPath
         }
+        $NameHelperPath = Join-Path $PSScriptRoot '../../Private/Test-CIPPExoParameterName.ps1'
+        if (Test-Path -LiteralPath $NameHelperPath) {
+            . $NameHelperPath
+        }
         $ConfigPath = Resolve-CIPPGuardedWriteConfigPath -RelativePath 'GuardedWrites/ExoCmdletAllowlist.json' -PSScriptRoot $PSScriptRoot
         try {
             $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
         } catch {
             throw "Failed to load or parse GuardedWrite allowlist from '$ConfigPath': $($_.Exception.Message)"
+        }
+    } else {
+        $NameHelperPath = Join-Path $PSScriptRoot '../../Private/Test-CIPPExoParameterName.ps1'
+        if ((Get-Command -Name Test-CIPPExoParameterName -ErrorAction SilentlyContinue) -eq $null -and (Test-Path -LiteralPath $NameHelperPath)) {
+            . $NameHelperPath
         }
     }
     $AllowedNames = @($Allowlist.$Cmdlet)
@@ -44,7 +53,7 @@ function Get-CIPPExoAllowlistedCmdletPlan {
     $Validated = @{}
     foreach ($Key in @($Incoming.Keys)) {
         $KeyStr = [string]$Key
-        if ($KeyStr -cnotmatch '\A[A-Za-z][A-Za-z0-9]*\z') {
+        if (-not (Test-CIPPExoParameterName -Name $KeyStr)) {
             return [pscustomobject]@{ Allowed = $false; Reason = "Parameter name '$KeyStr' must start with an ASCII letter and contain only ASCII letters and digits." }
         }
         if (-not $AllowedSet.Contains($KeyStr)) {
