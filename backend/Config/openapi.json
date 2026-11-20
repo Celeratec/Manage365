@@ -19,6 +19,9 @@
   ],
   "tags": [
     {
+      "name": "Azure > ARM"
+    },
+    {
       "name": "CIPP > Core"
     },
     {
@@ -16824,6 +16827,85 @@
         ],
         "x-cipp-role": "Tenant.Relationship.ReadWrite",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ExecAzArmConfig": {
+      "post": {
+        "summary": "ExecAzArmConfig",
+        "operationId": "ExecAzArmConfig",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Creates or updates the per-tenant Azure ARM access config (credential references only). Requires ticketNumber and dryRun. Does not call Azure Resource Manager.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "allowedResourceGroups": {
+                    "type": "string"
+                  },
+                  "changeWindow": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "managingTenantId": {
+                    "type": "string"
+                  },
+                  "mode": {
+                    "type": "string"
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "profiles": {
+                    "type": "string"
+                  },
+                  "subscriptionId": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "profiles"
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.ReadWrite"
       }
     },
     "/api/ExecAzBobbyTables": {
@@ -52383,6 +52465,728 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ListAzAccessStatus": {
+      "get": {
+        "summary": "ListAzAccessStatus",
+        "operationId": "ListAzAccessStatus",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Self-check for ARM access: subscriptions, permissions, over-privilege tripwire.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzActivityLog": {
+      "get": {
+        "summary": "ListAzActivityLog",
+        "operationId": "ListAzActivityLog",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists activity log events (max 30-day range) for the pinned subscription.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzAppInsights": {
+      "get": {
+        "summary": "ListAzAppInsights",
+        "operationId": "ListAzAppInsights",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Application Insights components in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzArmConfig": {
+      "get": {
+        "summary": "ListAzArmConfig",
+        "operationId": "ListAzArmConfig",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Returns the sanitized per-tenant Azure ARM access config (no secrets).",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzBudgets": {
+      "get": {
+        "summary": "ListAzBudgets",
+        "operationId": "ListAzBudgets",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists consumption budgets for the pinned subscription.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzCheckName": {
+      "get": {
+        "summary": "ListAzCheckName",
+        "operationId": "ListAzCheckName",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Checks name availability for storage, keyvault, or functionapp.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzCosts": {
+      "get": {
+        "summary": "ListAzCosts",
+        "operationId": "ListAzCosts",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Runs a Cost Management query (read-only POST) for the pinned subscription.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Cost.Read"
+      }
+    },
+    "/api/ListAzFlexLocations": {
+      "get": {
+        "summary": "ListAzFlexLocations",
+        "operationId": "ListAzFlexLocations",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Flex Consumption geo regions for the pinned subscription.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzIdentities": {
+      "get": {
+        "summary": "ListAzIdentities",
+        "operationId": "ListAzIdentities",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists user-assigned managed identities in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzKeyVaults": {
+      "get": {
+        "summary": "ListAzKeyVaults",
+        "operationId": "ListAzKeyVaults",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Key Vault config and deleted vaults (never secrets).",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzLocks": {
+      "get": {
+        "summary": "ListAzLocks",
+        "operationId": "ListAzLocks",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists locks on an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzPolicyAssignments": {
+      "get": {
+        "summary": "ListAzPolicyAssignments",
+        "operationId": "ListAzPolicyAssignments",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists policy assignments at subscription or resource group scope.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzProviders": {
+      "get": {
+        "summary": "ListAzProviders",
+        "operationId": "ListAzProviders",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resource providers for the pinned subscription.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzResourceGroups": {
+      "get": {
+        "summary": "ListAzResourceGroups",
+        "operationId": "ListAzResourceGroups",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resource groups in the pinned subscription (optional single name).",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzResources": {
+      "get": {
+        "summary": "ListAzResources",
+        "operationId": "ListAzResources",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resources in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzRoleAssignments": {
+      "get": {
+        "summary": "ListAzRoleAssignments",
+        "operationId": "ListAzRoleAssignments",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists role assignments at subscription or resource group scope, plus role definitions.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzSqlServers": {
+      "get": {
+        "summary": "ListAzSqlServers",
+        "operationId": "ListAzSqlServers",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists SQL servers in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzStorageAccounts": {
+      "get": {
+        "summary": "ListAzStorageAccounts",
+        "operationId": "ListAzStorageAccounts",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists storage account config (never keys) in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzSubscriptions": {
+      "get": {
+        "summary": "ListAzSubscriptions",
+        "operationId": "ListAzSubscriptions",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Azure subscriptions visible to the configured ARM identity.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
     "/api/ListAzureADConnectStatus": {
       "get": {
         "summary": "ListAzureADConnectStatus",
@@ -52478,6 +53282,44 @@
           }
         ],
         "x-cipp-role": "Tenant.Directory.Read"
+      }
+    },
+    "/api/ListAzWebApps": {
+      "get": {
+        "summary": "ListAzWebApps",
+        "operationId": "ListAzWebApps",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists web/function apps and server farms in an allowed resource group.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
       }
     },
     "/api/ListBaselineAlignment": {

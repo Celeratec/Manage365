@@ -1,0 +1,214 @@
+{
+  "ListAzSubscriptions": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions",
+    "apiVersion": "2022-12-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "none"
+  },
+  "ListAzAccessStatus": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/permissions",
+    "apiVersion": "2022-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "special": "accessStatus"
+  },
+  "ListAzResourceGroups": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourcegroups",
+    "pathTemplateNamed": "/subscriptions/{subscriptionId}/resourcegroups/{resourceGroupName}",
+    "apiVersion": "2021-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription"
+  },
+  "ListAzLocks": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Authorization/locks",
+    "apiVersion": "2016-09-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzResources": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/resources",
+    "apiVersion": "2021-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzRoleAssignments": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/roleAssignments",
+    "pathTemplateRg": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Authorization/roleAssignments",
+    "apiVersion": "2022-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "query": { "$filter": "atScope()" },
+    "alsoFetch": "roleDefinitions"
+  },
+  "ListAzProviders": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers",
+    "apiVersion": "2021-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription"
+  },
+  "ListAzPolicyAssignments": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Authorization/policyAssignments",
+    "pathTemplateRg": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Authorization/policyAssignments",
+    "apiVersion": "2023-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription"
+  },
+  "ListAzWebApps": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/sites",
+    "pathTemplateNamed": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/sites/{name}",
+    "alsoPath": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/serverfarms",
+    "apiVersion": "2024-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzIdentities": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities",
+    "apiVersion": "2023-01-31",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzSqlServers": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers",
+    "pathTemplateNamed": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Sql/servers/{name}",
+    "apiVersion": "2023-08-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true,
+    "expandChildren": ["administrators", "firewallRules"]
+  },
+  "ListAzStorageAccounts": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts",
+    "pathTemplateNamed": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts/{name}",
+    "apiVersion": "2023-05-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzKeyVaults": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults",
+    "pathTemplateNamed": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{name}",
+    "alsoPath": "/subscriptions/{subscriptionId}/providers/Microsoft.KeyVault/deletedVaults",
+    "apiVersion": "2023-07-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzAppInsights": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Insights/components",
+    "apiVersion": "2020-02-02",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "resourceGroup",
+    "requireResourceGroup": true
+  },
+  "ListAzBudgets": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Consumption/budgets",
+    "apiVersion": "2023-05-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription"
+  },
+  "ListAzCosts": {
+    "method": "POST",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.CostManagement/query",
+    "apiVersion": "2023-11-01",
+    "profile": "reader",
+    "role": "Azure.Cost.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "bodyFromRequest": true
+  },
+  "ListAzActivityLog": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Insights/eventtypes/management/values",
+    "apiVersion": "2015-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "maxRangeDays": 30
+  },
+  "ListAzCheckName": {
+    "method": "POST",
+    "pathTemplateByType": {
+      "storage": "/subscriptions/{subscriptionId}/providers/Microsoft.Storage/checkNameAvailability",
+      "keyvault": "/subscriptions/{subscriptionId}/providers/Microsoft.KeyVault/checkNameAvailability",
+      "functionapp": "/subscriptions/{subscriptionId}/providers/Microsoft.Web/checknameavailability"
+    },
+    "apiVersionByType": {
+      "storage": "2023-05-01",
+      "keyvault": "2023-07-01",
+      "functionapp": "2024-04-01"
+    },
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "bodyFromRequest": true
+  },
+  "ListAzFlexLocations": {
+    "method": "GET",
+    "pathTemplate": "/subscriptions/{subscriptionId}/providers/Microsoft.Web/geoRegions",
+    "apiVersion": "2024-04-01",
+    "profile": "reader",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "subscription",
+    "query": { "sku": "FlexConsumption" }
+  },
+  "ListAzArmConfig": {
+    "method": "LOCAL",
+    "profile": "none",
+    "role": "Azure.Resources.Read",
+    "classification": "read",
+    "scope": "none",
+    "special": "listConfig"
+  }
+}
