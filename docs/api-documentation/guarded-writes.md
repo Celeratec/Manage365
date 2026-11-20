@@ -16,6 +16,8 @@ The admin role already includes every permission the API publishes. That list is
 | `ExecAppRegistration` | `Tenant.AppGovernance.ReadWrite` |
 | `GetAppRegistrationSecret` | `Tenant.AppGovernance.ReadWrite` |
 | `ExecSetMailboxCustomAttributes` | `Exchange.Mailbox.ReadWrite` |
+| `ExecSoftDeleteMailboxFolder` | `Exchange.Mailbox.ReadWrite` |
+| `ExecRestoreMailboxFolder` | `Exchange.Mailbox.ReadWrite` |
 | `ListMyApiRoles` | `CIPP.Core.Read` |
 | `ListPermissionGrantPreApproval` | `Tenant.AppGovernance.Read` |
 | `ListSecurityDefaults` | `Tenant.AppGovernance.Read` |
@@ -29,7 +31,9 @@ The admin role already includes every permission the API publishes. That list is
 
 `ExecSetMailboxCustomAttributes` accepts `AttributeNumber` 1–15 and `Value` up to 1024 characters. An empty value clears the attribute. The response includes the old and new values. The mailbox editor can still send `CustomAttribute1`–`CustomAttribute15` without a ticket.
 
-`ExecCustomMailFilterPolicy`, `ExecPresetSecurityPolicy`, `ExecInboundConnectorEnhancedFiltering`, `ExecMailboxJunkConfiguration`, and `ExecFocusedInbox` are on the same flag. They already require `ticketNumber`. The flag's stored on/off choice is kept; the endpoint names are read from `FeatureFlags.json` on each request. The repo default remains off.
+`ExecSoftDeleteMailboxFolder` and `ExecRestoreMailboxFolder` move a single mailbox folder to or from **Deleted Items** via Microsoft Graph only. Permanent delete is prohibited. Well-known/default folders, shared/linked/delegated calendars, folders already in Deleted Items, and search folders are refused. `preview` / `dryRun` defaults to true; ticket, reason, `tenantFilter`, `userId`, and `folderId` or `folderPath` are required. Expect the service principal (SAM) application to hold Graph application permissions **Mail.ReadWrite** and, for calendar folder trees, possibly **Calendars.ReadWrite** — confirm against the SAM app registration after test-mailbox verification.
+
+`ExecCustomMailFilterPolicy`, `ExecPresetSecurityPolicy`, `ExecInboundConnectorEnhancedFiltering`, `ExecMailboxJunkConfiguration`, `ExecFocusedInbox`, `ExecSoftDeleteMailboxFolder`, and `ExecRestoreMailboxFolder` are on the same flag. They already require `ticketNumber`. The flag's stored on/off choice is kept; the endpoint names are read from `FeatureFlags.json` on each request. The repo default remains off.
 
 `ListMailQuarantine` accepts `StartReceivedDate`, `EndReceivedDate`, `SenderAddress`, `RecipientAddress`, and `QuarantineTypes` in addition to the existing names. A range longer than 30 days is rejected. Omitting the dates still searches the last 7 days.
 

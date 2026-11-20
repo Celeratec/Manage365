@@ -1044,7 +1044,7 @@ Describe 'GuardedTenantWrites feature flag' {
         $Flag.Endpoints | Should -Contain 'ExecGraphWrite'
         $Flag.Endpoints | Should -Contain 'ExecAppRegistration'
         $Flag.Endpoints | Should -Contain 'GetAppRegistrationSecret'
-        foreach ($Name in @('ExecCustomMailFilterPolicy', 'ExecPresetSecurityPolicy', 'ExecInboundConnectorEnhancedFiltering', 'ExecMailboxJunkConfiguration', 'ExecFocusedInbox')) {
+        foreach ($Name in @('ExecCustomMailFilterPolicy', 'ExecPresetSecurityPolicy', 'ExecInboundConnectorEnhancedFiltering', 'ExecMailboxJunkConfiguration', 'ExecFocusedInbox', 'ExecSoftDeleteMailboxFolder', 'ExecRestoreMailboxFolder')) {
             $Flag.Endpoints | Should -Contain $Name
         }
         $Flag.Endpoints | Should -Not -Contain 'ListUserAuthMethods'

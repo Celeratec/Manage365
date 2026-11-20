@@ -39633,6 +39633,60 @@
         "x-cipp-role": "Sharepoint.Site.ReadWrite"
       }
     },
+    "/api/ExecRestoreMailboxFolder": {
+      "post": {
+        "summary": "ExecRestoreMailboxFolder",
+        "operationId": "ExecRestoreMailboxFolder",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "description": "Restores a soft-deleted mailbox folder from Deleted Items back to its original parent (never permanent delete).\nRequires tenantFilter, userId, deletedFolderId, originalParentId, folderType (mail|calendar),\nticketNumber (6-8 digits), and Reason. preview/dryRun defaults to true (read-only).",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
     "/api/ExecRestoreRecycleBinItems": {
       "post": {
         "summary": "ExecRestoreRecycleBinItems",
@@ -45958,6 +46012,60 @@
         ],
         "x-cipp-role": "CIPP.AlertSnooze.ReadWrite",
         "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ExecSoftDeleteMailboxFolder": {
+      "post": {
+        "summary": "ExecSoftDeleteMailboxFolder",
+        "operationId": "ExecSoftDeleteMailboxFolder",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "description": "Soft-deletes one mailbox folder by moving it to Deleted Items (never permanent delete).\nRequires tenantFilter, userId, folderId or folderPath, folderType (mail|calendar),\nticketNumber (6-8 digits), and Reason. preview/dryRun defaults to true (read-only).",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
       }
     },
     "/api/ExecSPOVersionCleanup": {

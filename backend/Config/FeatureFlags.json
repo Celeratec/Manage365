@@ -129,7 +129,9 @@
       "ExecPresetSecurityPolicy",
       "ExecInboundConnectorEnhancedFiltering",
       "ExecMailboxJunkConfiguration",
-      "ExecFocusedInbox"
+      "ExecFocusedInbox",
+      "ExecSoftDeleteMailboxFolder",
+      "ExecRestoreMailboxFolder"
     ],
     "Pages": [],
     "Hidden": false
