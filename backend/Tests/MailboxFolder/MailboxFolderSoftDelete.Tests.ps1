@@ -58,3 +58,66 @@ Describe 'Test-CIPPMailboxFolderSoftDeleteGuards' {
         $Result.Ok | Should -BeTrue
     }
 }
+
+Describe 'Test-CIPPMailboxFolderSoftDeleteRequest' {
+    BeforeAll {
+        . (Join-Path $PSScriptRoot '../../Modules/CIPPCore/Public/MailboxFolder/Test-CIPPMailboxFolderSoftDeleteRequest.ps1')
+    }
+
+    It 'defaults preview to true when dryRun and preview omitted' {
+        $Body = [pscustomobject]@{
+            tenantFilter = 'contoso.onmicrosoft.com'
+            userId       = 'user@contoso.com'
+            folderId     = 'folder-1'
+            folderType   = 'calendar'
+            TicketNumber = '3281353'
+            Reason       = 'stale calendar copy'
+        }
+        $Req = @{ Body = $Body; Headers = @{} }
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request $Req
+        $Parsed.Ok | Should -BeTrue
+        $Parsed.Preview | Should -BeTrue
+        [string]$Req.Body.dryRun | Should -Be 'True'
+    }
+
+    It 'rejects missing Reason' {
+        $Body = [pscustomobject]@{
+            tenantFilter = 't'; userId = 'u@t.com'; folderId = 'f'; folderType = 'mail'
+            TicketNumber = '3281353'
+        }
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeFalse
+        $Parsed.StatusCode | Should -Be 400
+        $Parsed.Message | Should -Match 'Reason'
+    }
+
+    It 'rejects both folderId and folderPath missing' {
+        $Body = [pscustomobject]@{
+            tenantFilter = 't'; userId = 'u@t.com'; folderType = 'mail'
+            TicketNumber = '3281353'; Reason = 'x'
+        }
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeFalse
+        $Parsed.Message | Should -Match 'folderId|folderPath'
+    }
+
+    It 'rejects both folderId and folderPath set' {
+        $Body = [pscustomobject]@{
+            tenantFilter = 't'; userId = 'u@t.com'; folderType = 'mail'
+            folderId = 'a'; folderPath = '\Inbox\X'
+            TicketNumber = '3281353'; Reason = 'x'
+        }
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeFalse
+    }
+
+    It 'rejects invalid folderType' {
+        $Body = [pscustomobject]@{
+            tenantFilter = 't'; userId = 'u@t.com'; folderId = 'a'; folderType = 'notes'
+            TicketNumber = '3281353'; Reason = 'x'
+        }
+        $Parsed = Test-CIPPMailboxFolderSoftDeleteRequest -Request @{ Body = $Body; Headers = @{} }
+        $Parsed.Ok | Should -BeFalse
+        $Parsed.Message | Should -Match 'folderType'
+    }
+}
