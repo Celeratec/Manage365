@@ -25,7 +25,7 @@ function Invoke-ExecSoftDeleteMailboxFolder {
     }
     try {
         $Outcome = Invoke-CIPPMailboxFolderSoftDelete -TenantFilter $Gate.Tenant -UserId $Parsed.UserId `
-            -FolderId $Parsed.FolderId -FolderPath $Parsed.FolderPath -FolderType $Parsed.FolderType -Preview $Parsed.Preview
+            -Parsed $Parsed -Preview $Parsed.Preview
         $AuditResult = if ($Outcome.Status -eq 'DryRun') { 'DryRun' } elseif ($Outcome.Status -eq 'Success') { 'Success' } else { [string]$Outcome.Results }
         $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller `
             -Request $Request.Body -Before $Outcome.Before -After $Outcome.After -DryRun $Parsed.Preview -Result $AuditResult
