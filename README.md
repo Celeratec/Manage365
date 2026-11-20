@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <strong>v2</strong> (release 6.1.32) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
+  <strong>v2</strong> (release 6.1.35) &nbsp;·&nbsp; CIPP baseline <strong>11.2.1</strong> &nbsp;·&nbsp; successor to Manage365 v1 (v5.33.0)
 </p>
 
 ---
 
-> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.32** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
+> **Manage365 v2** is the monorepo successor to the two-repo v1 forks (`Celeratec/CIPP` + `Celeratec/CIPP-API`). Those forks are end of life. Frontend and backend live in this repository and deploy as a **single Linux container** on the [Craft](https://github.com/CyberDrain/Craft) runtime. Current release is **6.1.35** on CIPP baseline **11.2.1**. The first v2 release was **6.0.0** on CIPP baseline **10.8.5**. Production cutover has been run. Migration notes: [docs/upstream-sync/MONOREPO_MIGRATION_20260815.md](docs/upstream-sync/MONOREPO_MIGRATION_20260815.md). Cutover: [docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 >
 > Manage365 is built on top of the [CyberDrain Improved Partner Portal (CIPP)](https://cipp.app). CIPP is actively developed and may implement similar features over time. Upstream changes are merged selectively to preserve Manage365-specific UI and workflows. See [Upstream Integration](#upstream-integration) below.
 
@@ -41,7 +41,7 @@ For information about the upstream CIPP project, visit [cipp.app](https://cipp.a
 
 Production cutover reuses the existing storage account and Key Vault — there is no data export/import. See the [cutover runbook](docs/upstream-sync/CUTOVER_RUNBOOK_20260815.md).
 
-## Unreleased (next patch)
+## Release 6.1.35 (November 2026)
 
 Mailbox folder removal is soft-delete only: Manage365 moves the folder to Deleted Items via Graph. Permanent delete is prohibited. Well-known/default folders, shared/linked/delegated calendars, folders already in Deleted Items, and search folders are refused. `ExecSoftDeleteMailboxFolder` and `ExecRestoreMailboxFolder` sit on **Guarded tenant writes** (preview/dryRun defaults true; ticket + reason required). Enabling that flag on an instance enables all endpoints on the flag. CIPP baseline stays **11.2.1**.
 
