@@ -48,6 +48,19 @@ Describe 'Guarded write envelope' {
         $Dry.Reason | Should -Be 'ticket 3275215'
     }
 
+    It 'keeps omitted dryRun as execute unless DefaultDryRun is set' {
+        $Legacy = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; ticketNumber = '3275215'; reason = 'legacy' }; Headers = @{} } -IsWrite
+        $Legacy.Ok | Should -BeTrue
+        $Legacy.DryRun | Should -BeFalse
+
+        $NewDefault = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; ticketNumber = '3275215'; reason = 'new' }; Headers = @{} } -IsWrite -DefaultDryRun
+        $NewDefault.Ok | Should -BeTrue
+        $NewDefault.DryRun | Should -BeTrue
+
+        $Explicit = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; ticketNumber = '3275215'; dryRun = $false; reason = 'run' }; Headers = @{} } -IsWrite -DefaultDryRun
+        $Explicit.DryRun | Should -BeFalse
+    }
+
     It 'returns 429 after 10 writes for the same tenant in a minute' {
         $Request = @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; TicketNumber = '327521' }; Headers = @{} }
         foreach ($Index in 1..10) { (Test-CIPPGuardedWriteRequest -Request $Request -IsWrite).Ok | Should -BeTrue }
@@ -926,11 +939,27 @@ Describe 'ExecAppRegistration secret handling' {
         function Get-CippTable { param($TableName) @{ TableName = $TableName } }
         function Add-CIPPAzDataTableEntity { param($Entity, [switch]$Force) $script:AuditEntity = $Entity }
         function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev) $script:LogMessage = $message }
+        function New-GraphGetRequest {
+            param($uri, $tenantid, $asApp)
+            $script:GraphGets += [pscustomobject]@{ Uri = $uri }
+            if ($uri -like '*/applications?*filter=displayName*') { return @() }
+            if ($uri -like '*/applications/*requiredResourceAccess*') { return [pscustomobject]@{ requiredResourceAccess = @() } }
+            if ($uri -like '*/applications/*keyCredentials*') { return [pscustomobject]@{ keyCredentials = @([pscustomobject]@{ keyId = 'cert-key-1' }) } }
+            if ($uri -like '*/users/*') { return [pscustomobject]@{ id = ($uri -split '/users/')[-1].Split('?')[0] } }
+            return @()
+        }
         function New-GraphPOSTRequest {
             param($uri, $tenantid, $type, $body, $asApp)
-            if ($uri -like '*/applications' -and $uri -notlike '*/addPassword') { return [pscustomobject]@{ id = 'object-1'; appId = 'app-1' } }
+            $script:GraphPosts += [pscustomobject]@{ Uri = $uri; Type = $type; Body = $body }
+            if ($type -eq 'DELETE') { return $null }
+            if ($uri -like '*/applications' -and $uri -notlike '*/addPassword' -and $uri -notlike '*/addKey' -and $uri -notlike '*/owners*') {
+                $script:LastAppCreateBody = $body
+                return [pscustomobject]@{ id = 'object-1'; appId = 'app-1'; keyCredentials = @([pscustomobject]@{ keyId = 'cert-key-1' }) }
+            }
             if ($uri -like '*/servicePrincipals') { return [pscustomobject]@{ id = 'sp-1' } }
             if ($uri -like '*/addPassword') { return [pscustomobject]@{ keyId = 'key-1'; secretText = 'super-secret-value' } }
+            if ($uri -like '*/owners*') { return $null }
+            if ($uri -like '*/addKey') { throw 'addKey should not be used for certificate creates' }
         }
         class HttpResponseContext { [int]$StatusCode; [object]$Body; [object]$Headers }
         $Accelerators = [PowerShell].Assembly.GetType('System.Management.Automation.TypeAccelerators')
@@ -940,15 +969,22 @@ Describe 'ExecAppRegistration secret handling' {
         . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/CIPP/Core/Invoke-ListMyApiRoles.ps1')
     }
 
-    It 'stores the secret in Key Vault and leaves it out of the response, log, and audit' {
+    BeforeEach {
+        $script:GraphGets = [System.Collections.Generic.List[object]]::new()
+        $script:GraphPosts = [System.Collections.Generic.List[object]]::new()
+        $script:LastAppCreateBody = $null
         $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
+    }
+
+    It 'stores the secret in Key Vault and leaves it out of the response, log, and audit' {
         $Request = @{
             Params  = @{ CIPPEndpoint = 'ExecAppRegistration' }
             Headers = @{}
             Body    = @{
                 tenantFilter   = 'contoso.onmicrosoft.com'
                 TicketNumber   = '327521'
-                WhatIf         = $false
+                dryRun         = $false
+                reason         = 'ticket 327521 characterization'
                 DisplayName    = 'Contoso App'
                 SignInAudience = 'AzureADMyOrg'
                 Credential     = @{ Type = 'Secret'; ExpiryMonths = 6 }
@@ -963,6 +999,117 @@ Describe 'ExecAppRegistration secret handling' {
         ($Response | ConvertTo-Json -Depth 8) | Should -Not -Match 'super-secret-value'
         $script:LogMessage | Should -Not -Match 'super-secret-value'
         ($script:AuditEntity | ConvertTo-Json -Depth 6) | Should -Not -Match 'super-secret-value'
+        ($script:GraphPosts | Where-Object { $_.Uri -like '*/addKey' }).Count | Should -Be 0
+        $script:LastAppCreateBody | Should -Match '"requiredResourceAccess":\[\]'
+    }
+
+    It 'defaults dryRun to true for ExecAppRegistration when omitted' {
+        $Request = @{
+            Params  = @{ CIPPEndpoint = 'ExecAppRegistration' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter   = 'contoso.onmicrosoft.com'
+                ticketNumber   = '3275215'
+                reason         = 'preview default'
+                DisplayName    = 'Preview App'
+                SignInAudience = 'AzureADMyOrg'
+                Credential     = @{ Type = 'Secret'; ExpiryMonths = 6 }
+            }
+        }
+        $Response = Invoke-ExecAppRegistration -Request $Request -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'DryRun'
+        ($script:GraphPosts | Where-Object { $_.Type -eq 'POST' -and $_.Uri -like '*/applications' -and $_.Uri -notlike '*filter*' }).Count | Should -Be 0
+    }
+
+    It 'refuses private-key material and does not log the base64' {
+        $Rsa = [System.Security.Cryptography.RSA]::Create(2048)
+        $Req = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
+            'CN=RefusePrivate',
+            $Rsa,
+            [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+            [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
+        )
+        $WithKey = $Req.CreateSelfSigned([datetime]::UtcNow.AddDays(-1), [datetime]::UtcNow.AddYears(1))
+        $PfxB64 = [Convert]::ToBase64String($WithKey.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, 'test-pass'))
+        $Response = Invoke-ExecAppRegistration -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecAppRegistration' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter   = 'contoso.onmicrosoft.com'
+                ticketNumber   = '3275215'
+                dryRun         = $false
+                reason         = 'pfx refuse'
+                DisplayName    = 'Bad PFX App'
+                SignInAudience = 'AzureADMyOrg'
+                Credential     = @{ Type = 'Certificate'; CertificatePublicKeyBase64 = $PfxB64 }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 400
+        ($Response | ConvertTo-Json -Depth 6) | Should -Not -Match [regex]::Escape($PfxB64.Substring(0, [Math]::Min(40, $PfxB64.Length)))
+        ($script:AuditEntity | ConvertTo-Json -Depth 6) | Should -Not -Match [regex]::Escape($PfxB64.Substring(0, [Math]::Min(40, $PfxB64.Length)))
+    }
+
+    It 'creates with public certificate keyCredentials and returns thumbprint and end date' {
+        $Rsa = [System.Security.Cryptography.RSA]::Create(2048)
+        $Req = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
+            'CN=PublicOnly',
+            $Rsa,
+            [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+            [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
+        )
+        $WithKey = $Req.CreateSelfSigned([datetime]::UtcNow.AddDays(-1), [datetime]::UtcNow.AddYears(1))
+        $Public = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($WithKey.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+        $PubB64 = [Convert]::ToBase64String($Public.RawData)
+        $Owner = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+        $Response = Invoke-ExecAppRegistration -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecAppRegistration' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter   = 'contoso.onmicrosoft.com'
+                ticketNumber   = '3275215'
+                dryRun         = $false
+                reason         = 'cert create'
+                DisplayName    = 'Cert App'
+                SignInAudience = 'AzureADMyOrg'
+                Notes          = 'mail-read scoped app'
+                Description    = 'test'
+                Owners         = @($Owner)
+                Credential     = @{ Type = 'Certificate'; CertificatePublicKeyBase64 = $PubB64 }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.CredentialThumbprint | Should -Be $Public.Thumbprint
+        $Response.Body.CredentialEndDateTime | Should -Not -BeNullOrEmpty
+        $Response.Body.ServicePrincipalId | Should -Be 'sp-1'
+        $Response.Body.PSObject.Properties.Name | Should -Not -Contain 'SecretDelivery'
+        $script:LastAppCreateBody | Should -Match 'keyCredentials'
+        ($script:GraphPosts | Where-Object { $_.Uri -like '*/addKey' }).Count | Should -Be 0
+        ($script:GraphPosts | Where-Object { $_.Uri -like '*/owners*' }).Count | Should -Be 1
+    }
+
+    It 'refuses duplicate display names even on dry run' {
+        function New-GraphGetRequest {
+            param($uri, $tenantid, $asApp)
+            if ($uri -like '*/applications?*filter=displayName*') {
+                return @([pscustomobject]@{ id = 'existing-1'; appId = 'existing-app'; displayName = 'Dup App' })
+            }
+            return @()
+        }
+        $Response = Invoke-ExecAppRegistration -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecAppRegistration' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter   = 'contoso.onmicrosoft.com'
+                ticketNumber   = '3275215'
+                reason         = 'dup'
+                DisplayName    = 'Dup App'
+                SignInAudience = 'AzureADMyOrg'
+                Credential     = @{ Type = 'Secret'; ExpiryMonths = 6 }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 409
+        $Response.Body.ExistingObjectId | Should -Be 'existing-1'
     }
 
     It 'returns a stored secret once and leaves it out of the audit row' {
