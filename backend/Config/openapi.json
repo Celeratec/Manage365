@@ -85365,6 +85365,1392 @@
         ],
         "x-cipp-role": "Tenant.Administration.ReadWrite"
       }
+    },
+    "/api/ExecAzArmConfig": {
+      "post": {
+        "summary": "ExecAzArmConfig",
+        "operationId": "ExecAzArmConfig",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Creates or updates the per-tenant Azure ARM access config (credential references only). Requires ticketNumber and dryRun. Does not call Azure Resource Manager.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.ReadWrite"
+      }
+    },
+    "/api/ListAzAccessStatus": {
+      "post": {
+        "summary": "ListAzAccessStatus",
+        "operationId": "ListAzAccessStatus",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Self-check for ARM access: subscriptions, permissions, over-privilege tripwire.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzActivityLog": {
+      "post": {
+        "summary": "ListAzActivityLog",
+        "operationId": "ListAzActivityLog",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists activity log events (max 30-day range) for the pinned subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzAppInsights": {
+      "post": {
+        "summary": "ListAzAppInsights",
+        "operationId": "ListAzAppInsights",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Application Insights components in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzArmConfig": {
+      "post": {
+        "summary": "ListAzArmConfig",
+        "operationId": "ListAzArmConfig",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Returns the sanitized per-tenant Azure ARM access config (no secrets).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzBudgets": {
+      "post": {
+        "summary": "ListAzBudgets",
+        "operationId": "ListAzBudgets",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists consumption budgets for the pinned subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzCheckName": {
+      "post": {
+        "summary": "ListAzCheckName",
+        "operationId": "ListAzCheckName",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Checks name availability for storage, keyvault, or functionapp.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzCosts": {
+      "post": {
+        "summary": "ListAzCosts",
+        "operationId": "ListAzCosts",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Runs a Cost Management query (read-only POST) for the pinned subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Cost.Read"
+      }
+    },
+    "/api/ListAzFlexLocations": {
+      "post": {
+        "summary": "ListAzFlexLocations",
+        "operationId": "ListAzFlexLocations",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Flex Consumption geo regions for the pinned subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzIdentities": {
+      "post": {
+        "summary": "ListAzIdentities",
+        "operationId": "ListAzIdentities",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists user-assigned managed identities in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzKeyVaults": {
+      "post": {
+        "summary": "ListAzKeyVaults",
+        "operationId": "ListAzKeyVaults",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Key Vault config and deleted vaults (never secrets).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzLocks": {
+      "post": {
+        "summary": "ListAzLocks",
+        "operationId": "ListAzLocks",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists locks on an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzPolicyAssignments": {
+      "post": {
+        "summary": "ListAzPolicyAssignments",
+        "operationId": "ListAzPolicyAssignments",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists policy assignments at subscription or resource group scope.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzProviders": {
+      "post": {
+        "summary": "ListAzProviders",
+        "operationId": "ListAzProviders",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resource providers for the pinned subscription.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzResourceGroups": {
+      "post": {
+        "summary": "ListAzResourceGroups",
+        "operationId": "ListAzResourceGroups",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resource groups in the pinned subscription (optional single name).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzResources": {
+      "post": {
+        "summary": "ListAzResources",
+        "operationId": "ListAzResources",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists resources in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzRoleAssignments": {
+      "post": {
+        "summary": "ListAzRoleAssignments",
+        "operationId": "ListAzRoleAssignments",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists role assignments at subscription or resource group scope, plus role definitions.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzSqlServers": {
+      "post": {
+        "summary": "ListAzSqlServers",
+        "operationId": "ListAzSqlServers",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists SQL servers in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzStorageAccounts": {
+      "post": {
+        "summary": "ListAzStorageAccounts",
+        "operationId": "ListAzStorageAccounts",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists storage account config (never keys) in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzSubscriptions": {
+      "post": {
+        "summary": "ListAzSubscriptions",
+        "operationId": "ListAzSubscriptions",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists Azure subscriptions visible to the configured ARM identity.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
+    },
+    "/api/ListAzWebApps": {
+      "post": {
+        "summary": "ListAzWebApps",
+        "operationId": "ListAzWebApps",
+        "tags": [
+          "Azure > ARM"
+        ],
+        "description": "Lists web/function apps and server farms in an allowed resource group.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "503": {
+            "description": "Endpoint disabled by a feature flag"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Azure.Resources.Read"
+      }
     }
   }
 }
