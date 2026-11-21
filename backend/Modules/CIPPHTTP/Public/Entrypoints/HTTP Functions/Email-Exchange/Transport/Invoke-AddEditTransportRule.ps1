@@ -695,6 +695,15 @@ function Invoke-AddEditTransportRule {
             $Before = $null
             $BeforeList = $null
             $IsCreate = -not $Identity
+            # Condition-less guard applies when New/Set-TransportRule would run (not Enable/Disable-only edit).
+            $WouldSetRule = $IsCreate -or -not $Enabled
+            if ($WouldSetRule) {
+                $ApplyGuard = Test-CIPPTransportRuleApplyToAll -CmdletParams $ruleParams -ApplyToAllMessages $Request.Body.applyToAllMessages
+                if (-not $ApplyGuard.Ok) {
+                    $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $Gate.WhatIf -Result $ApplyGuard.Message
+                    return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $ApplyGuard.Message; Status = 'Failed'; AuditId = $AuditId } }
+                }
+            }
             if ($IsCreate) {
                 $AllRules = @(New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -cmdParams @{} -useSystemMailbox $true)
                 $BeforeList = @($AllRules | ForEach-Object { Get-CIPPTransportRuleProjection $_ } | Sort-Object Priority, Name)
