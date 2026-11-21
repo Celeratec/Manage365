@@ -19,7 +19,7 @@
 
 ## Recommendation
 
-**Ready for draft PR** as a security/reliability intake. Do not claim CIPP baseline 11.4.0 yet.
+**Draft PR ready for review** — [PR #79](https://github.com/Celeratec/Manage365/pull/79) CI green on `cc8f9c892`. Do not claim CIPP baseline 11.4.0 yet. Do not start feature packs until this PR merges (or Clint picks a pack).
 
 ## Follow-ups
 
