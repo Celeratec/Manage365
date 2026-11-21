@@ -139,7 +139,7 @@
   {
     "Id": "AzureArm",
     "Name": "Azure ARM",
-    "Description": "Azure Resource Manager reads (ListAz*) and per-tenant ARM access config. Off until an administrator enables the flag. Does not reuse the CIPP SAM identity. ListAzWebAppSettingNames is deferred to a later PR.",
+    "Description": "Azure Resource Manager reads/writes (ListAz*/ExecAz*) and per-tenant ARM access config. Off until an administrator enables the flag. Does not reuse the CIPP SAM identity. Writes use the change profile and default dryRun true.",
     "Enabled": false,
     "AllowUserToggle": true,
     "Timers": [],
@@ -164,7 +164,15 @@
       "ListAzCheckName",
       "ListAzFlexLocations",
       "ListAzArmConfig",
-      "ExecAzArmConfig"
+      "ListAzWebAppSettingNames",
+      "ExecAzArmConfig",
+      "ExecAzResourceProvider",
+      "ExecAzIdentity",
+      "ExecAzStorageAccount",
+      "ExecAzKeyVault",
+      "ExecAzFunctionApp",
+      "ExecAzTags",
+      "ExecAzDelete"
     ],
     "Pages": [],
     "Hidden": false

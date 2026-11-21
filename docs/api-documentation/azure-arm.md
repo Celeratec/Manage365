@@ -14,7 +14,7 @@ Three optional profiles (fail closed if missing):
 | Profile | Intended Azure roles | Used by |
 | --- | --- | --- |
 | `reader` | Reader (+ Cost Management Reader for costs) | All `ListAz*` in PR1 |
-| `change` | Contributor on one RG | Future write actions (PR2); not used for PR1 reads |
+| `change` | Contributor on one RG | `ExecAz*` writes and `ListAzWebAppSettingNames` |
 | `rbac` | Constrained RBAC admin on one RG | Future `ExecAzRoleAssignment` (PR3) |
 
 Config lives in table `AzureArmConfig` (credential **references** only: Key Vault secret/cert names). Upsert via `ExecAzArmConfig` (`Azure.Resources.ReadWrite`, ticket + `dryRun`). Read sanitized config via `ListAzArmConfig`.
@@ -30,9 +30,17 @@ Default long-term preference: Lighthouse for reader/change; evaluate SP for RBAC
 
 `ListAzSubscriptions`, `ListAzAccessStatus`, `ListAzResourceGroups`, `ListAzLocks`, `ListAzResources`, `ListAzRoleAssignments`, `ListAzProviders`, `ListAzPolicyAssignments`, `ListAzWebApps`, `ListAzIdentities`, `ListAzSqlServers`, `ListAzStorageAccounts`, `ListAzKeyVaults`, `ListAzAppInsights`, `ListAzBudgets`, `ListAzCosts` (`Azure.Cost.Read`), `ListAzActivityLog` (≤30 days), `ListAzCheckName`, `ListAzFlexLocations`, `ListAzArmConfig`.
 
-`ListAzWebAppSettingNames` is **not** in this release (needs `change` profile; deferred).
+`ListAzWebAppSettingNames` uses the **change** profile (`Azure.Resources.ReadWrite`, ticket required). It returns setting **names** and Key Vault reference strings only — never secret values.
 
-Hard rules: only `management.azure.com`; no caller-supplied URLs; subscription pinned; RG must be in `allowedResourceGroups` when configured; never `listKeys` / secrets / data-plane hosts; tokens never logged.
+## Write endpoints (`Azure.Resources.ReadWrite`, change profile)
+
+`ExecAzResourceProvider`, `ExecAzIdentity`, `ExecAzStorageAccount`, `ExecAzKeyVault`, `ExecAzFunctionApp` (`create` | `setAppSettings` | `setKeyVaultReferenceIdentity`), `ExecAzTags`, `ExecAzDelete`.
+
+Every write requires `tenantFilter`, `ticketNumber`, `reason`, and `resourceGroupName` in `allowedResourceGroups`. **`dryRun` defaults to true** (explicit `dryRun:false` to apply). Preview returns `Before`, `WhatIfPlan`, and `Rollback` with **zero** ARM writes. Create-only by default (`allowUpdate:true` to update). Secure defaults are enforced in code (TLS 1.2, no public blob, no shared key, KV RBAC + purge protection with `confirmPurgeProtection`, Flex Consumption only, no connection-string storage settings). `ExecAzDelete` is rollback-only: `managedBy=manage365` + matching `ticket` tags, allowlisted types, never resource groups or purge.
+
+Allowlists live in `backend/Config/GuardedWrites/AzureArmAllowlist.json`.
+
+Hard rules: only `management.azure.com`; no caller-supplied URLs; subscription pinned; RG must be in `allowedResourceGroups` for writes; never `listKeys` / secrets / data-plane hosts; tokens never logged.
 
 ## `ListAzAccessStatus`
 
@@ -44,7 +52,8 @@ Confirms the token, lists visible subscriptions, reads effective permissions, an
 2. Store cert/secret in Key Vault; note the secret names.
 3. Enable feature flag **Azure ARM**.
 4. `ExecAzArmConfig` with `dryRun:true`, then `dryRun:false`.
-5. `ListAzAccessStatus` — fix tripwire warnings before any write PR.
+5. `ListAzAccessStatus` — fix tripwire warnings before any write.
+6. Configure a `change` profile credential; run writes with `dryRun:true` first.
 
 ## Unsupported (by design)
 

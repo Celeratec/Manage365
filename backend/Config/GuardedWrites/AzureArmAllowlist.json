@@ -1,0 +1,118 @@
+{
+  "providerNamespaces": [
+    "Microsoft.KeyVault",
+    "Microsoft.Storage",
+    "Microsoft.ManagedIdentity",
+    "Microsoft.Web",
+    "Microsoft.Insights",
+    "Microsoft.OperationalInsights"
+  ],
+  "regions": [
+    "eastus",
+    "eastus2",
+    "westus",
+    "westus2",
+    "westus3",
+    "centralus",
+    "southcentralus",
+    "northcentralus"
+  ],
+  "storageSkus": ["Standard_LRS", "Standard_ZRS", "Standard_GRS", "Standard_RAGRS"],
+  "tagKeys": ["ticket", "managedBy", "environment", "owner", "costCenter", "project"],
+  "deleteTypes": [
+    "Microsoft.Web/sites",
+    "Microsoft.Web/serverfarms",
+    "Microsoft.Storage/storageAccounts",
+    "Microsoft.ManagedIdentity/userAssignedIdentities",
+    "Microsoft.KeyVault/vaults"
+  ],
+  "actions": {
+    "ExecAzResourceProvider": {
+      "method": "POST",
+      "pathTemplate": "/subscriptions/{subscriptionId}/providers/{namespace}/register",
+      "apiVersion": "2021-04-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "subscription"
+    },
+    "ExecAzIdentity": {
+      "method": "PUT",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{name}",
+      "apiVersion": "2023-01-31",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true,
+      "createOnlyDefault": true
+    },
+    "ExecAzStorageAccount": {
+      "method": "PUT",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Storage/storageAccounts/{name}",
+      "apiVersion": "2023-05-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true,
+      "createOnlyDefault": true,
+      "lro": true
+    },
+    "ExecAzKeyVault": {
+      "method": "PUT",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.KeyVault/vaults/{name}",
+      "apiVersion": "2023-07-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true,
+      "createOnlyDefault": true,
+      "lro": true
+    },
+    "ExecAzFunctionApp": {
+      "method": "PUT",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/sites/{name}",
+      "pathTemplatePlan": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/serverfarms/{planName}",
+      "apiVersion": "2024-04-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true,
+      "createOnlyDefault": true,
+      "lro": true
+    },
+    "ExecAzTags": {
+      "method": "PATCH",
+      "pathTemplate": "{resourceId}/providers/Microsoft.Resources/tags/default",
+      "apiVersion": "2021-04-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true
+    },
+    "ExecAzDelete": {
+      "method": "DELETE",
+      "apiVersion": "2021-04-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "write",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true
+    },
+    "ListAzWebAppSettingNames": {
+      "method": "POST",
+      "pathTemplate": "/subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.Web/sites/{name}/config/appsettings/list",
+      "apiVersion": "2024-04-01",
+      "profile": "change",
+      "role": "Azure.Resources.ReadWrite",
+      "classification": "readSensitive",
+      "scope": "resourceGroup",
+      "requireResourceGroup": true,
+      "permitDenyFragment": "/config/appsettings/list"
+    }
+  }
+}

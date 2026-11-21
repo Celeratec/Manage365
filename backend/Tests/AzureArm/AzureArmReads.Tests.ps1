@@ -84,8 +84,8 @@ Describe 'Invoke-CIPPAzArmRequest' {
         { Invoke-CIPPAzArmRequest -AccessToken 'tok' -Method GET -Path '/subscriptions/x/listKeys' -ApiVersion '2023-05-01' -Classification read } | Should -Throw '*deny-listed*'
     }
 
-    It 'records transport calls and refuses write classification' {
-        { Invoke-CIPPAzArmRequest -AccessToken 'tok' -Method GET -Path '/subscriptions' -ApiVersion '2022-12-01' -Classification write } | Should -Throw '*classification=read*'
+    It 'refuses GET with write classification' {
+        { Invoke-CIPPAzArmRequest -AccessToken 'tok' -Method GET -Path '/subscriptions' -ApiVersion '2022-12-01' -Classification write } | Should -Throw '*not allowed for ARM writes*'
     }
 
     It 'paginates with a hard page cap and only management.azure.com' {
@@ -131,7 +131,9 @@ Describe 'AzureArm feature flag' {
         $Flag.Enabled | Should -BeFalse
         $Flag.Endpoints | Should -Contain 'ListAzSubscriptions'
         $Flag.Endpoints | Should -Contain 'ExecAzArmConfig'
-        $Flag.Endpoints | Should -Not -Contain 'ListAzWebAppSettingNames'
+        $Flag.Endpoints | Should -Contain 'ListAzWebAppSettingNames'
+        $Flag.Endpoints | Should -Contain 'ExecAzStorageAccount'
+        $Flag.Endpoints | Should -Contain 'ExecAzDelete'
     }
 }
 
