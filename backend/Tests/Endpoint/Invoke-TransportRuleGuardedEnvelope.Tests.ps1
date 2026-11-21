@@ -3,7 +3,6 @@ BeforeAll {
     class HttpResponseContext {
         [int]$StatusCode
         [object]$Body
-        [object]$Headers
         [object]$ContentType
     }
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
