@@ -11,7 +11,11 @@ function Test-CIPPGuardedWriteRequest {
     [CmdletBinding()]
     param(
         $Request,
-        [switch]$IsWrite
+        [switch]$IsWrite,
+
+        # When true and dryRun/WhatIf/preview are omitted, treat the call as a dry run.
+        # Existing callers omit this switch so a missing dryRun still means execute (false).
+        [switch]$DefaultDryRun
     )
 
     $Tenant = [string]($Request.Body.tenantFilter | Select-Object -First 1)
@@ -30,7 +34,9 @@ function Test-CIPPGuardedWriteRequest {
 
     $DryRunRaw = $Request.Body.dryRun
     if ($null -eq $DryRunRaw -or "$DryRunRaw" -eq '') { $DryRunRaw = $Request.Body.WhatIf }
-    $WhatIf = $false
+    if ($null -eq $DryRunRaw -or "$DryRunRaw" -eq '') { $DryRunRaw = $Request.Body.preview }
+    if ($null -eq $DryRunRaw -or "$DryRunRaw" -eq '') { $DryRunRaw = $Request.Body.Preview }
+    $WhatIf = [bool]$DefaultDryRun
     if ($null -ne $DryRunRaw -and "$DryRunRaw" -ne '') {
         if ("$DryRunRaw" -notin @('true', 'false', '1', '0', 'True', 'False')) {
             return [pscustomobject]@{ Ok = $false; StatusCode = 400; Message = 'dryRun must be true or false.' }
