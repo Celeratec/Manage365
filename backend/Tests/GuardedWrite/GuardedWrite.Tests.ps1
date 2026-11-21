@@ -9,6 +9,7 @@ BeforeAll {
         . $Path
     }
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Private/Resolve-CIPPGuardedWriteConfigPath.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Private/Test-CIPPExoParameterName.ps1')
     $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
 }
 

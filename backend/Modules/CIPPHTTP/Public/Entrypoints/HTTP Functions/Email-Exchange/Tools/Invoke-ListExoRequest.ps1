@@ -5,7 +5,11 @@ function Invoke-ListExoRequest {
     .ROLE
         CIPP.Core.Read
     .DESCRIPTION
-        Executes an arbitrary read-only Exchange Online cmdlet (Get-* or Search-*) for a tenant. Accepts cmdlet name and parameters in the request body.
+        Executes a read-only Exchange Online cmdlet for a tenant. Accepts Get-* and Search-* as before.
+        Also accepts Test-ServicePrincipalAuthorization and Test-ApplicationAccessPolicy when listed in
+        ExoReadTestAllowlist.json, with Tenant.AppGovernance.Read and strict parameter validation.
+        Test-* always uses the system mailbox. Response Meta.OrganizationScopedGrant is set for
+        Test-ServicePrincipalAuthorization when any row has ScopeType Organization.
     #>
     param($Request, $TriggerMetadata)
     $StatusCode = [HttpStatusCode]::OK
@@ -13,6 +17,7 @@ function Invoke-ListExoRequest {
         $AllowedVerbs = @(
             'Get'
             'Search'
+            'Test'
         )
 
         $Cmdlet = $Request.Body.Cmdlet
@@ -54,43 +59,114 @@ function Invoke-ListExoRequest {
                 return
             }
 
-            $ExoParams = @{
-                Cmdlet    = $Cmdlet
-                cmdParams = $cmdParams
-                tenantid  = $TenantFilter
-            }
-
-            if ($Request.Body.Select) {
-                $ExoParams.Select = $Request.Body.Select
-            }
-
-            if ($Request.Body.UseSystemMailbox -eq $true) {
-                $ExoParams.useSystemMailbox = $true
-            }
-
-            if ($Request.Body.Anchor) {
-                $ExoParams.Anchor = $Request.Body.Anchor
-            }
-
-            if ($Request.Body.Compliance -eq $true) {
-                $ExoParams.Compliance = $true
-            }
-
-            if ($Request.Body.AsApp -eq $true) {
-                $ExoParams.AsApp = $true
-            }
-
-            try {
-                $Results = New-ExoRequest @ExoParams
-                $Body = [pscustomobject]@{
-                    Results = $Results
+            if ($Verb -eq 'Test') {
+                $Plan = Get-CIPPExoReadTestCmdletPlan -Cmdlet $Cmdlet -Parameters $cmdParams
+                if (-not $Plan.Allowed) {
+                    $Body = [PSCustomObject]@{
+                        Results = $Plan.Reason
+                    }
+                    return ([HttpResponseContext]@{
+                            StatusCode = [HttpStatusCode]::BadRequest
+                            Body       = $Body
+                        })
                 }
-            } catch {
-                $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
-                $Body = [pscustomobject]@{
-                    Results = @(@{ Error = $ErrorMessage })
+
+                $Permissions = @(Get-CippRequestAllowedPermissions)
+                if ($Permissions -notcontains 'Tenant.AppGovernance.Read') {
+                    $Body = [PSCustomObject]@{
+                        Results = 'Test-* cmdlets through ListExoRequest require Tenant.AppGovernance.Read.'
+                    }
+                    return ([HttpResponseContext]@{
+                            StatusCode = [HttpStatusCode]::Forbidden
+                            Body       = $Body
+                        })
                 }
-                $StatusCode = [HttpStatusCode]::InternalServerError
+
+                $ExoParams = @{
+                    Cmdlet           = $Plan.Cmdlet
+                    cmdParams        = $Plan.Parameters
+                    tenantid         = $TenantFilter
+                    useSystemMailbox = $true
+                }
+
+                if ($Request.Body.Select) {
+                    $ExoParams.Select = $Request.Body.Select
+                }
+                if ($Request.Body.Anchor) {
+                    $ExoParams.Anchor = $Request.Body.Anchor
+                }
+                if ($Request.Body.Compliance -eq $true) {
+                    $ExoParams.Compliance = $true
+                }
+                if ($Request.Body.AsApp -eq $true) {
+                    $ExoParams.AsApp = $true
+                }
+
+                try {
+                    $Results = New-ExoRequest @ExoParams
+                    $RowCount = @($Results).Count
+                    Write-Information "ListExoRequest Test cmdlet=$($Plan.Cmdlet) rows=$RowCount"
+                    $Body = [pscustomobject]@{
+                        Results = $Results
+                    }
+                    if ($Plan.Cmdlet -eq 'Test-ServicePrincipalAuthorization') {
+                        $OrgScoped = $false
+                        foreach ($Row in @($Results)) {
+                            if ([string]$Row.ScopeType -eq 'Organization') {
+                                $OrgScoped = $true
+                                break
+                            }
+                        }
+                        $Body | Add-Member -NotePropertyName Meta -NotePropertyValue ([pscustomobject]@{
+                                OrganizationScopedGrant = $OrgScoped
+                            }) -Force
+                    }
+                } catch {
+                    $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
+                    $Body = [pscustomobject]@{
+                        Results = @(@{ Error = $ErrorMessage })
+                    }
+                    $StatusCode = [HttpStatusCode]::InternalServerError
+                }
+            } else {
+                $ExoParams = @{
+                    Cmdlet    = $Cmdlet
+                    cmdParams = $cmdParams
+                    tenantid  = $TenantFilter
+                }
+
+                if ($Request.Body.Select) {
+                    $ExoParams.Select = $Request.Body.Select
+                }
+
+                if ($Request.Body.UseSystemMailbox -eq $true) {
+                    $ExoParams.useSystemMailbox = $true
+                }
+
+                if ($Request.Body.Anchor) {
+                    $ExoParams.Anchor = $Request.Body.Anchor
+                }
+
+                if ($Request.Body.Compliance -eq $true) {
+                    $ExoParams.Compliance = $true
+                }
+
+                if ($Request.Body.AsApp -eq $true) {
+                    $ExoParams.AsApp = $true
+                }
+
+                try {
+                    $Results = New-ExoRequest @ExoParams
+                    $Body = [pscustomobject]@{
+                        Results = $Results
+                    }
+                } catch {
+                    $ErrorMessage = Get-NormalizedError -Message $_.Exception.Message
+                    $Body = [pscustomobject]@{
+                        Results = @(@{ Error = $ErrorMessage })
+                    }
+                    $StatusCode = [HttpStatusCode]::InternalServerError
+                }
             }
         }
     } catch {

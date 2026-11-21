@@ -1,0 +1,4 @@
+{
+  "Test-ServicePrincipalAuthorization": ["Identity", "Resource"],
+  "Test-ApplicationAccessPolicy": ["Identity", "AppId"]
+}
