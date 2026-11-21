@@ -57,13 +57,14 @@ function Invoke-EditTransportRule {
 
     $Gate = Test-CIPPGuardedWriteRequest -Request $Request -IsWrite -DefaultDryRun
     if (-not $Gate.Ok) {
-        $ResponseHeaders = @{}
-        if ($Gate.StatusCode -eq 429) { $ResponseHeaders['Retry-After'] = [string]$Gate.RetryAfter }
         $AuditId = $null
         if ($Gate.StatusCode -ne 429 -and -not [string]::IsNullOrWhiteSpace($Gate.Tenant)) {
             $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $true -Result $Gate.Message
         }
-        return [HttpResponseContext]@{ StatusCode = $Gate.StatusCode; Headers = $ResponseHeaders; Body = @{ Results = $Gate.Message; Status = 'Failed'; AuditId = $AuditId } }
+        # HttpResponseContext in CI/Azure stubs is StatusCode/Body/ContentType only — do not set Headers.
+        $Body = @{ Results = $Gate.Message; Status = 'Failed'; AuditId = $AuditId }
+        if ($Gate.StatusCode -eq 429 -and $null -ne $Gate.RetryAfter) { $Body.RetryAfter = $Gate.RetryAfter }
+        return [HttpResponseContext]@{ StatusCode = $Gate.StatusCode; Body = $Body }
     }
 
     $Normalized = ConvertTo-CIPPTransportRuleGuardedFields -Enabled $State -State $State
