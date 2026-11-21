@@ -5,7 +5,10 @@ function Invoke-AddEditTransportRule {
     .ROLE
         Exchange.TransportRule.ReadWrite
     .DESCRIPTION
-        This function creates a new transport rule or edits an existing one (mail flow rule).
+        Creates or edits a transport rule. Without ticketNumber/dryRun/reason the legacy UI
+        behavior is unchanged. When any of those fields is present the guarded envelope applies
+        (ticket required, dryRun defaults true, GuardedTenantWrites must be on). Optional
+        RuleErrorAction (Ignore|Defer) is honored in both modes when supplied.
     #>
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
@@ -24,6 +27,26 @@ function Invoke-AddEditTransportRule {
         return
     }
 
+    $GuardedMode = Test-CIPPTransportRuleGuardedMode -Request $Request
+    $Gate = $null
+    if ($GuardedMode) {
+        if (-not (Test-CIPPGuardedTenantWritesEnabled)) {
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::Forbidden
+                Body       = @{ Results = 'Guarded tenant writes are disabled. Enable the GuardedTenantWrites feature flag, or omit ticketNumber/dryRun/reason to use the legacy path.'; Status = 'Failed' }
+            }
+        }
+        $Request = Merge-CIPPTransportRuleGuardedRequestBody -Request $Request
+        $Gate = Test-CIPPGuardedWriteRequest -Request $Request -IsWrite -DefaultDryRun
+        if (-not $Gate.Ok) {
+            # HttpResponseContext in CI/Azure stubs is StatusCode/Body/ContentType only — do not set Headers.
+            $Body = @{ Results = $Gate.Message; Status = 'Failed' }
+            if ($Gate.StatusCode -eq 429 -and $null -ne $Gate.RetryAfter) { $Body.RetryAfter = $Gate.RetryAfter }
+            return [HttpResponseContext]@{ StatusCode = $Gate.StatusCode; Body = $Body }
+        }
+        $TenantFilter = $Gate.Tenant
+    }
+
     # Extract basic rule settings from body
     $Identity = $Request.Body.ruleId
     $Name = $Request.Body.Name
@@ -35,9 +58,33 @@ function Invoke-AddEditTransportRule {
     $CmdletState = $Request.Body.State ?? $Request.Body.Enabled
     $Enabled = $Request.Body.Enabled
     $StopRuleProcessing = $Request.Body.StopRuleProcessing
+    $RuleErrorAction = $Request.Body.RuleErrorAction
     $SenderAddressLocation = $Request.Body.SenderAddressLocation
     $ActivationDate = $Request.Body.ActivationDate
     $ExpiryDate = $Request.Body.ExpiryDate
+
+    if ($GuardedMode) {
+        $Normalized = ConvertTo-CIPPTransportRuleGuardedFields -Enabled $Enabled -State $State -Priority $Priority -StopRuleProcessing $StopRuleProcessing -RuleErrorAction $RuleErrorAction
+        if (-not $Normalized.Ok) {
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $Gate.WhatIf -Result $Normalized.Message
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Normalized.Message; Status = 'Failed'; AuditId = $AuditId } }
+        }
+        if ($Normalized.HasEnabled) {
+            $State = $Normalized.EnabledBool
+            $Enabled = if ($Normalized.EnabledBool) { 'Enabled' } else { 'Disabled' }
+            $CmdletState = $Enabled
+        }
+        if ($Normalized.HasPriority) { $Priority = $Normalized.Priority }
+        if ($Normalized.HasStop) { $StopRuleProcessing = $Normalized.StopRuleProcessing }
+        if ($Normalized.HasRuleErrorAction) { $RuleErrorAction = $Normalized.RuleErrorAction }
+        else { $RuleErrorAction = $null }
+    } elseif ($null -ne $RuleErrorAction -and "$RuleErrorAction" -ne '') {
+        $ActionCheck = ConvertTo-CIPPTransportRuleGuardedFields -RuleErrorAction $RuleErrorAction
+        if (-not $ActionCheck.Ok) {
+            return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $ActionCheck.Message } }
+        }
+        if ($ActionCheck.HasRuleErrorAction) { $RuleErrorAction = $ActionCheck.RuleErrorAction }
+    }
 
     # Extract condition fields
     $From = $Request.Body.From
@@ -340,6 +387,7 @@ function Invoke-AddEditTransportRule {
             }
         }
         if ($null -ne $StopRuleProcessing) { $ruleParams.Add('StopRuleProcessing', $StopRuleProcessing) }
+        if ($null -ne $RuleErrorAction -and "$RuleErrorAction" -ne '') { $ruleParams.Add('RuleErrorAction', $RuleErrorAction) }
         if ($null -ne $SenderAddressLocation) {
             $locationValue = if ($SenderAddressLocation.value) { $SenderAddressLocation.value } else { $SenderAddressLocation }
             $ruleParams.Add('SenderAddressLocation', $locationValue)
@@ -643,6 +691,129 @@ function Invoke-AddEditTransportRule {
             $ruleParams.Add('ExceptIfSenderIpRanges', $ExceptIfSenderIpRanges)
         }
 
+        if ($GuardedMode) {
+            $Before = $null
+            $BeforeList = $null
+            $IsCreate = -not $Identity
+            if ($IsCreate) {
+                $AllRules = @(New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -cmdParams @{} -useSystemMailbox $true)
+                $BeforeList = @($AllRules | ForEach-Object { Get-CIPPTransportRuleProjection $_ } | Sort-Object Priority, Name)
+                $Before = @{ Rules = $BeforeList }
+                $Collision = $AllRules | Where-Object { [string]$_.Name -eq [string]$Name }
+                if ($Collision) {
+                    $Reason = "A transport rule named '$Name' already exists."
+                    $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $Gate.WhatIf -Result $Reason
+                    return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId; Before = $Before } }
+                }
+                $Rollback = @{
+                    Steps = @(
+                        @{ Cmdlet = 'Disable-TransportRule'; Parameters = @{ Identity = $Name } },
+                        @{ Cmdlet = 'Remove-TransportRule'; Parameters = @{ Identity = $Name } }
+                    )
+                }
+                $WhatIfPlan = @([pscustomobject]@{ Cmdlet = 'New-TransportRule'; Parameters = $ruleParams })
+            } else {
+                try {
+                    $BeforeRaw = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -cmdParams @{ Identity = $Identity } -useSystemMailbox $true
+                    $Before = Get-CIPPTransportRuleProjection $BeforeRaw
+                } catch {
+                    $Before = $null
+                }
+                if ($null -eq $Before) {
+                    $Reason = 'Transport rule not found.'
+                    $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $Gate.WhatIf -Result $Reason
+                    return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::BadRequest; Body = @{ Results = $Reason; Status = 'Failed'; AuditId = $AuditId } }
+                }
+                $RollbackParams = @{}
+                foreach ($Field in @('Mode', 'Priority', 'RuleErrorAction', 'StopRuleProcessing', 'Comments', 'BlindCopyTo', 'ExceptIfSentTo', 'ExceptIfFrom')) {
+                    if ($null -ne $Before.$Field) { $RollbackParams[$Field] = $Before.$Field }
+                }
+                $RollbackParams['Identity'] = $Identity
+                $Rollback = @{
+                    Cmdlet     = 'Set-TransportRule'
+                    Parameters = $RollbackParams
+                    StateCmdlet = if ($Before.State -match '^(?i)enabled$') { 'Enable-TransportRule' } else { 'Disable-TransportRule' }
+                }
+                # Pin legacy edit quirk: truthy Enabled sends only Enable/Disable and drops Set-TransportRule fields.
+                if ($Enabled) {
+                    $WhatIfPlan = @([pscustomobject]@{ Cmdlet = $CmdletState; Parameters = @{ Identity = $Identity } })
+                } else {
+                    $WhatIfPlan = @(
+                        [pscustomobject]@{ Cmdlet = 'Set-TransportRule'; Parameters = $ruleParams },
+                        [pscustomobject]@{ Cmdlet = $CmdletState; Parameters = @{ Identity = $Identity } }
+                    )
+                }
+            }
+
+            if ($Gate.WhatIf) {
+                $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -DryRun $true -Result 'DryRun'
+                return [HttpResponseContext]@{
+                    StatusCode = [HttpStatusCode]::OK
+                    Body       = @{ Results = 'Would configure transport rule'; Status = 'DryRun'; AuditId = $AuditId; Before = $Before; After = $null; WhatIfPlan = $WhatIfPlan; Rollback = $Rollback; ticketNumber = $Gate.Ticket; dryRun = $true }
+                }
+            }
+
+            if ($IsCreate) {
+                $null = New-ExoRequest -tenantid $TenantFilter -cmdlet 'New-TransportRule' -cmdParams $ruleParams -useSystemMailbox $true
+                $AfterRaw = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -cmdParams @{ Identity = $Name } -useSystemMailbox $true
+                $After = Get-CIPPTransportRuleProjection $AfterRaw
+                $Mismatch = $null
+                if ($null -ne $Mode) {
+                    $modeValue = if ($Mode.value) { $Mode.value } else { $Mode }
+                    if ([string]$After.Mode -ne [string]$modeValue) { $Mismatch = "Mode mismatch: expected $modeValue, got $($After.Mode)" }
+                }
+                if ($null -eq $Mismatch -and $null -ne $Priority -and [int]$After.Priority -ne [int]$Priority) {
+                    $Mismatch = "Priority mismatch: expected $Priority, got $($After.Priority)"
+                }
+                if ($null -eq $Mismatch -and $null -ne $RuleErrorAction -and [string]$After.RuleErrorAction -ne [string]$RuleErrorAction) {
+                    $Mismatch = "RuleErrorAction mismatch: expected $RuleErrorAction, got $($After.RuleErrorAction)"
+                }
+                if ($null -eq $Mismatch -and $null -ne $StopRuleProcessing -and [bool]$After.StopRuleProcessing -ne [bool]$StopRuleProcessing) {
+                    $Mismatch = "StopRuleProcessing mismatch: expected $StopRuleProcessing, got $($After.StopRuleProcessing)"
+                }
+                if ($Mismatch) {
+                    $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result $Mismatch
+                    return [HttpResponseContext]@{ StatusCode = [HttpStatusCode]::OK; Body = @{ Results = $Mismatch; Status = 'Failed'; AuditId = $AuditId; Before = $Before; After = $After; Rollback = $Rollback } }
+                }
+                $Results = "Successfully created transport rule '$Name'"
+                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Info'
+                $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result 'Success'
+                return [HttpResponseContext]@{
+                    StatusCode = [HttpStatusCode]::OK
+                    Body       = @{ Results = $Results; Status = 'Success'; AuditId = $AuditId; Before = $Before; After = $After; Rollback = $Rollback; ticketNumber = $Gate.Ticket; dryRun = $false }
+                }
+            }
+
+            $ExoRequestParam = @{
+                tenantid         = $TenantFilter
+                cmdlet           = 'Set-TransportRule'
+                cmdParams        = $ruleParams
+                useSystemMailbox = $true
+            }
+            $ExoRequestState = @{
+                tenantid         = $TenantFilter
+                cmdlet           = $CmdletState
+                cmdParams        = @{ Identity = $Identity }
+                useSystemMailbox = $true
+            }
+            if ($Enabled) {
+                $null = New-ExoRequest @ExoRequestState
+                $Results = "Successfully $($Enabled) transport rule $($Name)"
+            } else {
+                $null = New-ExoRequest @ExoRequestParam
+                $null = New-ExoRequest @ExoRequestState
+                $Results = "Successfully configured transport rule '$Name'"
+            }
+            $AfterRaw = New-ExoRequest -tenantid $TenantFilter -cmdlet 'Get-TransportRule' -cmdParams @{ Identity = $Identity } -useSystemMailbox $true
+            $After = Get-CIPPTransportRuleProjection $AfterRaw
+            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Info'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result 'Success'
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::OK
+                Body       = @{ Results = $Results; Status = 'Success'; AuditId = $AuditId; Before = $Before; After = $After; Rollback = $Rollback; ticketNumber = $Gate.Ticket; dryRun = $false }
+            }
+        }
+
         if (!$Identity) {
             $ExoRequestParam = @{
                 tenantid         = $TenantFilter
@@ -682,6 +853,10 @@ function Invoke-AddEditTransportRule {
         $Results = "Failed to configure transport rule '$Name'. Error: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Results -Sev 'Error'
         $StatusCode = [HttpStatusCode]::InternalServerError
+        if ($GuardedMode -and $null -ne $Gate) {
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $false -Result $Results
+            return [HttpResponseContext]@{ StatusCode = $StatusCode; Body = @{ Results = $Results; Status = 'Failed'; AuditId = $AuditId } }
+        }
     }
 
     return ([HttpResponseContext]@{
