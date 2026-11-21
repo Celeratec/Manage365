@@ -1,5 +1,7 @@
 # Guarded tenant writes
 
+Azure Resource Manager reads and per-tenant ARM config use a separate **Azure ARM** feature flag — see [Azure Resource Manager (ARM)](azure-arm.md). `ExecAzArmConfig` uses the same ticket/`dryRun` envelope as the writes below but does not call ARM.
+
 These endpoints are off until an administrator enables the **Guarded tenant writes** feature flag. A read-only API client receives 403 from the role check. The MCP catalog only publishes roles ending in `.Read`, so these write operations are not offered as MCP tools.
 
 Every guarded write takes `tenantFilter`, `ticketNumber` (6 to 8 digits), `dryRun`, and `reason`. `TicketNumber` and `WhatIf` are accepted as the same fields. `dryRun: true` validates and returns `Before` without calling Graph or Exchange. The response includes `Results`, `Status` (`Success`, `DryRun`, or `Failed`), and `AuditId`. An unknown cmdlet, parameter, or Graph path returns 403 and is audited.
