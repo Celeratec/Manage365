@@ -2388,7 +2388,7 @@
         "tags": [
           "Email-Exchange > Transport"
         ],
-        "description": "This function creates a new transport rule or edits an existing one (mail flow rule).",
+        "description": "Creates or edits a transport rule. Without ticketNumber/dryRun/reason the legacy UI\nbehavior is unchanged. When any of those fields is present the guarded envelope applies\n(ticket required, dryRun defaults true, GuardedTenantWrites must be on). Optional\nRuleErrorAction (Ignore|Defer) is honored in both modes when supplied.",
         "requestBody": {
           "required": true,
           "content": {
@@ -3114,7 +3114,7 @@
                     "type": "string"
                   },
                   "Priority": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/LabelValue"
                   },
                   "Quarantine": {
                     "type": "string"
@@ -3178,6 +3178,9 @@
                   },
                   "RouteMessageOutboundConnector": {
                     "type": "string"
+                  },
+                  "RuleErrorAction": {
+                    "$ref": "#/components/schemas/LabelValue"
                   },
                   "ruleId": {
                     "type": "string",
@@ -3268,7 +3271,7 @@
                     "type": "string"
                   },
                   "StopRuleProcessing": {
-                    "type": "string"
+                    "$ref": "#/components/schemas/LabelValue"
                   },
                   "SubjectContainsWords": {
                     "type": "array",
@@ -3304,7 +3307,10 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
@@ -3340,6 +3346,7 @@
         ],
         "x-cipp-role": "Exchange.TransportRule.ReadWrite",
         "x-cipp-reads-via": [
+          "ConvertTo-CIPPTransportRuleGuardedFields",
           "ConvertTo-FieldArray"
         ]
       }
@@ -12565,6 +12572,7 @@
         "tags": [
           "Email-Exchange > Transport"
         ],
+        "description": "Enables or disables a transport rule by guid. Without ticketNumber/dryRun/reason the\nlegacy behavior is unchanged. When any of those fields is present the guarded envelope\napplies (ticket required, dryRun defaults true, GuardedTenantWrites must be on).",
         "requestBody": {
           "required": true,
           "content": {
@@ -12584,7 +12592,10 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
@@ -12620,6 +12631,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -85648,6 +85662,7 @@
         "tags": [
           "Email-Exchange > Transport"
         ],
+        "description": "Deletes a transport rule by guid. Without ticketNumber/dryRun/reason the legacy behavior\nis unchanged. When any of those fields is present the guarded envelope applies and\nconfirmRuleName must equal the rule's current Name.",
         "requestBody": {
           "required": true,
           "content": {
@@ -85655,6 +85670,9 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "confirmRuleName": {
+                    "type": "string"
+                  },
                   "guid": {
                     "type": "string"
                   },
@@ -85664,12 +85682,23 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
         },
         "parameters": [
+          {
+            "name": "confirmRuleName",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
           {
             "name": "guid",
             "in": "query",
@@ -85692,6 +85721,9 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
