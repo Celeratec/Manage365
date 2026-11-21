@@ -19,14 +19,8 @@ function Update-CIPPDynamicTenantGroups {
         $MembersTable = Get-CippTable -tablename 'TenantGroupMembers'
         $LicenseCacheTable = Get-CippTable -tablename 'cachetenantskus'
 
-        $Skus = Get-CIPPAzDataTableEntity @LicenseCacheTable -Filter "PartitionKey eq 'sku' and Timestamp ge datetime'$( (Get-Date).ToUniversalTime().AddHours(-8).ToString('yyyy-MM-ddTHH:mm:ssZ') )'"
-
-        $SkuHashtable = @{}
-        foreach ($Sku in $Skus) {
-            if ($Sku.JSON -and (Test-Json -Json $Sku.JSON -ErrorAction SilentlyContinue)) {
-                $SkuHashtable[$Sku.RowKey] = $Sku.JSON | ConvertFrom-Json
-            }
-        }
+        # Loaded on first group that needs licence rules so groups without them skip the table read.
+        $SkuHashtable = $null
 
         if ($GroupId) {
             $DynamicGroups = Get-CIPPAzDataTableEntity @GroupTable -Filter "PartitionKey eq 'TenantGroup' and RowKey eq '$GroupId'"
@@ -73,6 +67,16 @@ function Update-CIPPDynamicTenantGroups {
                 $RequiresServicePlans = $Rules.property -contains 'availableServicePlan'
                 $RequiresGdapAge = $Rules.property -contains 'gdapRelationshipAge'
                 Write-Information "Processing $($Rules.Count) rules for group '$($Group.Name)'"
+
+                if ($RequiresLicense -and $null -eq $SkuHashtable) {
+                    $SkuHashtable = @{}
+                    $Skus = Get-CIPPAzDataTableEntity @LicenseCacheTable -Filter "PartitionKey eq 'sku' and Timestamp ge datetime'$( (Get-Date).ToUniversalTime().AddHours(-8).ToString('yyyy-MM-ddTHH:mm:ssZ') )'"
+                    foreach ($Sku in $Skus) {
+                        # A tenant without licences is cached as an empty row
+                        if (-not $Sku.JSON) { $SkuHashtable[$Sku.RowKey] = @(); continue }
+                        try { $SkuHashtable[$Sku.RowKey] = $Sku.JSON | ConvertFrom-Json } catch { Write-Information "Skipping unreadable licence cache row $($Sku.RowKey)" }
+                    }
+                }
 
                 if ($RequiresGdapAge) {
                     if (-not $GdapFetchAttempted) {
@@ -127,6 +131,7 @@ function Update-CIPPDynamicTenantGroups {
                                     JSON         = [string]($LicenseInfo | ConvertTo-Json -Depth 5 -Compress)
                                 }
                                 Add-CIPPAzDataTableEntity @LicenseCacheTable -Entity $CacheEntity -Force
+                                $SkuHashtable[$Tenant.customerId] = $LicenseInfo
                             } catch {
                                 $FetchFailed = $true
                                 Write-LogMessage -API 'TenantGroups' -message 'Error getting licenses' -Tenant $Tenant.defaultDomainName -sev Warning -LogData (Get-CippException -Exception $_)

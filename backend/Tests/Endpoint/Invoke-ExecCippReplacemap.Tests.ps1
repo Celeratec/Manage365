@@ -37,8 +37,11 @@ BeforeAll {
     function Remove-CIPPAzDataTableEntity { param($Entity, [switch]$Force) $script:RemovedEntity = $Entity }
     function Get-Tenants { param($TenantFilter, [switch]$IncludeErrors) }
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+    $script:CallerPermissions = @('Tenant.Config.ReadWrite', 'Tenant.GlobalVariables.ReadWrite')
+    function Get-CippRequestAllowedPermissions { , @($script:CallerPermissions) }
 
     . $FunctionPath
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Authentication/Select-CippAllowedTenantData.ps1')
 
     function New-SaveRequest {
         param(
