@@ -25,7 +25,7 @@ Base: Manage365 `main` `b88ca6637` (6.1.36) / CIPP sync base `8971c3fc6` (v11.2.
 | `15962a13c` | **Adapt** | Reports unknown-not-negative; kept Manage365 MFACard colors + Unknown node |
 | `a7a5954ae` | **Apply** | Edit user last license → remove all |
 | `65fd4ab93` | **Apply** | Graph bulk single-row FE |
-| `d740467d8` | **Adapt** | Direct-tenant auth UTC + include excluded/direct tenants in CIPP backup |
+| `d740467d8` | **Adapt** | Direct-tenant auth UTC + include excluded/direct tenants in CIPP backup; also added `allowedUsers` (drop `_` bookkeeping keys) so instance user rows restore |
 | `0e8a6e145` | **Defer** | Hide default Exchange delegating roles — AppPermissions / app-mailbox-access pages not in fork yet (Exchange feature pack) |
 
 ## Not applied this PR (queued)
