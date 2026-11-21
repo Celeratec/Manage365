@@ -15625,7 +15625,7 @@
         "tags": [
           "Tenant > Applications"
         ],
-        "description": "Creates a single-tenant application, its service principal, and one credential. A secret is stored in Key Vault and is never returned or logged. SecretDelivery names GetAppRegistrationSecret, which returns that secret once within 24 hours. Certificate is the preferred credential and uses CertificatePublicKeyBase64. Requires tenantFilter, ticketNumber (6 to 8 digits), and dryRun.",
+        "description": "Creates a single-tenant application, its service principal, and one credential.\nCertificate (CertificatePublicKeyBase64, public key only) is preferred; secrets are\nstored in Key Vault and never returned. Optional Notes, Description, and Owners.\ndryRun/preview defaults to true for this endpoint. Requires tenantFilter, ticketNumber\n(6 to 8 digits), and reason.",
         "requestBody": {
           "required": false,
           "content": {
@@ -15647,10 +15647,19 @@
                       }
                     }
                   },
+                  "Description": {
+                    "type": "string"
+                  },
                   "DisplayName": {
                     "type": "string"
                   },
                   "GrantAdminConsent": {
+                    "type": "string"
+                  },
+                  "Notes": {
+                    "type": "string"
+                  },
+                  "Owners": {
                     "type": "string"
                   },
                   "RequiredResourceAccess": {
@@ -15686,6 +15695,9 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "409": {
+            "description": "Conflict - the resource already exists or is in a conflicting state"
           }
         },
         "security": [
