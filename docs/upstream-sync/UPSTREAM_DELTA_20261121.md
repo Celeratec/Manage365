@@ -39,8 +39,8 @@ Releases in range: [v11.3.0](https://github.com/CyberDrain/CIPP/releases/tag/v11
 | `15962a13c` Reports unknown not negative | **Apply** | Sign-in / MFA missing data |
 | `a7a5954ae` Edit user last license → remove all | **Apply** | CippAddEditUser |
 | `65fd4ab93` Graph bulk single-row FE | **Apply** | getListGraphBulkRequestRows |
-| `d740467d8` Backup direct-tenant auth UTC | **Apply** | New-CIPPBackup / ExecAddTenant |
-| `0e8a6e145` Hide default Exchange delegating roles | **Apply** | Exo app role assignment |
+| `d740467d8` Backup direct-tenant auth UTC | **Adapt** | Include excluded/direct tenants + UTC auth date |
+| `0e8a6e145` Hide default Exchange delegating roles | **Defer** | Feature files not in fork; Exchange utils pack |
 
 ## CONSIDER — defer to feature mini-PRs
 
