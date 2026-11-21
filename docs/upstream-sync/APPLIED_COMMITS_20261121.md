@@ -10,13 +10,13 @@ Base: Manage365 `main` `b88ca6637` (6.1.36) / CIPP sync base `8971c3fc6` (v11.2.
 | `a0103d230` | **Apply** | Webhook SSRF guard |
 | `5525e964e` | **Apply** | SPO REST tenant-host restrict |
 | `9c0a5640e` | **Apply** | Assert-CIPPSharePointHost |
-| `8134fcddb` | **Apply** | Scripted alerts silent-failure fix (restored deleted test) |
+| `8134fcddb` | **Adapt** | Scripted alerts silent-failure fix; also took NewRiskyUsers quiet `Test-CIPPStandardLicense` gate (`8d866fb56` slice) + `Get-CIPPLicenseSkuName` for LicenseAssignmentErrors (tests + SKU helper already on fork) |
 | `b3e79565f` | **Apply** | Alert snooze file naming |
 | `9652a6935` | **Apply** | Notification day-rollover |
 | `221460991` | **Apply** | Day-rollover tidy |
 | `0eb1acc3f` | **Apply** | CA policies failed read → error |
 | `1e40f25cd` | **Apply** | CA phishing-resistant + guest MFA analysis |
-| `a2f4231ca` | **Adapt** | Guest/external CA coverage; took upstream Get-CIPPMFAState rewrite; Hudu/Ninja guest membership helpers included |
+| `a2f4231ca` | **Adapt** | Guest/external CA coverage; took upstream Get-CIPPMFAState rewrite; Hudu/Ninja helpers; dropped `ZTNAIdentityUpstreamSync.Tests.ps1` (needs deferred ZTA 3.1.0 pack `ec5de65d8`) |
 | `5e935359d` | **Apply** | Standards false-compliant |
 | `8ec39af08` | **Adapt** | MDE attach toggle (standards + small baselineStandards lines) |
 | `dc38b8686` | **Apply** | Dynamic tenant group evaluation |

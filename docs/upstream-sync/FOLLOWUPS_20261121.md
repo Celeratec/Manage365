@@ -13,6 +13,7 @@ Each item should become its own `clint/upstream-*` branch and **draft** PR into 
 | Auth hardening | `clint/upstream-auth-blockalltenants` | `BlockAllTenants`, restricted multi-tenant SSO, grant CIPP roles from Entra app roles | |
 | Tenant group selector | `clint/upstream-tenant-group-selector` | Tenant Groups in Tenant Selector flag | Design vs existing tenant groups; flag default off |
 | Container trust | `clint/upstream-container-attestation` | Sigstore attestation, digest pinning, trust labels | Ops review |
+| ZTA 3.1.0 identity tests | `clint/upstream-zta-identity` | `ec5de65d8` ZTNA identity sync + matching Invoke-CippTestZTNA* updates; restore `ZTNAIdentityUpstreamSync.Tests.ps1` | Dropped from Batch 1 guest-coverage Adapt |
 
 ## Explicitly skipped (do not queue unless product asks)
 
