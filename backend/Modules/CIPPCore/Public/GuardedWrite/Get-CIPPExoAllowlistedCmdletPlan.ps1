@@ -252,6 +252,91 @@ function Get-CIPPExoAllowlistedCmdletPlan {
         }
         $Incoming.Confirm = $false
     }
+    if ($Cmdlet -eq 'Set-TransportRule') {
+        if (-not $Incoming.ContainsKey('Identity')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Set-TransportRule requires Identity.' }
+        }
+        if (-not $Incoming.ContainsKey('Mode') -and -not $Incoming.ContainsKey('Priority')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Set-TransportRule requires Mode and/or Priority.' }
+        }
+        $Id = $Incoming.Identity
+        if ($Id -is [array] -or $Id -is [hashtable] -or $null -eq $Id -or ($Id -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a scalar string.' }
+        }
+        $IdRaw = [string]$Id
+        if ($IdRaw -match '[\x00-\x1F\x7F]') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain control characters.' }
+        }
+        $IdStr = $IdRaw.Trim()
+        if ($IdRaw -ne $IdStr) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not have leading or trailing whitespace.' }
+        }
+        if ($IdStr.Length -eq 0 -or $IdStr.Length -gt 256) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be 1 to 256 characters.' }
+        }
+        if ($IdStr -match '\*') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain wildcards.' }
+        }
+        if ($IdStr -match '%.*%') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain variable tokens.' }
+        }
+        $Incoming.Identity = $IdStr
+        if ($Incoming.ContainsKey('Mode')) {
+            $Mode = $Incoming.Mode
+            if ($Mode -is [array] -or $Mode -is [hashtable] -or ($Mode -is [PSCustomObject])) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Mode must be a scalar string.' }
+            }
+            $ModeMap = @{
+                'audit'           = 'Audit'
+                'auditandnotify'  = 'AuditAndNotify'
+                'enforce'         = 'Enforce'
+            }
+            $ModeKey = ([string]$Mode).ToLowerInvariant()
+            if (-not $ModeMap.ContainsKey($ModeKey)) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Mode must be Audit, AuditAndNotify, or Enforce.' }
+            }
+            $Incoming.Mode = $ModeMap[$ModeKey]
+        }
+        if ($Incoming.ContainsKey('Priority')) {
+            $Pri = $Incoming.Priority
+            if ($Pri -is [array] -or $Pri -is [hashtable] -or ($Pri -is [PSCustomObject])) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Priority must be a scalar integer.' }
+            }
+            $PriStr = [string]$Pri
+            if ($PriStr -notmatch '\A[0-9]+\z') {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Priority must be an integer 0 or greater.' }
+            }
+            $PriInt = [int]$PriStr
+            if ($PriInt -lt 0) {
+                return [pscustomobject]@{ Allowed = $false; Reason = 'Priority must be an integer 0 or greater.' }
+            }
+            $Incoming.Priority = $PriInt
+        }
+    }
+    if ($Cmdlet -in @('Enable-TransportRule', 'Disable-TransportRule')) {
+        if (-not $Incoming.ContainsKey('Identity')) {
+            return [pscustomobject]@{ Allowed = $false; Reason = "$Cmdlet requires Identity." }
+        }
+        $Id = $Incoming.Identity
+        if ($Id -is [array] -or $Id -is [hashtable] -or $null -eq $Id -or ($Id -is [PSCustomObject])) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be a scalar string.' }
+        }
+        $IdRaw = [string]$Id
+        if ($IdRaw -match '[\x00-\x1F\x7F]') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain control characters.' }
+        }
+        $IdStr = $IdRaw.Trim()
+        if ($IdRaw -ne $IdStr) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not have leading or trailing whitespace.' }
+        }
+        if ($IdStr.Length -eq 0 -or $IdStr.Length -gt 256) {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must be 1 to 256 characters.' }
+        }
+        if ($IdStr -match '\*' -or $IdStr -match '%.*%') {
+            return [pscustomobject]@{ Allowed = $false; Reason = 'Identity must not contain wildcards or variable tokens.' }
+        }
+        $Incoming.Identity = $IdStr
+    }
 
     return [pscustomobject]@{
         Allowed    = $true
