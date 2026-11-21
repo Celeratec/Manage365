@@ -31,6 +31,13 @@ Describe 'Guarded write envelope' {
         $Result.Caller | Should -Be 'tech@msp.com'
     }
 
+    It 'keeps omitted dryRun as execute unless DefaultDryRun is set' {
+        $Legacy = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; ticketNumber = '3275215'; reason = 'legacy' }; Headers = @{} } -IsWrite
+        $Legacy.DryRun | Should -BeFalse
+        $NewDefault = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; ticketNumber = '3275215'; reason = 'new' }; Headers = @{} } -IsWrite -DefaultDryRun
+        $NewDefault.DryRun | Should -BeTrue
+    }
+
     It 'accepts ticketNumber and dryRun, and rejects a missing ticket' {
         $Missing = Test-CIPPGuardedWriteRequest -Request @{ Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; dryRun = $true }; Headers = @{} } -IsWrite
         $Missing.Ok | Should -BeFalse
@@ -399,6 +406,19 @@ Describe 'ExecExoAllowlistedCmdlet allowlist' {
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-Mailbox' -Parameters @{ Identity = 'user@contoso.com'; CustomAttribute1 = 'value' }).Allowed | Should -BeTrue
         (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-Mailbox' -Parameters @{ Identity = 'user@contoso.com'; CustomAttribute15 = 'value' }).Allowed | Should -BeTrue
     }
+
+    It 'accepts Set-TransportRule Mode/Priority and rejects extras' {
+        $Ok = Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule1'; Mode = 'audit' }
+        $Ok.Allowed | Should -BeTrue
+        $Ok.Parameters.Mode | Should -Be 'Audit'
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule1'; Priority = 2 }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule1' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule1'; Mode = 'Enforce'; Enabled = $true }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule*'; Mode = 'Enforce' }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Set-TransportRule' -Parameters @{ Identity = 'Rule1'; Priority = -1 }).Allowed | Should -BeFalse
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Enable-TransportRule' -Parameters @{ Identity = 'Rule1' }).Allowed | Should -BeTrue
+        (Get-CIPPExoAllowlistedCmdletPlan -Cmdlet 'Disable-TransportRule' -Parameters @{ Identity = 'Rule1' }).Allowed | Should -BeTrue
+    }
 }
 
 Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
@@ -412,8 +432,14 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         function Add-CIPPGuardedWriteAudit { param($Endpoint, $Tenant, $Ticket, $Caller, $Request, $Before, $After, [bool]$DryRun, [string]$Result) 'audit-1' }
         function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev) }
         function Get-CippException { param($Exception) [pscustomobject]@{ NormalizedError = 'exchange failed' } }
+        function Get-CippRequestAllowedPermissions { return @($script:AllowedPermissions) }
         $script:ForceNoArchive = $false
         $script:ForceMailboxReadError = $false
+        $script:AllowedPermissions = @('Exchange.Security.ReadWrite', 'Exchange.TransportRule.ReadWrite')
+        $script:TransportRules = @(
+            [pscustomobject]@{ Name = 'RuleA'; Guid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; Identity = 'RuleA'; Priority = 0; State = 'Enabled'; Mode = 'Audit'; RuleErrorAction = 'Ignore' }
+            [pscustomobject]@{ Name = 'RuleB'; Guid = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; Identity = 'RuleB'; Priority = 1; State = 'Enabled'; Mode = 'Enforce'; RuleErrorAction = 'Ignore' }
+        )
         function New-ExoRequest {
             param($tenantid, $cmdlet, $cmdParams, [switch]$useSystemMailbox)
             $script:ExoCalls.Add([pscustomobject]@{ Cmdlet = $cmdlet; Params = $cmdParams })
@@ -428,6 +454,28 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
             }
             if ($cmdlet -eq 'Disable-Mailbox') { return [pscustomobject]@{ Identity = 'user@contoso.com'; ArchiveStatus = 'None' } }
             if ($cmdlet -eq 'Test-ApplicationAccessPolicy') { return [pscustomobject]@{ AccessGranted = $true } }
+            if ($cmdlet -eq 'Get-TransportRule') {
+                if ($cmdParams -and $cmdParams.Identity) {
+                    $Hit = $script:TransportRules | Where-Object { $_.Name -eq $cmdParams.Identity -or $_.Guid -eq $cmdParams.Identity } | Select-Object -First 1
+                    if (-not $Hit) { throw 'rule not found' }
+                    return $Hit
+                }
+                return @($script:TransportRules)
+            }
+            if ($cmdlet -eq 'Set-TransportRule') {
+                $Hit = $script:TransportRules | Where-Object { $_.Name -eq $cmdParams.Identity -or $_.Guid -eq $cmdParams.Identity } | Select-Object -First 1
+                if ($cmdParams.ContainsKey('Mode')) { $Hit.Mode = $cmdParams.Mode }
+                if ($cmdParams.ContainsKey('Priority')) {
+                    $Hit.Priority = [int]$cmdParams.Priority
+                    # simple reorder mock: swap priorities with the other rule when colliding
+                    foreach ($Other in $script:TransportRules) {
+                        if ($Other.Guid -ne $Hit.Guid -and [int]$Other.Priority -eq [int]$Hit.Priority) {
+                            $Other.Priority = [int]$Other.Priority + 1
+                        }
+                    }
+                }
+                return $Hit
+            }
         }
         . (Join-Path $RepoRoot 'Modules/CIPPHTTP/Public/Entrypoints/HTTP Functions/Email-Exchange/Administration/Invoke-ExecExoAllowlistedCmdlet.ps1')
     }
@@ -435,6 +483,11 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
     BeforeEach {
         $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
         $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+        $script:AllowedPermissions = @('Exchange.Security.ReadWrite', 'Exchange.TransportRule.ReadWrite')
+        $script:TransportRules = @(
+            [pscustomobject]@{ Name = 'RuleA'; Guid = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; Identity = 'RuleA'; Priority = 0; State = 'Enabled'; Mode = 'Audit'; RuleErrorAction = 'Ignore' }
+            [pscustomobject]@{ Name = 'RuleB'; Guid = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'; Identity = 'RuleB'; Priority = 1; State = 'Enabled'; Mode = 'Enforce'; RuleErrorAction = 'Ignore' }
+        )
     }
 
     It 'calls only Get-AcceptedDomain on dryRun and never Set-AcceptedDomain' {
@@ -695,6 +748,126 @@ Describe 'ExecExoAllowlistedCmdlet endpoint dryRun behavior' {
         } -TriggerMetadata $null
         $Response.StatusCode | Should -Be 400
         $Response.Body.Results | Should -Match 'no active archive'
+    }
+
+    It 'defaults dryRun true for Set-TransportRule and issues zero writes' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                reason       = 'preview transport'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleA'; Mode = 'Enforce' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.Status | Should -Be 'DryRun'
+        $Response.Body.Rollback.Cmdlet | Should -Be 'Set-TransportRule'
+        @($script:ExoCalls | Where-Object { $_.Cmdlet -eq 'Set-TransportRule' }).Count | Should -Be 0
+        @($script:ExoCalls | ForEach-Object { $_.Cmdlet }) | Should -Contain 'Get-TransportRule'
+    }
+
+    It 'refuses transport cmdlets without Exchange.TransportRule.ReadWrite' {
+        $script:AllowedPermissions = @('Exchange.Security.ReadWrite')
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $true
+                reason       = 'role check'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleA'; Mode = 'Enforce' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 403
+        @($script:ExoCalls).Count | Should -Be 0
+    }
+
+    It 'sets Mode and returns rollback; no-op is not executed' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $false
+                reason       = 'enforce'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleA'; Mode = 'Enforce' }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        $Response.Body.After.Mode | Should -Be 'Enforce'
+        $Response.Body.Rollback.Parameters.Mode | Should -Be 'Audit'
+        @($script:ExoCalls | Where-Object { $_.Cmdlet -eq 'Set-TransportRule' }).Count | Should -Be 1
+
+        $script:ExoCalls = [System.Collections.Generic.List[object]]::new()
+        $NoOp = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $false
+                reason       = 'noop'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleA'; Mode = 'Enforce' }
+            }
+        } -TriggerMetadata $null
+        $NoOp.Body.Results | Should -Match 'No change'
+        @($script:ExoCalls | Where-Object { $_.Cmdlet -eq 'Set-TransportRule' }).Count | Should -Be 0
+    }
+
+    It 'returns whole list Before/After for Priority changes' {
+        $Response = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $false
+                reason       = 'priority'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleB'; Priority = 0 }
+            }
+        } -TriggerMetadata $null
+        $Response.StatusCode | Should -Be 200
+        @($Response.Body.Before).Count | Should -Be 2
+        @($Response.Body.After).Count | Should -Be 2
+    }
+
+    It 'catches missing rule and out-of-range Priority in preview' {
+        $Missing = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $true
+                reason       = 'missing'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'NoSuchRule'; Mode = 'Enforce' }
+            }
+        } -TriggerMetadata $null
+        $Missing.StatusCode | Should -Be 400
+
+        $Range = Invoke-ExecExoAllowlistedCmdlet -Request @{
+            Params  = @{ CIPPEndpoint = 'ExecExoAllowlistedCmdlet' }
+            Headers = @{}
+            Body    = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '3281675'
+                dryRun       = $true
+                reason       = 'range'
+                Cmdlet       = 'Set-TransportRule'
+                Parameters   = @{ Identity = 'RuleA'; Priority = 99 }
+            }
+        } -TriggerMetadata $null
+        $Range.StatusCode | Should -Be 400
     }
 }
 
