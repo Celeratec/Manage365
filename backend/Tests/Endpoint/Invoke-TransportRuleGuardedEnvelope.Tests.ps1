@@ -18,6 +18,7 @@ BeforeAll {
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Test-CIPPGuardedTenantWritesEnabled.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Get-CIPPTransportRuleProjection.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/ConvertTo-CIPPTransportRuleGuardedFields.ps1')
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Test-CIPPTransportRuleApplyToAll.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/GuardedWrite/Test-CIPPGuardedWriteRequest.ps1')
 
     $Using = "using namespace System.Net`n"
@@ -260,11 +261,13 @@ Describe 'Invoke-AddEditTransportRule guarded create' {
             Headers = @{}
             Body    = [pscustomobject]@{
                 tenantFilter = 'contoso.onmicrosoft.com'
-                Name         = 'Example - Copy all mail to archive'
-                Mode         = 'Audit'
-                ticketNumber = '1234567'
-                dryRun       = $true
-                reason       = 'create'
+                Name               = 'Example - Copy all mail to archive'
+                Mode               = 'Audit'
+                BlindCopyTo        = @('archive@contoso.example')
+                applyToAllMessages = $true
+                ticketNumber       = '1234567'
+                dryRun             = $true
+                reason             = 'create'
             }
         }
         $Response = Invoke-AddEditTransportRule -Request $Request -TriggerMetadata $null
@@ -286,6 +289,7 @@ Describe 'Invoke-AddEditTransportRule guarded create' {
                 RuleErrorAction    = 'Defer'
                 StopRuleProcessing = $true
                 BlindCopyTo        = @(@{ value = 'archive@contoso.example' })
+                applyToAllMessages = $true
                 ticketNumber       = '1234567'
                 reason             = 'create preview'
             }

@@ -2534,6 +2534,9 @@
                   "ApplyOME": {
                     "type": "string"
                   },
+                  "applyToAllMessages": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
                   "AttachmentContainsWords": {
                     "type": "array",
                     "items": {
@@ -3347,7 +3350,8 @@
         "x-cipp-role": "Exchange.TransportRule.ReadWrite",
         "x-cipp-reads-via": [
           "ConvertTo-CIPPTransportRuleGuardedFields",
-          "ConvertTo-FieldArray"
+          "ConvertTo-FieldArray",
+          "Test-CIPPTransportRuleApplyToAll"
         ]
       }
     },
