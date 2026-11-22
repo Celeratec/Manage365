@@ -17,11 +17,11 @@ on:
       app_version:
         description: Upstream CIPP baseline baked in as APP_VERSION
         required: true
-        default: "11.2.1"
+        default: "11.4.0"
       image_tag:
         description: Image tag. Manage365 release, not the upstream baseline.
         required: true
-        default: v6.1.36
+        default: v6.1.37
 
 env:
   REGISTRY: ghcr.io
