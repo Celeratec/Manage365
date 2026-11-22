@@ -77,6 +77,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
   },
   {
     label: 'Remove Primary User',
+    category: 'edit',
     type: 'POST',
     icon: <CippIcons.PersonRemove />,
     url: '/api/ExecDeviceAction',

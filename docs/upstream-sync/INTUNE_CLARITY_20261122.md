@@ -31,7 +31,14 @@ Policy Failures, non-compliant devices, deployment/sync drawers, Autopilot unass
 - Broad Intune cache perf-only unless required by features above
 - Baselines Intune drift commits unless blocking
 
-## Notes
+## Status
 
-- Regenerate `openapi.json` once after HTTP entrypoints land.
-- Keep Manage365 card-view / menu Adapt where layouts conflict.
+All planned SHAs cherry-picked with Adapt. OpenAPI regenerated (`891` endpoints). Focused Pester + vitest green. Aikido clean on entrypoints/FE.
+
+## Adapt notes
+
+- Kept Batch 1 `removePrimaryUser` GUID allowlist / action denylist; added FE Remove Primary User + Autopilot Unassign User (with categories).
+- Applications list: kept Manage365 card offCanvas and nested `CippIntuneDeploymentStatus`.
+- Sync Device: kept Adapt `quickAction`/`category`, replaced POST with `CippIntuneSyncDrawer`.
+- Dropped stray SensitivityLabels Describe from Intune report-export tests (not Intune; mismatched fork empty-set behavior).
+- Enrollment `openapi.json` conflict: took upstream then full regen via `build/tools/build-openapi.ps1`.

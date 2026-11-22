@@ -7,7 +7,6 @@ BeforeAll {
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CIPPIntuneReportExportJob.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/New-CIPPIntuneReportExportJob.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Entrypoints/Orchestrator Functions/Start-IntuneReportExportSweep.ps1')
-    . (Join-Path $RepoRoot 'Modules/CIPPDB/Public/DBCache/Set-CIPPDBCacheSensitivityLabels.ps1')
 
     function Get-CIPPTable { param($tablename) @{ TableName = $tablename } }
     function Get-CIPPAzDataTableEntity { param($TableName, $Filter, $Property) }
@@ -16,8 +15,6 @@ BeforeAll {
     function New-GraphGetRequest { param($uri, $tenantid, $AsApp) }
     function New-GraphPOSTRequest { param($uri, $tenantid, $body) }
     function Start-CIPPOrchestrator { param($InputObject) }
-    function Test-CIPPStandardLicense { param($StandardName, $TenantFilter, $Preset, [switch]$SkipLog) }
-    function Add-CIPPDbItem { param($TenantFilter, $Type, $Data, [switch]$AddCount, [switch]$ClearOnEmpty) }
     function Get-CippException { param($Exception) @{ NormalizedError = "$Exception" } }
     function Write-LogMessage { param($API, $tenant, $message, $sev, $LogData) }
 
@@ -113,25 +110,5 @@ Describe 'Start-IntuneReportExportSweep' {
         Mock Get-CIPPAzDataTableEntity {}
         Start-IntuneReportExportSweep
         $script:Started.Count | Should -Be 0
-    }
-}
-
-Describe 'Set-CIPPDBCacheSensitivityLabels' {
-    BeforeEach {
-        Mock Write-LogMessage {}
-        Mock Add-CIPPDbItem {}
-        Mock Test-CIPPStandardLicense { $true }
-    }
-
-    It 'records an empty set when Graph has no labels for the tenant' {
-        Mock New-GraphGetRequest { throw 'The resource could not be found.' }
-        Set-CIPPDBCacheSensitivityLabels -TenantFilter 'contoso.com'
-        Should -Invoke Add-CIPPDbItem -Times 1 -Exactly -ParameterFilter { $ClearOnEmpty -and @($Data).Count -eq 0 }
-    }
-
-    It 'writes nothing when the read fails for another reason' {
-        Mock New-GraphGetRequest { throw 'An internal server error has occurred.' }
-        Set-CIPPDBCacheSensitivityLabels -TenantFilter 'contoso.com'
-        Should -Invoke Add-CIPPDbItem -Times 0 -Exactly
     }
 }

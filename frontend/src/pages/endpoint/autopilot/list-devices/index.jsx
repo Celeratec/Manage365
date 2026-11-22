@@ -95,6 +95,7 @@ const Page = () => {
       hideCondition: (row) => !row.userPrincipalName,
       confirmText: 'Are you sure you want to unassign [userPrincipalName] from [serialNumber]?',
       color: 'warning',
+      category: 'edit',
     },
     {
       label: 'Rename Device',
