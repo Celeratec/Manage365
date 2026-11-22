@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { ApiGetCall } from '../../api/ApiCall.jsx'
 import { usePermissions } from '../../hooks/use-permissions'
+import { useMultiTenantScope } from '../../hooks/use-multi-tenant-scope'
+import { isTenantGroup, tenantScope } from '../../utils/tenant-selection'
 
 // Some CIPP endpoints return a bare array, others wrap in { Results: [...] }. Normalise both.
 export const asArray = (payload) => {
@@ -246,9 +248,13 @@ export const deriveCacheSummary = (rows, tenants) => {
  */
 
 export const useAllTenantsDashboard = () => {
+  // Every tenant, or the selected tenant group. Calls that take no tenant today get a tenantGroup only for a group.
+  const scope = useMultiTenantScope()
+  const groupOnly = isTenantGroup(scope) ? tenantScope(scope) : {}
   const tenantsApi = ApiGetCall({
     url: '/api/ListTenants',
-    queryKey: 'AllTenantsDashboard-Tenants',
+    data: groupOnly,
+    queryKey: `AllTenantsDashboard-Tenants-${scope}`,
     waiting: true,
   })
 
@@ -256,8 +262,8 @@ export const useAllTenantsDashboard = () => {
   // this card renders four bucket counts, an average, four low scorers and two pending totals.
   const alignmentApi = ApiGetCall({
     url: '/api/ListTenantAlignment',
-    data: { summary: true },
-    queryKey: 'AllTenantsDashboard-Alignment',
+    data: { summary: true, ...groupOnly },
+    queryKey: `AllTenantsDashboard-Alignment-${scope}`,
     waiting: true,
   })
 
@@ -265,15 +271,15 @@ export const useAllTenantsDashboard = () => {
   // failed-test set over the wire, growing linearly with tenant count.
   const failedTestsApi = ApiGetCall({
     url: '/api/ListTestResultsTenants',
-    data: { status: 'Failed', countsOnly: 'true' },
-    queryKey: 'AllTenantsDashboard-FailedTests',
+    data: { status: 'Failed', countsOnly: 'true', ...groupOnly },
+    queryKey: `AllTenantsDashboard-FailedTests-${scope}`,
     waiting: true,
   })
 
   const domainsApi = ApiGetCall({
     url: '/api/ListDomainAnalyser',
-    data: { tenantFilter: 'AllTenants' },
-    queryKey: 'AllTenantsDashboard-Domains',
+    data: { ...tenantScope(scope) },
+    queryKey: `AllTenantsDashboard-Domains-${scope}`,
     waiting: true,
   })
 
@@ -281,8 +287,8 @@ export const useAllTenantsDashboard = () => {
   // regardless of how many tenants exist.
   const countsApi = ApiGetCall({
     url: '/api/ListDBCache',
-    data: { tenantFilter: 'AllTenants', countsOnly: 'true' },
-    queryKey: 'AllTenantsDashboard-Counts',
+    data: { ...tenantScope(scope), countsOnly: 'true' },
+    queryKey: `AllTenantsDashboard-Counts-${scope}`,
     waiting: true,
   })
 
@@ -294,8 +300,8 @@ export const useAllTenantsDashboard = () => {
   // ListLogs defaults to today's partition when no date is supplied, which keeps this cheap.
   const logsApi = ApiGetCall({
     url: '/api/ListLogs',
-    data: { Filter: 'True', Severity: 'Error,Critical' },
-    queryKey: 'AllTenantsDashboard-Logs',
+    data: { Filter: 'True', Severity: 'Error,Critical', ...groupOnly },
+    queryKey: `AllTenantsDashboard-Logs-${scope}`,
     waiting: canReadLogs,
   })
 
@@ -304,8 +310,8 @@ export const useAllTenantsDashboard = () => {
   // find the latest anyway, so the only cost is three more numbers per day per tenant.
   const secureScoreApi = ApiGetCall({
     url: '/api/ListSecureScoreReport',
-    data: { tenantFilter: 'AllTenants', includeHistory: 'true' },
-    queryKey: 'AllTenantsDashboard-SecureScore',
+    data: { ...tenantScope(scope), includeHistory: 'true' },
+    queryKey: `AllTenantsDashboard-SecureScore-${scope}`,
     waiting: true,
   })
 

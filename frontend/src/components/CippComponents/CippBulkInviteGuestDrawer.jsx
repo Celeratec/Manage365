@@ -19,6 +19,7 @@ import CippAccessTypeGuide from "./CippAccessTypeGuide";
 import { useSettings } from "../../hooks/use-settings";
 import { ApiPostCall } from "../../api/ApiCall";
 import { getCippValidator } from "../../utils/get-cipp-validator";
+import { tenantScope } from "../../utils/tenant-selection";
 
 export const CippBulkInviteGuestDrawer = ({
   buttonText = "Bulk Invite Guests",
@@ -111,7 +112,7 @@ export const CippBulkInviteGuestDrawer = ({
     const tenantFilter = formData.tenantFilter;
 
     const payload = (formData.bulkGuests || []).map((row) => ({
-      tenantFilter,
+      ...tenantScope(tenantFilter),
       displayName: row?.displayName ?? "",
       mail: row?.mail ?? "",
       redirectUri: row?.redirectUri ?? "",

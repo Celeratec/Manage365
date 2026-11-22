@@ -34,16 +34,16 @@ describe('Logbook filters', () => {
     router.query = {}
   })
 
-  it('scopes the logbook to the tenant selected in the app', () => {
+  it('does not scope to the selected tenant until the tenant switch is on', () => {
     renderPage()
-    expect(tableProps.current.apiData.Tenant).toBe('contoso.com')
+    expect(tableProps.current.apiData.Tenant).toBeNull()
     expect(tableProps.current.apiData.Filter).toBe(false)
   })
 
-  it('keeps All Tenants when that is the selected tenant', () => {
+  it('keeps All Tenants from enabling the tenant-only switch', () => {
     settingsState.currentTenant = 'AllTenants'
     renderPage()
-    expect(tableProps.current.apiData.Tenant).toBe('AllTenants')
+    expect(tableProps.current.apiData.Tenant).toBeNull()
     expect(tableProps.current.apiData.tenantFilter).toBeNull()
   })
 
@@ -58,7 +58,7 @@ describe('Logbook filters', () => {
       expect(tableProps.current.apiData).toMatchObject({
         User: 'tech@msp.com',
         Filter: true,
-        Tenant: 'contoso.com',
+        Tenant: null,
       })
     )
 
@@ -68,12 +68,21 @@ describe('Logbook filters', () => {
       expect(tableProps.current.apiData).toMatchObject({
         User: null,
         Filter: false,
-        Tenant: 'contoso.com',
+        Tenant: null,
       })
     )
   }, 30000)
 
-  it('applies the last 7 days preset', async () => {
+  it('scopes logs to the selected tenant when the tenant switch is on', async () => {
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByText('Filters'))
+    await user.click(screen.getByRole('switch', { name: /only show logs for contoso\.com/i }))
+    await user.click(screen.getByRole('button', { name: /apply filters/i }))
+    await waitFor(() => expect(tableProps.current.apiData.Tenant).toBe('contoso.com'))
+  }, 30000)
+
+  it('applies the last 7 days preset without forcing a tenant', async () => {
     const user = userEvent.setup()
     renderPage()
     await user.click(screen.getByText('Filters'))
@@ -82,6 +91,6 @@ describe('Logbook filters', () => {
     await waitFor(() => expect(tableProps.current.apiData.Filter).toBe(true))
     expect(tableProps.current.apiData.StartDate).toMatch(/^\d{8}$/)
     expect(tableProps.current.apiData.EndDate).toMatch(/^\d{8}$/)
-    expect(tableProps.current.apiData.Tenant).toBe('contoso.com')
+    expect(tableProps.current.apiData.Tenant).toBeNull()
   }, 30000)
 })

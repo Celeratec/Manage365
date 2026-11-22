@@ -29,6 +29,8 @@ import { useSettings } from '../../../../hooks/use-settings'
 import { ApiGetCall } from '../../../../api/ApiCall'
 import tabOptions from './tabOptions'
 
+import { tenantScope } from '../../../../utils/tenant-selection'
+
 const Page = () => {
   const { currentTenant } = useSettings()
 
@@ -38,19 +40,19 @@ const Page = () => {
 
   const overviews = ApiGetCall({
     url: '/api/ListServiceHealthOverviews?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
+    data: { ...tenantScope(currentTenant) },
     queryKey: `overviews-${currentTenant}`,
     waiting: !!currentTenant,
   })
   const issues = ApiGetCall({
     url: '/api/ListServiceHealthIssues?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
+    data: { ...tenantScope(currentTenant) },
     queryKey: `issues-${currentTenant}`,
     waiting: !!currentTenant,
   })
   const messages = ApiGetCall({
     url: '/api/ListMessageCenterMessages?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
+    data: { ...tenantScope(currentTenant) },
     queryKey: `messages-${currentTenant}`,
     waiting: !!currentTenant,
   })
@@ -629,7 +631,7 @@ const Page = () => {
 }
 
 Page.getLayout = (page) => (
-  <DashboardLayout allTenantsSupport={true}>
+  <DashboardLayout tenantGroupSupport={true} allTenantsSupport={true}>
     <TabbedLayout tabOptions={tabOptions}>{page}</TabbedLayout>
   </DashboardLayout>
 )

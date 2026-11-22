@@ -122,6 +122,6 @@ const EditIntuneTemplate = () => {
   );
 };
 
-EditIntuneTemplate.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
+EditIntuneTemplate.getLayout = (page) => <DashboardLayout usesTenant={false}>{page}</DashboardLayout>;
 
 export default EditIntuneTemplate;

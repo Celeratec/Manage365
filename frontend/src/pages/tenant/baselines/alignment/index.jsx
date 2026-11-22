@@ -56,6 +56,7 @@ import { parseCippDate } from '../../../../utils/parse-cipp-date'
 import { CippOffCanvas } from '../../../../components/CippComponents/CippOffCanvas'
 import { CippAutoComplete } from '../../../../components/CippComponents/CippAutocomplete'
 import CippJsonView from '../../../../components/CippFormPages/CippJSONView'
+import { isMultiTenant } from '../../../../utils/tenant-selection'
 
 // Manual-task instance keys are 'ManualTask#n', so match by prefix. standardName can be
 // absent on malformed or partially hydrated rows - the check must never throw.
@@ -537,6 +538,7 @@ const Page = () => {
     setHistoryLimit(50)
   }
   const isTenantView = viewMode === 'tenant'
+  const isAllTenants = isMultiTenant(currentTenant)
   const isTemplateView = viewMode === 'template'
 
   // Refetch everything baseline-related after any triage/run/override action:
@@ -3439,7 +3441,7 @@ const Page = () => {
 }
 
 Page.getLayout = (page) => (
-  <DashboardLayout>
+  <DashboardLayout usesTenant={false}>
     <TabbedLayout tabOptions={tabOptions}>{page}</TabbedLayout>
   </DashboardLayout>
 )

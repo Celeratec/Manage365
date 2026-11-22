@@ -10,6 +10,7 @@ import { useSettings } from '../../../../hooks/use-settings'
 import { useUrlFilters } from '../../../../utils/url-filters'
 import { ApiGetCall } from '../../../../api/ApiCall'
 import tabOptions from './tabOptions'
+import { isMultiTenant, tenantScope } from '../../../../utils/tenant-selection'
 
 const Page = () => {
   const { currentTenant } = useSettings()
@@ -18,12 +19,6 @@ const Page = () => {
 
   const urlFilters = useUrlFilters()
 
-  const overviews = ApiGetCall({
-    url: '/api/ListServiceHealthOverviews?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
-    queryKey: `overviews-${currentTenant}`,
-    waiting: !!currentTenant,
-  })
   const reportDB = useCippReportDB({
     apiUrl: '/api/ListServiceHealthOverviews',
     queryKey: 'ListServiceHealthOverviews',
@@ -32,6 +27,13 @@ const Page = () => {
     allowToggle: true,
     defaultCached: true,
     allowAllTenantSync: true,
+  })
+  // Info bar counters follow the table's Live/Cached mode
+  const overviews = ApiGetCall({
+    url: reportDB.resolvedApiUrl,
+    data: { ...tenantScope(currentTenant) },
+    queryKey: `overviews-${reportDB.resolvedQueryKey}`,
+    waiting: !!currentTenant,
   })
 
   return (
@@ -74,7 +76,7 @@ const Page = () => {
           ...urlFilters,
         ]}
         dataTransform={
-          currentTenant === 'AllTenants'
+          isMultiTenant(currentTenant)
             ? groupRowsBy('service, status')
             : undefined
         }
@@ -135,7 +137,7 @@ const Page = () => {
 }
 
 Page.getLayout = (page) => (
-  <DashboardLayout allTenantsSupport={true}>
+  <DashboardLayout tenantGroupSupport={true} allTenantsSupport={true}>
     <TabbedLayout tabOptions={tabOptions}>{page}</TabbedLayout>
   </DashboardLayout>
 )

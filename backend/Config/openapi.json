@@ -203,6 +203,15 @@
           "type": "string"
         }
       },
+      "tenantGroup": {
+        "name": "tenantGroup",
+        "in": "query",
+        "description": "Tenant group ID (from ListTenantGroups). Runs this read across the group's tenants that you can access, as an AllTenants read narrowed to the group. Send instead of tenantFilter, never with it. Writes take it only where this operation lists it.",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
       "selectedTenants": {
         "name": "selectedTenants",
         "in": "query",
@@ -8871,11 +8880,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "description": "Get all the things - always filter by PartitionKey for performance",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -8937,7 +8949,8 @@
           }
         ],
         "x-cipp-role": "Tenant.DomainAnalyser.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/EditAntiPhishingFilter": {
@@ -14553,7 +14566,16 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -14808,7 +14830,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Security.Alert.Read"
+        "x-cipp-role": "Security.Alert.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ExecApiClient": {
@@ -19886,7 +19909,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Types",
@@ -19935,7 +19967,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.Core.ReadWrite"
+        "x-cipp-role": "CIPP.Core.ReadWrite",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ExecCIPPDBCacheAdmin": {
@@ -22878,6 +22911,9 @@
                   },
                   "BlockedTenants": {
                     "type": "string"
+                  },
+                  "BlockTenantGroups": {
+                    "type": "boolean"
                   },
                   "EntraGroup": {
                     "$ref": "#/components/schemas/LabelValue"
@@ -30744,7 +30780,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -30910,7 +30955,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Security.Incident.Read"
+        "x-cipp-role": "Security.Incident.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ExecIntegrationTemplate": {
@@ -33545,7 +33591,16 @@
         "description": "Lists Microsoft Defender for Office 365 and Defender for Endpoint alerts for a tenant, filtered to those service sources. tenantFilter=AllTenants reads the cached alert table rather than querying each tenant live.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -33761,7 +33816,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Security.Alert.Read"
+        "x-cipp-role": "Security.Alert.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ExecMigrateOneDriveShortCuts": {
@@ -50077,13 +50133,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "type",
@@ -50136,7 +50193,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Core.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ExecUpdateBaselineDeviation": {
@@ -51866,10 +51924,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "required": true,
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -51961,7 +52023,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Alert.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAlertsQueue": {
@@ -52036,7 +52099,16 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -52131,7 +52203,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.DeviceCompliance.Read"
+        "x-cipp-role": "Tenant.DeviceCompliance.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAndroidEnrollmentProfiles": {
@@ -53124,7 +53197,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -53183,7 +53265,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListApps": {
@@ -53222,7 +53305,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -53283,7 +53375,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.Application.Read"
+        "x-cipp-role": "Endpoint.Application.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAppsRepository": {
@@ -53586,7 +53679,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -53670,7 +53772,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAssignmentFilterTemplates": {
@@ -53875,10 +53978,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -53988,7 +54095,8 @@
           }
         ],
         "x-cipp-role": "Tenant.Alert.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAuditLogs": {
@@ -54033,7 +54141,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -54095,7 +54212,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.Alert.Read"
+        "x-cipp-role": "CIPP.Alert.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListAuditLogSearches": {
@@ -55625,7 +55743,16 @@
         ],
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -55689,7 +55816,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.AuditLog.Read"
+        "x-cipp-role": "Identity.AuditLog.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListBECPhishingSpread": {
@@ -55885,10 +56013,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "userId",
@@ -55975,7 +56107,8 @@
           }
         ],
         "x-cipp-role": "Identity.User.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListBrandingPresets": {
@@ -56140,7 +56273,16 @@
         "description": "Lists cached data breach results for user accounts in a tenant from the CIPP breach monitoring cache.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -56201,7 +56343,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.BreachLookup.Read"
+        "x-cipp-role": "CIPP.BreachLookup.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListCAGapAnalysis": {
@@ -56308,7 +56451,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -56392,7 +56544,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListCAPolicyCoverage": {
@@ -56810,7 +56963,16 @@
         "description": "Lists extension alert check results from third-party integrations for a tenant.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -56899,7 +57061,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.Core.Read"
+        "x-cipp-role": "CIPP.Core.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListCippDocs": {
@@ -57389,7 +57552,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -57451,7 +57623,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListConditionalAccessPolicies": {
@@ -57490,7 +57663,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -57602,7 +57784,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.ConditionalAccess.Read"
+        "x-cipp-role": "Tenant.ConditionalAccess.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListConditionalAccessPolicyChanges": {
@@ -59347,11 +59530,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "description": "Interact with query parameters or the body of the request.",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -59394,7 +59580,8 @@
           }
         ],
         "x-cipp-role": "Endpoint.Security.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListDBCache": {
@@ -59453,10 +59640,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "required": true,
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "top",
@@ -59509,7 +59700,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Core.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListDefenderState": {
@@ -61209,7 +61401,16 @@
         "description": "Lists domain analysis results (SPF, DKIM, DMARC, DNSSEC) for tenant domains.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -61277,7 +61478,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.DomainAnalyser.Read"
+        "x-cipp-role": "Tenant.DomainAnalyser.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListDomainHealth": {
@@ -64217,7 +64419,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -64295,7 +64506,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.ReportBuilder.Read"
+        "x-cipp-role": "CIPP.ReportBuilder.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListGenericTestFunction": {
@@ -64900,7 +65112,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Version",
@@ -64954,7 +65175,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "CIPP.Core.Read"
+        "x-cipp-role": "CIPP.Core.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListGraphSchema": {
@@ -65175,7 +65397,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -65338,7 +65569,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Group.Read"
+        "x-cipp-role": "Identity.Group.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListGroupSenderAuthentication": {
@@ -65567,7 +65799,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -65626,7 +65867,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Group.Read"
+        "x-cipp-role": "Identity.Group.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListGuestUsers": {
@@ -65674,7 +65916,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -65783,7 +66034,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.User.Read"
+        "x-cipp-role": "Identity.User.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListHaloClients": {
@@ -66027,7 +66279,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -66119,7 +66380,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListImageOptimizerResults": {
@@ -66245,7 +66507,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -66310,7 +66581,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Directory.Read"
+        "x-cipp-role": "Tenant.Directory.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListInstanceDiagnostics": {
@@ -67153,7 +67425,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "URLName",
@@ -67223,7 +67504,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListIntunePolicyFailures": {
@@ -67334,7 +67616,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -67369,7 +67660,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListIntuneReusableSettingTemplates": {
@@ -67519,7 +67811,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -67584,7 +67885,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Endpoint.MEM.Read"
+        "x-cipp-role": "Endpoint.MEM.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListIntuneTemplates": {
@@ -67862,7 +68164,16 @@
         "description": "List Just-in-time admin users for a tenant or all tenants.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -67888,7 +68199,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Role.Read"
+        "x-cipp-role": "Identity.Role.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListJITAdminRequests": {
@@ -67901,7 +68213,16 @@
         "description": "Lists JIT Admin requests that went through the approval flow, with their decisions and whether the calling user can approve them.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -68035,7 +68356,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Role.Read"
+        "x-cipp-role": "Identity.Role.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListJITAdminTemplates": {
@@ -68392,11 +68714,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "description": "The tenant to report on, or AllTenants for the cross-tenant summary money map",
-            "required": true,
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -68427,7 +68752,8 @@
           }
         ],
         "x-cipp-role": "Tenant.Directory.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListLicensePricing": {
@@ -68639,7 +68965,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -68692,7 +69027,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Directory.Read"
+        "x-cipp-role": "Tenant.Directory.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListLicensesReport": {
@@ -68713,7 +69049,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -68790,7 +69135,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Directory.Read"
+        "x-cipp-role": "Tenant.Directory.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListLogs": {
@@ -69243,7 +69589,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -69377,7 +69732,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMailboxForwarding": {
@@ -69417,7 +69773,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -69488,7 +69853,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMailboxMobileDevices": {
@@ -69630,7 +69996,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "User",
@@ -69695,7 +70070,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMailboxRestores": {
@@ -69821,7 +70197,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -69902,7 +70287,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMailFlowReports": {
@@ -70049,7 +70435,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -70143,7 +70538,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SpamFilter.Read"
+        "x-cipp-role": "Exchange.SpamFilter.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMailQuarantineMessage": {
@@ -70505,7 +70901,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -70589,7 +70994,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Security.Defender.Read"
+        "x-cipp-role": "Security.Defender.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMessageCenterMessages": {
@@ -70602,7 +71008,16 @@
         "description": "Lists Microsoft 365 message center messages for a tenant: the change notices, announcements of new and retiring features, planned changes and action-required posts Microsoft publishes, with category, severity, services, tags and action-required-by dates. For AllTenants each message is returned once with the tenants it was posted to (Tenants, TenantCount). Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -70713,7 +71128,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Administration.Read"
+        "x-cipp-role": "Tenant.Administration.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMessageTrace": {
@@ -70874,7 +71290,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -70973,7 +71398,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.User.Read"
+        "x-cipp-role": "Identity.User.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListMoveArchiveItemsJobs": {
@@ -71165,7 +71591,16 @@
         "description": "Lists Conditional Access named locations (IP ranges and country-based locations) configured in a tenant. AllTenants reads the cached named locations from the reporting database, one row per location with its Tenant.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -71226,7 +71661,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.ConditionalAccess.Read"
+        "x-cipp-role": "Tenant.ConditionalAccess.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListNewUserDefaults": {
@@ -71714,7 +72150,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -71776,7 +72221,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Application.Read"
+        "x-cipp-role": "Tenant.Application.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListObjectHistory": {
@@ -72693,7 +73139,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -72805,7 +73260,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Role.Read"
+        "x-cipp-role": "Identity.Role.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListPIMRoleSettingsTemplates": {
@@ -73697,7 +74153,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -73733,7 +74198,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.Role.Read"
+        "x-cipp-role": "Identity.Role.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListRoles": {
@@ -74644,10 +75110,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Type",
@@ -74801,7 +75271,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Scheduler.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSecureScoreReport": {
@@ -74824,10 +75295,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -74861,7 +75336,8 @@
           }
         ],
         "x-cipp-role": "Tenant.Reports.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSecurityDefaults": {
@@ -75366,7 +75842,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -75417,7 +75902,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Administration.Read"
+        "x-cipp-role": "Tenant.Administration.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListServiceHealthIssues": {
@@ -75439,7 +75925,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -75546,7 +76041,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Administration.Read"
+        "x-cipp-role": "Tenant.Administration.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListServiceHealthOverviews": {
@@ -75559,7 +76055,16 @@
         "description": "Lists the Microsoft 365 service health overview for a tenant: the current health status of each cloud service (Exchange Online, SharePoint Online, Microsoft Teams, Entra ID, Intune and others), for example serviceOperational, serviceDegradation or serviceInterruption. Supports UseReportDB=true query parameter to retrieve cached data from the reporting database for significantly better performance, especially when querying AllTenants.",
         "parameters": [
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -75618,7 +76123,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Tenant.Administration.Read"
+        "x-cipp-role": "Tenant.Administration.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListShadowAI": {
@@ -75701,7 +76207,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -75779,7 +76294,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.Read"
+        "x-cipp-role": "Exchange.Mailbox.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSharedMailboxStatistics": {
@@ -76322,7 +76838,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -76375,7 +76900,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Sharepoint.Admin.Read"
+        "x-cipp-role": "Sharepoint.Admin.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSharepointSettings": {
@@ -77111,7 +77637,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Type",
@@ -77163,7 +77698,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Sharepoint.Site.Read"
+        "x-cipp-role": "Sharepoint.Site.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSiteBrowser": {
@@ -77950,7 +78486,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Type",
@@ -78066,7 +78611,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Sharepoint.Site.Read"
+        "x-cipp-role": "Sharepoint.Site.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListSiteStorageComposition": {
@@ -78982,7 +79528,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "TenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "type",
@@ -79093,7 +79648,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Teams.Group.Read"
+        "x-cipp-role": "Teams.Group.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTeamsActivity": {
@@ -79133,7 +79689,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "Type",
@@ -79203,7 +79768,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Teams.Activity.Read"
+        "x-cipp-role": "Teams.Activity.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTeamsAutoAttendants": {
@@ -79548,7 +80114,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -79954,7 +80529,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Teams.Voice.Read"
+        "x-cipp-role": "Teams.Voice.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTempFileScanResults": {
@@ -80235,7 +80811,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -80306,7 +80891,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.SpamFilter.Read"
+        "x-cipp-role": "Exchange.SpamFilter.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTenantAllowBlockListTemplates": {
@@ -80610,6 +81196,15 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "TenantSelector",
+            "in": "query",
+            "description": "The tenant selector's list; empty when the caller's roles block viewing a tenant group",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
           }
         ],
         "responses": {
@@ -80787,10 +81382,14 @@
           {
             "name": "TenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "TriggerRefresh",
@@ -80829,7 +81428,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Core.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       },
       "post": {
         "summary": "ListTenants",
@@ -80904,10 +81504,14 @@
           {
             "name": "TenantFilter",
             "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "TriggerRefresh",
@@ -80946,7 +81550,8 @@
           }
         ],
         "x-cipp-role": "CIPP.Core.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTestReports": {
@@ -81115,11 +81720,14 @@
           {
             "name": "tenantFilter",
             "in": "query",
-            "description": "One or more tenant domains to report on. Omit, or pass 'AllTenants', to query every tenant the caller may see. Accepts a string, a comma-delimited string, or an array.",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
             "required": false,
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "testId",
@@ -81171,7 +81779,8 @@
           }
         ],
         "x-cipp-role": "Tenant.Reports.Read",
-        "x-cipp-any-tenant": true
+        "x-cipp-any-tenant": true,
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTests": {
@@ -81264,7 +81873,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           }
         ],
         "responses": {
@@ -81346,7 +81964,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.TransportRule.Read"
+        "x-cipp-role": "Exchange.TransportRule.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListTransportRulesTemplates": {
@@ -83402,7 +84021,16 @@
             }
           },
           {
-            "$ref": "#/components/parameters/tenantFilter"
+            "name": "tenantFilter",
+            "in": "query",
+            "description": "Target tenant: the tenant's default domain, its tenant ID, or 'AllTenants'. Required unless tenantGroup is sent instead; never send both.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantGroup"
           },
           {
             "name": "UseReportDB",
@@ -83828,7 +84456,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Identity.User.Read"
+        "x-cipp-role": "Identity.User.Read",
+        "x-cipp-tenant-group": true
       }
     },
     "/api/ListUsersAndGroups": {

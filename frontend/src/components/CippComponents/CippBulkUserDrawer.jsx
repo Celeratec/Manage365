@@ -13,6 +13,7 @@ import { useSettings } from "../../hooks/use-settings";
 import { ApiPostCall } from "../../api/ApiCall";
 import { getCippTranslation } from "../../utils/get-cipp-translation";
 import countryList from "../../data/countryList.json";
+import { isMultiTenant } from "../../utils/tenant-selection";
 
 export const CippBulkUserDrawer = ({
   buttonText = "Bulk Add Users",
@@ -82,7 +83,8 @@ export const CippBulkUserDrawer = ({
   });
 
   const bulkUserData = useWatch({ control: formControl.control, name: "bulkUser" });
-  const isAllTenants = !initialState?.currentTenant || initialState.currentTenant === "AllTenants";
+  const isAllTenants =
+    !initialState?.currentTenant || isMultiTenant(initialState.currentTenant);
 
   const createBulkUsers = ApiPostCall({
     urlFromData: true,

@@ -1,9 +1,9 @@
 import { Layout as DashboardLayout } from '../../../../layouts/index'
 import { CippIcons } from '../../../../utils/icon-registry'
-import { CippTablePage } from '../../../../components/CippComponents/CippTablePage'
+import { CippTablePage } from '../../../../components/CippComponents/CippTablePage.jsx'
 import CippJsonView from '../../../../components/CippFormPages/CippJSONView'
 import { ApiGetCall } from '../../../../api/ApiCall'
-import { CippPolicyImportDrawer } from '../../../../components/CippComponents/CippPolicyImportDrawer'
+import { CippPolicyImportDrawer } from '../../../../components/CippComponents/CippPolicyImportDrawer.jsx'
 import { PermissionButton } from '../../../../utils/permissions'
 import {
   Box,
@@ -19,83 +19,96 @@ import {
   Typography,
 } from '@mui/material'
 import NextLink from 'next/link'
-import {
-  PencilIcon,
-  TrashIcon,
-} from '@heroicons/react/24/outline'
-import {
-  Edit,
-  GitHub,
-  LocalOffer,
-  LocalOfferOutlined,
-  CopyAll,
-} from '@mui/icons-material'
 
 const Page = () => {
-  const pageTitle = "Available Endpoint Manager Templates";
-  const cardButtonPermissions = ["Endpoint.MEM.ReadWrite"];
+  const pageTitle = 'Available Endpoint Manager Templates'
+  const cardButtonPermissions = ['Endpoint.MEM.ReadWrite']
 
   const integrations = ApiGetCall({
-    url: "/api/ListExtensionsConfig",
-    queryKey: "Integrations",
+    url: '/api/ListExtensionsConfig',
+    queryKey: 'Integrations',
     refetchOnMount: false,
     refetchOnReconnect: false,
-  });
+  })
   const actions = [
     {
-      label: "Edit Template",
+      label: 'Edit Template',
       link: `/endpoint/MEM/list-templates/edit?id=[GUID]`,
       pinned: true,
       icon: <CippIcons.Edit />,
       color: 'info',
       condition: (row) => row.isSynced === false,
-      category: "edit",
     },
     {
-      label: "Edit Template Name and Description",
-      type: "POST",
-      url: "/api/ExecEditTemplate",
+      label: 'Validate Template',
+      type: 'POST',
+      url: '/api/ExecValidateIntuneTemplate',
+      data: { ID: 'GUID' },
       fields: [
         {
-          type: "textField",
-          name: "displayName",
-          label: "Display Name",
-        },
-        {
-          type: "textField",
-          name: "description",
-          label: "Description",
+          type: 'autoComplete',
+          name: 'tenantFilter',
+          label: 'Check against a tenant (optional)',
+          multiple: false,
+          creatable: false,
+          api: {
+            url: '/api/ListTenants?AllTenantSelector=false',
+            labelField: (option) => `${option.displayName} (${option.defaultDomainName})`,
+            valueField: 'defaultDomainName',
+            queryKey: 'ListTenants-ValidateIntuneTemplate',
+            excludeTenantFilter: true,
+          },
         },
       ],
-      data: { GUID: "GUID", Type: "!IntuneTemplate" },
+      confirmText:
+        'Check [displayName] for problems that would stop it deploying. Nothing is saved or deployed. Pick a tenant to also check its replacement variables and setting availability.',
+      multiPost: false,
+      icon: <CippIcons.ShieldCheckIcon />,
+      color: 'info',
+    },
+    {
+      label: 'Edit Template Name and Description',
+      type: 'POST',
+      url: '/api/ExecEditTemplate',
+      fields: [
+        {
+          type: 'textField',
+          name: 'displayName',
+          label: 'Display Name',
+        },
+        {
+          type: 'textField',
+          name: 'description',
+          label: 'Description',
+        },
+      ],
+      data: { GUID: 'GUID', Type: '!IntuneTemplate' },
       defaultvalues: (row) => ({
         displayName: row.displayName,
         description: row.description,
       }),
       confirmText:
-        "Enter the new name and description for the template. Warning: This will disconnect the template from a template library if applied.",
+        'Enter the new name and description for the template. Warning: This will disconnect the template from a template library if applied.',
       multiPost: false,
       icon: <CippIcons.Edit />,
       color: 'info',
-      category: "edit",
     },
     {
-      label: "Clone Template",
-      type: "POST",
-      url: "/api/ExecCloneTemplate",
-      data: { GUID: "GUID", Type: "!IntuneTemplate" },
+      label: 'Clone Template',
+      type: 'POST',
+      url: '/api/ExecCloneTemplate',
+      data: { GUID: 'GUID', Type: '!IntuneTemplate' },
       confirmText:
-        "Are you sure you want to clone [displayName]? Cloned template are no longer synced with a template library.",
+        'Are you sure you want to clone [displayName]? Cloned template are no longer synced with a template library.',
       multiPost: false,
       icon: <CippIcons.CopyAll />,
       color: 'info',
-      category: "manage",
     },
     {
-      label: "Add to package",
-      type: "POST",
-      url: "/api/ExecSetPackageTag",
-      data: { GUID: "GUID" },
+      label: 'Add to package',
+      type: 'POST',
+      url: '/api/ExecSetPackageTag',
+      data: { GUID: 'GUID' },
       fields: [
         {
           type: 'select',
@@ -104,7 +117,7 @@ const Page = () => {
           required: true,
           creatable: true,
           validators: {
-            required: { value: true, message: "Package name is required" },
+            required: { value: true, message: 'Package name is required' },
           },
           api: {
             url: '/api/ListIntuneTemplates?mode=Tag',
@@ -118,14 +131,13 @@ const Page = () => {
       multiPost: true,
       icon: <CippIcons.LocalOffer />,
       color: 'info',
-      category: "edit",
     },
     {
-      label: "Remove from package",
-      type: "POST",
-      url: "/api/ExecSetPackageTag",
-      data: { GUID: "GUID", Remove: true },
-      confirmText: "Are you sure you want to remove the selected template(s) from their package?",
+      label: 'Remove from package',
+      type: 'POST',
+      url: '/api/ExecSetPackageTag',
+      data: { GUID: 'GUID', Remove: true },
+      confirmText: 'Are you sure you want to remove the selected template(s) from their package?',
       multiPost: true,
       icon: <CippIcons.LocalOfferOutlined />,
       color: 'warning',
@@ -135,59 +147,56 @@ const Page = () => {
       type: 'POST',
       url: '/api/ExecCommunityRepo',
       icon: <CippIcons.GitHub />,
-      category: "edit",
       data: {
-        Action: "UploadTemplate",
-        GUID: "GUID",
+        Action: 'UploadTemplate',
+        GUID: 'GUID',
       },
       fields: [
         {
-          label: "Repository",
-          name: "FullName",
-          type: "select",
+          label: 'Repository',
+          name: 'FullName',
+          type: 'select',
           api: {
-            url: "/api/ListCommunityRepos",
+            url: '/api/ListCommunityRepos',
             data: {
               WriteAccess: true,
             },
-            queryKey: "CommunityRepos-Write",
-            dataKey: "Results",
-            valueField: "FullName",
-            labelField: "FullName",
+            queryKey: 'CommunityRepos-Write',
+            dataKey: 'Results',
+            valueField: 'FullName',
+            labelField: 'FullName',
           },
           multiple: false,
           creatable: false,
           required: true,
           validators: {
-            required: { value: true, message: "This field is required" },
+            required: { value: true, message: 'This field is required' },
           },
         },
         {
-          label: "Commit Message",
-          placeholder: "Enter a commit message for adding this file to GitHub",
-          name: "Message",
-          type: "textField",
+          label: 'Commit Message',
+          placeholder: 'Enter a commit message for adding this file to GitHub',
+          name: 'Message',
+          type: 'textField',
           multiline: true,
           required: true,
           rows: 4,
         },
       ],
-      confirmText: "Are you sure you want to save this template to the selected repository?",
+      confirmText: 'Are you sure you want to save this template to the selected repository?',
       condition: () => integrations.isSuccess && integrations?.data?.GitHub?.Enabled,
-      category: "manage",
     },
     {
-      label: "Delete Template",
-      type: "POST",
-      url: "/api/RemoveIntuneTemplate",
-      data: { ID: "GUID" },
-      confirmText: "Do you want to delete the template?",
+      label: 'Delete Template',
+      type: 'POST',
+      url: '/api/RemoveIntuneTemplate',
+      data: { ID: 'GUID' },
+      confirmText: 'Do you want to delete the template?',
       multiPost: false,
       icon: <CippIcons.Delete />,
       color: 'danger',
-      category: "danger",
     },
-  ];
+  ]
 
   const offCanvas = {
     children: (row) => (
@@ -281,19 +290,30 @@ const Page = () => {
         actions={actions}
         offCanvas={offCanvas}
         simpleColumns={simpleColumns}
+        filters={filterList}
         queryKey="ListIntuneTemplates-table"
         cardButton={
-          <CippPolicyImportDrawer
-            buttonText="Browse Catalog"
-            requiredPermissions={cardButtonPermissions}
-            PermissionButton={PermissionButton}
-            mode="Intune"
-          />
+          <Stack direction="row" spacing={2}>
+            <PermissionButton
+              requiredPermissions={cardButtonPermissions}
+              component={NextLink}
+              href="/endpoint/MEM/list-templates/add"
+              startIcon={<CippIcons.Add />}
+            >
+              Create New Template
+            </PermissionButton>
+            <CippPolicyImportDrawer
+              buttonText="Browse Catalog"
+              requiredPermissions={cardButtonPermissions}
+              PermissionButton={PermissionButton}
+              mode="Intune"
+            />
+          </Stack>
         }
       />
     </>
-  );
-};
+  )
+}
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>;
-export default Page;
+Page.getLayout = (page) => <DashboardLayout usesTenant={false}>{page}</DashboardLayout>
+export default Page

@@ -26,8 +26,8 @@ BeforeAll {
     function Get-CIPPAzDataTableEntity { [CmdletBinding()] param($Table, $Filter, $Property) @() }
     function Get-Tenants { [CmdletBinding()] param($TenantFilter, [switch]$IncludeErrors, [switch]$IncludeAll) }
     function Write-LogMessage { [CmdletBinding()] param($API, $tenant, $message, $sev, $LogData) }
-    # Pass-through unless a test sets RestrictTo. The real filter lives in CIPPCore and reads
-    # the request's allowed-tenant scope; this stub stands in for that scope.
+    # Pass-through unless a test sets RestrictTo. Do not dotsource the real CIPPCore filter:
+    # it reads $script:CippAllowedTenantsStorage and would overwrite this stub.
     function Select-CippAllowedTenantData {
         param(
             [Parameter(ValueFromPipeline = $true)]
@@ -38,12 +38,21 @@ BeforeAll {
         process {
             foreach ($Item in @($InputObject)) {
                 if ($null -eq $Item) { continue }
-                if ($script:RestrictTo -and $script:RestrictTo -notcontains [string]$Item.TenantFilter) { continue }
+                if ($script:RestrictTo) {
+                    $Matched = $false
+                    foreach ($Prop in @($TenantProperty) + @('TenantFilter', 'tenantFilter')) {
+                        $Value = [string]$Item.$Prop
+                        if ($Value -and $script:RestrictTo -contains $Value) { $Matched = $true; break }
+                    }
+                    if (-not $Matched) { continue }
+                }
                 $Item
             }
         }
     }
     function Get-CippException { [CmdletBinding()] param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
+    function Get-CIPPFeatureFlag { [CmdletBinding()] param($Id) }
+    function Get-CIPPBaselineAlignment { [CmdletBinding()] param([switch]$TenantScores) }
 
     . $FunctionPath
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CippBulkStatusCode.ps1')
@@ -148,5 +157,48 @@ Describe 'Invoke-ListTenantAlignment summary mode' {
         $Body.Average | Should -Be 0
         $Body.ScoredTenantCount | Should -Be 0
         @($Body.Lowest).Count | Should -Be 0
+    }
+
+    Context 'Baselines enabled' {
+        BeforeEach {
+            Mock -CommandName Get-CIPPFeatureFlag -MockWith { [pscustomobject]@{ Id = 'Baselines'; Enabled = $true } }
+            Mock -CommandName Get-CIPPBaselineAlignment -MockWith {
+                @(
+                        [pscustomobject]@{ tenantFilter = 'alpha.onmicrosoft.com'; displayName = 'Alpha'; applicable = 10; alignedPercentage = 92; drift = 1 }
+                        [pscustomobject]@{ tenantFilter = 'beta.onmicrosoft.com'; displayName = 'Beta'; applicable = 10; alignedPercentage = 40; drift = 6 }
+                        # Nothing resolved yet: not scored, so it cannot drag the estate into the bottom bucket.
+                        [pscustomobject]@{ tenantFilter = 'gamma.onmicrosoft.com'; displayName = 'Gamma'; applicable = 0; alignedPercentage = 0; drift = 0 }
+                )
+            }
+        }
+
+        It 'scores baselines instead of the classic templates' {
+            $Body = (Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{ summary = $true }) -TriggerMetadata @{}).Body
+
+            Should -Invoke Get-CIPPTenantAlignment -Times 0 -Exactly
+            $Body.ScoredTenantCount | Should -Be 2
+            $Body.Buckets.Strong | Should -Be 1
+            $Body.Buckets.Poor | Should -Be 1
+            $Body.Average | Should -Be 66
+            $Body.Lowest[0].Name | Should -BeExactly 'Beta'
+            $Body.PendingDeviations | Should -Be 7
+            $Body.PendingTenantCount | Should -Be 2
+        }
+
+        It 'scores only the tenants in the caller''s scope' {
+            # Stub Select-CippAllowedTenantData honors RestrictTo (stands in for request scope).
+            $script:RestrictTo = @('alpha.onmicrosoft.com')
+            $Body = (Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{ summary = $true }) -TriggerMetadata @{}).Body
+
+            $Body.ScoredTenantCount | Should -Be 1
+            $Body.Lowest[0].Tenant | Should -BeExactly 'alpha.onmicrosoft.com'
+            $Body.PendingDeviations | Should -Be 1
+        }
+
+        It 'keeps the classic row list for the non-summary call' {
+            $Result = Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{}) -TriggerMetadata @{}
+
+            @($Result.Body).Count | Should -Be 4
+        }
     }
 }

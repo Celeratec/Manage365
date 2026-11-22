@@ -71,6 +71,7 @@ const Page = () => {
   const settings = useSettings()
   // Prioritize URL query parameter, then fall back to settings
   const currentTenant = router.query.tenantFilter || settings?.currentTenant
+  const tenantLabel = useTenantLabel(currentTenant)
   const formControl = useForm({
     mode: 'onBlur',
     defaultValues: {
@@ -2251,7 +2252,7 @@ const Page = () => {
                                   <Microsoft sx={{ color: 'white' }} />
                                 </Box>
                                 <Stack>
-                                  <Typography variant="h6">{currentTenant}</Typography>
+                                  <Typography variant="h6">{tenantLabel}</Typography>
                                   <Box>
                                     <Chip
                                       label="Current Tenant"
@@ -3185,6 +3186,6 @@ const Page = () => {
   )
 }
 
-Page.getLayout = (page) => <DashboardLayout>{page}</DashboardLayout>
+Page.getLayout = (page) => <DashboardLayout usesTenant={false}>{page}</DashboardLayout>
 
 export default Page

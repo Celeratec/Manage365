@@ -41,6 +41,7 @@ import { ServiceHealthCard } from '../../components/CippComponents/ServiceHealth
 import { CippReportToolbar } from '../../components/CippComponents/CippReportToolbar'
 import { CippHead } from '../../components/CippComponents/CippHead.jsx'
 import { AllTenantsDashboard } from '../../components/CippAllTenants/AllTenantsDashboard'
+import { isMultiTenant, tenantScope } from '../../utils/tenant-selection'
 
 const Page = () => {
   const settings = useSettings()
@@ -49,7 +50,7 @@ const Page = () => {
   const { currentTenant } = settings
   // The per-tenant cards below are scoped to a single tenant. Under AllTenants — also the
   // state before a tenant has been picked — show the cross-tenant view.
-  const isAllTenants = !currentTenant || currentTenant === 'AllTenants'
+  const isAllTenants = !currentTenant || isMultiTenant(currentTenant)
   const [portalMenuItems, setPortalMenuItems] = useState([])
   const isWide = useMediaQuery('(min-width:1513px)')
   // Below md the Portals/Reports button row gives way to a bottom-right FAB sheet, and
@@ -78,7 +79,7 @@ const Page = () => {
   const organization = ApiGetCall({
     url: '/api/ListGraphRequest',
     queryKey: `${currentTenant}-ListGraphRequest-organization`,
-    data: { tenantFilter: currentTenant, Endpoint: 'organization' },
+    data: { ...tenantScope(currentTenant), Endpoint: 'organization' },
     waiting: !isAllTenants,
   })
 
@@ -86,7 +87,7 @@ const Page = () => {
 
   const testsApi = ApiGetCall({
     url: '/api/ListTests',
-    data: { tenantFilter: currentTenant, reportId: selectedReport },
+    data: { ...tenantScope(currentTenant), reportId: selectedReport },
     queryKey: `${currentTenant}-ListTests-${selectedReport}`,
     waiting: !isAllTenants && !!currentTenant && !!selectedReport,
   })
@@ -515,7 +516,7 @@ const Page = () => {
 // The page handles AllTenants itself, and the other dashboard tabs render a cross-tenant view
 // in that mode too. Opting the layout out would show "Not supported" and never mount this page.
 Page.getLayout = (page) => (
-  <DashboardLayout>
+  <DashboardLayout tenantGroupSupport={true}>
     <TabbedLayout tabOptions={tabOptions}>{page}</TabbedLayout>
   </DashboardLayout>
 )

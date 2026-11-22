@@ -99,6 +99,7 @@ import {
   columnOrderHasStaleIds,
 } from "./util-subTables";
 import { attachParentRow, getRowTenant } from "../../utils/resolve-row-templates";
+import { isMultiTenant, isMultiTenantScope } from "../../utils/tenant-selection";
 
 // Helper functions for row action category grouping and styling
 // Resolve dot-delimited property paths against arbitrary data objects.
@@ -2247,7 +2248,7 @@ export const CippDataTable = (props) => {
     data: {
       // AllTenants Graph cache reads are served in bounded pages; a page can still opt out with manualPagination: false.
       ...(api.url === '/api/ListGraphRequest' &&
-        api.data?.tenantFilter === 'AllTenants' && { manualPagination: true }),
+        isMultiTenantScope(api.data) && { manualPagination: true }),
       ...api.data,
     },
     queryKey: effectiveQueryKey,
@@ -2430,7 +2431,7 @@ export const CippDataTable = (props) => {
     let newVisibility = { ...columnVisibility };
 
     // Check if we're in AllTenants mode and data has Tenant property
-    const isAllTenants = settings?.currentTenant === "AllTenants";
+    const isAllTenants = isMultiTenant(settings?.currentTenant);
     const hasTenantProperty = usedData.some(
       (row) => row && typeof row === "object" && "Tenant" in row,
     );
@@ -2815,7 +2816,7 @@ export const CippDataTable = (props) => {
     (action, rowOriginal, closeMenu = () => {}) => {
       const scopeToRowTenant = () => {
         const tenant = getRowTenant(getActionRow(rowOriginal), settings.currentTenant)
-        if (settings.currentTenant === 'AllTenants' && tenant && tenant !== 'AllTenants') {
+        if (isMultiTenant(settings.currentTenant) && tenant && !isMultiTenant(tenant)) {
           settings.handleUpdate({
             currentTenant: tenant,
           })

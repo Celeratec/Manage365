@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { ApiGetCall } from "../api/ApiCall";
 import { useSettings } from "./use-settings";
 import standards from "../data/standards.json";
+import { isMultiTenant } from "../utils/tenant-selection";
 
 export function useSecureScore({ waiting = true } = {}) {
   const currentTenant = useSettings().currentTenant;
-  const isAllTenants = currentTenant === "AllTenants";
+  const isAllTenants = isMultiTenant(currentTenant);
 
   const [translatedData, setTranslatedData] = useState([]);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -19,7 +20,7 @@ export function useSecureScore({ waiting = true } = {}) {
       $top: 999,
     },
     queryKey: `controlScore-${currentTenant}`,
-    waiting: waiting || isAllTenants,
+    waiting: waiting && !isAllTenants,
   });
 
   // Same key and TTL as the layout's call so react-query serves one shared copy.
@@ -45,7 +46,7 @@ export function useSecureScore({ waiting = true } = {}) {
       $top: 7,
     },
     queryKey: `secureScore-${currentTenant}`,
-    waiting: waiting || isAllTenants,
+    waiting: waiting && !isAllTenants,
   });
 
   useEffect(() => {

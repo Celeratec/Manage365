@@ -1,6 +1,7 @@
 
 import { CippIcons } from '../../utils/icon-registry'
 import { CippIntuneSyncDrawer } from './CippIntuneSyncDrawer'
+import { tenantScope } from '../../utils/tenant-selection'
 
 // Shared between the MEM devices list page and the View Device detail page.
 // Link-type actions (View Device / View in Intune) render on the list page but are
@@ -112,7 +113,7 @@ export const getIntuneDeviceActions = ({ tenantFilter } = {}) => [
 
       return selectedGroups.map((group) => ({
         AddDevice: addDevice,
-        tenantFilter: tenantFilter,
+        ...tenantScope(tenantFilter),
         groupId: group,
       }))
     },

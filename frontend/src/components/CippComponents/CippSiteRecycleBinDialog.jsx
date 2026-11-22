@@ -8,6 +8,7 @@ import { ApiGetCall } from '../../api/ApiCall'
 import { useDialog } from '../../hooks/use-dialog'
 import { usePermissions } from '../../hooks/use-permissions'
 import { formatCleanupBytes } from '../../utils/storage-cleanup-opportunities'
+import { tenantScope } from '../../utils/tenant-selection'
 
 const optionValue = (value) =>
   value && typeof value === 'object' && 'value' in value ? value.value : value
@@ -73,7 +74,7 @@ export const CippSiteRecycleBinDialog = ({
         // Literal values: these keys do not exist on the recycle bin rows, so the
         // action data mapper passes them through as-is.
         SiteUrl: siteUrl,
-        tenantFilter: tenant,
+        ...tenantScope(tenant),
       },
       confirmText: 'Restore [LeafName] from the recycle bin?',
       condition: () => canRestore,
@@ -122,7 +123,7 @@ export const CippSiteRecycleBinDialog = ({
               url: '/api/ListSiteRecycleBin',
               data: {
                 SiteUrl: siteUrl,
-                tenantFilter: tenant,
+                ...tenantScope(tenant),
               },
               dataKey: 'Results',
             }}

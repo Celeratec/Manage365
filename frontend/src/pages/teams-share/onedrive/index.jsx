@@ -41,6 +41,7 @@ import { useSettings } from "../../../hooks/use-settings";
 import { getCippFormatting } from "../../../utils/get-cipp-formatting";
 import { useMemo, useCallback } from "react";
 import { useCippReportDB } from "../../../components/CippComponents/CippReportDBControls";
+import { tenantScope } from "../../../utils/tenant-selection";
 
 // Helper to calculate storage percentage
 const getStoragePercentage = (used, allocated) => {
@@ -335,7 +336,7 @@ const Page = () => {
         const v = (x) => (x && typeof x === 'object' && 'value' in x ? x.value : x)
         const formatRow = (siteRow) => {
           const payload = {
-            tenantFilter: siteRow.Tenant ?? tenantFilter,
+            ...tenantScope(siteRow.Tenant ?? tenantFilter),
             SiteUrl: siteRow.webUrl,
             Title: formData.Title,
             SharingCapability: v(formData.SharingCapability),
@@ -392,7 +393,7 @@ const Page = () => {
       condition: () => canWriteSite,
       customDataformatter: (row) => {
         const formatRow = (siteRow) => ({
-          tenantFilter: siteRow.Tenant ?? tenantFilter,
+          ...tenantScope(siteRow.Tenant ?? tenantFilter),
           SiteUrl: siteRow.webUrl,
           SiteId: siteRow.siteId,
           WebId: siteRow.webId,
@@ -842,6 +843,6 @@ const Page = () => {
   );
 };
 
-Page.getLayout = (page) => <DashboardLayout allTenantsSupport={true}>{page}</DashboardLayout>;
+Page.getLayout = (page) => <DashboardLayout tenantGroupSupport={true} allTenantsSupport={true}>{page}</DashboardLayout>;
 
 export default Page;
