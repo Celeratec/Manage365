@@ -146,13 +146,18 @@ function Get-CIPPMFAState {
                 $GroupMemberRequests = [system.collections.generic.list[object]]::new()
                 $GroupDetailsRequests = [system.collections.generic.list[object]]::new()
                 Write-Information "Resolving group memberships for $($GroupsToResolve.Count) include groups and $($ExcludeGroupsToResolve.Count) exclude groups"
+                $GroupDetailsSeen = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
                 foreach ($GroupId in $GroupsToResolve) {
                     $GroupMemberRequests.Add(@{ id = "include-$GroupId"; method = 'GET'; url = "groups/$($GroupId)/members?`$select=id" })
-                    $GroupDetailsRequests.Add(@{ id = "details-$GroupId"; method = 'GET'; url = "groups/$($GroupId)?`$select=id,displayName" })
+                    if ($GroupDetailsSeen.Add([string]$GroupId)) {
+                        $GroupDetailsRequests.Add(@{ id = "details-$GroupId"; method = 'GET'; url = "groups/$($GroupId)?`$select=id,displayName" })
+                    }
                 }
                 foreach ($GroupId in $ExcludeGroupsToResolve) {
                     $GroupMemberRequests.Add(@{ id = "exclude-$GroupId"; method = 'GET'; url = "groups/$($GroupId)/members?`$select=id" })
-                    $GroupDetailsRequests.Add(@{ id = "details-$GroupId"; method = 'GET'; url = "groups/$($GroupId)?`$select=id,displayName" })
+                    if ($GroupDetailsSeen.Add([string]$GroupId)) {
+                        $GroupDetailsRequests.Add(@{ id = "details-$GroupId"; method = 'GET'; url = "groups/$($GroupId)?`$select=id,displayName" })
+                    }
                 }
 
                 $GroupMembersResults = New-GraphBulkRequest -Requests @($GroupMemberRequests) -tenantid $TenantFilter

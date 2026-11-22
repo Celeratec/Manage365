@@ -117,6 +117,7 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
             allowPartnerToCollectIosPersonalCertificateMetadata = [bool]$CurrentState.allowPartnerToCollectIosPersonalCertificateMetadata
             grantMobileThreatDefensePartnerRole                 = [bool]$CurrentState.grantMobileThreatDefensePartnerRole
             microsoftDefenderForEndpointAttachEnabled           = [bool]$CurrentState.microsoftDefenderForEndpointAttachEnabled
+            connectorExists                                     = [bool]$ConnectorExists
         }
     } else {
         [PSCustomObject]@{
@@ -138,10 +139,12 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
             allowPartnerToCollectIosPersonalCertificateMetadata = $false
             grantMobileThreatDefensePartnerRole                 = $false
             microsoftDefenderForEndpointAttachEnabled           = $false
+            connectorExists                                     = [bool]$ConnectorExists
         }
     }
 
-    $ExpectedValue = [PSCustomObject]$ExpectedSettings
+    # Report-only field: expected connector presence. Not part of the Graph PATCH/POST body.
+    $ExpectedValue = [PSCustomObject]($ExpectedSettings + @{ connectorExists = $true })
 
     if ($Settings.remediate -eq $true) {
         # Enable MDE connector first

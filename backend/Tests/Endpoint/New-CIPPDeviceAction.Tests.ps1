@@ -52,7 +52,7 @@ Describe 'New-CIPPDeviceAction - action names' {
     }
 
     It 'queues <_>' -ForEach @(
-        'syncDevice', 'rebootNow', 'locateDevice', 'setDeviceName', 'RotateLocalAdminPassword', 'WindowsDefenderScan',
+        'syncDevice', 'rebootNow', 'locateDevice', 'remoteLock', 'setDeviceName', 'RotateLocalAdminPassword', 'WindowsDefenderScan',
         'windowsDefenderUpdateSignatures', 'cleanWindowsDevice', 'wipe', 'retire', 'createDeviceLogCollectionRequest',
         'initiateOnDemandProactiveRemediation'
     ) {

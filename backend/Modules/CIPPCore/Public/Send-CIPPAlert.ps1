@@ -387,20 +387,29 @@ function Send-CIPPAlert {
                                 $WebhookResponse = Invoke-CIPPRestMethod @RestMethod
                             }
                         }
-                        # Like the HTTP client would, 301-303 continue as a GET and 307/308 repeat the POST.
+                        # Like the HTTP client would, 301-303 continue as a GET and 307/308 repeat the current method.
                         while ($WebhookStatusCode -in 301, 302, 303, 307, 308 -and $RedirectCount -lt 3 -and ($RedirectTo = [string]($WebhookResponseHeaders.Location | Select-Object -First 1))) {
                             $RedirectCount++
-                            $RestMethod.Uri = [uri]::new([uri]$RestMethod.Uri, $RedirectTo).AbsoluteUri
-                            Assert-CIPPWebhookDestination -Uri $RestMethod.Uri
-                            if ($WebhookStatusCode -in 307, 308) {
-                                $WebhookResponse = Invoke-CIPPRestMethod @RestMethod
-                            } else {
-                                $FollowUp = @{} + $RestMethod
-                                $FollowUp.Method = 'GET'
-                                $FollowUp.Remove('Body')
-                                $FollowUp.Remove('ContentType')
-                                $WebhookResponse = Invoke-CIPPRestMethod @FollowUp
+                            $PreviousUri = [uri]$RestMethod.Uri
+                            $NextUri = [uri]::new($PreviousUri, $RedirectTo)
+                            $PreviousOrigin = $PreviousUri.GetLeftPart([System.UriPartial]::Authority)
+                            $NextOrigin = $NextUri.GetLeftPart([System.UriPartial]::Authority)
+                            # Do not forward credentials to a different redirect origin (HttpClient clears Authorization on auto-redirect).
+                            if ($PreviousOrigin -ne $NextOrigin -and $RestMethod.Headers) {
+                                foreach ($SensitiveHeader in @('Authorization', 'CF-Access-Client-Id', 'CF-Access-Client-Secret')) {
+                                    if ($RestMethod.Headers.ContainsKey($SensitiveHeader)) {
+                                        $null = $RestMethod.Headers.Remove($SensitiveHeader)
+                                    }
+                                }
                             }
+                            $RestMethod.Uri = $NextUri.AbsoluteUri
+                            Assert-CIPPWebhookDestination -Uri $RestMethod.Uri
+                            if ($WebhookStatusCode -notin 307, 308) {
+                                $RestMethod.Method = 'GET'
+                                $RestMethod.Remove('Body')
+                                $RestMethod.Remove('ContentType')
+                            }
+                            $WebhookResponse = Invoke-CIPPRestMethod @RestMethod
                         }
                         if ($WebhookStatusCode -eq 429) {
                             $RetryCount++

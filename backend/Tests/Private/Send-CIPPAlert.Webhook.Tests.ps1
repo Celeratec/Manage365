@@ -13,7 +13,14 @@ BeforeAll {
         param($Uri, $Method, $Body, $Headers, $ContentType, $StatusCodeVariable, $ResponseHeadersVariable, [switch]$SkipHttpErrorCheck, $MaximumRedirection)
         $script:Sent.Add([pscustomobject]@{ Uri = $Uri; Method = $Method; Body = $Body; Headers = $Headers; MaximumRedirection = $MaximumRedirection })
         $Next = $script:Redirects[$Uri]
-        Set-Variable -Name $StatusCodeVariable -Value $(if ($Next) { $script:RedirectStatus } else { 200 }) -Scope 1
+        $Status = if ($script:RedirectStatusByUri -and $script:RedirectStatusByUri.ContainsKey($Uri)) {
+            $script:RedirectStatusByUri[$Uri]
+        } elseif ($Next) {
+            $script:RedirectStatus
+        } else {
+            200
+        }
+        Set-Variable -Name $StatusCodeVariable -Value $Status -Scope 1
         Set-Variable -Name $ResponseHeadersVariable -Value $(if ($Next) { @{ Location = $Next } } else { @{} }) -Scope 1
     }
 
@@ -28,6 +35,7 @@ Describe 'Send-CIPPAlert -Type webhook' {
         $script:Sent = [System.Collections.Generic.List[object]]::new()
         $script:Redirects = @{}
         $script:RedirectStatus = 307
+        $script:RedirectStatusByUri = $null
         $script:Config = [pscustomobject]@{
             webhook            = 'https://8.8.8.8/hook'
             webhookAuthType    = 'customheaders'
@@ -93,6 +101,17 @@ Describe 'Send-CIPPAlert -Type webhook' {
         $script:Sent.Count | Should -Be 2
         $script:Sent[1].Method | Should -Be 'GET'
         $script:Sent[1].Body | Should -BeNullOrEmpty
+    }
+
+    It 'keeps GET after a 303 when a later redirect is 307' {
+        $script:RedirectStatus = 303
+        $script:Redirects = @{ 'https://8.8.8.8/hook' = 'https://1.1.1.1/next' }
+        $script:RedirectStatusByUri = @{ 'https://1.1.1.1/next' = 307; 'https://1.1.1.1/final' = 200 }
+        $script:Redirects['https://1.1.1.1/next'] = 'https://1.1.1.1/final'
+        Send-CIPPAlert -Type 'webhook' -Title 'T' -JSONContent '{"a":1}' -TenantFilter 'contoso.onmicrosoft.com' | Should -Match 'status code: 200'
+        $script:Sent.Method | Should -Be @('POST', 'GET', 'GET')
+        $script:Sent[1].Body | Should -BeNullOrEmpty
+        $script:Sent[2].Body | Should -BeNullOrEmpty
     }
 
     It 'does not follow a 303 redirect to a local address' {

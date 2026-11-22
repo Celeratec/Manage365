@@ -35,14 +35,24 @@ function Get-CIPPAlertNewRole {
             $HasOtherBaseline = [bool]($AdminDelta | Where-Object { $_.PSObject.Properties['OtherMembers'] })
             $AlertData = foreach ($Group in $NewDelta) {
                 $OldDelta = $AdminDelta | Where-Object { $_.GroupName -eq $Group.GroupName }
-                $Added = @($Group.Members | Where-Object { $_ -notin $OldDelta.Members })
-                if ($HasOtherBaseline) { $Added += @($Group.OtherMembers | Where-Object { $_.id -notin $OldDelta.OtherMembers.id }).name }
-                $Added | Where-Object { $_ } | ForEach-Object {
+                foreach ($User in @($Group.Members | Where-Object { $_ -and $_ -notin $OldDelta.Members })) {
                     [PSCustomObject]@{
-                        Message = "$_ has been added to the $($Group.GroupName) Role"
-                        User    = $_
+                        Message = "$User has been added to the $($Group.GroupName) Role"
+                        User    = $User
                         Role    = $Group.GroupName
                         Tenant  = $TenantFilter
+                    }
+                }
+                # Keep object Id on non-UPN members so same-named principals do not collapse in Get-AlertContentHash.
+                if ($HasOtherBaseline) {
+                    foreach ($Other in @($Group.OtherMembers | Where-Object { $_.id -and $_.id -notin @($OldDelta.OtherMembers.id) })) {
+                        [PSCustomObject]@{
+                            Message = "$($Other.name) has been added to the $($Group.GroupName) Role"
+                            User    = $Other.name
+                            Id      = $Other.id
+                            Role    = $Group.GroupName
+                            Tenant  = $TenantFilter
+                        }
                     }
                 }
             }

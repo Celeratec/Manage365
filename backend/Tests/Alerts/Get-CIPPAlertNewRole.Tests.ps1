@@ -44,14 +44,18 @@ Describe 'Get-CIPPAlertNewRole' {
         }
         Mock Get-CIPPAzDataTableEntity { [PSCustomObject]@{ delta = '[{"GroupName":"Global Administrator","Members":null,"OtherMembers":[{"id":"sp-old","name":"Evil App (servicePrincipal)"}]}]' } }
         Get-CIPPAlertNewRole -TenantFilter 'contoso.onmicrosoft.com'
-        Should -Invoke Write-AlertTrace -Times 1 -Exactly -ParameterFilter { @($data).Count -eq 1 -and $data.User -eq 'Evil App (servicePrincipal)' }
+        Should -Invoke Write-AlertTrace -Times 1 -Exactly -ParameterFilter {
+            @($data).Count -eq 1 -and $data.User -eq 'Evil App (servicePrincipal)' -and $data.Id -eq 'sp-new'
+        }
         Should -Invoke Write-LogMessage -Times 0 -Exactly
     }
 
     It 'alerts when a service principal is added to a role' {
         Mock Get-CIPPAzDataTableEntity { [PSCustomObject]@{ delta = '[{"GroupName":"Global Administrator","Members":"alice@contoso.com","OtherMembers":[]}]' } }
         Get-CIPPAlertNewRole -TenantFilter 'contoso.onmicrosoft.com'
-        Should -Invoke Write-AlertTrace -Times 1 -Exactly -ParameterFilter { @($data).Count -eq 1 -and $data.User -eq 'Evil App (servicePrincipal)' }
+        Should -Invoke Write-AlertTrace -Times 1 -Exactly -ParameterFilter {
+            @($data).Count -eq 1 -and $data.User -eq 'Evil App (servicePrincipal)' -and $data.Id -eq 'sp-new'
+        }
         Should -Invoke Write-LogMessage -Times 0 -Exactly
     }
 

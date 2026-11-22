@@ -10,7 +10,7 @@ function New-CIPPDeviceAction {
     )
     # The action name becomes part of the Graph path, so only known actions are queued.
     $QueuedActions = @(
-        'syncDevice', 'rebootNow', 'locateDevice', 'setDeviceName', 'RotateLocalAdminPassword', 'WindowsDefenderScan',
+        'syncDevice', 'rebootNow', 'locateDevice', 'remoteLock', 'setDeviceName', 'RotateLocalAdminPassword', 'WindowsDefenderScan',
         'windowsDefenderUpdateSignatures', 'cleanWindowsDevice', 'wipe', 'retire', 'createDeviceLogCollectionRequest',
         'initiateOnDemandProactiveRemediation'
     )

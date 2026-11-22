@@ -18,12 +18,13 @@ function Invoke-CippTestZTNA21824 {
             return
         }
 
-        $filteredCAPolicies = @($allCAPolicies).Where({
+        $guestTargetingPolicies = @($allCAPolicies).Where({
             # The legacy 'GuestsOrExternalUsers' token in includeUsers targets guests without the block
             ($null -ne $_.conditions.users.includeGuestsOrExternalUsers -or $_.conditions.users.includeUsers -contains 'GuestsOrExternalUsers') -and
-            ($_.state -in @('enabled', 'enabledForReportingButNotEnforced')) -and
             ($null -eq $_.grantControls.termsOfUse -or $_.grantControls.termsOfUse.Count -eq 0)
         })
+        # Report-only policies do not enforce session controls; only enabled policies can contribute to Passed.
+        $filteredCAPolicies = @($guestTargetingPolicies).Where({ $_.state -eq 'enabled' })
 
         $matchedPolicies = $filteredCAPolicies.Where({
             $signInFrequency = $_.sessionControls.signInFrequency
