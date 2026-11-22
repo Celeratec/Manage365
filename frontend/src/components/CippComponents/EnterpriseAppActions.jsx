@@ -4,7 +4,6 @@ import { CippIcons } from '../../utils/icon-registry'
 import { ApiGetCall } from '../../api/ApiCall'
 import { CippFormComponent } from './CippFormComponent.jsx'
 import { CertificateCredentialRemovalForm } from './CertificateCredentialRemovalForm.jsx'
-import { getAppOwnerAction } from './AppRegistrationActions.jsx'
 import { getCippError } from '../../utils/get-cipp-error'
 
 const headerLinkProps = { showInActionsMenu: true }
