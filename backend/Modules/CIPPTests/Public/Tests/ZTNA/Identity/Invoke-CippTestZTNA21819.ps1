@@ -1,19 +1,24 @@
 function Invoke-CippTestZTNA21819 {
     <#
     .SYNOPSIS
-    Activation alert for Global Administrator role assignment
+    Activation alert for Global Administrator role assignments
     #>
     param($Tenant)
     #Tested
     $TestId = 'ZTNA21819'
 
     try {
+        if (-not (Test-CIPPStandardLicense -StandardName $TestId -TenantFilter $Tenant -Preset PIM -SkipLog)) {
+            Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Unlicensed' -ResultMarkdown 'This tenant is not licensed for Privileged Identity Management. Required capabilities: AAD_PREMIUM_P2, Entra_Identity_Governance.' -Risk 'Medium' -Name 'Activation alert for Global Administrator role assignments' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Privileged access'
+            return
+        }
+
         # Get Global Administrator role (template ID: 62e90394-69f5-4237-9190-012177145e10)
         $Roles = Get-CIPPTestData -TenantFilter $Tenant -Type 'Roles'
         $GlobalAdminRole = $Roles.Where({ $_.roleTemplateId -eq '62e90394-69f5-4237-9190-012177145e10' })
 
         if (-not $GlobalAdminRole) {
-            Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No data found in database. This may be due to missing required licenses or data collection not yet completed.' -Risk 'Low' -Name 'Activation alert for Global Administrator role assignment' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged access'
+            Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Skipped' -ResultMarkdown 'No data found in database. This may be due to missing required licenses or data collection not yet completed.' -Risk 'Medium' -Name 'Activation alert for Global Administrator role assignments' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Privileged access'
             return
         }
 
@@ -32,9 +37,9 @@ function Invoke-CippTestZTNA21819 {
         $Recipients = 'N/A'
 
         if ($GlobalAdminPolicy) {
-            # Find the notification rule for requestor end-user assignment
+            # Activation alert sent to admins
             $NotificationRule = $GlobalAdminPolicy.rules.Where({
-                $_.id -like '*Notification_Requestor_EndUser_Assignment*'
+                $_.id -like '*Notification_Admin_EndUser_Assignment*'
             })
 
             if ($NotificationRule) {
@@ -52,13 +57,13 @@ function Invoke-CippTestZTNA21819 {
         }
 
         if ($Passed -eq 'Passed') {
-            $ResultMarkdown = "Activation alerts are configured for Global Administrator role.`n`n"
+            $ResultMarkdown = [System.Text.StringBuilder]::new("Activation alerts are configured for Global Administrator role.`n`n")
         } else {
-            $ResultMarkdown = "Activation alerts are missing or improperly configured for Global Administrator role.`n`n"
+            $ResultMarkdown = [System.Text.StringBuilder]::new("Activation alerts are missing or improperly configured for Global Administrator role.`n`n")
         }
 
-        $ResultMarkdown += "| Role display name | Default recipients | Additional recipients |`n"
-        $ResultMarkdown += "| :---------------- | :----------------- | :------------------- |`n"
+        $null = $ResultMarkdown.Append("| Role display name | Default recipients | Additional recipients |`n")
+        $null = $ResultMarkdown.Append("| :---------------- | :----------------- | :------------------- |`n")
 
         $RoleLink = 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/RolesManagementMenuBlade/~/AllRoles'
         $DisplayNameLink = "[$($GlobalAdminRole.displayName)]($RoleLink)"
@@ -77,13 +82,13 @@ function Invoke-CippTestZTNA21819 {
             $Recipients
         }
 
-        $ResultMarkdown += "| $DisplayNameLink | $DefaultRecipientsStatus | $RecipientsDisplay |`n"
+        $null = $ResultMarkdown.Append("| $DisplayNameLink | $DefaultRecipientsStatus | $RecipientsDisplay |`n")
 
-        Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status $Passed -ResultMarkdown $ResultMarkdown -Risk 'Low' -Name 'Activation alert for Global Administrator role assignment' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged access'
+        Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status $Passed -ResultMarkdown $ResultMarkdown -Risk 'Medium' -Name 'Activation alert for Global Administrator role assignments' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Privileged access'
 
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         Write-LogMessage -API 'Tests' -tenant $Tenant -message "Failed to run test: $($ErrorMessage.NormalizedError)" -sev Error -LogData $ErrorMessage
-        Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Failed' -ResultMarkdown "Error running test: $($ErrorMessage.NormalizedError)" -Risk 'Low' -Name 'Activation alert for Global Administrator role assignment' -UserImpact 'Low' -ImplementationEffort 'Medium' -Category 'Privileged access'
+        Add-CippTestResult -TenantFilter $Tenant -TestId $TestId -TestType 'Identity' -Status 'Failed' -ResultMarkdown "Error running test: $($ErrorMessage.NormalizedError)" -Risk 'Medium' -Name 'Activation alert for Global Administrator role assignments' -UserImpact 'Low' -ImplementationEffort 'Low' -Category 'Privileged access'
     }
 }

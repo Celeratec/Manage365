@@ -18,8 +18,8 @@ function Invoke-CippTestZTNA21824 {
             return
         }
 
+        # Adapt: keep Batch1 GuestsOrExternalUsers includeUsers token + enabled-only Pass filter.
         $guestTargetingPolicies = @($allCAPolicies).Where({
-            # The legacy 'GuestsOrExternalUsers' token in includeUsers targets guests without the block
             ($null -ne $_.conditions.users.includeGuestsOrExternalUsers -or $_.conditions.users.includeUsers -contains 'GuestsOrExternalUsers') -and
             ($null -eq $_.grantControls.termsOfUse -or $_.grantControls.termsOfUse.Count -eq 0)
         })
