@@ -24,4 +24,4 @@ Each item should become its own `clint/upstream-*` branch and **draft** PR into 
 
 ## Baseline claim
 
-After Intune + NHI + CA packs land (or Clint decides earlier), bump `upstreamBaseline` to **11.4.0** via `Tools/Update-Version.ps1` on a dedicated release PR.
+**Done (6.1.37):** Intune + NHI + CA (and the rest of #81–#89) landed; `upstreamBaseline` bumped to **11.4.0** via `Tools/Update-Version.ps1` on `clint/upstream-baseline-11.4.0`.
