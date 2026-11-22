@@ -20637,6 +20637,14 @@
                   "type": "object",
                   "description": "Derived from the fields written into the storage table it reads. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
                   "properties": {
+                    "AttestationReason": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "AttestationState": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
                     "AutoUpdate": {
                       "type": "string",
                       "x-cipp-field-source": "storage"
@@ -20664,6 +20672,10 @@
                     "PartitionKey": {
                       "x-cipp-field-source": "storage"
                     },
+                    "PinnedDigest": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
                     "RemoteBuildDate": {
                       "type": "string",
                       "x-cipp-field-source": "storage"
@@ -20677,6 +20689,18 @@
                       "x-cipp-field-source": "storage"
                     },
                     "RowKey": {
+                      "x-cipp-field-source": "storage"
+                    },
+                    "RunningAttestationReason": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "RunningAttestationState": {
+                      "type": "string",
+                      "x-cipp-field-source": "storage"
+                    },
+                    "RunningDigest": {
+                      "type": "string",
                       "x-cipp-field-source": "storage"
                     },
                     "RunningVersion": {

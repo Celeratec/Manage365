@@ -6,13 +6,13 @@ Selective CIPP intake on `clint/upstream-container-attestation`. Fork-only; neve
 
 | SHA | Change | Status |
 |-----|--------|--------|
-| `3dca57955` | Pin container actions + attest build provenance (dev/nightly/release) | **Adapt** — Manage365 already pins actions; add id-token/attestations + attest step to `release-container.yml` / `preview-container.yml` only (no CIPP `dev-container` / `nightly-container` workflows here) |
-| `d985563c9` | Attest preview container provenance | **Adapt** — same preview workflow |
-| `38db661f9` | Verify Sigstore attestation before auto-update (CIPPSharp + Test-CIPPContainerAttestation + UI) | Planned |
-| `eb42820af` | Verify channel image attestation always | Planned |
-| `6defe6933` | Verify attestation on manual update check | Planned |
-| `b50961f43` | Pin verified channel image digests + shared helpers | Planned |
-| `1853aa854` | Label channel trust level in UI | Planned |
+| `3dca57955` | Pin container actions + attest build provenance (dev/nightly/release) | **Adapt applied** (`4f085c874`) — Manage365 already pins actions; id-token/attestations + attest on release/preview only |
+| `d985563c9` | Attest preview container provenance | **Adapt applied** (`4f085c874`) — same preview workflow |
+| `38db661f9` | Verify Sigstore attestation before auto-update (CIPPSharp + Test-CIPPContainerAttestation + UI) | Applied |
+| `eb42820af` | Verify channel image attestation always | Applied |
+| `6defe6933` | Verify attestation on manual update check | Applied |
+| `b50961f43` | Pin verified channel image digests + shared helpers | Applied |
+| `1853aa854` | Label channel trust level in UI | Applied |
 
 ## Adapt notes
 
