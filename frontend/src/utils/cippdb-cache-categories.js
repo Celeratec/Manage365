@@ -6,6 +6,7 @@ const CACHE_TYPE_COLLECTIONS = {
     "Guests",
     "ServicePrincipals",
     "Apps",
+    "AppFederatedCredentials",
     "Devices",
     "Organization",
     "Roles",

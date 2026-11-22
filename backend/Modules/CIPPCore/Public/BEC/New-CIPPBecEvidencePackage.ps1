@@ -136,16 +136,6 @@ function New-CIPPBecEvidencePackage {
         } catch {
             Write-Information "BEC evidence: server-side PDF render failed for $CaseId`: $($_.Exception.Message)"
         }
-        $BecData | Add-Member -NotePropertyName 'Run' -NotePropertyValue $RunBlock -Force
-        $TenantName = Get-CippReportTenantName -TenantFilter $TenantFilter
-        $DisplayName = @($Run.DisplayName, $Run.UserPrincipalName, $Run.UserId) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -First 1
-        $UserData = [pscustomobject]@{ displayName = $DisplayName; userPrincipalName = $Run.UserPrincipalName; id = $Run.UserId }
-        $Full = Build-CippBecReportTree -UserData $UserData -BecData $BecData -TenantName $TenantName
-        $Files['report-full.pdf'] = ConvertTo-CippReportPdf -Blocks $Full.Blocks -Variables $Full.Variables -TenantName $TenantName -TenantFilter $TenantFilter -ReportName 'BEC Analysis Report'
-        $Summary = Build-CippBecReportTree -UserData $UserData -BecData $BecData -TenantName $TenantName -Variant summary
-        $Files['report-summary.pdf'] = ConvertTo-CippReportPdf -Blocks $Summary.Blocks -Variables $Summary.Variables -TenantName $TenantName -TenantFilter $TenantFilter -ReportName 'BEC Analysis Report'
-    } catch {
-        Write-Information "BEC evidence: server-side PDF render failed for $CaseId`: $($_.Exception.Message)"
     }
 
     $Stream = [System.IO.MemoryStream]::new()
