@@ -43,7 +43,7 @@ Production cutover reuses the existing storage account and Key Vault — there i
 
 ## Release 6.1.37 (November 2026)
 
-Claims CIPP baseline **11.4.0** after selective intake packs #81–#89 landed: Intune clarity, NHI/BEC, CA ops, SPO guest/storage, Exchange utils, BlockAllTenants auth, ZTA 3.1.0 identity, TenantGroupSelector (flag off by default), and container Sigstore attestation + digest pinning. Rebuild/deploy with `APP_VERSION=11.4.0` and image tag `v6.1.37`.
+Claims CIPP baseline **11.4.0** after selective intake packs #81–#89 landed: Intune clarity, NHI/BEC, CA ops, SPO guest/storage, Exchange utils, BlockAllTenants auth, ZTA 3.1.0 identity, TenantGroupSelector (flag off by default), and container Sigstore attestation + digest pinning. Production (`cippbefno`) is on `ghcr.io/celeratec/manage365:v6.1.37` pinned at digest `sha256:cf0eec3eaf77ceb438165d62bef7f58c8b09f15061b44d8d01a3b50361411da3` (`APP_VERSION=11.4.0`, commit `c3f07971d`). Rollback is `v6.1.36` digest `sha256:542ba30e7dd2773d1b09f89138263c1eba9f7218cf55d59f7e2d98d04773ade7`.
 
 ## Release 6.1.36 (November 2026)
 
