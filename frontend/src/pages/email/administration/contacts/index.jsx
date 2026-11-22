@@ -15,6 +15,7 @@ import {
 } from '@mui/icons-material'
 import TrashIcon from '@heroicons/react/24/outline/TrashIcon'
 import { CippAddContactDrawer } from "../../../../components/CippComponents/CippAddContactDrawer";
+import { CippBulkContactDrawer } from "../../../../components/CippComponents/CippBulkContactDrawer";
 import { CippDeployContactTemplateDrawer } from "../../../../components/CippComponents/CippDeployContactTemplateDrawer";
 
 const Page = () => {
@@ -158,6 +159,7 @@ const Page = () => {
       cardButton={
         <>
           <CippAddContactDrawer requiredPermissions={cardButtonPermissions} />
+          <CippBulkContactDrawer requiredPermissions={cardButtonPermissions} />
           <CippDeployContactTemplateDrawer requiredPermissions={cardButtonPermissions} />
         </>
       }

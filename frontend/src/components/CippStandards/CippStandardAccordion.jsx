@@ -71,7 +71,7 @@ const CippAddedComponent = React.memo(({ standardName, component, formControl })
     }));
   } else if (component.type === "TimezoneSelect") {
     updatedComponent.type = "autoComplete";
-    updatedComponent.options = timezoneList.map((tz) => ({
+    updatedComponent.options = timezoneList.filter((tz) => !tz.sharePointUnsupported).map((tz) => ({
       label: tz.timezone,
       value: tz.timezone,
     }));

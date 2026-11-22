@@ -13,7 +13,9 @@ function Set-CIPPCalendarPermission {
         [bool]$CanViewPrivateItems,
         [bool]$SendNotificationToUser = $false,
         [switch]$AutoResolveFolderName,
-        [string]$AclUserName
+        [string]$AclUserName,
+        # Shared per request by bulk callers so the cache sync reads the tenant's cache once
+        [hashtable]$CacheContext
     )
 
     try {
@@ -90,12 +92,14 @@ function Set-CIPPCalendarPermission {
                 }
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -sev Info
 
-                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $RemoveAccess -Action 'Remove'
+                # Adapt: multi-key cache clear (AclUserName hotfix) + shared CacheContext for bulk
+                $CacheFolder = $FolderMeta.FolderName ?? $FolderName
+                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName $CacheFolder -User $RemoveAccess -Action 'Remove' -CacheContext $CacheContext
                 if ($AclUserName) {
-                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $AclUserName -Action 'Remove'
+                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName $CacheFolder -User $AclUserName -Action 'Remove' -CacheContext $CacheContext
                 }
                 if ($Resolved.UserEmail -and $Resolved.UserEmail -ne $RemoveAccess) {
-                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $Resolved.UserEmail -Action 'Remove'
+                    Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName $CacheFolder -User $Resolved.UserEmail -Action 'Remove' -CacheContext $CacheContext
                 }
             }
         } else {
@@ -120,7 +124,7 @@ function Set-CIPPCalendarPermission {
                 Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -sev Info
 
                 $CacheUser = $Resolved.UserEmail ?? $UserToGetPermissions
-                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $CacheUser -Permissions $Permissions -Action 'Add'
+                Sync-CIPPCalendarPermissionCache -TenantFilter $TenantFilter -MailboxIdentity $UserID -FolderName ($FolderMeta.FolderName ?? $FolderName) -User $CacheUser -Permissions $Permissions -Action 'Add' -CacheContext $CacheContext
             }
         }
     } catch {

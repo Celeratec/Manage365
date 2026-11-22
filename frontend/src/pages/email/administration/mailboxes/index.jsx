@@ -2,6 +2,7 @@ import { Layout as DashboardLayout } from '../../../../layouts/index'
 import { CippTablePage } from '../../../../components/CippComponents/CippTablePage'
 import CippExchangeActions from '../../../../components/CippComponents/CippExchangeActions'
 import { CippSharedMailboxDrawer } from '../../../../components/CippComponents/CippSharedMailboxDrawer'
+import { CippBulkSharedMailboxDrawer } from '../../../../components/CippComponents/CippBulkSharedMailboxDrawer'
 import { useCippReportDB } from '../../../../components/CippComponents/CippReportDBControls'
 import { useCallback } from 'react'
 import { useRouter } from 'next/router'
@@ -318,6 +319,7 @@ const Page = () => {
             alignItems: "center"
           }}>
             <CippSharedMailboxDrawer />
+            <CippBulkSharedMailboxDrawer />
             <CippHVEUserDrawer />
           </Stack>
         }

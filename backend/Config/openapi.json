@@ -19708,6 +19708,84 @@
         "x-cipp-role": "Tenant.ConditionalAccess.ReadWrite"
       }
     },
+    "/api/ExecCalendarTimeZoneMigration": {
+      "post": {
+        "summary": "Move a mailbox and its calendar events to a new time zone",
+        "operationId": "ExecCalendarTimeZoneMigration",
+        "tags": [
+          "Email-Exchange > Administration"
+        ],
+        "description": "Sets the mailbox and working hours time zone, then runs Invoke-CalendarEventMigration so future meetings the mailbox organises keep their local time in the new zone, for example Pacific Standard Time to British Columbia Standard Time.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "FromTimeZone": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Windows time zone ID the events are currently in, e.g. Pacific Standard Time"
+                  },
+                  "Identity": {
+                    "type": "string",
+                    "description": "Mailbox ExchangeGuid"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "ToTimeZone": {
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Windows time zone ID to move the mailbox and events to, e.g. British Columbia Standard Time"
+                  },
+                  "UPN": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
     "/api/ExecCAServiceExclusion": {
       "post": {
         "summary": "ExecCAServiceExclusion",
@@ -33960,38 +34038,135 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "mailboxRequests": {
+                    "type": "array",
+                    "description": "Bulk format. One entry per calendar mailbox; replaces the top-level userID and permissions.",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "userID",
+                        "permissions"
+                      ],
+                      "properties": {
+                        "userID": {
+                          "type": "string",
+                          "description": "UPN or object id of the mailbox whose calendar is modified."
+                        },
+                        "permissions": {
+                          "type": "array",
+                          "description": "Permission changes to apply to the mailbox's calendar folder.",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "UserID": {
+                                "description": "Grantee: UPN, recipient id, or the display name Exchange reports. A single value, a {label,value} object, or an array of either.",
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "$ref": "#/components/schemas/LabelValue"
+                                  },
+                                  {
+                                    "type": "array",
+                                    "items": {
+                                      "$ref": "#/components/schemas/LabelValue"
+                                    }
+                                  }
+                                ]
+                              },
+                              "PermissionLevel": {
+                                "description": "Folder access right, e.g. Reviewer or Editor. A string or a {label,value} object.",
+                                "oneOf": [
+                                  {
+                                    "type": "string"
+                                  },
+                                  {
+                                    "$ref": "#/components/schemas/LabelValue"
+                                  }
+                                ]
+                              },
+                              "Modification": {
+                                "type": "string",
+                                "enum": [
+                                  "Add",
+                                  "Remove"
+                                ]
+                              },
+                              "FolderName": {
+                                "type": "string",
+                                "description": "Calendar folder name, localized per mailbox (e.g. Kalender). Defaults to Calendar."
+                              },
+                              "CanViewPrivateItems": {
+                                "type": "boolean"
+                              },
+                              "SendNotificationToUser": {
+                                "type": "boolean"
+                              },
+                              "DisplayName": {
+                                "type": "string",
+                                "description": "Name used in log and result messages when UserID is an id."
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
                   "permissions": {
                     "type": "array",
+                    "description": "Permission changes to apply to the mailbox's calendar folder.",
                     "items": {
                       "type": "object",
                       "properties": {
-                        "AclUserName": {
-                          "type": "string"
-                        },
-                        "CanViewPrivateItems": {
-                          "type": "string"
-                        },
-                        "FolderName": {
-                          "type": "string"
-                        },
-                        "Modification": {
-                          "type": "string"
+                        "UserID": {
+                          "description": "Grantee: UPN, recipient id, or the display name Exchange reports. A single value, a {label,value} object, or an array of either.",
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/components/schemas/LabelValue"
+                            },
+                            {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/components/schemas/LabelValue"
+                              }
+                            }
+                          ]
                         },
                         "PermissionLevel": {
-                          "$ref": "#/components/schemas/LabelValue"
+                          "description": "Folder access right, e.g. Reviewer or Editor. A string or a {label,value} object.",
+                          "oneOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "$ref": "#/components/schemas/LabelValue"
+                            }
+                          ]
+                        },
+                        "Modification": {
+                          "type": "string",
+                          "enum": [
+                            "Add",
+                            "Remove"
+                          ]
+                        },
+                        "FolderName": {
+                          "type": "string",
+                          "description": "Calendar folder name, localized per mailbox (e.g. Kalender). Defaults to Calendar."
+                        },
+                        "CanViewPrivateItems": {
+                          "type": "boolean"
                         },
                         "SendNotificationToUser": {
-                          "type": "string"
+                          "type": "boolean"
                         },
-                        "UserAclName": {
-                          "type": "string"
-                        },
-                        "UserID": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/components/schemas/LabelValue"
-                          },
-                          "description": "Handle UserID as array or single value"
+                        "DisplayName": {
+                          "type": "string",
+                          "description": "Name used in log and result messages when UserID is an id."
                         }
                       }
                     }
@@ -34001,13 +34176,13 @@
                   },
                   "userID": {
                     "type": "string",
-                    "description": "UPN of the mailbox to modify calendar permissions for"
+                    "description": "Legacy single-mailbox format: UPN or object id of the mailbox whose calendar is modified."
                   }
                 },
                 "required": [
-                  "tenantFilter",
-                  "userID"
-                ]
+                  "tenantFilter"
+                ],
+                "description": "Either one mailbox (userID + permissions) or many (mailboxRequests), all in the same tenant."
               }
             }
           }
@@ -34406,7 +34581,8 @@
             "bearerAuth": []
           }
         ],
-        "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+        "x-cipp-role": "Exchange.Mailbox.ReadWrite",
+        "x-cipp-override-reason": "permissions is read off each mailboxRequests element (or the legacy top-level body), so the generator loses the element shape behind the loop variable."
       }
     },
     "/api/ExecModifyContactPerms": {
