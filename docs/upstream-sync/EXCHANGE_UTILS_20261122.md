@@ -4,9 +4,9 @@ Selective CIPP intake on `clint/upstream-exchange-utils`. Fork-only; never PR Cy
 
 | SHA | Change | Plan |
 |-----|--------|------|
-| `e8a1eecf3` | Bulk add drawers: shared / room / equipment (+ `CippBulkDrawer`) | **Apply** — Adapt: fork has `CippAddContactDrawer`, not upstream `CippBulkContactDrawer` |
-| `460245742` | Bulk remove on Calendar Permissions Report | **Apply** |
-| `445e695f3` | Migrate mailbox calendars to a new time zone | **Apply** |
+| `e8a1eecf3` | Bulk add drawers: shared / room / equipment (+ `CippBulkDrawer`) | **Applied** — Adapt: keep HVE drawer; wire `CippBulkContactDrawer` on contacts page |
+| `445e695f3` | Migrate mailbox calendars to a new time zone | **Applied** |
+| `460245742` | Bulk remove on Calendar Permissions Report | **Defer** — heavy conflict with fork calendar permission / AclUserName Adapt; revisit after #82 or dedicated Adapt PR |
 | `8a2cd9041` | Exchange app mailbox-access UI (roles/policies/scopes) | **Defer** until NHI/BEC #82 merges (needs Exo exposure/cache from `bdeeef2e0`) |
 | `0e8a6e145` | Hide default Exchange delegating app roles | **Defer** with `8a2cd9041` (touches exposure already in #82) |
 
@@ -23,4 +23,4 @@ Selective CIPP intake on `clint/upstream-exchange-utils`. Fork-only; never PR Cy
 
 ## Status
 
-Inventory started; cherry-picks next.
+Bulk drawers + timezone migration landed. OpenAPI regenerated (880 endpoints). Calendar bulk-remove and app-mailbox UI deferred.
