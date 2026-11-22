@@ -175,13 +175,21 @@ function New-CippCoreRequest {
             $swGroups.Stop()
             $HttpTimings['AllowedGroups'] = $swGroups.Elapsed.TotalMilliseconds
 
+            # Assign on every path, including the unrestricted one. Only writing the slot when
+            # access is limited is what allowed a restricted user's scope to survive into the
+            # next request handled by the same worker, silently filtering results for someone
+            # entitled to see everything.
             if ($AllowedTenants -notcontains 'AllTenants') {
                 Write-Warning 'Limiting tenant access'
                 $script:CippAllowedTenantsStorage.Value = $AllowedTenants
+            } else {
+                $script:CippAllowedTenantsStorage.Value = $null
             }
             if ($AllowedGroups -notcontains 'AllGroups') {
                 Write-Warning 'Limiting group access'
                 $script:CippAllowedGroupsStorage.Value = $AllowedGroups
+            } else {
+                $script:CippAllowedGroupsStorage.Value = $null
             }
 
             try {
