@@ -38,7 +38,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'returns only touched users (untouched directory user absent)' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-1'
+                id          = '00000001-0000-4000-8000-000000000000'
                 displayName = 'Include Alice'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -54,7 +54,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         } -ParameterFilter { $uri -like '*/conditionalAccess/policies/*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-1'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000001-0000-4000-8000-000000000000'
 
         $Result.identities.id | Should -Contain $script:UserA
         $Result.identities.id | Should -Not -Contain $script:UserX
@@ -66,7 +66,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'keeps exclude-only users with status excluded' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-2'
+                id          = '00000002-0000-4000-8000-000000000000'
                 displayName = 'Exclude only Bob'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -82,7 +82,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         } -ParameterFilter { $uri -like '*/conditionalAccess/policies/*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-2'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000002-0000-4000-8000-000000000000'
 
         $Result.identities.Count | Should -Be 1
         $Result.identities[0].id | Should -Be $script:UserB
@@ -94,7 +94,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'sets includesAllUsers without emitting every directory user' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-3'
+                id          = '00000003-0000-4000-8000-000000000000'
                 displayName = 'All users'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -110,7 +110,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         } -ParameterFilter { $uri -like '*/conditionalAccess/policies/*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-3'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000003-0000-4000-8000-000000000000'
 
         $Result.includesAllUsers | Should -BeTrue
         $Result.hasExclusions | Should -BeFalse
@@ -121,7 +121,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'All + exclude user yields excluded row with All include reason' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-4'
+                id          = '00000004-0000-4000-8000-000000000000'
                 displayName = 'All minus Alice'
                 state       = 'enabledForReportingButNotEnforced'
                 conditions  = [pscustomobject]@{
@@ -137,7 +137,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         } -ParameterFilter { $uri -like '*/conditionalAccess/policies/*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-4'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000004-0000-4000-8000-000000000000'
 
         $Result.includesAllUsers | Should -BeTrue
         $Result.hasExclusions | Should -BeTrue
@@ -151,7 +151,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'include+exclude yields status excluded with both reason arrays' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-5'
+                id          = '00000005-0000-4000-8000-000000000000'
                 displayName = 'Alice included and excluded'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -167,7 +167,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         } -ParameterFilter { $uri -like '*/conditionalAccess/policies/*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-5'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000005-0000-4000-8000-000000000000'
         $Row = $Result.identities | Where-Object { $_.id -eq $script:UserA }
 
         $Row.status | Should -Be 'excluded'
@@ -178,7 +178,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'expands include groups transitively and attributes multi-path reasons' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-6'
+                id          = '00000006-0000-4000-8000-000000000000'
                 displayName = 'Group and role'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -247,7 +247,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             return @($Out)
         }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-6'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000006-0000-4000-8000-000000000000'
         $Alice = $Result.identities | Where-Object { $_.id -eq $script:UserA }
         $Bob = $Result.identities | Where-Object { $_.id -eq $script:UserB }
 
@@ -271,7 +271,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'records unresolved deleted group GUIDs' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-7'
+                id          = '00000007-0000-4000-8000-000000000000'
                 displayName = 'Missing group'
                 state       = 'disabled'
                 conditions  = [pscustomobject]@{
@@ -307,7 +307,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             )
         }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-7'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000007-0000-4000-8000-000000000000'
 
         $Result.unresolved.Count | Should -BeGreaterThan 0
         $Result.unresolved[0].field | Should -Be 'includeGroups'
@@ -318,7 +318,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'expands GuestsOrExternalUsers token to guest users only' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-8'
+                id          = '00000008-0000-4000-8000-000000000000'
                 displayName = 'Guests'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -347,7 +347,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             )
         } -ParameterFilter { $uri -like '*/users?*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-8'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000008-0000-4000-8000-000000000000'
 
         $Result.identities.id | Should -Contain $script:UserC
         $Result.identities[0].includeReasons.value | Should -Contain 'includeUsers:GuestsOrExternalUsers'
@@ -357,7 +357,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'expands group-held role assignments to transitive user members' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-9'
+                id          = '00000009-0000-4000-8000-000000000000'
                 displayName = 'Admin MFA'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -409,7 +409,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             )
         }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-9'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000009-0000-4000-8000-000000000000'
         $Bob = $Result.identities | Where-Object { $_.id -eq $script:UserB }
         $Carol = $Result.identities | Where-Object { $_.id -eq $script:UserC }
 
@@ -427,7 +427,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
 
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-10'
+                id          = '00000010-0000-4000-8000-000000000000'
                 displayName = 'B2B guests from one tenant'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -481,7 +481,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             }
         }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-10'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000010-0000-4000-8000-000000000000'
 
         $Result.identities.id | Should -Contain $script:UserA
         $Result.identities.id | Should -Not -Contain $script:UserB
@@ -493,7 +493,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'reports the domain as unresolved instead of a verdict when the tenant lookup fails' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-12'
+                id          = '00000012-0000-4000-8000-000000000000'
                 displayName = 'All users except one partner'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -516,7 +516,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
         } -ParameterFilter { $uri -like '*/users?*' -and $uri -like '*Guest*' }
         Mock -CommandName New-GraphBulkRequest -MockWith { throw 'Graph 429' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-12'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000012-0000-4000-8000-000000000000'
 
         $Result.identities.id | Should -Not -Contain $script:UserA
         $Result.unresolved.id | Should -Contain 'fabrikam.com'
@@ -527,7 +527,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'expands the GuestsOrExternalUsers token to #EXT# members too' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-13'
+                id          = '00000013-0000-4000-8000-000000000000'
                 displayName = 'Guests'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -539,7 +539,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             @([pscustomobject]@{ id = $script:UserB; displayName = 'Ext member'; userPrincipalName = 'b_fabrikam.com#EXT#@contoso.com'; userType = 'Member' })
         } -ParameterFilter { $uri -like "*/users?*userType eq 'Member'*" }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-13'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000013-0000-4000-8000-000000000000'
 
         $Result.identities.id | Should -Contain $script:UserB
         $Result.identities[0].includeReasons.value | Should -Contain 'includeUsers:GuestsOrExternalUsers'
@@ -548,7 +548,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'records unresolved when group member expansion throws' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-11'
+                id          = '00000011-0000-4000-8000-000000000000'
                 displayName = 'Group expand fail'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -579,7 +579,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             )
         }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-11'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000011-0000-4000-8000-000000000000'
 
         $Result.identities.Count | Should -Be 0
         $Result.unresolved.Count | Should -BeGreaterThan 0
@@ -591,7 +591,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
     It 'does not dump all guests for non-enumerable guest types' {
         Mock -CommandName New-GraphGetRequest -MockWith {
             [pscustomobject]@{
-                id          = 'policy-12'
+                id          = '00000012-0000-4000-8000-000000000000'
                 displayName = 'Service provider only'
                 state       = 'enabled'
                 conditions  = [pscustomobject]@{
@@ -615,7 +615,7 @@ Describe 'Get-CIPPCAPolicyIdentityCoverage' {
             throw 'Should not enumerate directory guests for serviceProvider-only policies'
         } -ParameterFilter { $uri -like '*/users?*' }
 
-        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId 'policy-12'
+        $Result = Get-CIPPCAPolicyIdentityCoverage -TenantFilter 'contoso.com' -PolicyId '00000012-0000-4000-8000-000000000000'
 
         $Result.identities.Count | Should -Be 0
         $Result.unresolved | Where-Object { $_.id -eq 'serviceProvider' } | Should -Not -BeNullOrEmpty
