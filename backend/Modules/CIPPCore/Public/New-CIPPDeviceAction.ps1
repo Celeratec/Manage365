@@ -15,6 +15,10 @@ function New-CIPPDeviceAction {
         'initiateOnDemandProactiveRemediation'
     )
     try {
+        # Device id is interpolated into Graph URLs; reject path-escape payloads.
+        if (-not (Test-IsGuid -String $DeviceFilter)) {
+            throw "Device id must be a GUID"
+        }
         if ($Action -eq 'delete') {
             $null = New-GraphPOSTRequest -uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices/$DeviceFilter" -type DELETE -tenantid $TenantFilter
         } elseif ($Action -eq 'offboardMDEDevice') {

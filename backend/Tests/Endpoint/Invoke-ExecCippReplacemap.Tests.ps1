@@ -24,6 +24,7 @@ BeforeAll {
     }
 
     function Get-CIPPTable { param($tablename) @{} }
+    function ConvertTo-CIPPODataFilterValue { param([string]$Value, [string]$Type = 'String') if ($Type -eq 'String') { return ($Value -replace "'", "''") }; return $Value }
     function Get-CIPPAzDataTableEntity {
         [CmdletBinding()]
         param($Filter)

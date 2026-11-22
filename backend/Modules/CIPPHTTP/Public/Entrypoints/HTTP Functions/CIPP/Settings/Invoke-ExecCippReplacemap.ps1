@@ -110,7 +110,8 @@ function Invoke-ExecCippReplacemap {
     $StatusCode = [HttpStatusCode]::OK
     switch ($Action) {
         'List' {
-            $Variables = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq '$customerId'" -ErrorAction Stop | ForEach-Object {
+            $SafePartition = ConvertTo-CIPPODataFilterValue -Value $customerId -Type String
+            $Variables = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq '$SafePartition'" -ErrorAction Stop | ForEach-Object {
                 $_ | Add-Member -NotePropertyName 'Scope' -NotePropertyValue $(if ($customerId -eq 'AllTenants') { 'Global' } else { 'Tenant' }) -PassThru
             }
             if (!$Variables) {
@@ -226,8 +227,10 @@ function Invoke-ExecCippReplacemap {
         }
         'Delete' {
             $VariableName = $Request.Body.RowKey
+            $SafePartition = ConvertTo-CIPPODataFilterValue -Value $customerId -Type String
+            $SafeRowKey = ConvertTo-CIPPODataFilterValue -Value $VariableName -Type String
 
-            $VariableEntity = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq '$customerId' and RowKey eq '$VariableName'" -ErrorAction Stop
+            $VariableEntity = Get-CIPPAzDataTableEntity @Table -Filter "PartitionKey eq '$SafePartition' and RowKey eq '$SafeRowKey'" -ErrorAction Stop
             if ($VariableEntity) {
                 Remove-CIPPAzDataTableEntity @Table -Entity $VariableEntity -Force
                 $Result = "Variable '$VariableName' deleted successfully"

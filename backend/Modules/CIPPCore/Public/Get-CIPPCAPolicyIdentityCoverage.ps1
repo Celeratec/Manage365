@@ -107,8 +107,11 @@ function Get-CIPPCAPolicyIdentityCoverage {
         return $GuestCache.Guests + $GuestCache.ExtMembers
     }
 
-    # Load policy
-    $Policy =New-GraphGetRequest -uri "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$PolicyId" -tenantid $TenantFilter -AsApp $true
+    # Load policy — PolicyId is path-interpolated; only GUIDs are accepted.
+    if (-not (Test-IsGuid $PolicyId)) {
+        throw "Conditional Access policy id must be a GUID"
+    }
+    $Policy = New-GraphGetRequest -uri "https://graph.microsoft.com/beta/identity/conditionalAccess/policies/$PolicyId" -tenantid $TenantFilter -AsApp $true
     if (-not $Policy) {
         throw "Conditional Access policy $PolicyId was not found."
     }
