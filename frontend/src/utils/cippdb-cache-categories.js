@@ -6,6 +6,7 @@ const CACHE_TYPE_COLLECTIONS = {
     "Guests",
     "ServicePrincipals",
     "Apps",
+    "AppFederatedCredentials",
     "Devices",
     "Organization",
     "Roles",
@@ -74,6 +75,8 @@ const CACHE_TYPE_COLLECTIONS = {
     "ExoExternalInOutlook",
     "ExoOutboundConnector",
     "ExoRoleAssignmentPolicy",
+    "ExoAppRoleAssignments",
+    "ExoApplicationAccessPolicies",
     "ExoHostedContentFilterRule",
     "ExoGlobalQuarantinePolicy",
     "ExoOMEConfiguration",
@@ -96,6 +99,10 @@ const CACHE_TYPE_COLLECTIONS = {
   ConditionalAccess: [
     "ConditionalAccessPolicies",
     "UserRegistrationDetails",
+    "ServicePrincipalSignInActivities",
+    "AppCredentialChanges",
+    "ServicePrincipalRoleChanges",
+    "DelegatedGrantChanges",
   ],
   IdentityProtection: [
     "RiskyUsers",

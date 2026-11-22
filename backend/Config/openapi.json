@@ -136,6 +136,9 @@
       "name": "Tenant > Administration > Integration Templates"
     },
     {
+      "name": "Tenant > Administration > Non-Human Identity"
+    },
+    {
       "name": "Tenant > Administration > Tenant"
     },
     {
@@ -18482,6 +18485,91 @@
         "x-cipp-role": "Identity.User.ReadWrite"
       }
     },
+    "/api/ExecBECRelease": {
+      "post": {
+        "summary": "Releases a user from the containment run on a BEC case.",
+        "operationId": "ExecBECRelease",
+        "tags": [
+          "Identity > Administration > Users"
+        ],
+        "description": "Reverses the lockouts the case's containment placed on the user (see the Release field of ListBECRemediationActions): re-enables sign-in, restores the mailbox protocol settings, unblocks the mobile devices containment blocked, re-enables disabled registered devices and removes the targeted Conditional Access policy. Attacker cleanup is left in place and actions that cannot be undone are listed. Confirmation must equal the user's UPN. The release is recorded on the case.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    },
+                    "description": "reversible action ids to release; empty releases every one the containment ran"
+                  },
+                  "CaseId": {
+                    "type": "string",
+                    "description": "the BEC case whose containment is released"
+                  },
+                  "Confirmation": {
+                    "type": "string",
+                    "description": "must equal the user's UPN"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                  "properties": {
+                    "resultText": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "state": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Identity.User.ReadWrite"
+      }
+    },
     "/api/ExecBECRemediate": {
       "post": {
         "summary": "Runs selectable Business Email Compromise containment for a user.",
@@ -25844,6 +25932,146 @@
           }
         ],
         "x-cipp-role": "Exchange.Mailbox.ReadWrite"
+      }
+    },
+    "/api/ExecEnterpriseAppPermission": {
+      "post": {
+        "summary": "ExecEnterpriseAppPermission",
+        "operationId": "ExecEnterpriseAppPermission",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Adds or removes API permissions on an enterprise application (service principal). Application permissions are\napp role assignments. Delegated permissions are added to the tenant-wide (AllPrincipals) consent grant; removing\na delegated scope strips it from every grant the app holds for that API, per-user grants included, and deletes\ngrants left without scopes.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Action": {
+                    "type": "string"
+                  },
+                  "ResourceId": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "ServicePrincipalId": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  },
+                  "Type": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecEnterpriseAppRole": {
+      "post": {
+        "summary": "ExecEnterpriseAppRole",
+        "operationId": "ExecEnterpriseAppRole",
+        "tags": [
+          "Tenant > Administration > Application Approval"
+        ],
+        "description": "Adds or removes Entra directory role assignments held by an enterprise application (service principal).\nRoles are assigned tenant-wide; removal takes the role assignment ids, so assignments scoped to an\nadministrative unit can be removed too. The CIPP-SAM application's own roles are refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Action": {
+                    "type": "string"
+                  },
+                  "ServicePrincipalId": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Identity.Role.ReadWrite"
       }
     },
     "/api/ExecExchangeRoleRepair": {
@@ -35259,6 +35487,560 @@
         "x-cipp-reads-via": [
           "ConvertTo-FieldArray"
         ]
+      }
+    },
+    "/api/ExecNHICheck": {
+      "post": {
+        "summary": "Reads, polls or starts a non-human identity (NHI) compromise investigation of an app or managed identity.",
+        "operationId": "ExecNHICheck",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "GET with caseId returns that run: while it is queued or running { Waiting = true, Progress } with the per-step state the page renders; { Error, Progress } when it failed; otherwise the results payload with the server-side Score, per-collector Completeness and a Run block. GET with servicePrincipalId and no caseId returns that app's latest run as { CaseId, Status } and starts nothing. POST with tenantFilter and servicePrincipalId (or servicePrincipalIds for several apps) queues a new run per app and returns { CaseId } (or { Cases }). Runs are kept in the NhiReports table; metadata only, never message or file content.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caseId": {
+                    "type": "string",
+                    "description": "The run to read"
+                  },
+                  "servicePrincipalId": {
+                    "type": "string",
+                    "description": "Object id of the service principal to investigate"
+                  },
+                  "servicePrincipalIds": {
+                    "type": "string",
+                    "description": "Object ids of several service principals to investigate, one run each"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "caseId",
+            "in": "query",
+            "description": "The run to read",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "servicePrincipalId",
+            "in": "query",
+            "description": "Object id of the service principal to investigate",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                  "properties": {
+                    "CaseId": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Containment": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "ExtractedAt": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "RequestedAt": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "RequestedBy": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "Status": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.Read"
+      }
+    },
+    "/api/ExecNHIContainment": {
+      "post": {
+        "summary": "Contains the app of a non-human identity (NHI) compromise case.",
+        "operationId": "ExecNHIContainment",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Runs the selected containment actions (Actions, ids from ListNHIContainmentActions; the default set when empty) on the app of a completed case, with explicit targets in Parameters (CredentialKeyIds, FederatedCredentialIds, OwnerIds, AppRoleAssignmentIds, GrantIds, RoleAssignmentIds, PersistenceServicePrincipalIds, ElevationIds), else the targets the case flagged. Critical actions need Confirmation: the app's display name or application id, typed by the operator. Returns one result row per action and target, and appends them to the case's containment history.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Actions": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    },
+                    "description": "Action ids; plain strings or { value } options"
+                  },
+                  "caseId": {
+                    "type": "string"
+                  },
+                  "Confirmation": {
+                    "type": "string",
+                    "description": "The app's display name or application id, typed to confirm Critical actions"
+                  },
+                  "Parameters": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                  "properties": {
+                    "resultText": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "state": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecNHIEvidenceExport": {
+      "post": {
+        "summary": "Exports the evidence package of a non-human identity (NHI) compromise case.",
+        "operationId": "ExecNHIEvidenceExport",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Collates the run's stored results, one CSV per finding set, the score, the containment history and every logbook entry stamped with the case id into a ZIP. Nothing is stored: the ZIP is returned base64-encoded (ZipBase64) for the browser to save. Metadata only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caseId": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
+                  "properties": {
+                    "Bytes": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "CaseId": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "FileCount": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "ZipBase64": {
+                      "x-cipp-field-source": "backend"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.Read"
+      }
+    },
+    "/api/ExecNHIRelease": {
+      "post": {
+        "summary": "Releases the containment of a non-human identity (NHI) compromise case.",
+        "operationId": "ExecNHIRelease",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Re-enables what the case disabled and is still in force (containment after the latest release): the app itself, and the apps it created or put credentials on, once they turned out to be clean or their credentials were replaced. Removed credentials, owners and permissions are not restored: the rows say what to re-create by hand. Needs Confirmation: the app's display name or application id. Appends a Release entry to the case's containment history.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "caseId": {
+                    "type": "string"
+                  },
+                  "Confirmation": {
+                    "type": "string",
+                    "description": "The app's display name or application id, typed to confirm"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                  "properties": {
+                    "accountEnabled": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "addIns": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "alternativeNames": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appDescription": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appDisplayName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "applicationTemplateId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appOwnerOrganizationId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appRoleAssignmentRequired": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "appRoles": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "createdByAppId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "customSecurityAttributes": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deletedDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "description": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "disabledByMicrosoftStatus": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "homepage": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "id": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "info": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "isDisabled": {
+                      "type": "boolean",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "keyCredentials": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "loginUrl": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "logoutUrl": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "notes": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "notificationEmailAddresses": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "oauth2PermissionScopes": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "passwordCredentials": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "preferredSingleSignOnMode": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "preferredTokenSigningKeyThumbprint": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "replyUrls": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "resourceSpecificApplicationPermissions": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "resultText": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "samlSingleSignOnSettings": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "servicePrincipalNames": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "servicePrincipalType": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "signInAudience": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "state": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "tokenEncryptionKeyId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "verifiedPublisher": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
+      }
+    },
+    "/api/ExecNHIReport": {
+      "post": {
+        "summary": "Manages a stored non-human identity (NHI) compromise investigation.",
+        "operationId": "ExecNHIReport",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Action=Delete removes an NHI run permanently: its results payload and the run row. Runs are otherwise kept indefinitely.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "Action": {
+                    "type": "string",
+                    "description": "Currently only Delete"
+                  },
+                  "caseId": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.ReadWrite"
       }
     },
     "/api/ExecNotificationConfig": {
@@ -51817,6 +52599,118 @@
         "x-cipp-role": "Endpoint.Application.Read"
       }
     },
+    "/api/ListAppPermissionExposure": {
+      "get": {
+        "summary": "ListAppPermissionExposure",
+        "operationId": "ListAppPermissionExposure",
+        "tags": [
+          "Tenant > Reports"
+        ],
+        "description": "Lists the apps (service principals) in one tenant holding permissions from CIPP's risky permissions catalog, with a context-aware risk rating and the impact and suspicion of each permission. UseReportDB=true reads the reporting database; otherwise Graph is read live. ServicePrincipalId returns only that app's row (an empty list when it holds no catalogued permission).",
+        "parameters": [
+          {
+            "name": "ServicePrincipalId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "UseReportDB",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the columns the CIPP UI renders. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "AccountEnabled": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "AppDisplayName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "AppId": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "Categories": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "DirectoryRoleCount": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "HasAllPrincipalsGrant": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "HighestImpact": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "LastSignInDateTime": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "Ownership": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "PermissionCount": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "PublisherName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "Risk": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "SignInActivity": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "Vendor": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "VendorCategory": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "VerifiedPublisher": {
+                        "x-cipp-field-source": "frontend"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.Read"
+      }
+    },
     "/api/ListAppProtectionPolicies": {
       "get": {
         "summary": "ListAppProtectionPolicies",
@@ -54525,7 +55419,7 @@
         "tags": [
           "Identity > Administration > Users"
         ],
-        "description": "Returns the catalog of containment actions ExecBECRemediate accepts - id, label, description, impact (Low/Medium/High/Critical), whether it is reversible and whether it runs by default (the instance-wide defaults from CIPP settings).",
+        "description": "Returns the catalog of containment actions ExecBECRemediate accepts - id, label, description, impact (Low/Medium/High/Critical), whether it is reversible, whether it runs by default (the instance-wide defaults from CIPP settings) and what ExecBECRelease does with it (Release: Reverse, Keep or Manual).",
         "requestBody": {
           "required": false,
           "content": {
@@ -54567,6 +55461,9 @@
                         "x-cipp-field-source": "backend"
                       },
                       "ParameterName": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Release": {
                         "x-cipp-field-source": "backend"
                       },
                       "Reversible": {
@@ -70071,6 +70968,161 @@
           }
         ],
         "x-cipp-role": "Identity.User.Read",
+        "x-cipp-any-tenant": true
+      }
+    },
+    "/api/ListNHIContainmentActions": {
+      "get": {
+        "summary": "Lists the containment actions for a non-human identity (NHI) compromise.",
+        "operationId": "ListNHIContainmentActions",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Returns the catalog of NHI containment actions: id, label, description, impact, whether it is reversible, whether it runs by default, its run order, the case section and parameter its targets come from, and what releasing the case does with it.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.Read"
+      }
+    },
+    "/api/ListNHIReports": {
+      "get": {
+        "summary": "Lists non-human identity (NHI) compromise investigations.",
+        "operationId": "ListNHIReports",
+        "tags": [
+          "Tenant > Administration > Non-Human Identity"
+        ],
+        "description": "Lists every stored NHI run (case id, app, status, level, evidence level and score, the impact of the app's access, when it was extracted, who requested it) for a tenant, or for every tenant with tenantFilter=AllTenants. Optionally narrowed to one app with servicePrincipalId. Runs are kept until deleted; this list never reads the result payloads.",
+        "parameters": [
+          {
+            "name": "servicePrincipalId",
+            "in": "query",
+            "description": "Narrow the list to one app's run history",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tenantFilter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields the endpoint selects onto each record, and the columns the CIPP UI renders. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "AppId": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "CaseId": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "ContainmentRuns": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "DisplayName": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "ErrorMessage": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "EvidenceLevel": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "ExtractedAt": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "Impact": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "IncompleteCount": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Level": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "RequestedAt": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "RequestedBy": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "Score": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "ServicePrincipalId": {
+                        "x-cipp-field-source": "backend"
+                      },
+                      "ServicePrincipalType": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "Status": {
+                        "x-cipp-field-source": "backend,frontend"
+                      },
+                      "Tenant": {
+                        "x-cipp-field-source": "backend,frontend"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Tenant.Application.Read",
         "x-cipp-any-tenant": true
       }
     },

@@ -1,8 +1,184 @@
+import { useEffect, useState } from 'react'
+import { Alert, Skeleton } from '@mui/material'
 import { CippIcons } from '../../utils/icon-registry'
+import { ApiGetCall } from '../../api/ApiCall'
 import { CippFormComponent } from './CippFormComponent.jsx'
 import { CertificateCredentialRemovalForm } from './CertificateCredentialRemovalForm.jsx'
+import { getCippError } from '../../utils/get-cipp-error'
 
 const headerLinkProps = { showInActionsMenu: true }
+
+// Opens the app's NHI compromise case and starts an investigation.
+const investigateCompromiseAction = {
+  icon: <CippIcons.TravelExplore />,
+  label: 'Investigate compromise',
+  link: '/tenant/administration/nhi/case?servicePrincipalId=[id]&tenantFilter=[Tenant]&start=true',
+  color: 'warning',
+  multiPost: false,
+  external: false,
+}
+
+const DEFAULT_ACCESS_ROLE_ID = '00000000-0000-0000-0000-000000000000'
+
+export const getAppRoleName = (appRoles, appRoleId) => {
+  if (appRoleId === DEFAULT_ACCESS_ROLE_ID) return 'Default Access'
+  const role = (appRoles ?? []).find((r) => r.id === appRoleId)
+  return role?.displayName ?? role?.value ?? appRoleId
+}
+
+// Role choices and the current 'Assignment required' value come from the live service principal,
+// so the dialog never submits a stale switch value from a cached list row.
+const AppAssignmentFields = ({ formHook, row }) => {
+  const tenantFilter = row?.Tenant
+  const spRequest = ApiGetCall({
+    url: '/api/ListGraphRequest',
+    data: {
+      Endpoint: `servicePrincipals/${row?.id}`,
+      $select: 'id,appRoles,appRoleAssignmentRequired',
+      tenantFilter,
+    },
+    queryKey: `AppAssignments-sp-${tenantFilter}-${row?.id}`,
+    waiting: Boolean(row?.id),
+  })
+  const sp = spRequest.data?.Results?.[0]
+  const userRoles = (sp?.appRoles ?? []).filter(
+    (role) => role.isEnabled && role.allowedMemberTypes?.includes('User')
+  )
+  const roleOptions =
+    userRoles.length > 0
+      ? userRoles.map((role) => ({ label: role.displayName ?? role.value, value: role.id }))
+      : [{ label: 'Default Access', value: DEFAULT_ACCESS_ROLE_ID }]
+
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+
+  // Waits for `mounted` because CippApiDialog resets the form on open, after this child's first effects.
+  useEffect(() => {
+    if (!mounted || !sp) return
+    formHook.setValue('AppRoleAssignmentRequired', Boolean(sp.appRoleAssignmentRequired))
+    if (roleOptions.length === 1) formHook.setValue('AppRoleId', roleOptions[0])
+  }, [mounted, sp?.id])
+
+  return (
+    <>
+      <CippFormComponent
+        name="AddUserIds"
+        formControl={formHook}
+        type="autoComplete"
+        label="Assign users"
+        multiple
+        creatable={false}
+        api={{
+          url: '/api/ListGraphRequest',
+          tenantFilter,
+          dataKey: 'Results',
+          labelField: (user) => `${user.displayName} (${user.userPrincipalName})`,
+          valueField: 'id',
+          queryKey: 'AppAssignmentCandidateUsers',
+          data: {
+            Endpoint: 'users',
+            manualPagination: true,
+            $select: 'id,userPrincipalName,displayName',
+            $count: true,
+            $orderby: 'displayName',
+            $top: 999,
+          },
+        }}
+      />
+      <CippFormComponent
+        name="AddGroupIds"
+        formControl={formHook}
+        type="autoComplete"
+        label="Assign groups"
+        helperText="Group assignment needs Entra ID P1 or P2. Only direct members get access; nested groups are not expanded."
+        multiple
+        creatable={false}
+        api={{
+          url: '/api/ListGraphRequest',
+          tenantFilter,
+          dataKey: 'Results',
+          labelField: (group) =>
+            `${group.displayName} (${
+              group.groupTypes?.includes('Unified') ? 'Microsoft 365 group' : 'Security group'
+            })`,
+          valueField: 'id',
+          queryKey: 'AppAssignmentCandidateGroups',
+          data: {
+            Endpoint: 'groups',
+            manualPagination: true,
+            $select: 'id,displayName,securityEnabled,groupTypes',
+            $count: true,
+            $orderby: 'displayName',
+            $top: 999,
+          },
+          // Distribution lists can't be assigned to applications.
+          dataFilter: (options) =>
+            options.filter(
+              (option) =>
+                option.rawData?.securityEnabled ||
+                option.rawData?.groupTypes?.includes('Unified')
+            ),
+        }}
+      />
+      {spRequest.isError && (
+        <Alert severity="error">
+          Could not load the application: {getCippError(spRequest.error)}
+        </Alert>
+      )}
+      {!sp && !spRequest.isError && <Skeleton variant="rounded" height={56} />}
+      {sp && (
+        <>
+          <CippFormComponent
+            name="AppRoleId"
+            formControl={formHook}
+            type="autoComplete"
+            label="Role for new assignments"
+            multiple={false}
+            creatable={false}
+            options={roleOptions}
+            validators={{
+              validate: (value, values) =>
+                (!values?.AddUserIds?.length && !values?.AddGroupIds?.length) ||
+                Boolean(value) ||
+                'Select a role for the new assignments',
+              deps: ['AddUserIds', 'AddGroupIds'],
+            }}
+          />
+          <CippFormComponent
+            name="RemoveAssignmentIds"
+            formControl={formHook}
+            type="autoComplete"
+            label="Remove assignments"
+            multiple
+            creatable={false}
+            api={{
+              url: '/api/ListGraphRequest',
+              tenantFilter,
+              dataKey: 'Results',
+              labelField: (assignment) =>
+                `${assignment.principalDisplayName} (${assignment.principalType}, ${getAppRoleName(
+                  sp.appRoles,
+                  assignment.appRoleId
+                )})`,
+              valueField: 'id',
+              queryKey: `AppAssignments-${row?.id}`,
+              data: { Endpoint: `servicePrincipals/${row?.id}/appRoleAssignedTo`, $top: 999 },
+              // Service principals here hold application permissions on this app, not user access.
+              dataFilter: (options) =>
+                options.filter((option) => option.rawData?.principalType !== 'ServicePrincipal'),
+            }}
+          />
+          <CippFormComponent
+            name="AppRoleAssignmentRequired"
+            formControl={formHook}
+            type="switch"
+            label="Assignment required (only assigned users and groups can sign in)"
+          />
+        </>
+      )}
+    </>
+  )
+}
 
 // Signing certs come from ExecApplication Action=ListSigningCertificates (the detail page
 // merges them into the row) because the SHA-1 thumbprint has to be derived from the key bytes.
@@ -300,7 +476,7 @@ export const getEnterpriseAppSigningActions = (canWriteApplication) => [
   },
 ]
 
-export const getEnterpriseAppListActions = (canWriteApplication) => [
+export const getEnterpriseAppListActions = (canWriteApplication, isHomeTenantApp) => [
   {
     icon: <CippIcons.EyeIcon />,
     label: 'View in Manage365',
@@ -311,12 +487,14 @@ export const getEnterpriseAppListActions = (canWriteApplication) => [
     multiPost: false,
     external: false,
   },
-  { ...viewInEntraAction },
+  { ...viewInEntraAction, condition: isHomeTenantApp },
+  investigateCompromiseAction,
   ...getEnterpriseAppPostActions(canWriteApplication),
 ]
 
 export const getEnterpriseAppDetailHeaderActions = (canWriteApplication) => [
   { ...viewInEntraAction, ...headerLinkProps },
+  { ...investigateCompromiseAction, ...headerLinkProps },
   ...getEnterpriseAppPostActions(canWriteApplication),
   ...getEnterpriseAppSigningActions(canWriteApplication),
 ]

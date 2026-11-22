@@ -5,6 +5,7 @@ BeforeAll {
     function Get-CIPPAzDataTableEntity { param($Context, $Filter, $Property, $First) }
     function Remove-CIPPAzDataTableEntity { param($Context, $Entity, [switch]$Force) }
     function New-CIPPAzStorageRequest { param($Service, $Resource, $Method, $Body, $ContentType) throw 'blob storage must not be touched' }
+    Add-Type -Path (Join-Path $RepoRoot 'Shared/CIPPSharp/bin/CIPPSharp.dll')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/BEC/Set-CIPPBecReport.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/BEC/Get-CIPPBecReport.ps1')
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/BEC/Remove-CIPPBecReport.ps1')
@@ -35,6 +36,11 @@ Describe 'Set-CIPPBecReport' {
         Set-CIPPBecReport -TenantFilter 'contoso.com' -CaseId 'BEC-1' -Replace -Properties @{ Status = 'Waiting'; UserId = 'u1' } | Out-Null
         @($script:Writes | Where-Object { $_.Table -eq 'BecResults' }).Count | Should -Be 0
         ($script:Writes | Where-Object { $_.Table -eq 'BecReports' }).Force | Should -BeTrue
+    }
+
+    It 'keeps an NHI case in the NhiReports and NhiResults tables' {
+        $null = Set-CIPPBecReport -Kind 'NHI' -TenantFilter 'contoso.com' -CaseId 'NHI-1' -Properties @{ Status = 'Completed'; ServicePrincipalId = 'sp-1' } -Results ([pscustomobject]@{ CaseId = 'NHI-1' })
+        @($script:Writes.Table) | Should -Be @('NhiResults', 'NhiReports')
     }
 
     It 'stores structured properties as compact JSON' {
@@ -75,6 +81,11 @@ Describe 'Get-CIPPBecReport' {
         # ConvertFrom-Json unrolls a JSON array; a one-entry history must still be a list for the case page
         $Rows[1].Containment -is [array] | Should -BeTrue
         @($Rows[1].Containment).Count | Should -Be 1
+    }
+
+    It 'reads an NHI case from the NHI tables, narrowed to one service principal' {
+        $null = Get-CIPPBecReport -Kind 'NHI' -TenantFilter 'contoso.com' -ServicePrincipalId 'sp-1'
+        Should -Invoke Get-CIPPAzDataTableEntity -Times 1 -Exactly -ParameterFilter { $Context.TableName -eq 'NhiReports' -and $Filter -like "*ServicePrincipalId eq 'sp-1'*" }
     }
 
     It 'narrows to one user and scans every tenant for AllTenants' {

@@ -71,7 +71,8 @@ function Invoke-ExecAddTrustedIP {
                 Note         = $Note
             } -Force
         }
-        $Result = "Set $($Ranges -join ', ') to $State for $($tenantDomain)"
+        $Result = if ($State -eq 'NotTrusted') { "Removed $($Ranges -join ', ') from the list for $($tenantDomain)" }
+        else { "Marked $($Ranges -join ', ') as $(@{ Trusted = 'Safe'; Blocked = 'Compromised' }[$State]) for $($tenantDomain)" }
         Write-LogMessage -headers $Headers -API $APIName -tenant $tenantDomain -message $Result -Sev 'Info'
         return ([HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::OK

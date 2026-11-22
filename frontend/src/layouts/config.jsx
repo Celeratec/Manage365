@@ -206,6 +206,182 @@ export const nativeMenuItems = [
     ],
   },
   {
+    title: 'Tenant Administration',
+    type: 'header',
+    icon: (
+      <SvgIcon>
+        <CippIcons.BuildingOfficeIcon />
+      </SvgIcon>
+    ),
+    permissions: [
+      'Tenant.*',
+      'Identity.AuditLog.*',
+      'CIPP.Backup.*',
+      'Scheduler.Billing.*',
+    ],
+    items: [
+      {
+        title: 'Administration',
+        permissions: ['Tenant.Administration.*'],
+        items: [
+          {
+            title: 'Tenants',
+            path: '/tenant/administration/tenants',
+            permissions: ['Tenant.Administration.*'],
+            scope: 'global',
+          },
+          {
+            title: 'Alert Configuration',
+            path: '/tenant/administration/alert-configuration',
+            permissions: ['Tenant.Alert.*'],
+            scope: 'global',
+          },
+          {
+            title: 'Audit Logs',
+            path: '/tenant/administration/audit-logs',
+            permissions: ['Identity.AuditLog.*'],
+          },
+          {
+            title: 'Applications',
+            path: '/tenant/administration/applications/enterprise-apps',
+            permissions: ['Tenant.Application.*'],
+          },
+          {
+            title: 'Secure Score',
+            path: '/tenant/administration/securescore',
+            permissions: ['Tenant.Administration.*'],
+          },
+          {
+            title: 'App Consent Requests',
+            path: '/tenant/administration/app-consent-requests',
+            permissions: ['Tenant.Application.*'],
+          },
+          {
+            title: 'NHI Compromise',
+            path: '/tenant/administration/nhi',
+            permissions: ['Tenant.Application.*'],
+          },
+          {
+            title: 'Authentication Methods',
+            path: '/tenant/administration/authentication-methods',
+            permissions: ['Tenant.Administration.*'],
+          },
+          {
+            title: 'Partner Relationships',
+            path: '/tenant/administration/partner-relationships',
+            permissions: ['Tenant.Relationship.*'],
+          },
+          {
+            title: 'Domains',
+            path: '/tenant/administration/domains',
+            permissions: ['Tenant.Administration.*'],
+          },
+          {
+            title: "Service Health",
+            path: "/tenant/administration/service-health",
+            permissions: ["Tenant.Administration.*"],
+            // No docs page yet; the help link lands on the section until one is written.
+            docsPath: "tenant/administration",
+          },
+        ],
+      },
+      {
+        title: 'GDAP Management',
+        path: '/tenant/gdap-management',
+        permissions: ['Tenant.Relationship.*'],
+        scope: 'global',
+      },
+      // Flag-gated swap: the Baselines feature flag lists this path in its Pages
+      // (hidden while the flag is off) and the classic Standards/Drift paths in
+      // HidesPages (hidden while it is on) - the two never show together.
+      {
+        title: 'Baselines',
+        path: '/tenant/baselines',
+        permissions: ['Tenant.Baselines.*'],
+        scope: 'global',
+      },
+      {
+        title: 'Security Simulations',
+        path: '/tenant/security-simulator',
+        permissions: ['Tenant.SecuritySimulations.*'],
+      },
+      {
+        title: 'Domains Analyser',
+        path: '/tenant/standards/domains-analyser',
+        permissions: ['Tenant.DomainAnalyser.*'],
+        scope: 'global',
+      },
+      {
+        title: 'Standards & Drift',
+        path: '/tenant/standards/alignment',
+        permissions: ['Tenant.Standards.*'],
+        scope: 'global',
+      },
+      {
+        title: 'Conditional Access',
+        permissions: ['Tenant.ConditionalAccess.*'],
+        items: [
+          {
+            title: 'CA Policies',
+            path: '/tenant/conditional/list-policies',
+            permissions: ['Tenant.ConditionalAccess.*'],
+          },
+          {
+            title: 'CA Templates',
+            path: '/tenant/conditional/list-template',
+            permissions: ['Tenant.ConditionalAccess.*'],
+            scope: 'global',
+          },
+          {
+            title: 'Named Locations',
+            path: '/tenant/conditional/list-named-locations',
+            permissions: ['Tenant.ConditionalAccess.*'],
+          },
+        ],
+      },
+      {
+        title: 'Reports',
+        permissions: [
+          'Tenant.Administration.*',
+          'Scheduler.Billing.*',
+          'Tenant.Application.*',
+        ],
+        items: [
+          {
+            title: 'Licence Report',
+            path: '/tenant/reports/list-licenses',
+            permissions: ['Tenant.Administration.*'],
+          },
+          {
+            title: 'Sherweb Licence Report',
+            path: '/tenant/reports/list-csp-licenses',
+            permissions: ['Tenant.Directory.*'],
+          },
+          {
+            title: 'Consented Applications',
+            path: '/tenant/reports/application-consent',
+            permissions: ['Tenant.Application.*'],
+          },
+          {
+            title: 'Graph / Office Reports',
+            path: '/tenant/reports/graph-office-reports',
+            permissions: ['Tenant.Reports.*'],
+          },
+          {
+            title: 'Custom Test Report',
+            path: '/tenant/reports/custom-test-report',
+            permissions: ['Tenant.Reports.*'],
+          },
+        ],
+      },
+      {
+        title: 'Manage Tenant',
+        path: '/tenant/manage/edit',
+        permissions: ['Tenant.Administration.*'],
+      },
+    ],
+  },
+  {
     title: 'Security & Compliance',
     type: 'header',
     icon: (
