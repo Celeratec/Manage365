@@ -15,6 +15,7 @@ BeforeAll {
             'Groups' { $script:Groups }
         }
     }
+    function Test-CIPPStandardLicense { param($StandardName, $TenantFilter, $Preset, [switch]$SkipLog) $true }
     function Add-CippTestResult { param($TenantFilter, $TestId, $TestType, $Status, $ResultMarkdown, $Risk, $Name, $UserImpact, $ImplementationEffort, $Category) $script:Result = @{ Status = $Status; Markdown = "$ResultMarkdown" } }
     function Write-LogMessage { }
     function Get-CippException { param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
