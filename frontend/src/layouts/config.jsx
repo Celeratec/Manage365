@@ -610,6 +610,7 @@ export const nativeMenuItems = [
           {
             title: 'Non-Compliant Devices',
             path: '/endpoint/MEM/non-compliant-devices',
+            docsPath: 'endpoint/mem/non-compliant-devices',
             permissions: ['Endpoint.MEM.*'],
           },
           {
