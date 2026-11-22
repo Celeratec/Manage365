@@ -170,6 +170,7 @@ function Invoke-CIPPDBCacheCollection {
             'ManagedDeviceCleanupRules'
             'DetectedApps'
             'IntuneAppInstallStatus'
+            'IntuneNonCompliantSettings'
         )
         Compliance         = @(
             'SensitivityLabels'
@@ -231,10 +232,10 @@ function Invoke-CIPPDBCacheCollection {
     $Timings = [System.Collections.Generic.List[string]]::new()
 
     if ($CollectionType -eq 'Intune') {
-        # Start the report exports early; DetectedApps and IntuneAppInstallStatus read them last
-        foreach ($ReportName in 'AppInvRawData', 'AppInstallStatusAggregate') {
+        # Start the report exports early; DetectedApps, IntuneAppInstallStatus and IntuneNonCompliantSettings read them last
+        foreach ($ReportName in 'AppInvRawData', 'AppInstallStatusAggregate', 'NoncompliantDevicesAndSettingsV3') {
             try { $null = Get-CIPPIntuneReportExportJob -TenantFilter $TenantFilter -ReportName $ReportName }
-            catch { Write-Warning "  [$CollectionType] Could not start the $ReportName export for $TenantFilter : $($_.Exception.Message)" }
+            catch { Write-LogMessage -API 'CIPPDBCache' -tenant $TenantFilter -message "Could not start the $ReportName export: $($_.Exception.Message)" -sev Warning -LogData (Get-CippException -Exception $_) }
         }
     }
 

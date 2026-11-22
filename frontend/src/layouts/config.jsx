@@ -573,6 +573,17 @@ export const nativeMenuItems = [
             ],
           },
           {
+            title: 'Enrollment Restrictions',
+            path: '/endpoint/autopilot/enrollment-restrictions',
+            permissions: ['Endpoint.Autopilot.*'],
+          },
+          {
+            title: 'Enrollment Restriction Templates',
+            path: '/endpoint/autopilot/enrollment-restriction-templates',
+            permissions: ['Endpoint.Autopilot.*'],
+            scope: 'global',
+          },
+          {
             title: 'Status Pages',
             path: '/endpoint/autopilot/list-status-pages',
             permissions: [
@@ -597,6 +608,12 @@ export const nativeMenuItems = [
             ],
           },
           {
+            title: 'Non-Compliant Devices',
+            path: '/endpoint/MEM/non-compliant-devices',
+            docsPath: 'endpoint/mem/non-compliant-devices',
+            permissions: ['Endpoint.MEM.*'],
+          },
+          {
             title: 'BitLocker Key Search',
             path: '/endpoint/MEM/bitlocker-search',
             docsPath: 'endpoint/mem/bitlocker-search',
@@ -619,6 +636,12 @@ export const nativeMenuItems = [
             permissions: [
               'Endpoint.MEM.*',
             ],
+          },
+          {
+            title: 'Policy Failures',
+            path: '/endpoint/MEM/policy-failures',
+            docsPath: 'endpoint/mem/policy-failures',
+            permissions: ['Endpoint.MEM.*'],
           },
           {
             title: 'App Policies',

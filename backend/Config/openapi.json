@@ -3438,6 +3438,148 @@
         "x-cipp-role": "Endpoint.Autopilot.ReadWrite"
       }
     },
+    "/api/AddEnrollmentRestriction": {
+      "post": {
+        "summary": "AddEnrollmentRestriction",
+        "operationId": "AddEnrollmentRestriction",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Creates or updates an enrollment (device type) restriction with its priority and group assignment (AssignTo with customGroup names, as Intune templates use). Creating fans out over selectedTenants (or a tenantFilter list) and can take its settings from a saved template (TemplateId, or TemplateList from the deploy drawer). replacename sets how groups are handled, as for conditional access templates: displayName (default) assigns the template's groups by name, leave keeps each restriction's current assignment, AllUsers assigns all users. CreateGroups creates the named groups a tenant does not have. Editing sends one tenantFilter with the restriction's ConfigurationIds, and may pass GroupIds picked in that tenant instead of group names.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ConfigurationIds": {
+                    "type": "string"
+                  },
+                  "CreateGroups": {
+                    "type": "string"
+                  },
+                  "GroupIds": {
+                    "type": "string",
+                    "description": "Group ids picked in the drawer (applyPickedGroups) only exist in that one tenant."
+                  },
+                  "replacename": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "selectedTenants": {
+                    "type": "string"
+                  },
+                  "TemplateId": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "TemplateList": {
+                    "$ref": "#/components/schemas/LabelValue"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.ReadWrite"
+      }
+    },
+    "/api/AddEnrollmentRestrictionTemplate": {
+      "post": {
+        "summary": "AddEnrollmentRestrictionTemplate",
+        "operationId": "AddEnrollmentRestrictionTemplate",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Saves an enrollment (device type) restriction template: platform settings, priority and assignment (all users, or group names with wildcards). Pass GUID to update an existing template. Accepts the template form or a row from ListEnrollmentRestrictions, so a tenant's restriction can be saved as a template.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "GUID": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.ReadWrite",
+        "x-cipp-any-tenant": true
+      }
+    },
     "/api/AddEquipmentMailbox": {
       "post": {
         "summary": "AddEquipmentMailbox",
@@ -38254,6 +38396,70 @@
         "x-cipp-role": "Endpoint.MEM.ReadWrite"
       }
     },
+    "/api/ExecRemoveEnrollmentRestriction": {
+      "post": {
+        "summary": "ExecRemoveEnrollmentRestriction",
+        "operationId": "ExecRemoveEnrollmentRestriction",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Deletes an enrollment (device type) restriction: every Graph object behind it (ids), which for Android is both the work profile and the device administrator object. Only single-platform restrictions can be deleted; the tenant's default restriction is refused.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "displayName": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string"
+                  },
+                  "ids": {
+                    "type": "string"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.ReadWrite"
+      }
+    },
     "/api/ExecRemoveLibraryPermission": {
       "post": {
         "summary": "ExecRemoveLibraryPermission",
@@ -48460,6 +48666,179 @@
         "x-cipp-any-tenant": true
       }
     },
+    "/api/ExecUnassignAPDevice": {
+      "post": {
+        "summary": "ExecUnassignAPDevice",
+        "operationId": "ExecUnassignAPDevice",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "device": {
+                    "type": "string",
+                    "description": "The Autopilot device identity id"
+                  },
+                  "serialNumber": {
+                    "type": "string",
+                    "description": "Serial number, used for logging only"
+                  },
+                  "tenantFilter": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "tenantFilter"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "description": "Derived from the Microsoft Graph entity it queries. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                  "properties": {
+                    "addressableUserName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "azureActiveDirectoryDeviceId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "azureAdDeviceId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deploymentProfileAssignedDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deploymentProfileAssignmentDetailedStatus": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deploymentProfileAssignmentStatus": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deviceAccountPassword": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deviceAccountUpn": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "deviceFriendlyName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "displayName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "enrollmentState": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "groupTag": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "id": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "lastContactedDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "managedDeviceId": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "manufacturer": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "model": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "productKey": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "purchaseOrderIdentifier": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "remediationState": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "remediationStateLastModifiedDateTime": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "resourceName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "serialNumber": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "skuNumber": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "systemFamily": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "userlessEnrollmentStatus": {
+                      "type": "object",
+                      "x-cipp-field-source": "graph-entity"
+                    },
+                    "userPrincipalName": {
+                      "type": "string",
+                      "x-cipp-field-source": "graph-entity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.ReadWrite"
+      }
+    },
     "/api/ExecUniversalSearch": {
       "get": {
         "summary": "ExecUniversalSearch",
@@ -50898,7 +51277,7 @@
                       },
                       "userPrincipalName": {
                         "type": "string",
-                        "x-cipp-field-source": "graph-entity"
+                        "x-cipp-field-source": "graph-entity,frontend"
                       }
                     }
                   }
@@ -51224,6 +51603,58 @@
           }
         ],
         "x-cipp-role": "Tenant.Administration.Read"
+      }
+    },
+    "/api/ListAppDeploymentStatus": {
+      "get": {
+        "summary": "ListAppDeploymentStatus",
+        "operationId": "ListAppDeploymentStatus",
+        "tags": [
+          "Endpoint > Applications"
+        ],
+        "description": "Lists the per-device and per-user install status of one Intune app, like the Device install status and User install status pages in Intune. Same response as ListIntuneDeploymentStatus, readable with application permissions only.",
+        "parameters": [
+          {
+            "name": "ID",
+            "in": "query",
+            "description": "Id of the app",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Application.Read"
       }
     },
     "/api/ListAppleEnrollmentProfiles": {
@@ -58629,6 +59060,162 @@
         "x-cipp-role": "Identity.Device.Read"
       }
     },
+    "/api/ListDeviceNonCompliance": {
+      "get": {
+        "summary": "ListDeviceNonCompliance",
+        "operationId": "ListDeviceNonCompliance",
+        "tags": [
+          "Endpoint > MEM"
+        ],
+        "description": "Lists cached failing compliance settings on non-compliant Intune managed devices, one row per device per setting, from the NoncompliantDevicesAndSettingsV3 export in the CIPP reporting database. Each row carries the device's current compliance state from the ManagedDevices cache. Supports AllTenants.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the columns the CIPP UI renders. The response may carry more; these are the ones known to exist.",
+                    "properties": {
+                      "builtInPolicy": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "complianceState": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "deviceCount": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "deviceName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "errorCode": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "errorCount": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "os": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "osVersion": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "policyName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "settingName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "settingStatus": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "userPrincipalName": {
+                        "x-cipp-field-source": "frontend"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.MEM.Read"
+      }
+    },
+    "/api/ListDevicePolicyStatus": {
+      "get": {
+        "summary": "ListDevicePolicyStatus",
+        "operationId": "ListDevicePolicyStatus",
+        "tags": [
+          "Endpoint > MEM"
+        ],
+        "description": "Lists the configuration, compliance and enrollment policies applied to one Intune managed device and their status, using the same reports as the device page in Intune. report=all returns all three in one response, with a per-report error when one fails. Configuration covers device configuration profiles, settings catalog, administrative templates and endpoint security policies.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "query",
+            "description": "Intune managed device id (GUID)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "report",
+            "in": "query",
+            "description": "Which report to read: configuration, compliance, or all for both in one response",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.MEM.Read"
+      }
+    },
     "/api/ListDevices": {
       "get": {
         "summary": "ListDevices",
@@ -60549,6 +61136,168 @@
           }
         ],
         "x-cipp-role": "Sharepoint.SiteRecycleBin.Read"
+      }
+    },
+    "/api/ListEnrollmentRestrictions": {
+      "get": {
+        "summary": "ListEnrollmentRestrictions",
+        "operationId": "ListEnrollmentRestrictions",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Lists a tenant's enrollment (device type) restrictions for specific groups, one row per restriction as the Intune portal shows them: the two objects behind an Android restriction are combined. Each row carries the flat settings the add, edit and template forms use, its priority, and its assignment (AssignTo, customGroup and the readable PolicyAssignment). The tenant's default restriction is listed last on each platform with isDefault true and priority 'Default', including tvOS and visionOS; it is read-only here and managed by the DefaultPlatformRestrictions standard. platform (comma-separated: android, ios, macOS, tvOS, visionOS, windows) limits the rows to those platforms.",
+        "parameters": [
+          {
+            "name": "platform",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.Read"
+      }
+    },
+    "/api/ListEnrollmentRestrictionTemplates": {
+      "get": {
+        "summary": "ListEnrollmentRestrictionTemplates",
+        "operationId": "ListEnrollmentRestrictionTemplates",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Lists the saved enrollment (device type) restriction templates with their platform settings, priority and assignment. Pass ID to return a single template. These are CIPP templates, not a tenant's deployed restrictions.",
+        "parameters": [
+          {
+            "name": "ID",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "Derived from the fields written into the storage table it reads, and the columns the CIPP UI renders. Fields taken from the storage writers may be omitted by this endpoint, and the response may carry computed fields not listed here.",
+                    "properties": {
+                      "ContentHash": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "description": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "displayName": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "ETag": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "GUID": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "JSON": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Package": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "PartitionKey": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Permissions": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "platformLabel": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "PolicyAssignment": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "priority": {
+                        "x-cipp-field-source": "frontend"
+                      },
+                      "RowKey": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "SHA": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Source": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "SourcePath": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "TemplateName": {
+                        "x-cipp-field-source": "storage"
+                      },
+                      "Timestamp": {
+                        "type": "string",
+                        "x-cipp-field-source": "storage"
+                      },
+                      "UpdatedBy": {
+                        "x-cipp-field-source": "storage"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.Read",
+        "x-cipp-any-tenant": true
       }
     },
     "/api/ListEquipment": {
@@ -64927,6 +65676,69 @@
         "x-cipp-role": "Endpoint.MEM.Read"
       }
     },
+    "/api/ListIntuneDeploymentStatus": {
+      "get": {
+        "summary": "ListIntuneDeploymentStatus",
+        "operationId": "ListIntuneDeploymentStatus",
+        "tags": [
+          "Endpoint > MEM"
+        ],
+        "description": "Lists the per-device and per-user deployment status of one Intune app, policy or script, like the Device status and User status pages in Intune. Devices or Users is null when Intune has no status for that side of the object type.",
+        "parameters": [
+          {
+            "name": "ID",
+            "in": "query",
+            "description": "Id of the app, policy or script",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          },
+          {
+            "name": "Type",
+            "in": "query",
+            "description": "Graph collection of the object: mobileApps, configurationPolicies, deviceCompliancePolicies, deviceManagementScripts, an app protection type, ...",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.MEM.Read"
+      }
+    },
     "/api/ListIntuneIntents": {
       "get": {
         "summary": "ListIntuneIntents",
@@ -65122,6 +65934,69 @@
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.MEM.Read"
+      }
+    },
+    "/api/ListIntunePolicyFailures": {
+      "get": {
+        "summary": "ListIntunePolicyFailures",
+        "operationId": "ListIntunePolicyFailures",
+        "tags": [
+          "Endpoint > MEM"
+        ],
+        "description": "Lists the Intune configuration policies (settings catalog, device configuration profiles, administrative templates and endpoint security) that have at least one device in Error or Conflict, from the same report as Intune's Assignment failures view. With policyId it returns that policy's affected devices and its failing settings with error and conflict device counts, naming the other policies that set a conflicting setting where Intune exposes them.",
+        "parameters": [
+          {
+            "name": "policyBaseTypeName",
+            "in": "query",
+            "description": "The policy's PolicyBaseTypeName from the list; decides how conflicting policies are looked up",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyId",
+            "in": "query",
+            "description": "Policy id (GUID) to drill into; omit for the list of failing policies",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "207": {
+            "description": "Partial success - some items failed; per-item results are in the body"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -84006,6 +84881,69 @@
         "x-cipp-role": "Security.DlpCompliancePolicy.ReadWrite"
       }
     },
+    "/api/RemoveEnrollmentRestrictionTemplate": {
+      "post": {
+        "summary": "RemoveEnrollmentRestrictionTemplate",
+        "operationId": "RemoveEnrollmentRestrictionTemplate",
+        "tags": [
+          "Endpoint > Autopilot"
+        ],
+        "description": "Deletes a saved enrollment restriction template. Restrictions already deployed from it are not changed.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ID": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "ID",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Endpoint.Autopilot.ReadWrite",
+        "x-cipp-any-tenant": true
+      }
+    },
     "/api/RemoveExConnector": {
       "post": {
         "summary": "RemoveExConnector",
@@ -84753,13 +85691,25 @@
                   "type": "object",
                   "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
                   "properties": {
+                    "copyField": {
+                      "x-cipp-field-source": "backend"
+                    },
                     "Results": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "resultText": {
+                      "x-cipp-field-source": "backend"
+                    },
+                    "state": {
                       "x-cipp-field-source": "backend"
                     }
                   }
                 }
               }
             }
+          },
+          "202": {
+            "description": "Accepted - work was queued and runs asynchronously"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"

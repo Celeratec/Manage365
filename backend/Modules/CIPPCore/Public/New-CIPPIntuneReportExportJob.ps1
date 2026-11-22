@@ -21,7 +21,7 @@ function New-CIPPIntuneReportExportJob {
         [string]$TenantFilter,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('AppInvRawData', 'AppInstallStatusAggregate')]
+        [ValidateSet('AppInvRawData', 'AppInstallStatusAggregate', 'NoncompliantDevicesAndSettingsV3')]
         [string]$ReportName
     )
 
@@ -40,6 +40,12 @@ function New-CIPPIntuneReportExportJob {
                 'PendingInstallDeviceCount', 'NotInstalledDeviceCount', 'FailedDevicePercentage'
             )
         }
+        'NoncompliantDevicesAndSettingsV3' {
+            @(
+                'DeviceId', 'DeviceName', 'UPN', 'OS', 'OSVersion',
+                'PolicyName', 'SettingName', 'SettingNm', 'SettingStatus', 'ErrorCode'
+            )
+        }
     }
 
     $Body = @{
@@ -49,7 +55,16 @@ function New-CIPPIntuneReportExportJob {
         select           = $Select
     } | ConvertTo-Json -Depth 5
 
-    $Job = New-GraphPOSTRequest -uri 'https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs' -tenantid $TenantFilter -body $Body
+    # Intune intermittently answers 500 for some tenants
+    foreach ($Attempt in 1..3) {
+        try {
+            $Job = New-GraphPOSTRequest -uri 'https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs' -tenantid $TenantFilter -body $Body
+            break
+        } catch {
+            if ($Attempt -eq 3) { throw }
+            Start-Sleep -Seconds 5
+        }
+    }
 
     if (-not $Job.id) { throw "Intune returned no job id for $ReportName" }
 
