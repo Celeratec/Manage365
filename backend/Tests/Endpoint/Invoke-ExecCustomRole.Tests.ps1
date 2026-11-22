@@ -34,6 +34,7 @@ BeforeAll {
     function Clear-CippAccessUserCache { }
     function Start-UserSyncTimer { }
     function ConvertTo-CippPermissionRules { param($Permissions) }
+    function ConvertTo-CIPPODataFilterValue { param([AllowEmptyString()][string]$Value, $Type) $Value }
     function New-GraphGetRequest { param($uri, $tenantid, $NoAuthCheck, $AsApp) }
     function New-GraphPOSTRequest { param($uri, $body, $type, $NoAuthCheck, $AsApp) }
 

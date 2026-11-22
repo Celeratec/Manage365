@@ -5,6 +5,11 @@ BeforeAll {
     $AuthDir = Join-Path (Split-Path -Parent (Split-Path -Parent $PSScriptRoot)) 'Modules/CIPPCore/Public/Authentication'
     . (Join-Path $AuthDir 'Resolve-CippBulkSelectedTenant.ps1')
 
+    # Stubs so Pester Mock can bind before the real helpers are loaded.
+    function Test-CippAccess { param($Request, [switch]$TenantList) }
+    function Test-CippAllTenantsBlocked { }
+    function Get-Tenants { param([switch]$IncludeErrors) }
+
     $script:Tenants = @(
         [pscustomobject]@{ customerId = 'aaaaaaaa-0000-0000-0000-000000000000'; defaultDomainName = 'a.onmicrosoft.com' }
         [pscustomobject]@{ customerId = 'bbbbbbbb-0000-0000-0000-000000000000'; defaultDomainName = 'b.onmicrosoft.com' }
