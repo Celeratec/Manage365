@@ -313,6 +313,14 @@ function Send-CIPPAlert {
         try {
             if (![string]::IsNullOrWhiteSpace($Config.webhook) -or ![string]::IsNullOrWhiteSpace($AltWebhook)) {
                 $webhook = if ($AltWebhook) { $AltWebhook } else { $Config.webhook }
+                Assert-CIPPWebhookDestination -Uri $webhook
+                # Configured headers must not be able to pose as a signed-in user or a proxy to the receiver.
+                foreach ($HeaderName in @($RequestHeaders.Keys)) {
+                    if ($HeaderName -match '^(x-ms-client-principal|x-forwarded-|host$)') {
+                        $RequestHeaders.Remove($HeaderName)
+                        Write-LogMessage -API 'Webhook Alerts' -message "Webhook header '$HeaderName' is not allowed and was not sent." -tenant $TenantFilter -sev warning
+                    }
+                }
                 if ($PSCmdlet.ShouldProcess($webhook, 'Sending webhook')) {
                     $RestMethod = @{
                         Uri                = $webhook
@@ -320,7 +328,11 @@ function Send-CIPPAlert {
                         ContentType        = 'application/json'
                         StatusCodeVariable = 'WebhookStatusCode'
                         SkipHttpErrorCheck = $true
+                        # Redirects are followed by hand below so every hop gets the destination check.
+                        MaximumRedirection      = 0
+                        ResponseHeadersVariable = 'WebhookResponseHeaders'
                     }
+                    $RedirectCount = 0
                     if ($RequestHeaders.Count -gt 0) {
                         $RestMethod['Headers'] = $RequestHeaders
                     }
@@ -374,6 +386,30 @@ function Send-CIPPAlert {
                                 $RestMethod['Body'] = $ReplacedContent
                                 $WebhookResponse = Invoke-CIPPRestMethod @RestMethod
                             }
+                        }
+                        # Like the HTTP client would, 301-303 continue as a GET and 307/308 repeat the current method.
+                        while ($WebhookStatusCode -in 301, 302, 303, 307, 308 -and $RedirectCount -lt 3 -and ($RedirectTo = [string]($WebhookResponseHeaders.Location | Select-Object -First 1))) {
+                            $RedirectCount++
+                            $PreviousUri = [uri]$RestMethod.Uri
+                            $NextUri = [uri]::new($PreviousUri, $RedirectTo)
+                            $PreviousOrigin = $PreviousUri.GetLeftPart([System.UriPartial]::Authority)
+                            $NextOrigin = $NextUri.GetLeftPart([System.UriPartial]::Authority)
+                            # Do not forward credentials to a different redirect origin (HttpClient clears Authorization on auto-redirect).
+                            if ($PreviousOrigin -ne $NextOrigin -and $RestMethod.Headers) {
+                                foreach ($SensitiveHeader in @('Authorization', 'CF-Access-Client-Id', 'CF-Access-Client-Secret')) {
+                                    if ($RestMethod.Headers.ContainsKey($SensitiveHeader)) {
+                                        $null = $RestMethod.Headers.Remove($SensitiveHeader)
+                                    }
+                                }
+                            }
+                            $RestMethod.Uri = $NextUri.AbsoluteUri
+                            Assert-CIPPWebhookDestination -Uri $RestMethod.Uri
+                            if ($WebhookStatusCode -notin 307, 308) {
+                                $RestMethod.Method = 'GET'
+                                $RestMethod.Remove('Body')
+                                $RestMethod.Remove('ContentType')
+                            }
+                            $WebhookResponse = Invoke-CIPPRestMethod @RestMethod
                         }
                         if ($WebhookStatusCode -eq 429) {
                             $RetryCount++

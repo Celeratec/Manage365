@@ -18,6 +18,8 @@ function Get-CIPPAlertNewRole {
             @{
                 GroupName = $_.displayName
                 Members   = $_.Members.UserPrincipalName
+                # Service principals and groups have no UPN; track them by object id, names can repeat or change.
+                OtherMembers = @($_.Members | Where-Object { $_ -and -not $_.userPrincipalName } | ForEach-Object { @{ id = $_.id; name = "$($_.displayName) ($(($_.'@odata.type' -split '\.')[-1]))" } })
             }
         }
         $NewDeltatoSave = $NewDelta | ConvertTo-Json -Depth 10 -Compress -ErrorAction SilentlyContinue | Out-String
@@ -29,14 +31,28 @@ function Get-CIPPAlertNewRole {
         Add-CIPPAzDataTableEntity @DeltaTable -Entity $DeltaEntity -Force
 
         if ($AdminDelta) {
+            # Baselines saved before OtherMembers existed would report every existing service principal and group as new.
+            $HasOtherBaseline = [bool]($AdminDelta | Where-Object { $_.PSObject.Properties['OtherMembers'] })
             $AlertData = foreach ($Group in $NewDelta) {
                 $OldDelta = $AdminDelta | Where-Object { $_.GroupName -eq $Group.GroupName }
-                $Group.members | Where-Object { $_ -notin $OldDelta.members } | ForEach-Object {
+                foreach ($User in @($Group.Members | Where-Object { $_ -and $_ -notin $OldDelta.Members })) {
                     [PSCustomObject]@{
-                        Message = "$_ has been added to the $($Group.GroupName) Role"
-                        User    = $_
+                        Message = "$User has been added to the $($Group.GroupName) Role"
+                        User    = $User
                         Role    = $Group.GroupName
                         Tenant  = $TenantFilter
+                    }
+                }
+                # Keep object Id on non-UPN members so same-named principals do not collapse in Get-AlertContentHash.
+                if ($HasOtherBaseline) {
+                    foreach ($Other in @($Group.OtherMembers | Where-Object { $_.id -and $_.id -notin @($OldDelta.OtherMembers.id) })) {
+                        [PSCustomObject]@{
+                            Message = "$($Other.name) has been added to the $($Group.GroupName) Role"
+                            User    = $Other.name
+                            Id      = $Other.id
+                            Role    = $Group.GroupName
+                            Tenant  = $TenantFilter
+                        }
                     }
                 }
             }

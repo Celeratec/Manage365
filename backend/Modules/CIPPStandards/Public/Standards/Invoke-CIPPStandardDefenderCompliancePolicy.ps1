@@ -35,7 +35,7 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
             {"type":"switch","name":"standards.DefenderCompliancePolicy.windowsMobileApplicationManagementEnabled","label":"Connect Windows (MAM)","defaultValue":false}
             {"type":"switch","name":"standards.DefenderCompliancePolicy.windowsDeviceBlockedOnMissingPartnerData","label":"Block Windows if partner data unavailable (Note: Microsoft enforces this to on when Connect Windows 10.0.15063+ to MDE is on)","defaultValue":false}
             {"type":"switch","name":"standards.DefenderCompliancePolicy.BlockunsupportedOS","label":"Block unsupported OS versions","defaultValue":false}
-            {"type":"switch","name":"standards.DefenderCompliancePolicy.AllowMEMEnforceCompliance","label":"Allow MEM enforcement of compliance","defaultValue":false}
+            {"type":"switch","name":"standards.DefenderCompliancePolicy.AllowMEMEnforceCompliance","label":"Allow Microsoft Defender for Endpoint to enforce Endpoint Security Configurations","defaultValue":false}
         IMPACT
             High Impact
         ADDEDDATE
@@ -72,7 +72,7 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
         allowPartnerToCollectIosCertificateMetadata         = [bool]$Settings.allowPartnerToCollectIosCertificateMetadata
         allowPartnerToCollectIosPersonalCertificateMetadata = [bool]$Settings.allowPartnerToCollectIosPersonalCertificateMetadata
         grantMobileThreatDefensePartnerRole                 = [bool]$Settings.grantMobileThreatDefensePartnerRole
-        microsoftDefenderForEndpointAttachEnabled           = $true
+        microsoftDefenderForEndpointAttachEnabled           = [bool]$Settings.AllowMEMEnforceCompliance
     }
 
     # Try to get current state
@@ -117,6 +117,7 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
             allowPartnerToCollectIosPersonalCertificateMetadata = [bool]$CurrentState.allowPartnerToCollectIosPersonalCertificateMetadata
             grantMobileThreatDefensePartnerRole                 = [bool]$CurrentState.grantMobileThreatDefensePartnerRole
             microsoftDefenderForEndpointAttachEnabled           = [bool]$CurrentState.microsoftDefenderForEndpointAttachEnabled
+            connectorExists                                     = [bool]$ConnectorExists
         }
     } else {
         [PSCustomObject]@{
@@ -138,10 +139,12 @@ function Invoke-CIPPStandardDefenderCompliancePolicy {
             allowPartnerToCollectIosPersonalCertificateMetadata = $false
             grantMobileThreatDefensePartnerRole                 = $false
             microsoftDefenderForEndpointAttachEnabled           = $false
+            connectorExists                                     = [bool]$ConnectorExists
         }
     }
 
-    $ExpectedValue = [PSCustomObject]$ExpectedSettings
+    # Report-only field: expected connector presence. Not part of the Graph PATCH/POST body.
+    $ExpectedValue = [PSCustomObject]($ExpectedSettings + @{ connectorExists = $true })
 
     if ($Settings.remediate -eq $true) {
         # Enable MDE connector first

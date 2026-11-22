@@ -24,7 +24,9 @@ BeforeAll {
     }
 
     function Get-CIPPTable { param($tablename) @{} }
+    function ConvertTo-CIPPODataFilterValue { param([string]$Value, [string]$Type = 'String') if ($Type -eq 'String') { return ($Value -replace "'", "''") }; return $Value }
     function Get-CIPPAzDataTableEntity {
+        [CmdletBinding()]
         param($Filter)
         if ($null -eq $Filter) { return $script:AllRows }
         if ($script:RowsByFilter -and $script:RowsByFilter.ContainsKey($Filter)) {
@@ -36,8 +38,11 @@ BeforeAll {
     function Remove-CIPPAzDataTableEntity { param($Entity, [switch]$Force) $script:RemovedEntity = $Entity }
     function Get-Tenants { param($TenantFilter, [switch]$IncludeErrors) }
     function Write-LogMessage { param($headers, $API, $tenant, $message, $Sev, $LogData) }
+    $script:CallerPermissions = @('Tenant.Config.ReadWrite', 'Tenant.GlobalVariables.ReadWrite')
+    function Get-CippRequestAllowedPermissions { , @($script:CallerPermissions) }
 
     . $FunctionPath
+    . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Authentication/Select-CippAllowedTenantData.ps1')
 
     function New-SaveRequest {
         param(
@@ -394,5 +399,35 @@ Describe 'Invoke-ExecCippReplacemap - List marks overridden variables' {
     It 'reports every row on the global page as Global' {
         $Response = Invoke-ExecCippReplacemap -Request (New-ListRequest -TenantId 'AllTenants')
         @($Response.Body.Results | Where-Object { $_.Scope -ne 'Global' }).Count | Should -Be 0
+    }
+}
+
+Describe 'Invoke-ExecCippReplacemap - a failed read' {
+    BeforeEach {
+        Mock -CommandName Get-CIPPTable -MockWith { @{} }
+        Mock -CommandName Get-Tenants -MockWith { [pscustomobject]@{ customerId = 'contoso-id' } }
+    }
+
+    It 'fails when the <Read> read fails' -ForEach @(
+        @{ Read = 'List tenant'; Action = 'List'; Failing = "PartitionKey eq 'contoso-id'" }
+        @{ Read = 'List global'; Action = 'List'; Failing = "PartitionKey eq 'AllTenants'" }
+        @{ Read = 'Usage'; Action = 'Usage'; Failing = $null }
+    ) {
+        $script:FailingFilter = $Failing
+        Mock -CommandName Get-CIPPAzDataTableEntity -MockWith {
+            param($Filter)
+            if ($Filter -eq $script:FailingFilter) { Write-Error 'The server is busy.' }
+        }
+        $Request = if ($Action -eq 'Usage') { New-UsageRequest } else { New-ListRequest }
+
+        { Invoke-ExecCippReplacemap -Request $Request } | Should -Throw '*server is busy*'
+    }
+
+    It 'fails when the Delete read fails' {
+        Mock -CommandName Get-CIPPAzDataTableEntity -MockWith { Write-Error 'The server is busy.' }
+        $Request = New-SaveRequest -TenantId 'contoso.onmicrosoft.com'
+        $Request.Body.Action = 'Delete'
+
+        { Invoke-ExecCippReplacemap -Request $Request } | Should -Throw '*server is busy*'
     }
 }
