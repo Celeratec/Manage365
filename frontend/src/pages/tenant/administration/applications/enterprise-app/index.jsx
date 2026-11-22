@@ -23,9 +23,6 @@ import { getEnterpriseAppDetailHeaderActions } from '../../../../../components/C
 import Link from 'next/link'
 import { getListGraphBulkRequestRows } from '../../../../../utils/getListGraphBulkRequestRows.js'
 import { CippCredentialExpandList } from '../../../../../components/CippComponents/CippCredentialExpandList.jsx'
-import { CippAppPermissionExposureDetail } from '../../../../../components/CippComponents/CippAppPermissionExposureDetail.jsx'
-import { getCippError } from '../../../../../utils/get-cipp-error'
-import { isMultiTenant } from '../../../../../utils/tenant-selection'
 
 const spSelect =
   'id,appId,displayName,createdDateTime,accountEnabled,homepage,publisherName,signInAudience,replyUrls,verifiedPublisher,info,api,appOwnerOrganizationId,tags,passwordCredentials,keyCredentials,preferredSingleSignOnMode,preferredTokenSigningKeyThumbprint,loginUrl,logoutUrl,notificationEmailAddresses,samlSingleSignOnSettings,servicePrincipalNames'

@@ -26,8 +26,8 @@ BeforeAll {
     function Get-CIPPAzDataTableEntity { [CmdletBinding()] param($Table, $Filter, $Property) @() }
     function Get-Tenants { [CmdletBinding()] param($TenantFilter, [switch]$IncludeErrors, [switch]$IncludeAll) }
     function Write-LogMessage { [CmdletBinding()] param($API, $tenant, $message, $sev, $LogData) }
-    # Pass-through unless a test sets RestrictTo. The real filter lives in CIPPCore and reads
-    # the request's allowed-tenant scope; this stub stands in for that scope.
+    # Pass-through unless a test sets RestrictTo. Do not dotsource the real CIPPCore filter:
+    # it reads $script:CippAllowedTenantsStorage and would overwrite this stub.
     function Select-CippAllowedTenantData {
         param(
             [Parameter(ValueFromPipeline = $true)]
@@ -38,16 +38,24 @@ BeforeAll {
         process {
             foreach ($Item in @($InputObject)) {
                 if ($null -eq $Item) { continue }
-                if ($script:RestrictTo -and $script:RestrictTo -notcontains [string]$Item.TenantFilter) { continue }
+                if ($script:RestrictTo) {
+                    $Matched = $false
+                    foreach ($Prop in @($TenantProperty) + @('TenantFilter', 'tenantFilter')) {
+                        $Value = [string]$Item.$Prop
+                        if ($Value -and $script:RestrictTo -contains $Value) { $Matched = $true; break }
+                    }
+                    if (-not $Matched) { continue }
+                }
                 $Item
             }
         }
     }
     function Get-CippException { [CmdletBinding()] param($Exception) @{ NormalizedError = $Exception.Exception.Message } }
+    function Get-CIPPFeatureFlag { [CmdletBinding()] param($Id) }
+    function Get-CIPPBaselineAlignment { [CmdletBinding()] param([switch]$TenantScores) }
 
     . $FunctionPath
     . (Join-Path $RepoRoot 'Modules/CIPPCore/Public/Get-CippBulkStatusCode.ps1')
-    . (Get-ChildItem -Path (Join-Path $RepoRoot 'Modules/CIPPCore') -Recurse -Filter 'Select-CippAllowedTenantData.ps1' -File)[0].FullName
 
     $script:Tenants = @(
         [pscustomobject]@{ defaultDomainName = 'alpha.onmicrosoft.com'; displayName = 'Alpha'; customerId = 'aaaa-1111' }
@@ -178,14 +186,9 @@ Describe 'Invoke-ListTenantAlignment summary mode' {
         }
 
         It 'scores only the tenants in the caller''s scope' {
-            # The request scope holds alpha; Get-Tenants is narrowed to it, as it is under the router
-            $script:CippAllowedTenantsStorage = [pscustomobject]@{ Value = @('aaaa-1111') }
-            Mock -CommandName Get-Tenants -MockWith { $script:Tenants[0] }
-            try {
-                $Body = (Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{ summary = $true }) -TriggerMetadata @{}).Body
-            } finally {
-                $script:CippAllowedTenantsStorage = $null
-            }
+            # Stub Select-CippAllowedTenantData honors RestrictTo (stands in for request scope).
+            $script:RestrictTo = @('alpha.onmicrosoft.com')
+            $Body = (Invoke-ListTenantAlignment -Request (script:New-AlignmentRequest @{ summary = $true }) -TriggerMetadata @{}).Body
 
             $Body.ScoredTenantCount | Should -Be 1
             $Body.Lowest[0].Tenant | Should -BeExactly 'alpha.onmicrosoft.com'

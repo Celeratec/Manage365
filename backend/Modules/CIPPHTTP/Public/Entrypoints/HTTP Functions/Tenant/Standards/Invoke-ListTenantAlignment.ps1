@@ -175,7 +175,10 @@ function Invoke-ListTenantAlignment {
                         Score  = [int]$Average
                     })
             }
+            $PendingTenantCount = $PendingByTenant.Keys.Count
+        }
 
+        if ($Summary) {
             $Buckets = [ordered]@{ Strong = 0; Good = 0; Weak = 0; Poor = 0 }
             foreach ($Entry in $Scores) {
                 if ($Entry.Score -ge 90) { $Buckets['Strong']++ }
@@ -196,7 +199,7 @@ function Invoke-ListTenantAlignment {
                         Buckets            = [PSCustomObject]$Buckets
                         Lowest             = @($Scores | Sort-Object -Property Score, Tenant | Select-Object -First 4)
                         PendingDeviations  = $PendingDeviations
-                        PendingTenantCount = $PendingByTenant.Keys.Count
+                        PendingTenantCount = $PendingTenantCount
                     }
                 })
         }

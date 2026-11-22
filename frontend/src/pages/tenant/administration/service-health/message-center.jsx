@@ -21,12 +21,6 @@ const Page = () => {
 
   const urlFilters = useUrlFilters()
 
-  const messages = ApiGetCall({
-    url: '/api/ListMessageCenterMessages?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
-    queryKey: `messages-${currentTenant}`,
-    waiting: !!currentTenant,
-  })
   const reportDB = useCippReportDB({
     apiUrl: '/api/ListMessageCenterMessages',
     queryKey: 'ListMessageCenterMessages',

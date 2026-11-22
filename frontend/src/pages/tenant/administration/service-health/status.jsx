@@ -19,12 +19,6 @@ const Page = () => {
 
   const urlFilters = useUrlFilters()
 
-  const overviews = ApiGetCall({
-    url: '/api/ListServiceHealthOverviews?UseReportDB=true',
-    data: { tenantFilter: currentTenant },
-    queryKey: `overviews-${currentTenant}`,
-    waiting: !!currentTenant,
-  })
   const reportDB = useCippReportDB({
     apiUrl: '/api/ListServiceHealthOverviews',
     queryKey: 'ListServiceHealthOverviews',
