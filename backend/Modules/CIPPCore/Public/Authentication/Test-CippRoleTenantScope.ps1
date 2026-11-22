@@ -70,6 +70,11 @@ function Test-CippRoleTenantScope {
 
     $Tenants = @($Tenants)
 
+    # The flag narrows what a role allows; on the block pass it must not shrink what the role blocks.
+    if ($TenantFilter -eq 'AllTenants' -and $Role.BlockAllTenants -and -not $TreatUnresolvedAsInScope) {
+        return $false
+    }
+
     if (($Role.BlockedTenants | Measure-Object).Count -eq 0 -and $Role.AllowedTenants -contains 'AllTenants') {
         return $true
     }
