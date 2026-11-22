@@ -442,6 +442,7 @@
       * [Time Settings](user-documentation/cipp/advanced/super-admin/time-settings.md)
     * [Container Management](user-documentation/cipp/advanced/container-management/README.md)
       * [Status & Updates](user-documentation/cipp/advanced/container-management/status.md)
+      * [Verifying Container Images](user-documentation/cipp/advanced/container-management/verifying-container-images.md)
       * [Custom Domains](user-documentation/cipp/advanced/container-management/custom-domains.md)
       * [Logs](user-documentation/cipp/advanced/container-management/logs.md)
       * [Worker Health](user-documentation/cipp/advanced/container-management/worker-health.md)
