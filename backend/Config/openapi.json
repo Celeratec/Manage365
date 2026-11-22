@@ -1026,8 +1026,12 @@
                     "description": "State of the new policy: disabled, enabledForReportingButNotEnforced, enabled or sameAsSource. Defaults to disabled."
                   },
                   "tenantFilter": {
-                    "type": "string",
-                    "description": "Tenant the source policy lives in; the copy is created in the same tenant."
+                    "allOf": [
+                      {
+                        "$ref": "#/components/schemas/LabelValue"
+                      }
+                    ],
+                    "description": "Tenant the source policy lives in; the copy is created in the same tenant. Resolved in the same order as Test-CIPPAccess, so the tenant acted on is the tenant RBAC checked."
                   }
                 },
                 "required": [
@@ -1037,6 +1041,11 @@
             }
           }
         },
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Success",
@@ -19389,6 +19398,9 @@
                     "type": "string",
                     "description": "If UserId is a guid, get the user's UPN"
                   },
+                  "TravelAllowTrusted": {
+                    "type": "boolean"
+                  },
                   "TravelCountries": {
                     "allOf": [
                       {
@@ -19396,6 +19408,12 @@
                       }
                     ],
                     "description": "Optional: temporary travel policy that only allows sign-ins from the travel destination"
+                  },
+                  "TravelExistingLocations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/components/schemas/LabelValue"
+                    }
                   },
                   "UserID": {
                     "type": "string"
@@ -69247,7 +69265,7 @@
         "tags": [
           "Tenant > Conditional"
         ],
-        "description": "Lists Conditional Access named locations (IP ranges and country-based locations) configured in a tenant.",
+        "description": "Lists Conditional Access named locations (IP ranges and country-based locations) configured in a tenant. AllTenants reads the cached named locations from the reporting database, one row per location with its Tenant.",
         "parameters": [
           {
             "$ref": "#/components/parameters/tenantFilter"
@@ -69274,24 +69292,21 @@
                       },
                       "displayName": {
                         "type": "string",
-                        "x-cipp-field-source": "graph-entity,frontend"
+                        "x-cipp-field-source": "graph-entity"
                       },
                       "id": {
                         "type": "string",
                         "x-cipp-field-source": "graph-entity"
                       },
-                      "includeUnknownCountriesAndRegions": {
-                        "x-cipp-field-source": "frontend"
-                      },
-                      "isTrusted": {
-                        "x-cipp-field-source": "frontend"
-                      },
                       "modifiedDateTime": {
                         "type": "string",
-                        "x-cipp-field-source": "graph-entity,frontend"
+                        "x-cipp-field-source": "graph-entity"
                       },
                       "rangeOrLocation": {
-                        "x-cipp-field-source": "backend,frontend"
+                        "x-cipp-field-source": "backend"
+                      },
+                      "Tenant": {
+                        "x-cipp-field-source": "frontend"
                       }
                     }
                   }
