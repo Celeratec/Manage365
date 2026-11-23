@@ -133,6 +133,26 @@
                     "items": {
                       "type": "string"
                     }
+                  },
+                  "Limits": {
+                    "type": "object",
+                    "properties": {
+                      "MaxTerms": {
+                        "type": "integer"
+                      },
+                      "MaxDateSpanDays": {
+                        "type": "integer"
+                      },
+                      "MaxCustodians": {
+                        "type": "integer"
+                      },
+                      "MailboxOnly": {
+                        "type": "boolean"
+                      },
+                      "StatisticsOptions": {
+                        "type": "string"
+                      }
+                    }
                   }
                 }
               },
