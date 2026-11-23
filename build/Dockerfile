@@ -202,6 +202,10 @@ COPY backend/Modules/HuduAPI        /app/API/Modules/HuduAPI/
 # --chown: the app user owns Config/ so CRAFT can write Config/function-permissions.json
 # at startup (non-root distroless) and CIPP modules read it back from the same path.
 COPY --chown=app:app backend/Config /app/API/Config/
+# Assert-CippVersion / GetVersion / GetCippAlerts read $env:CIPPRootPath/version_latest.txt
+# (CIPPRootPath=/app/API). Start-CIPPStatsTimer also looks under Config/.
+COPY backend/version_latest.txt /app/API/version_latest.txt
+COPY backend/version_latest.txt /app/API/Config/version_latest.txt
 COPY backend/Shared                 /app/API/Shared/
 # Overwrite the committed CIPPSharp.dll (and its OfficeIMO PDF dependencies) with freshly built ones
 # targeting the runtime framework. Must run AFTER the Shared/ copy so they aren't clobbered. The
