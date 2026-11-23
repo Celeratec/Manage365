@@ -24774,7 +24774,6 @@
                     "enum": [
                       "close",
                       "create",
-                      "delete",
                       "reopen",
                       "update"
                     ]
@@ -24797,7 +24796,10 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
@@ -24808,56 +24810,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                  "properties": {
-                    "closedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "closedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "createdDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "description": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "externalId": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "id": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "Results": {
-                      "x-cipp-field-source": "backend"
-                    },
-                    "status": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    }
-                  }
+                  "$ref": "#/components/schemas/StandardResults"
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -24894,18 +24853,6 @@
                   "caseId": {
                     "type": "string"
                   },
-                  "displayName": {
-                    "type": "string"
-                  },
-                  "exportCriteria": {
-                    "type": "string"
-                  },
-                  "exportFormat": {
-                    "type": "string"
-                  },
-                  "exportLocation": {
-                    "type": "string"
-                  },
                   "searchId": {
                     "type": "string"
                   },
@@ -24927,64 +24874,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                  "properties": {
-                    "closedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "closedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "createdDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "description": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "externalId": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "id": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "Results": {
-                      "x-cipp-field-source": "backend"
-                    },
-                    "status": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    }
-                  }
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -25013,7 +24915,6 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "remove",
                       "update"
                     ]
                   },
@@ -25063,7 +24964,10 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
               }
             }
           }
@@ -25074,56 +24978,13 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                  "properties": {
-                    "closedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "closedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "createdDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "description": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "externalId": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "id": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "Results": {
-                      "x-cipp-field-source": "backend"
-                    },
-                    "status": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    }
-                  }
+                  "$ref": "#/components/schemas/StandardResults"
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
@@ -25161,7 +25022,6 @@
                     "type": "string",
                     "enum": [
                       "create",
-                      "delete",
                       "estimateStatistics",
                       "update"
                     ]
@@ -25190,7 +25050,128 @@
                 },
                 "required": [
                   "tenantFilter"
-                ]
+                ],
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Security.Ediscovery.ReadWrite"
+      }
+    },
+    "/api/ExecEdiscoveryConfig": {
+      "post": {
+        "summary": "ExecEdiscoveryConfig",
+        "operationId": "ExecEdiscoveryConfig",
+        "tags": [
+          "Security"
+        ],
+        "description": "Creates or updates dedicated per-tenant eDiscovery config references. dryRun defaults true and credential material is refused.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "appId": {
+                    "type": "string"
+                  },
+                  "certificatePasswordSecretName": {
+                    "type": "string"
+                  },
+                  "certificateSecretName": {
+                    "type": "string"
+                  },
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true,
+                "x-cipp-passthrough": true,
+                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Security.Ediscovery.ReadWrite"
+      }
+    },
+    "/api/ExecEdiscoverySearch": {
+      "post": {
+        "summary": "ExecEdiscoverySearch",
+        "operationId": "ExecEdiscoverySearch",
+        "tags": [
+          "Security"
+        ],
+        "description": "Stats-only Purview eDiscovery search (case/custodian/search/estimate). dryRun defaults true. Counts only.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {}
               }
             }
           }
@@ -25202,52 +25183,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
-                  "properties": {
-                    "closedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "closedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "createdDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "description": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "displayName": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "externalId": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "id": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedBy": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "lastModifiedDateTime": {
-                      "type": "string",
-                      "x-cipp-field-source": "graph-entity"
-                    },
-                    "Results": {
-                      "x-cipp-field-source": "backend"
-                    },
-                    "status": {
-                      "type": "object",
-                      "x-cipp-field-source": "graph-entity"
-                    }
-                  }
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
                 }
               }
             }
@@ -25257,9 +25193,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
@@ -62157,50 +62090,10 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
                     "properties": {
-                      "closedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "closedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "createdDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "description": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "externalId": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "id": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
                       "Results": {
                         "x-cipp-field-source": "backend"
-                      },
-                      "status": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
                       }
                     }
                   }
@@ -62255,50 +62148,10 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
                     "properties": {
-                      "closedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "closedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "createdDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "description": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "externalId": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "id": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
                       "Results": {
                         "x-cipp-field-source": "backend"
-                      },
-                      "status": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
                       }
                     }
                   }
@@ -62345,56 +62198,25 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record, and the columns the CIPP UI renders. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                    "description": "Derived from the fields the endpoint selects onto each record, and the columns the CIPP UI renders. The response may carry more; these are the ones known to exist.",
                     "properties": {
-                      "closedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "closedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
                       "createdBy": {
                         "x-cipp-field-source": "frontend"
                       },
                       "createdDate": {
                         "x-cipp-field-source": "frontend"
                       },
-                      "createdDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
                       "description": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity,frontend"
+                        "x-cipp-field-source": "frontend"
                       },
                       "displayName": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity,frontend"
-                      },
-                      "externalId": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "id": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
+                        "x-cipp-field-source": "frontend"
                       },
                       "Results": {
                         "x-cipp-field-source": "backend"
                       },
                       "status": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity,frontend"
+                        "x-cipp-field-source": "frontend"
                       }
                     }
                   }
@@ -62449,56 +62271,106 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "Derived from the Microsoft Graph entity it queries, and the fields the endpoint selects onto each record. This endpoint returns the Graph response as-is without selecting fields, so these are the properties the entity CAN carry (x-cipp-field-source: graph-entity) rather than a proven projection - Graph returns a default subset unless asked otherwise.",
+                    "description": "Derived from the fields the endpoint selects onto each record. The response may carry more; these are the ones known to exist.",
                     "properties": {
-                      "closedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "closedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "createdDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "description": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "externalId": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "id": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedBy": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
-                      },
-                      "lastModifiedDateTime": {
-                        "type": "string",
-                        "x-cipp-field-source": "graph-entity"
-                      },
                       "Results": {
                         "x-cipp-field-source": "backend"
-                      },
-                      "status": {
-                        "type": "object",
-                        "x-cipp-field-source": "graph-entity"
                       }
                     }
                   }
                 }
               }
             }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Security.Ediscovery.Read"
+      }
+    },
+    "/api/ListEdiscoveryConfig": {
+      "get": {
+        "summary": "ListEdiscoveryConfig",
+        "operationId": "ListEdiscoveryConfig",
+        "tags": [
+          "Security"
+        ],
+        "description": "Returns sanitized per-tenant eDiscovery config references. No certificate password secret name is returned.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing bearer token"
+          },
+          "403": {
+            "description": "Forbidden - caller lacks the required RBAC role"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-cipp-role": "Security.Ediscovery.Read"
+      }
+    },
+    "/api/ListEdiscoveryReadiness": {
+      "get": {
+        "summary": "ListEdiscoveryReadiness",
+        "operationId": "ListEdiscoveryReadiness",
+        "tags": [
+          "Security"
+        ],
+        "description": "Checks dedicated eDiscovery app readiness for a tenant.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/tenantFilter"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardResults"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - missing required field or invalid input"
           },
           "401": {
             "description": "Unauthorized - invalid or missing bearer token"
