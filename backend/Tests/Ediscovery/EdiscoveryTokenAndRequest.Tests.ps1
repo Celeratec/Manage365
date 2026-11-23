@@ -97,6 +97,23 @@ Describe 'Get-CIPPEdiscoveryGraphPlan' {
         $Bad.Allowed | Should -BeFalse
         $Bad.Reason | Should -Match 'operationId'
     }
+
+    It 'accepts injected hashtable allowlists' {
+        $Allowlist = @{
+            ListEdiscoveryCases = @{
+                method         = 'GET'
+                pathTemplate   = '/v1.0/security/cases/ediscoveryCases'
+                classification = 'read'
+                role           = 'read'
+            }
+        }
+
+        $Ok = Get-CIPPEdiscoveryGraphPlan -Action 'ListEdiscoveryCases' -Params @{} -Allowlist $Allowlist
+
+        $Ok.Allowed | Should -BeTrue
+        $Ok.Path | Should -Be '/v1.0/security/cases/ediscoveryCases'
+        (Get-CIPPEdiscoveryGraphPlan -Action 'Hack' -Params @{} -Allowlist $Allowlist).Allowed | Should -BeFalse
+    }
 }
 
 Describe 'Invoke-CIPPEdiscoveryRequest' {
@@ -113,6 +130,18 @@ Describe 'Invoke-CIPPEdiscoveryRequest' {
             -Path '/v1.0/security/cases/ediscoveryCases' -Classification read -Transport $Transport
 
         $Result.Results[0].id | Should -Be 'case-1'
+        $Result.Pages | Should -Be 1
+    }
+
+    It 'returns zero rows when Graph list value is empty' {
+        $Transport = {
+            return @{ value = @() }
+        }
+
+        $Result = Invoke-CIPPEdiscoveryRequest -AccessToken 'tok' -Method GET `
+            -Path '/v1.0/security/cases/ediscoveryCases' -Classification read -Transport $Transport
+
+        $Result.Results.Count | Should -Be 0
         $Result.Pages | Should -Be 1
     }
 

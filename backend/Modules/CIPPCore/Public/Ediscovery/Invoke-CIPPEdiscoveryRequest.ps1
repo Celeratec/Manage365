@@ -198,9 +198,16 @@ function Invoke-CIPPEdiscoveryRequest {
             }
         }
 
-        if ($Response.value) {
+        $HasValueCollection = $false
+        if ($Response -is [System.Collections.IDictionary]) {
+            $HasValueCollection = $Response.Contains('value')
+        } elseif ($null -ne $Response) {
+            $HasValueCollection = $null -ne $Response.PSObject.Properties['value']
+        }
+
+        if ($HasValueCollection) {
             foreach ($Row in @($Response.value)) { $Items.Add($Row) }
-        } elseif ($null -ne $Response -and -not ($Response.PSObject.Properties['value'])) {
+        } elseif ($null -ne $Response) {
             $Items.Add($Response)
         }
 

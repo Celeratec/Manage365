@@ -20,11 +20,17 @@ function Get-CIPPEdiscoveryGraphPlan {
         $Allowlist = Get-Content -LiteralPath $ConfigPath -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
     }
 
-    if ($null -eq $Allowlist.PSObject.Properties[$Action]) {
+    $HasAction = $false
+    if ($Allowlist -is [System.Collections.IDictionary]) {
+        $HasAction = $Allowlist.Contains($Action)
+    } elseif ($null -ne $Allowlist.PSObject.Properties[$Action]) {
+        $HasAction = $true
+    }
+    if (-not $HasAction) {
         return [pscustomobject]@{ Allowed = $false; Reason = "Action '$Action' is not on the eDiscovery allowlist." }
     }
 
-    $Entry = $Allowlist.$Action
+    $Entry = if ($Allowlist -is [System.Collections.IDictionary]) { $Allowlist[$Action] } else { $Allowlist.$Action }
     $Path = [string]$Entry.pathTemplate
     if ([string]::IsNullOrWhiteSpace($Path)) {
         return [pscustomobject]@{ Allowed = $false; Reason = "Action '$Action' has no path template." }

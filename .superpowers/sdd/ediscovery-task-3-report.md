@@ -18,3 +18,15 @@ Verification:
 Concerns:
 - Full repository Pester was not run; verification was scoped to `backend/Tests/Ediscovery`.
 - Certificate loading prefers `EphemeralKeySet` and falls back when the local platform does not support it, matching local macOS test constraints.
+
+## Task 3 review fixes (empty Graph `value` + allowlist hashtables)
+
+Fixes:
+- `Invoke-CIPPEdiscoveryRequest` treats OData list payloads via explicit `value` key/property detection (`IDictionary.Contains` / `PSObject.Properties`) so `@{ value = @() }` yields `Results.Count = 0` instead of one wrapper row.
+- `Get-CIPPEdiscoveryGraphPlan -Allowlist` resolves actions from injected hashtables or JSON-deserialized objects.
+
+Tests:
+- Added Pester cases: empty `value` → zero rows; injected hashtable allowlist.
+- `pwsh -NoProfile -Command "Invoke-Pester -Path backend/Tests/Ediscovery/EdiscoveryTokenAndRequest.Tests.ps1 -Output Detailed"` → **Passed 11, Failed 0** (732ms).
+
+Aikido: rescanned 3 modified files — zero issues.
