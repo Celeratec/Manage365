@@ -19,9 +19,9 @@ function Invoke-ListEdiscoveryCaseHolds {
         $Holds = @($HoldsResult.Results)
 
         $GraphRequest = foreach ($Hold in $Holds) {
-            $ContentSourcesCount = 0
-            if ($Hold.userSources) { $ContentSourcesCount += ($Hold.userSources | Measure-Object).Count }
-            if ($Hold.siteSources) { $ContentSourcesCount += ($Hold.siteSources | Measure-Object).Count }
+            $UserSourcesCount = if ($Hold.userSources) { ($Hold.userSources | Measure-Object).Count } else { 0 }
+            $SiteSourcesCount = if ($Hold.siteSources) { ($Hold.siteSources | Measure-Object).Count } else { 0 }
+            $ContentSourcesCount = $UserSourcesCount + $SiteSourcesCount
 
             [PSCustomObject]@{
                 id                  = $Hold.id
@@ -29,13 +29,13 @@ function Invoke-ListEdiscoveryCaseHolds {
                 description         = $Hold.description
                 status              = $Hold.status
                 isEnabled           = $Hold.isEnabled
-                contentQuery        = $Hold.contentQuery
+                contentQueryPresent = -not [string]::IsNullOrWhiteSpace([string]$Hold.contentQuery)
                 createdBy           = $Hold.createdBy.user.displayName
                 createdDate         = $Hold.createdDateTime
                 lastModified        = $Hold.lastModifiedDateTime
                 contentSourcesCount = $ContentSourcesCount
-                userSources         = $Hold.userSources
-                siteSources         = $Hold.siteSources
+                userSourcesCount    = $UserSourcesCount
+                siteSourcesCount    = $SiteSourcesCount
             }
         }
 

@@ -1,7 +1,7 @@
 # Archive-to-primary item move (Manage365)
 
-**Date:** 2026-10-23  
-**Status:** Draft — awaiting review  
+**Date:** 2026-10-23
+**Status:** Draft — awaiting review
 **Scope:** User mailboxes and shared mailboxes (v1)
 
 ## Problem

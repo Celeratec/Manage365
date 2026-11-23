@@ -14,6 +14,29 @@ const Page = () => {
   const pageTitle = "eDiscovery Cases";
   const [setupBannerOpen, setSetupBannerOpen] = useState(true);
 
+  const guardedWriteFields = [
+    {
+      name: "ticketNumber",
+      label: "Ticket Number",
+      type: "textField",
+      required: true,
+      validators: { required: "Ticket number is required" },
+    },
+    {
+      name: "reason",
+      label: "Reason",
+      type: "textField",
+      required: true,
+      validators: { required: "Reason is required" },
+    },
+    {
+      name: "dryRun",
+      label: "Preview only (dry run)",
+      type: "switch",
+      defaultValue: true,
+    },
+  ];
+
   const actions = [
     {
       label: "Open Case",
@@ -31,6 +54,7 @@ const Page = () => {
         caseId: "id",
         action: "!close",
       },
+      fields: guardedWriteFields,
       confirmText: "Are you sure you want to close this case? Holds will remain active.",
       condition: (row) => row.status === "active",
       category: "edit",
@@ -44,6 +68,7 @@ const Page = () => {
         caseId: "id",
         action: "!reopen",
       },
+      fields: guardedWriteFields,
       confirmText: "Are you sure you want to reopen this case?",
       condition: (row) => row.status === "closed",
       category: "edit",
@@ -129,6 +154,7 @@ const Page = () => {
               label: "External ID (optional)",
               type: "textField",
             },
+            ...guardedWriteFields,
           ],
           api: {
             url: "/api/ExecEdiscoveryCase",

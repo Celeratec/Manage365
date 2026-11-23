@@ -31,7 +31,28 @@ const Page = () => {
   const { caseId } = router.query;
   const userSettings = useSettings();
   const [createOpen, setCreateOpen] = useState(false);
-  const formHook = useForm({ defaultValues: {} });
+  const formHook = useForm({ defaultValues: { dryRun: true } });
+
+  const guardedWriteFields = [
+    {
+      name: "ticketNumber",
+      label: "Ticket Number",
+      type: "textField",
+      validators: { required: "Ticket number is required" },
+    },
+    {
+      name: "reason",
+      label: "Reason",
+      type: "textField",
+      validators: { required: "Reason is required" },
+    },
+    {
+      name: "dryRun",
+      label: "Preview only (dry run)",
+      type: "switch",
+      defaultValue: true,
+    },
+  ];
 
   const searchesRequest = ApiGetCall({
     url: `/api/ListEdiscoveryCaseSearches`,
@@ -70,6 +91,9 @@ const Page = () => {
         description: data.description,
         contentQuery: data.contentQuery,
         dataSourceScopes: data.dataSourceScopes || "allTenantSources",
+        ticketNumber: data.ticketNumber,
+        reason: data.reason,
+        dryRun: data.dryRun !== false,
       },
     });
   };
@@ -85,6 +109,7 @@ const Page = () => {
         searchId: "id",
         action: "!estimateStatistics",
       },
+      fields: guardedWriteFields,
       confirmText: "Run a search estimate? This may take several minutes.",
       relatedQueryKeys: [`ListEdiscoveryCaseSearches-${caseId}`],
       category: "manage",
@@ -94,7 +119,7 @@ const Page = () => {
   const columns = [
     "displayName",
     "status",
-    "contentQuery",
+    "contentQueryPresent",
     "estimatedItemCount",
     "estimatedSize",
     "createdBy",
@@ -117,7 +142,7 @@ const Page = () => {
               variant="contained"
               startIcon={<Add />}
               onClick={() => {
-                formHook.reset({});
+                formHook.reset({ dryRun: true });
                 createSearchRequest.reset();
                 setCreateOpen(true);
               }}
@@ -192,6 +217,13 @@ const Page = () => {
               Use KQL syntax for search queries. Common operators: AND, OR, NOT, subject:, from:,
               to:, date:, filetype:
             </Typography>
+            {guardedWriteFields.map((field) => (
+              <CippFormComponent
+                key={field.name}
+                {...field}
+                formControl={formHook}
+              />
+            ))}
             <CippApiResults apiObject={createSearchRequest} />
           </Stack>
         </DialogContent>

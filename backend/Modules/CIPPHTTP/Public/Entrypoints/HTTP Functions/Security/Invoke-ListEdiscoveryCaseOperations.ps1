@@ -28,7 +28,7 @@ function Invoke-ListEdiscoveryCaseOperations {
                 createdBy       = $Op.createdBy.user.displayName
                 createdDate     = $Op.createdDateTime
                 completedDate   = $Op.completedDateTime
-                resultInfo      = $Op.resultInfo
+                resultInfo      = ConvertTo-CIPPEdiscoveryCountsOnly -Value $Op.resultInfo
                 exportAvailable = $false
                 exportGuidance  = 'Export content download is not available in Manage365 v1.'
             }

@@ -23,7 +23,7 @@ function Invoke-ListEdiscoveryCaseSearches {
                 id                   = $Search.id
                 displayName          = $Search.displayName
                 description          = $Search.description
-                contentQuery         = $Search.contentQuery
+                contentQueryPresent  = -not [string]::IsNullOrWhiteSpace([string]$Search.contentQuery)
                 createdBy            = $Search.createdBy.user.displayName
                 createdDate          = $Search.createdDateTime
                 lastModified         = $Search.lastModifiedDateTime

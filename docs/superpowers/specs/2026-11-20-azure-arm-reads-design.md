@@ -1,7 +1,7 @@
 # Design: Azure ARM read support (#3272074 PR1)
 
-**Date:** 2026-11-20  
-**Branch:** `clint/azure-arm-reads`  
+**Date:** 2026-11-20
+**Branch:** `clint/azure-arm-reads`
 **Status:** Proceeding with Clint “proceed smartly” defaults
 
 ## Decisions (open item #4)

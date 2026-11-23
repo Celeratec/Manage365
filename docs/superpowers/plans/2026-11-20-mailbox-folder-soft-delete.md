@@ -219,7 +219,7 @@ EOF
 - Modify: `backend/Tests/MailboxFolder/MailboxFolderSoftDelete.Tests.ps1`
 
 **Interfaces:**
-- Produces: `Test-CIPPMailboxFolderSoftDeleteRequest -Request $Request` → `[pscustomobject]@{ Ok; StatusCode; Message; UserId; FolderId; FolderPath; FolderType; Preview; Reason }`  
+- Produces: `Test-CIPPMailboxFolderSoftDeleteRequest -Request $Request` → `[pscustomobject]@{ Ok; StatusCode; Message; UserId; FolderId; FolderPath; FolderType; Preview; Reason }`
   Mutates `$Request.Body` so `dryRun` is set when `preview`/`dryRun`/`WhatIf` all omitted (**default true**), and maps `preview` → `dryRun` when `preview` is present.
 
 - [ ] **Step 1: Write failing tests**
@@ -445,7 +445,7 @@ Verify:
 Describe 'Invoke-CIPPMailboxFolderSoftDelete preview' {
     It 'makes zero Graph write calls in preview' {
         $script:PostCalls = 0
-        function New-GraphGetRequest { param($uri, $tenantid, $AsApp) 
+        function New-GraphGetRequest { param($uri, $tenantid, $AsApp)
             # return stub folder tree / deleteditems / target folder as needed
         }
         function New-GraphPOSTRequest { param($uri, $tenantid, $body, $type, $AsApp)

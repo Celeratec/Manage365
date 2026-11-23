@@ -28,7 +28,28 @@ const Page = () => {
   const { caseId } = router.query;
   const userSettings = useSettings();
   const [createOpen, setCreateOpen] = useState(false);
-  const formHook = useForm({ defaultValues: {} });
+  const formHook = useForm({ defaultValues: { dryRun: true } });
+
+  const guardedWriteFields = [
+    {
+      name: "ticketNumber",
+      label: "Ticket Number",
+      type: "textField",
+      validators: { required: "Ticket number is required" },
+    },
+    {
+      name: "reason",
+      label: "Reason",
+      type: "textField",
+      validators: { required: "Reason is required" },
+    },
+    {
+      name: "dryRun",
+      label: "Preview only (dry run)",
+      type: "switch",
+      defaultValue: true,
+    },
+  ];
 
   const holdsRequest = ApiGetCall({
     url: `/api/ListEdiscoveryCaseHolds`,
@@ -70,6 +91,9 @@ const Page = () => {
         contentQuery: data.contentQuery,
         userSources,
         siteSources,
+        ticketNumber: data.ticketNumber,
+        reason: data.reason,
+        dryRun: data.dryRun !== false,
       },
     });
   };
@@ -78,7 +102,7 @@ const Page = () => {
     "displayName",
     "status",
     "contentSourcesCount",
-    "contentQuery",
+    "contentQueryPresent",
     "createdBy",
     "createdDate",
   ];
@@ -99,7 +123,7 @@ const Page = () => {
               variant="contained"
               startIcon={<Add />}
               onClick={() => {
-                formHook.reset({});
+                formHook.reset({ dryRun: true });
                 createHoldRequest.reset();
                 setCreateOpen(true);
               }}
@@ -171,6 +195,13 @@ const Page = () => {
               formControl={formHook}
               placeholder='e.g. subject:"Project Alpha" AND date:2024-01-01..2025-01-01'
             />
+            {guardedWriteFields.map((field) => (
+              <CippFormComponent
+                key={field.name}
+                {...field}
+                formControl={formHook}
+              />
+            ))}
             <CippApiResults apiObject={createHoldRequest} />
           </Stack>
         </DialogContent>

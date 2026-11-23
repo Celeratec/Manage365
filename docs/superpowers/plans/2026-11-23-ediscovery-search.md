@@ -8,8 +8,8 @@
 
 **Tech Stack:** PowerShell Azure Functions (CIPP modules), Azure Table Storage, Key Vault cert refs, Microsoft Graph eDiscovery API, Pester, FeatureFlags.json.
 
-**Spec:** `docs/superpowers/specs/2026-11-23-ediscovery-search-design.md`  
-**Client ticket:** #3276171 (client matter only)  
+**Spec:** `docs/superpowers/specs/2026-11-23-ediscovery-search-design.md`
+**Client ticket:** #3276171 (client matter only)
 **Build ticket:** open dedicated internal ticket before non-dry-run audits (placeholder in docs until known)
 
 ## Global Constraints
@@ -108,7 +108,7 @@ Describe 'Test-CIPPEdiscoveryForbiddenAction' {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pwsh -NoProfile -Command "Invoke-Pester -Path backend/Tests/Ediscovery/EdiscoveryFlagAndForbid.Tests.ps1 -Output Detailed"`  
+Run: `pwsh -NoProfile -Command "Invoke-Pester -Path backend/Tests/Ediscovery/EdiscoveryFlagAndForbid.Tests.ps1 -Output Detailed"`
 Expected: FAIL — flag missing / function missing
 
 - [ ] **Step 3: Write allowlist JSON**
@@ -488,8 +488,8 @@ git commit -m "feat(ediscovery): dedicated token and Graph request client"
 - Test: `backend/Tests/Ediscovery/EdiscoveryReadinessAndConfigHttp.Tests.ps1`
 
 **Interfaces:**
-- `Get-CIPPEdiscoveryReadiness -TenantFilter [-Transport]` →  
-  `{ ConfigPresent, Enabled, TokenOk, CasesListOk, Status, Remediation[string[]] }`  
+- `Get-CIPPEdiscoveryReadiness -TenantFilter [-Transport]` →
+  `{ ConfigPresent, Enabled, TokenOk, CasesListOk, Status, Remediation[string[]] }`
   Status: `Ready` | `MissingConfig` | `Disabled` | `TokenFailed` | `Forbidden` | `Error`
 - `ExecEdiscoveryConfig`: `Test-CIPPGuardedWriteRequest -IsWrite -DefaultDryRun`; require non-empty `reason`; reject body keys `pfx`, `privateKey`, `clientSecret`, `certificateBase64`
 
@@ -651,10 +651,10 @@ function New-CIPPEdiscoveryKql {
   - Per-term: default **one estimate per term** (safer until spike proves keyword report is counts-only); include note that per-term counts may overlap
   - Return `{ Status, AuditId, Before, After, Rollback, Results: { indexedItemCount, indexedItemsSize, mailboxCount, unindexedItemCount, perTerm: @{ term, itemCount, size } } }` with terms present only in After for the operator response — **audit/logs store TermCount + KqlHash only** (pass redacted request to `Add-CIPPGuardedWriteAudit`)
 
-- [ ] **Test:** dryRun → Status DryRun, transport call count 0  
-- [ ] **Test:** fixture response with `subject`/`downloadUrl` → converter strips them  
-- [ ] **Test:** missing reason → 400  
-- [ ] **Test:** >25 terms → 400  
+- [ ] **Test:** dryRun → Status DryRun, transport call count 0
+- [ ] **Test:** fixture response with `subject`/`downloadUrl` → converter strips them
+- [ ] **Test:** missing reason → 400
+- [ ] **Test:** >25 terms → 400
 
 - [ ] **Commit:** `feat(ediscovery): stats search orchestrator and counts-only redaction`
 

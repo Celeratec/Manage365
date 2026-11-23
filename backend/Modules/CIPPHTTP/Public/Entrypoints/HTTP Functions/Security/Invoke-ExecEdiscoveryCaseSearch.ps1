@@ -88,14 +88,16 @@ function Invoke-ExecEdiscoveryCaseSearch {
             }
         }
 
+        $AuditRequest = ConvertTo-CIPPEdiscoveryCountsOnly -Value $Request.Body
+
         if ($Gate.WhatIf) {
-            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $true -Result 'DryRun'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -DryRun $true -Result 'DryRun'
             $StatusCode = [HttpStatusCode]::OK
             $Body = [PSCustomObject]@{ Results = "Would $Action eDiscovery search."; Status = 'DryRun'; AuditId = $AuditId; WhatIfPlan = @($Plan) }
         } else {
             $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
             $null = Invoke-CIPPEdiscoveryRequest -AccessToken $Token.AccessToken -Method $Plan.Method -Path $Plan.Path -Body $RequestBody -Classification $Plan.Classification
-            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $false -Result 'Success'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -DryRun $false -Result 'Success'
             Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
             $StatusCode = [HttpStatusCode]::OK
             $Body = [PSCustomObject]@{ Results = $ResponseBody; Status = 'Success'; AuditId = $AuditId }

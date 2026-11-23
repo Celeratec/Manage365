@@ -1,8 +1,8 @@
 # Soft-delete mailbox folder (Manage365)
 
-**Date:** 2026-11-20  
-**Status:** Draft — awaiting review  
-**Ticket:** #3281353 (Miller Law) — build for M365 Engineer; live run only after Clint’s OK  
+**Date:** 2026-11-20
+**Status:** Draft — awaiting review
+**Ticket:** #3281353 (Miller Law) — build for M365 Engineer; live run only after Clint’s OK
 **Approach:** Dedicated guarded endpoints (not `ExecGraphWrite` allowlist)
 
 ## Problem
