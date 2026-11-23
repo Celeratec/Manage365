@@ -178,6 +178,30 @@
     "Hidden": false
   },
   {
+    "Id": "EdiscoverySearch",
+    "Name": "eDiscovery search",
+    "Description": "Per-tenant Purview eDiscovery via a dedicated app (not CIPP SAM). Config, readiness, Cases UI, and stats-only search. dryRun defaults true on writes. Hold remove, case delete, and purge are refused.",
+    "Enabled": true,
+    "AllowUserToggle": true,
+    "Timers": [],
+    "Endpoints": [
+      "ListEdiscoveryConfig",
+      "ExecEdiscoveryConfig",
+      "ListEdiscoveryReadiness",
+      "ListEdiscoveryCases",
+      "ExecEdiscoveryCase",
+      "ListEdiscoveryCaseSearches",
+      "ExecEdiscoveryCaseSearch",
+      "ListEdiscoveryCaseHolds",
+      "ExecEdiscoveryCaseHold",
+      "ListEdiscoveryCaseOperations",
+      "ExecEdiscoveryCaseExport",
+      "ExecEdiscoverySearch"
+    ],
+    "Pages": [],
+    "Hidden": false
+  },
+  {
     "Id": "TenantGroupSelector",
     "Name": "Tenant Groups in Tenant Selector",
     "Description": "Lets you pick a tenant group in the tenant selector to view data for every tenant in that group at once, on pages that support it. While off, the selector offers single tenants and All Tenants only, and API requests that name a tenantGroup are refused.",
