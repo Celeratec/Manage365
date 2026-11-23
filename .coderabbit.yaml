@@ -1,0 +1,170 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# Manage365 / CodeRabbit Advanced — keep reviews focused on tenant isolation,
+# privileged Graph/EXO/ARM paths, and CI/security workflows. Large generated
+# assets are excluded so upstream sync PRs stay under the Advanced 300-file cap.
+language: en-US
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  auto_title_placeholder: "@coderabbitai"
+  merge_risk_instructions: |
+    High merge risk: changes to GuardedTenantWrites allowlists, FeatureFlags.json,
+    tenantFilter / New-CippCoreRequest / auth / RBAC, Conditional Access edit paths,
+    Graph/EXO/ARM write entrypoints, App Registration / secret handling, MCP write
+    exposure, container image / App Service deploy workflows, or .cursor/rules.
+    Medium risk: new HTTP entrypoints, OpenAPI contract changes, Intune/Exchange UI
+    that scopes by tenant, Pester/vitest coverage gaps for privileged paths.
+    Low risk: docs-only, help text, non-privileged read UI, changelog/README, version
+    bumps with no behavior change.
+  security_risk_instructions: |
+    Manage365 is a multi-tenant Microsoft 365 MSP control plane (CIPP fork) running
+    as an internet-facing Azure App Service container. Customer tenant data and
+    privileged Graph / Exchange Online / Intune / ARM operations flow through this
+    app. Tenant isolation is enforced via tenantFilter and New-CippCoreRequest /
+    role checks — bypasses or unrestricted AllTenants scope are high security risk.
+    Guarded tenant writes (GuardedTenantWrites) stay off by default; allowlist
+    expansions in backend/Config/GuardedWrites/** and FeatureFlags.json endpoint
+    lists are high risk. App registration secrets must go to Key Vault only and
+    must never be returned in API responses. Secrets live in Vercel/Doppler / Key
+    Vault env vars — never commit .env, keys, tokens, or client data. CA full edits
+    that drop grant/session/conditions/exclusions without ConfirmRemoval are high
+    risk. Prefer dryRun/ticket envelopes for privileged writes. Draft PRs still need
+    App QA + App Security + human approval; CodeRabbit must not be treated as the
+    sole merge gate.
+  path_filters:
+    # Generated / bulk data — exclude so file-cap and review budget stay useful
+    - "!backend/Config/openapi.json"
+    - "!frontend/public/openapi.json"
+    - "!frontend/src/data/intuneCollection.json"
+    - "!frontend/src/data/M365Licenses.json"
+    - "!frontend/src/data/M365Licenses-additional.json"
+    - "!frontend/public/permissionsTranslator.json"
+    - "!backend/Config/graph-metadata/**"
+    - "!**/package-lock.json"
+    - "!**/yarn.lock"
+    - "!**/pnpm-lock.yaml"
+    - "!github_assets/**"
+    - "!**/*.map"
+  path_instructions:
+    - path: "backend/Modules/CIPPHTTP/**"
+      instructions: |
+        HTTP entrypoints: require correct RBAC roles, tenantFilter handling, and
+        fail-closed behavior on missing tenant or unauthorized callers. Flag new
+        write paths that bypass GuardedTenantWrites when the operation is privileged.
+        Watch for dryRun defaults, ticketNumber validation, and ConfirmRemoval /
+        confirm* guards on destructive or control-dropping changes. Do not suggest
+        logging secrets, tokens, or raw client PII.
+    - path: "backend/Modules/CIPPCore/**"
+      instructions: |
+        Core request, auth, and shared helpers: focus on tenant isolation, scope
+        narrowing, and any path that can execute Graph/EXO/ARM across tenants.
+        Flag AllTenants or unrestricted scope expansions without compensating controls.
+    - path: "backend/Config/GuardedWrites/**"
+      instructions: |
+        Allowlist changes are security-critical. Every new Graph path, EXO cmdlet,
+        or ARM operation must be justified, least-privilege, and consistent with
+        docs/api-documentation/guarded-writes.md. Reject overly broad wildcards.
+    - path: "backend/Config/FeatureFlags.json"
+      instructions: |
+        Feature flags default off for privileged packs. Call out enabling
+        GuardedTenantWrites, AzureArm, MCP, or new write endpoints in production
+        without explicit rollout notes in the PR.
+    - path: "frontend/src/**"
+      instructions: |
+        Prefer tenant-scoped UI. Flag missing tenant selection, cross-tenant data
+        leakage in shared state, and privileged actions exposed without clear
+        confirmation. Ignore pure styling nits unless they hide security controls.
+    - path: ".github/workflows/**"
+      instructions: |
+        Workflow security: no untrusted checkout+run, pin actions by SHA when
+        practical, least-privilege GITHUB_TOKEN, no secret echo, and careful
+        handling of pull_request_target. Image publish and deploy paths are high risk.
+    - path: ".cursor/rules/**"
+      instructions: |
+        Cursor rules affect all agents. Flag instructions that weaken git safety,
+        secret handling, CI/security gates, or encourage force-push / --no-verify.
+    - path: "docs/api-documentation/**"
+      instructions: |
+        Treat API security docs as contract. Flag contradictions with allowlists
+        or entrypoint behavior.
+  auto_review:
+    enabled: true
+    drafts: true
+    base_branches:
+      - main
+    auto_incremental_review: true
+  finishing_touches:
+    unit_tests:
+      enabled: true
+    fix_ci:
+      enabled: true
+    resolve_merge_conflict:
+      enabled: true
+    autofix:
+      enabled: true
+    simplify:
+      enabled: false
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: |
+        Prefer conventional commit style (feat:, fix:, chore:, docs:, security:)
+        and a concise description of the Manage365 change.
+    description:
+      mode: warning
+    issue_assessment:
+      mode: off
+    custom_checks:
+      - name: Draft PR body completeness
+        mode: warning
+        instructions: |
+          Pass if the PR description includes a short summary, risk level or
+          security notes, a test plan, and a rollback note (or explicitly N/A).
+          Fail (warning) if those sections are missing for non-trivial code changes.
+      - name: Guarded writes / flags called out
+        mode: warning
+        instructions: |
+          If the diff changes backend/Config/GuardedWrites/**, FeatureFlags.json,
+          privileged Exec* entrypoints, or auth/tenant scoping, the PR description
+          must call out the security impact and whether flags remain default-off.
+          Docs-only or unrelated changes pass.
+      - name: OpenAPI regen when entrypoints change
+        mode: warning
+        instructions: |
+          If HTTP entrypoints under backend/Modules/CIPPHTTP change request/response
+          contracts, the PR should regenerate or note regenerating openapi.json via
+          build/tools/build-openapi.ps1. Pure comment or unrelated changes pass.
+  tools:
+    # Explicitly keep the stack that matches this repo; schema defaults are already on.
+    psscriptanalyzer:
+      enabled: true
+    eslint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    hadolint:
+      enabled: true
+    actionlint:
+      enabled: true
+    github-checks:
+      enabled: true
+    gitleaks:
+      enabled: true
+    yamllint:
+      enabled: true
+    zizmor:
+      enabled: true
+    checkov:
+      enabled: true
+    trivy:
+      enabled: true
+chat:
+  auto_reply: true
+knowledge_base:
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  pull_requests:
+    scope: auto
