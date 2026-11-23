@@ -40,16 +40,14 @@ const Page = () => {
     queryKey: `ListEdiscoveryCaseSearches-${caseId}`,
     data: { caseId },
     waiting: !!caseId,
+    refetchInterval: (query) =>
+      query?.state?.data?.Results?.some((search) => search.status === "running") ? 5000 : false,
   });
 
   const hasRunning = useMemo(() => {
     if (!searchesRequest.data?.Results) return false;
     return searchesRequest.data.Results.some((s) => s.status === "running");
   }, [searchesRequest.data]);
-
-  if (hasRunning) {
-    searchesRequest.refetchInterval = 5000;
-  }
 
   const actions = [
     {
@@ -62,6 +60,14 @@ const Page = () => {
         searchId: "id",
         action: "!estimateStatistics",
       },
+      customDataformatter: (row, _action, formData) => ({
+        caseId,
+        searchId: row.id,
+        action: "estimateStatistics",
+        ticketNumber: formData.ticketNumber,
+        reason: formData.reason,
+        dryRun: formData.dryRun,
+      }),
       fields: guardedWriteFields,
       confirmText: "Run a search estimate? This may take several minutes.",
       relatedQueryKeys: [`ListEdiscoveryCaseSearches-${caseId}`],

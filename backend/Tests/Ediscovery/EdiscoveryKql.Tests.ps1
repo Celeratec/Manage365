@@ -32,6 +32,13 @@ Describe 'New-CIPPEdiscoveryKql' {
         $Result.Kql | Should -Be '("a" OR "b")'
     }
 
+    It 'deduplicates terms case-insensitively before building KQL' {
+        $Result = New-CIPPEdiscoveryKql -Terms @('Project Falcon', ' project falcon ', 'alpha')
+        $Result.TermCount | Should -Be 2
+        $Result.Terms | Should -Be @('Project Falcon', 'alpha')
+        $Result.Kql | Should -Be '("Project Falcon" OR "alpha")'
+    }
+
     It 'refuses zero terms after trim' {
         { New-CIPPEdiscoveryKql -Terms @('  ', '') } | Should -Throw '*1 to 25*'
     }

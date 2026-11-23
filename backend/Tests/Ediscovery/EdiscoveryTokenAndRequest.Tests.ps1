@@ -29,11 +29,23 @@ BeforeAll {
 Describe 'Get-CIPPEdiscoveryAccessToken' {
     AfterEach {
         $env:ApplicationID = $null
+        $env:ApplicationId = $null
         $script:CIPPEdiscoveryTokenCache = $null
     }
 
     It 'refuses SAM app id' {
         $env:ApplicationID = '22222222-2222-2222-2222-222222222222'
+        $Cfg = [pscustomobject]@{
+            Enabled = $true
+            AppId = '22222222-2222-2222-2222-222222222222'
+            CertificateSecretName = 'cert'
+        }
+
+        { Get-CIPPEdiscoveryAccessToken -TenantFilter 'contoso.onmicrosoft.com' -Config $Cfg } | Should -Throw '*SAM*'
+    }
+
+    It 'refuses SAM app id from alternate environment variable casing' {
+        $env:ApplicationId = '22222222-2222-2222-2222-222222222222'
         $Cfg = [pscustomobject]@{
             Enabled = $true
             AppId = '22222222-2222-2222-2222-222222222222'

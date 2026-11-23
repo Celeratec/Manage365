@@ -178,7 +178,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                     After    = $OperatorAfter
                     Rollback = 'No Graph changes were made.'
                     Results  = [pscustomobject]@{
-                        Note = 'DryRun only. Live execution creates/reuses a case, custodian mailbox source, and one estimate per term. Per-term counts may overlap.'
+                        Note = 'DryRun only. Duplicate terms are ignored case-insensitively before estimating. Live execution creates/reuses a case, custodian mailbox source, and one estimate per term. Per-term counts may overlap.'
                     }
                 })
         }
@@ -194,6 +194,8 @@ function Invoke-CIPPEdiscoverySearchAction {
                 })
         }
         $script:CIPPEdiscoverySearchActionLocks[$LockKey] = $true
+        $CaseId = $null
+        $SearchIds = [System.Collections.Generic.List[string]]::new()
 
         try {
             $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
@@ -259,7 +261,6 @@ function Invoke-CIPPEdiscoverySearchAction {
                 throw 'eDiscovery user source id was not returned by Graph.'
             }
 
-            $SearchIds = [System.Collections.Generic.List[string]]::new()
             $ExistingSearches = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearches' -Params @{ caseId = $CaseId } -PollTimeoutSeconds 300
             $PerTerm = foreach ($Term in @($SearchPlan.Terms)) {
                 $TermPlanParams = @{
@@ -273,14 +274,29 @@ function Invoke-CIPPEdiscoverySearchAction {
                     $TermPlanParams.DateTo = $DateTo
                 }
                 $TermPlan = Get-CIPPEdiscoverySearchPlan @TermPlanParams
-                $TermSearchName = "$($SearchPlan.DisplayName) - term $($TermPlan.KqlHash.Substring(0, 12))"
-                $Search = @($ExistingSearches.Results | Where-Object {
+                $TermSearchNameBase = "$($SearchPlan.DisplayName) - term $($TermPlan.KqlHash.Substring(0, 12))"
+                $TermSearchName = $TermSearchNameBase
+                $Search = $null
+                $SearchLinkedSources = $null
+                $CandidateSearches = @($ExistingSearches.Results | Where-Object {
                         [string]$_.displayName -eq $TermSearchName -and
                         [string]$_.description -match 'Manage365 stats-only per-term estimate'
-                    } | Select-Object -First 1)
-                if ($Search.Count -gt 0) {
-                    $Search = $Search[0]
-                } else {
+                    })
+                foreach ($CandidateSearch in $CandidateSearches) {
+                    $CandidateSearchId = [string]$CandidateSearch.id
+                    if ([string]::IsNullOrWhiteSpace($CandidateSearchId)) { continue }
+                    $CandidateSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $CandidateSearchId } -PollTimeoutSeconds 300
+                    $CandidateSourceIds = @($CandidateSources.Results | ForEach-Object { [string]$_.id } | Where-Object { $_ })
+                    if ($CandidateSourceIds.Count -eq 0 -or ($CandidateSourceIds.Count -eq 1 -and $CandidateSourceIds[0] -eq $UserSourceId)) {
+                        $Search = $CandidateSearch
+                        $SearchLinkedSources = $CandidateSources
+                        break
+                    }
+                }
+                if (-not $Search) {
+                    if ($CandidateSearches.Count -gt 0) {
+                        $TermSearchName = "$TermSearchNameBase - run $([datetime]::UtcNow.ToString('yyyyMMddHHmmssfff'))"
+                    }
                     $SearchResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'CreateEdiscoverySearch' -Params @{ caseId = $CaseId } -Body @{
                         displayName      = $TermSearchName
                         description      = 'Manage365 stats-only per-term estimate.'
@@ -295,7 +311,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 }
                 $SearchIds.Add($SearchId) | Out-Null
 
-                $LinkedSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $SearchId } -PollTimeoutSeconds 300
+                $LinkedSources = if ($SearchLinkedSources) { $SearchLinkedSources } else { Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $SearchId } -PollTimeoutSeconds 300 }
                 $SourceAlreadyLinked = @($LinkedSources.Results | Where-Object { [string]$_.id -eq $UserSourceId }).Count -gt 0
                 if (-not $SourceAlreadyLinked) {
                     $SourceUrl = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/custodians/$CustodianId/userSources/$UserSourceId"
@@ -326,7 +342,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 mailboxCount       = 1
                 unindexedItemCount = 0
                 perTerm            = @($PerTerm)
-                Note               = 'Per-term counts are estimated independently and may overlap.'
+                Note               = 'Duplicate terms are ignored case-insensitively before estimating. Per-term counts are estimated independently and may overlap.'
             }
 
             $AuditRequest = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'Success'
@@ -349,6 +365,15 @@ function Invoke-CIPPEdiscoverySearchAction {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to run eDiscovery stats search: $($ErrorMessage.NormalizedError)"
         Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Error' -LogData $ErrorMessage
+        if ($Gate -and -not $Gate.WhatIf -and ($CaseId -or @($SearchIds).Count -gt 0)) {
+            try {
+                $FailedAuditRequest = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'Failed'
+                $FailedAuditAfter = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'Failed' -CaseId $CaseId -SearchIds @($SearchIds)
+                $null = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $FailedAuditRequest -After $FailedAuditAfter -DryRun $false -Result 'Failed'
+            } catch {
+                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message "Failed to write eDiscovery failure audit: $($_.Exception.Message)" -Sev 'Error'
+            }
+        }
         $StatusCode = [HttpStatusCode]::InternalServerError
         if ($ErrorMessage.NormalizedError -match '1 to 25|ticketNumber|custodianUpn|dateTo|dateFrom|5 years|Only one custodian') {
             $StatusCode = [HttpStatusCode]::BadRequest

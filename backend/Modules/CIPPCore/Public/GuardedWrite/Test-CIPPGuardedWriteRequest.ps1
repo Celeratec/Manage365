@@ -52,6 +52,12 @@ function Test-CIPPGuardedWriteRequest {
         $script:CIPPGuardedWriteHits = [System.Collections.Generic.List[object]]::new()
     }
     $Now = [datetime]::UtcNow
+    $WindowStart = $Now.AddMinutes(-1)
+    for ($Index = $script:CIPPGuardedWriteHits.Count - 1; $Index -ge 0; $Index--) {
+        if ($script:CIPPGuardedWriteHits[$Index].At -le $WindowStart) {
+            $script:CIPPGuardedWriteHits.RemoveAt($Index)
+        }
+    }
     $CallerHits = @($script:CIPPGuardedWriteHits | Where-Object { $_.Caller -eq $Caller -and $_.At -gt $Now.AddSeconds(-10) })
     if ($CallerHits.Count -ge 100) {
         return [pscustomobject]@{ Ok = $false; StatusCode = 429; RetryAfter = 10; Message = 'Too many requests for this caller.' }

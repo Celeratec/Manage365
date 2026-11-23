@@ -276,4 +276,109 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         ($script:CapturedAuditRequest | ConvertTo-Json -Depth 8) | Should -Not -Match 'project falcon|alpha beta|custodian@contoso'
         ($script:CapturedAuditAfter | ConvertTo-Json -Depth 8) | Should -Not -Match 'project falcon|alpha beta|custodian@contoso'
     }
+
+    It 'creates a new per-term search when an existing match has other custodian sources' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $false; Reason = 'synthetic test'; Caller = 'test' }
+        }
+        $ExistingTermPlan = Get-CIPPEdiscoverySearchPlan -TicketNumber '1234567' -CustodianUpn 'custodian@contoso.example' -CaseLabel 'Example Matter 2026-001' -Terms @('project falcon')
+        $ExistingSearchName = "$($ExistingTermPlan.DisplayName) - term $($ExistingTermPlan.KqlHash.Substring(0, 12))"
+        Mock Invoke-CIPPEdiscoveryRequest {
+            $script:TransportCalls++
+            $script:GraphCalls.Add([pscustomobject]@{ Method = $Method; Path = $Path; Body = $Body; Classification = $Classification })
+
+            if ($Method -eq 'GET' -and $Path -eq '/v1.0/security/cases/ediscoveryCases') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '11111111-1111-1111-1111-111111111111'; externalId = '1234567'; displayName = '1234567 - Example Matter 2026-001'; description = 'Manage365 stats-only eDiscovery search'; status = 'active' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/custodians' -and $Path -notlike '*/userSources') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '22222222-2222-2222-2222-222222222222'; email = 'custodian@contoso.example' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/userSources') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '33333333-3333-3333-3333-333333333333'; email = 'custodian@contoso.example'; includedSources = 'mailbox' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/searches' -and $Path -notlike '*/custodianSources') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '99999999-9999-9999-9999-999999999999'; displayName = $ExistingSearchName; description = 'Manage365 stats-only per-term estimate.' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/searches/99999999-9999-9999-9999-999999999999/custodianSources') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa' }) }
+            }
+            if ($Method -eq 'POST' -and $Path -like '*/searches' -and $Path -notlike '*/estimateStatistics' -and $Path -notlike '*/custodianSources/*') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '44444444-4444-4444-4444-444444444444' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/searches/44444444-4444-4444-4444-444444444444/custodianSources') {
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -like "*/custodianSources/`$ref") {
+                $Path | Should -Match '44444444-4444-4444-4444-444444444444'
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Path -like '*/estimateStatistics') {
+                $Path | Should -Match '44444444-4444-4444-4444-444444444444'
+                return [pscustomobject]@{ Raw = [pscustomobject]@{ status = 'succeeded'; indexedItemCount = 1; indexedItemsSize = 2; mailboxCount = 1; unindexedItemCount = 0 }; Results = @() }
+            }
+            throw "Unexpected Graph call $Method $Path"
+        }
+
+        $Response = Invoke-CIPPEdiscoverySearchAction -Request @{
+            Body = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '1234567'
+                reason = 'synthetic test'
+                dryRun = $false
+                caseLabel = 'Example Matter 2026-001'
+                custodianUpn = 'custodian@contoso.example'
+                terms = @('project falcon')
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoverySearch' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::OK)
+        @($script:GraphCalls | Where-Object { $_.Method -eq 'POST' -and $_.Path -like '*/searches' -and $_.Path -notlike '*/estimateStatistics' -and $_.Path -notlike '*/custodianSources/*' }).Count | Should -Be 1
+    }
+
+    It 'writes a failed audit with known case and search ids after live Graph writes fail' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $false; Reason = 'synthetic test'; Caller = 'test' }
+        }
+        $script:Audits = [System.Collections.Generic.List[object]]::new()
+        Mock Add-CIPPGuardedWriteAudit {
+            $script:Audits.Add([pscustomobject]@{ Request = $Request; After = $After; Result = $Result; DryRun = $DryRun }) | Out-Null
+            'audit-failed'
+        }
+        Mock Invoke-CIPPEdiscoveryRequest {
+            if ($Method -eq 'GET' -and $Path -eq '/v1.0/security/cases/ediscoveryCases') { return [pscustomobject]@{ Results = @() } }
+            if ($Path -eq '/v1.0/security/cases/ediscoveryCases') { return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '11111111-1111-1111-1111-111111111111' }) } }
+            if ($Method -eq 'GET' -and $Path -like '*/custodians') { return [pscustomobject]@{ Results = @() } }
+            if ($Method -eq 'POST' -and $Path -like '*/custodians') { return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '22222222-2222-2222-2222-222222222222'; email = 'custodian@contoso.example' }) } }
+            if ($Method -eq 'GET' -and $Path -like '*/userSources') { return [pscustomobject]@{ Results = @() } }
+            if ($Method -eq 'POST' -and $Path -like '*/userSources') { return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '33333333-3333-3333-3333-333333333333'; email = 'custodian@contoso.example' }) } }
+            if ($Method -eq 'GET' -and $Path -like '*/searches' -and $Path -notlike '*/custodianSources') { return [pscustomobject]@{ Results = @() } }
+            if ($Method -eq 'POST' -and $Path -like '*/searches' -and $Path -notlike '*/estimateStatistics' -and $Path -notlike '*/custodianSources/*') { return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '44444444-4444-4444-4444-444444444444' }) } }
+            if ($Method -eq 'GET' -and $Path -like '*/custodianSources') { return [pscustomobject]@{ Results = @() } }
+            if ($Method -eq 'POST' -and $Path -like "*/custodianSources/`$ref") { return [pscustomobject]@{ Results = @() } }
+            if ($Path -like '*/estimateStatistics') { throw 'Graph estimate failed' }
+            throw "Unexpected Graph call $Method $Path"
+        }
+
+        $Response = Invoke-CIPPEdiscoverySearchAction -Request @{
+            Body = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                ticketNumber = '1234567'
+                reason = 'synthetic test'
+                dryRun = $false
+                caseLabel = 'Example Matter 2026-001'
+                custodianUpn = 'custodian@contoso.example'
+                terms = @('project falcon')
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoverySearch' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::InternalServerError)
+        $script:Audits.Count | Should -Be 1
+        $script:Audits[0].Result | Should -Be 'Failed'
+        $script:Audits[0].After.caseId | Should -Be '11111111-1111-1111-1111-111111111111'
+        $script:Audits[0].After.searchIds | Should -Contain '44444444-4444-4444-4444-444444444444'
+    }
 }

@@ -13,7 +13,8 @@ function New-CIPPEdiscoveryKql {
         [datetime]$DateTo
     )
 
-    $Clean = @($Terms | ForEach-Object { [string]$_.Trim() } | Where-Object { $_ })
+    $SeenTerms = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $Clean = @($Terms | ForEach-Object { [string]$_.Trim() } | Where-Object { $_ -and $SeenTerms.Add($_) })
     if ($Clean.Count -lt 1 -or $Clean.Count -gt 25) {
         throw 'terms must contain 1 to 25 items.'
     }

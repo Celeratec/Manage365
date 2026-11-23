@@ -9,12 +9,26 @@ function Invoke-ExecEdiscoveryCaseSearch {
     param($Request, $TriggerMetadata)
 
     $null = $TriggerMetadata
+    $Body = $Request.Body
+    $BodyIsObject = $false
+    if ($Body -is [System.Collections.IDictionary]) {
+        $BodyIsObject = $true
+    } elseif ($null -ne $Body -and $Body.GetType().FullName -eq 'System.Management.Automation.PSCustomObject') {
+        $BodyIsObject = $true
+    }
+    if (-not $BodyIsObject) {
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = [PSCustomObject]@{ Results = 'Request body must be a single JSON object.'; Status = 'Failed' }
+        }
+    }
+
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
-    $TenantFilter = $Request.Body.tenantFilter
-    $Action = $Request.Body.action
-    $CaseId = $Request.Body.caseId
-    $SearchId = $Request.Body.searchId
+    $TenantFilter = $Body.tenantFilter
+    $Action = $Body.action
+    $CaseId = $Body.caseId
+    $SearchId = $Body.searchId
 
     try {
         Test-CIPPEdiscoveryForbiddenAction -Action $Action -Resource 'search' | Out-Null
@@ -38,8 +52,8 @@ function Invoke-ExecEdiscoveryCaseSearch {
     }
 
     if ([string]$Action -in @('create', 'update')) {
-        $HasContentQuery = if ($Request.Body -is [System.Collections.IDictionary]) { $Request.Body.Contains('contentQuery') } else { $null -ne $Request.Body.PSObject.Properties['contentQuery'] }
-        $HasDataSourceScopes = if ($Request.Body -is [System.Collections.IDictionary]) { $Request.Body.Contains('dataSourceScopes') } else { $null -ne $Request.Body.PSObject.Properties['dataSourceScopes'] }
+        $HasContentQuery = if ($Body -is [System.Collections.IDictionary]) { $Body.Contains('contentQuery') } else { $null -ne $Body.PSObject.Properties['contentQuery'] }
+        $HasDataSourceScopes = if ($Body -is [System.Collections.IDictionary]) { $Body.Contains('dataSourceScopes') } else { $null -ne $Body.PSObject.Properties['dataSourceScopes'] }
         if ($HasContentQuery -or $HasDataSourceScopes) {
             return [HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::BadRequest
@@ -77,23 +91,23 @@ function Invoke-ExecEdiscoveryCaseSearch {
         switch ($Action) {
             'create' {
                 $SearchBody = @{
-                    displayName    = $Request.Body.displayName
-                    description    = $Request.Body.description
-                    contentQuery   = $Request.Body.contentQuery
+                    displayName    = $Body.displayName
+                    description    = $Body.description
+                    contentQuery   = $Body.contentQuery
                 }
 
-                if ($Request.Body.dataSourceScopes) {
-                    $SearchBody.dataSourceScopes = $Request.Body.dataSourceScopes
+                if ($Body.dataSourceScopes) {
+                    $SearchBody.dataSourceScopes = $Body.dataSourceScopes
                 }
 
                 $RequestBody = $SearchBody
-                $ResponseBody = "Successfully created eDiscovery search '$($Request.Body.displayName)'"
+                $ResponseBody = "Successfully created eDiscovery search '$($Body.displayName)'"
             }
             'update' {
                 $UpdateBody = @{}
-                if ($Request.Body.displayName) { $UpdateBody.displayName = $Request.Body.displayName }
-                if ($Request.Body.description) { $UpdateBody.description = $Request.Body.description }
-                if ($null -ne $Request.Body.contentQuery) { $UpdateBody.contentQuery = $Request.Body.contentQuery }
+                if ($Body.displayName) { $UpdateBody.displayName = $Body.displayName }
+                if ($Body.description) { $UpdateBody.description = $Body.description }
+                if ($null -ne $Body.contentQuery) { $UpdateBody.contentQuery = $Body.contentQuery }
                 $RequestBody = $UpdateBody
                 $ResponseBody = "Successfully updated eDiscovery search '$SearchId'"
             }
@@ -103,7 +117,7 @@ function Invoke-ExecEdiscoveryCaseSearch {
             }
         }
 
-        $AuditRequest = ConvertTo-CIPPEdiscoveryCountsOnly -Value $Request.Body
+        $AuditRequest = ConvertTo-CIPPEdiscoveryCountsOnly -Value $Body
 
         if ($Gate.WhatIf) {
             $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -DryRun $true -Result 'DryRun'

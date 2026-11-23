@@ -27,8 +27,12 @@ function Get-CIPPEdiscoveryAccessToken {
     if ([string]::IsNullOrWhiteSpace($AppId)) {
         throw 'eDiscovery config is missing AppId.'
     }
-    $SamAppId = [string]$env:ApplicationID
-    if (-not [string]::IsNullOrWhiteSpace($SamAppId) -and $AppId -eq $SamAppId) {
+    # Hosting environments have used both ApplicationID and ApplicationId casing.
+    $SamAppIds = @($env:ApplicationID, $env:ApplicationId, $env:APPSETTING_ApplicationID, $env:APPSETTING_ApplicationId) |
+        ForEach-Object { [string]$_ } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique
+    if (@($SamAppIds | Where-Object { $AppId -eq $_ }).Count -gt 0) {
         throw 'The CIPP SAM application identity cannot be used for eDiscovery.'
     }
 
@@ -75,6 +79,8 @@ function Get-CIPPEdiscoveryAccessToken {
         $CertPassword = Get-CippKeyVaultSecret -Name $PwdName -AsPlainText
     }
 
+    $Certificate = $null
+    $SecurePwd = $null
     try {
         $CertBytes = [Convert]::FromBase64String($CertPfxBase64)
         $Flags = [System.Security.Cryptography.X509Certificates.X509KeyStorageFlags]::EphemeralKeySet
@@ -96,26 +102,31 @@ function Get-CIPPEdiscoveryAccessToken {
         throw "Certificate secret '$CertName' must contain a base64 PFX certificate."
     }
 
-    $TokenResponse = Get-GraphTokenFromCert -TenantId $TokenTenantId -AppId $AppId -Certificate $Certificate -Scope $Scope -SkipCache
-    if (-not $TokenResponse.access_token) {
-        throw 'eDiscovery token response did not include access_token.'
-    }
+    try {
+        $TokenResponse = Get-GraphTokenFromCert -TenantId $TokenTenantId -AppId $AppId -Certificate $Certificate -Scope $Scope -SkipCache
+        if (-not $TokenResponse.access_token) {
+            throw 'eDiscovery token response did not include access_token.'
+        }
 
-    $ExpiresOn = if ($TokenResponse.expires_on) {
-        [DateTimeOffset]::FromUnixTimeSeconds([int64]$TokenResponse.expires_on).UtcDateTime
-    } else {
-        [datetime]::UtcNow.AddSeconds([math]::Max(60, [int]($TokenResponse.expires_in ?? 3600)))
-    }
-    if (-not $script:CIPPEdiscoveryTokenCache) { $script:CIPPEdiscoveryTokenCache = @{} }
-    $script:CIPPEdiscoveryTokenCache[$CacheKey] = @{
-        AccessToken = [string]$TokenResponse.access_token
-        ExpiresOn   = $ExpiresOn
-    }
+        $ExpiresOn = if ($TokenResponse.expires_on) {
+            [DateTimeOffset]::FromUnixTimeSeconds([int64]$TokenResponse.expires_on).UtcDateTime
+        } else {
+            [datetime]::UtcNow.AddSeconds([math]::Max(60, [int]($TokenResponse.expires_in ?? 3600)))
+        }
+        if (-not $script:CIPPEdiscoveryTokenCache) { $script:CIPPEdiscoveryTokenCache = @{} }
+        $script:CIPPEdiscoveryTokenCache[$CacheKey] = @{
+            AccessToken = [string]$TokenResponse.access_token
+            ExpiresOn   = $ExpiresOn
+        }
 
-    return [pscustomobject]@{
-        AccessToken = [string]$TokenResponse.access_token
-        ExpiresOn   = $ExpiresOn
-        AppId       = $AppId
-        TenantId    = $TokenTenantId
+        return [pscustomobject]@{
+            AccessToken = [string]$TokenResponse.access_token
+            ExpiresOn   = $ExpiresOn
+            AppId       = $AppId
+            TenantId    = $TokenTenantId
+        }
+    } finally {
+        if ($Certificate) { $Certificate.Dispose() }
+        if ($SecurePwd) { $SecurePwd.Dispose() }
     }
 }

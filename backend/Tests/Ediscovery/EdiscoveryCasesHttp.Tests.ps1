@@ -134,6 +134,26 @@ Describe 'eDiscovery Cases endpoint forbidden actions' {
         $script:Calls | Should -Be 0
     }
 
+    It 'ExecEdiscoveryCaseSearch create refuses array body with free-form query without transport' {
+        $Response = Invoke-ExecEdiscoveryCaseSearch -Request @{
+            Body = @(@{
+                    tenantFilter = 'contoso.onmicrosoft.com'
+                    action = 'create'
+                    caseId = '11111111-1111-1111-1111-111111111111'
+                    contentQuery = 'x'
+                    ticketNumber = '1234567'
+                    reason = 'array bypass'
+                    dryRun = $false
+                })
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryCaseSearch' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'single JSON object'
+        $script:Calls | Should -Be 0
+    }
+
     It 'ExecEdiscoveryCaseExport refuses exports without transport' {
         $Response = Invoke-ExecEdiscoveryCaseExport -Request @{
             Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; caseId = '11111111-1111-1111-1111-111111111111'; searchId = '22222222-2222-2222-2222-222222222222'; ticketNumber = '1234567'; reason = 'export'; dryRun = $false }

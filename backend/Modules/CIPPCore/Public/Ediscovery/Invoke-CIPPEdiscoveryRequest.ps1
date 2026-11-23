@@ -182,7 +182,8 @@ function Invoke-CIPPEdiscoveryRequest {
                 $Msg = [string]$_.Exception.Message
                 $Status = $null
                 if ($Msg -match '\b(429|502|503|504)\b') { $Status = [int]$Matches[1] }
-                if ($Status -and $Attempt -lt 4) {
+                $CanRetry = ($Status -eq 429) -or ($MethodIn -eq 'GET' -and $Status -in @(502, 503, 504))
+                if ($CanRetry -and $Attempt -lt 4) {
                     $Delay = [math]::Min(30, [math]::Pow(2, $Attempt))
                     Start-Sleep -Seconds $Delay
                     continue
@@ -242,6 +243,10 @@ function Invoke-CIPPEdiscoveryRequest {
         }
 
         if ($PollOperationUrl -and $Classification -eq 'write') {
+            $PollUri = [uri]$PollOperationUrl
+            if ($PollUri.Scheme -ne 'https' -or $PollUri.Host -ne 'graph.microsoft.com') {
+                throw 'eDiscovery Graph operation host must be graph.microsoft.com.'
+            }
             $OperationUrl = $PollOperationUrl
             $Deadline = [datetime]::UtcNow.AddSeconds($PollTimeoutSeconds)
             $Status = $null
@@ -259,16 +264,31 @@ function Invoke-CIPPEdiscoveryRequest {
                     throw 'counts-only eDiscovery response contained downloadUrl.'
                 }
                 $Status = [string]($Op.status ?? $Op.Status ?? $Op.state)
-                if ($Status -match '(?i)succeeded|complete') {
-                    $LastRaw = $Op
-                    $Response = $Op
-                    break
+                $OperationComplete = $false
+                switch ($Status.ToLowerInvariant()) {
+                    'succeeded' {
+                        $LastRaw = $Op
+                        $Response = $Op
+                        $OperationComplete = $true
+                    }
+                    'partiallysucceeded' {
+                        $LastRaw = $Op
+                        $Response = $Op
+                        $OperationComplete = $true
+                    }
+                    'failed' {
+                        throw "eDiscovery Graph operation failed with status '$Status'."
+                    }
+                    'canceled' {
+                        throw "eDiscovery Graph operation failed with status '$Status'."
+                    }
+                    'cancelled' {
+                        throw "eDiscovery Graph operation failed with status '$Status'."
+                    }
                 }
-                if ($Status -match '(?i)failed|canceled|cancelled') {
-                    throw "eDiscovery Graph operation failed with status '$Status'."
-                }
+                if ($OperationComplete) { break }
             }
-            if ([datetime]::UtcNow -ge $Deadline -and $Status -notmatch '(?i)succeeded|complete') {
+            if ([datetime]::UtcNow -ge $Deadline -and $Status -notin @('succeeded', 'partiallySucceeded')) {
                 throw "eDiscovery Graph operation timed out after ${PollTimeoutSeconds}s."
             }
         }
