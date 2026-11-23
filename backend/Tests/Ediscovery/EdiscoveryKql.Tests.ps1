@@ -51,6 +51,7 @@ Describe 'New-CIPPEdiscoveryKql' {
         { New-CIPPEdiscoveryKql -Terms @('a;b') } | Should -Throw '*Invalid term*'
         { New-CIPPEdiscoveryKql -Terms @('a|b') } | Should -Throw '*Invalid term*'
         { New-CIPPEdiscoveryKql -Terms @('contentQuery=evil') } | Should -Throw '*Invalid term*'
+        { New-CIPPEdiscoveryKql -Terms @('ContentQuery=evil') } | Should -Throw '*Invalid term*'
     }
 
     It 'requires dateFrom and dateTo together' {
@@ -114,6 +115,15 @@ Describe 'Get-CIPPEdiscoverySearchPlan' {
 
     It 'refuses empty custodianUpn' {
         { Get-CIPPEdiscoverySearchPlan -TicketNumber '1234567' -CustodianUpn ' ' -Terms @('x') } | Should -Throw '*custodian*'
+    }
+
+    It 'defaults blank caseLabel to stats in displayName' {
+        $Plan = Get-CIPPEdiscoverySearchPlan `
+            -TicketNumber '1234567' `
+            -CustodianUpn 'a@b.example' `
+            -Terms @('x') `
+            -CaseLabel '   '
+        $Plan.DisplayName | Should -Be '1234567 - stats'
     }
 
     It 'surfaces KQL validation errors from term limits' {

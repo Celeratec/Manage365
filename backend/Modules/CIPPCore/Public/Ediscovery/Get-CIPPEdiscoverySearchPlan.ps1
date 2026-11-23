@@ -31,6 +31,9 @@ function Get-CIPPEdiscoverySearchPlan {
     }
 
     $Label = ([string]$CaseLabel).Trim()
+    if ([string]::IsNullOrWhiteSpace($Label)) {
+        $Label = 'stats'
+    }
     if ($Label.Length -gt 128) {
         throw 'caseLabel must be 128 characters or fewer.'
     }
@@ -42,11 +45,7 @@ function Get-CIPPEdiscoverySearchPlan {
     }
     $KqlResult = New-CIPPEdiscoveryKql @KqlParams
 
-    $DisplayName = if ([string]::IsNullOrWhiteSpace($Label)) {
-        $TicketNumber
-    } else {
-        "$TicketNumber - $Label"
-    }
+    $DisplayName = "$TicketNumber - $Label"
 
     [pscustomobject]@{
         DisplayName    = $DisplayName
