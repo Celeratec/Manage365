@@ -102,8 +102,15 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         $Response.Body.AuditId | Should -Be 'audit-1'
         $Response.Body.After.Terms | Should -Be @('project falcon')
         $script:TransportCalls | Should -Be 0
+        $script:CapturedAuditRequest.ticket | Should -Be '1234567'
+        $script:CapturedAuditRequest.actor | Should -Be 'test'
         $script:CapturedAuditRequest.TermCount | Should -Be 1
         $script:CapturedAuditRequest.KqlHash | Should -Match '\A[a-f0-9]{64}\z'
+        $script:CapturedAuditRequest.Status | Should -Be 'DryRun'
+        foreach ($BlockedKey in @('Terms', 'Kql', 'contentQuery', 'DisplayName', 'Limits', 'CustodianUpn')) {
+            $script:CapturedAuditRequest.PSObject.Properties.Name | Should -Not -Contain $BlockedKey
+            $script:CapturedAuditAfter.PSObject.Properties.Name | Should -Not -Contain $BlockedKey
+        }
         ($script:CapturedAuditRequest | ConvertTo-Json -Depth 8) | Should -Not -Match 'project falcon|custodian@contoso'
     }
 
@@ -226,8 +233,19 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         $Response.Body.Results.perTerm[0].term | Should -Be 'project falcon'
         $Response.Body.Results.Note | Should -Match 'overlap'
         @($script:GraphCalls | Where-Object { $_.Path -like '*/estimateStatistics' }).Count | Should -Be 2
+        $script:CapturedAuditRequest.ticket | Should -Be '1234567'
+        $script:CapturedAuditRequest.actor | Should -Be 'test'
         $script:CapturedAuditRequest.TermCount | Should -Be 2
         $script:CapturedAuditRequest.KqlHash | Should -Match '\A[a-f0-9]{64}\z'
+        $script:CapturedAuditRequest.Status | Should -Be 'Success'
+        foreach ($BlockedKey in @('Terms', 'Kql', 'contentQuery', 'DisplayName', 'Limits', 'CustodianUpn', 'caseId', 'searchIds')) {
+            $script:CapturedAuditRequest.PSObject.Properties.Name | Should -Not -Contain $BlockedKey
+        }
+        $script:CapturedAuditAfter.caseId | Should -Be '11111111-1111-1111-1111-111111111111'
+        $script:CapturedAuditAfter.searchIds.Count | Should -Be 2
+        foreach ($BlockedKey in @('Terms', 'Kql', 'contentQuery', 'DisplayName', 'Limits', 'CustodianUpn')) {
+            $script:CapturedAuditAfter.PSObject.Properties.Name | Should -Not -Contain $BlockedKey
+        }
         ($script:CapturedAuditRequest | ConvertTo-Json -Depth 8) | Should -Not -Match 'project falcon|alpha beta|custodian@contoso'
         ($script:CapturedAuditAfter | ConvertTo-Json -Depth 8) | Should -Not -Match 'project falcon|alpha beta|custodian@contoso'
     }

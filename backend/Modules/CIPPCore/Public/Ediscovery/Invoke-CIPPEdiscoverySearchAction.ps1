@@ -139,10 +139,6 @@ function Invoke-CIPPEdiscoverySearchAction {
         }
         $SearchPlan = Get-CIPPEdiscoverySearchPlan @PlanParams
 
-        $AuditRequest = [ordered]@{
-            TermCount = $SearchPlan.TermCount
-            KqlHash   = $SearchPlan.KqlHash
-        }
         $OperatorAfter = [pscustomobject]@{
             DisplayName  = $SearchPlan.DisplayName
             ExternalId   = $SearchPlan.ExternalId
@@ -152,16 +148,9 @@ function Invoke-CIPPEdiscoverySearchAction {
             Terms        = $SearchPlan.Terms
             Limits       = $SearchPlan.Limits
         }
-        $AuditAfter = [pscustomobject]@{
-            DisplayName = $SearchPlan.DisplayName
-            ExternalId  = $SearchPlan.ExternalId
-            TermCount   = $SearchPlan.TermCount
-            KqlHash     = $SearchPlan.KqlHash
-            Limits      = $SearchPlan.Limits
-        }
-
         if ($Gate.WhatIf) {
-            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -After $AuditAfter -DryRun $true -Result 'DryRun'
+            $AuditPayload = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'DryRun'
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditPayload -After $AuditPayload -DryRun $true -Result 'DryRun'
             return Get-CIPPEdiscoverySearchHttpResponse -StatusCode ([HttpStatusCode]::OK) -Body ([pscustomobject]@{
                     Status   = 'DryRun'
                     AuditId  = $AuditId
@@ -222,6 +211,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 includedSources = 'mailbox'
             } -PollTimeoutSeconds 300
 
+            $SearchIds = [System.Collections.Generic.List[string]]::new()
             $PerTerm = foreach ($Term in @($SearchPlan.Terms)) {
                 $TermPlan = Get-CIPPEdiscoverySearchPlan -TicketNumber $SearchPlan.ExternalId -CustodianUpn $SearchPlan.CustodianUpn -CaseLabel $CaseLabel -Terms @($Term)
                 $SearchResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'CreateEdiscoverySearch' -Params @{ caseId = $CaseId } -Body @{
@@ -235,6 +225,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 if ([string]::IsNullOrWhiteSpace($SearchId)) {
                     throw 'eDiscovery search id was not returned by Graph.'
                 }
+                $SearchIds.Add($SearchId) | Out-Null
 
                 $EstimateResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'EstimateEdiscoverySearch' -Params @{ caseId = $CaseId; searchId = $SearchId } -Body @{} -PollTimeoutSeconds 300
                 $Metrics = Get-CIPPEdiscoverySearchResultMetric -Response $EstimateResponse
@@ -261,6 +252,8 @@ function Invoke-CIPPEdiscoverySearchAction {
                 Note               = 'Per-term counts are estimated independently and may overlap.'
             }
 
+            $AuditRequest = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'Success'
+            $AuditAfter = New-CIPPEdiscoveryStatsSearchAuditPayload -Gate $Gate -TermCount $SearchPlan.TermCount -KqlHash $SearchPlan.KqlHash -Status 'Success' -CaseId $CaseId -SearchIds @($SearchIds)
             $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -After $AuditAfter -DryRun $false -Result 'Success'
             Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message 'Completed stats-only eDiscovery search estimate.' -Sev 'Info'
 

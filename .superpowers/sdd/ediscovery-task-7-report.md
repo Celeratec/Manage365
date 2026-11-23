@@ -22,3 +22,14 @@ Completed on branch `clint/ediscovery-stats-search`.
 ## Concerns
 
 - Live per-term estimates intentionally run one estimate per term and return an overlap note; aggregate totals are summed from per-term estimates and may over-count when terms overlap.
+
+## Follow-up (Important finding — audit redaction)
+
+- Added `New-CIPPEdiscoveryStatsSearchAuditPayload` / `Get-CIPPEdiscoveryGuardedWriteAuditActor` so guarded-write audits store only `ticket`, `actor`, `TermCount`, `KqlHash`, `Status`, and optional `caseId` / `searchIds` — not `DisplayName`, `Limits`, `Terms`, `Kql`, or `contentQuery`.
+- Operator HTTP `After` / `Results` still expose plan fields and `perTerm` term+counts for operators.
+- Pester asserts audit request/after property names exclude sensitive keys.
+- **Known limitation:** per-tenant in-flight lock remains process-local (`$script:CIPPEdiscoverySearchActionLocks`); table-backed lock deferred.
+
+### Verification (follow-up)
+
+- `EdiscoverySearchAction.Tests.ps1`: 5/5 passed.

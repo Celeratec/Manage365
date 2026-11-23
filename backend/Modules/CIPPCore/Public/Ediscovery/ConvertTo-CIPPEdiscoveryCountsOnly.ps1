@@ -1,3 +1,50 @@
+function Get-CIPPEdiscoveryGuardedWriteAuditActor {
+    [CmdletBinding()]
+    param(
+        $Gate
+    )
+
+    if ($null -eq $Gate) { return 'API' }
+    $Caller = [string]$Gate.Caller
+    if ([string]::IsNullOrWhiteSpace($Caller)) { return 'API' }
+    return $Caller
+}
+
+function New-CIPPEdiscoveryStatsSearchAuditPayload {
+    <#
+    .SYNOPSIS
+        Builds counts-only Request/After payloads for stats search guarded-write audits.
+    #>
+    [CmdletBinding()]
+    param(
+        $Gate,
+        [Parameter(Mandatory)][int]$TermCount,
+        [Parameter(Mandatory)][string]$KqlHash,
+        [Parameter(Mandatory)][string]$Status,
+        [string]$CaseId,
+        [string[]]$SearchIds
+    )
+
+    $Payload = [ordered]@{
+        ticket    = [string]$Gate.Ticket
+        actor     = Get-CIPPEdiscoveryGuardedWriteAuditActor -Gate $Gate
+        TermCount = $TermCount
+        KqlHash   = $KqlHash
+        Status    = $Status
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($CaseId)) {
+        $Payload.caseId = $CaseId
+    }
+
+    $KnownSearchIds = @($SearchIds | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) })
+    if ($KnownSearchIds.Count -gt 0) {
+        $Payload.searchIds = $KnownSearchIds
+    }
+
+    return [pscustomobject]$Payload
+}
+
 function Get-CIPPEdiscoverySensitiveTextHash {
     [CmdletBinding()]
     param(
