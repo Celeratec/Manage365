@@ -1,55 +1,16 @@
 import { Layout as DashboardLayout } from "../../../../../layouts/index.jsx";
 import { useRouter } from "next/router";
-import { ApiGetCall, ApiPostCall } from "../../../../../api/ApiCall";
+import { ApiGetCall } from "../../../../../api/ApiCall";
 import CippFormSkeleton from "../../../../../components/CippFormPages/CippFormSkeleton";
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions.json";
 import { Box, Stack } from "@mui/system";
-import {
-  Alert,
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Typography,
-  Chip,
-} from "@mui/material";
+import { Alert } from "@mui/material";
 import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
-import { CippApiResults } from "../../../../../components/CippComponents/CippApiResults";
-import CippFormComponent from "../../../../../components/CippComponents/CippFormComponent";
-import { Add, Gavel } from "@mui/icons-material";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { useSettings } from "../../../../../hooks/use-settings";
 
 const Page = () => {
   const router = useRouter();
   const { caseId } = router.query;
-  const userSettings = useSettings();
-  const [createOpen, setCreateOpen] = useState(false);
-  const formHook = useForm({ defaultValues: { dryRun: true } });
-
-  const guardedWriteFields = [
-    {
-      name: "ticketNumber",
-      label: "Ticket Number",
-      type: "textField",
-      validators: { required: "Ticket number is required" },
-    },
-    {
-      name: "reason",
-      label: "Reason",
-      type: "textField",
-      validators: { required: "Reason is required" },
-    },
-    {
-      name: "dryRun",
-      label: "Preview only (dry run)",
-      type: "switch",
-      defaultValue: true,
-    },
-  ];
 
   const holdsRequest = ApiGetCall({
     url: `/api/ListEdiscoveryCaseHolds`,
@@ -57,46 +18,6 @@ const Page = () => {
     data: { caseId },
     waiting: !!caseId,
   });
-
-  const createHoldRequest = ApiPostCall({
-    urlFromData: true,
-    relatedQueryKeys: [`ListEdiscoveryCaseHolds-${caseId}`],
-  });
-
-  const handleCreateHold = (data) => {
-    const userSources = data.userEmails
-      ? data.userEmails
-          .split(",")
-          .map((e) => e.trim())
-          .filter(Boolean)
-          .map((email) => ({ email, includedSources: "mailbox,site" }))
-      : [];
-
-    const siteSources = data.siteUrls
-      ? data.siteUrls
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((siteWebUrl) => ({ siteWebUrl }))
-      : [];
-
-    createHoldRequest.mutate({
-      url: "/api/ExecEdiscoveryCaseHold",
-      data: {
-        tenantFilter: userSettings.currentTenant,
-        caseId,
-        action: "create",
-        displayName: data.displayName,
-        description: data.description,
-        contentQuery: data.contentQuery,
-        userSources,
-        siteSources,
-        ticketNumber: data.ticketNumber,
-        reason: data.reason,
-        dryRun: data.dryRun !== false,
-      },
-    });
-  };
 
   const columns = [
     "displayName",
@@ -118,19 +39,10 @@ const Page = () => {
     >
       <Box sx={{ flexGrow: 1, pt: 2 }}>
         <Stack spacing={2}>
-          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => {
-                formHook.reset({ dryRun: true });
-                createHoldRequest.reset();
-                setCreateOpen(true);
-              }}
-            >
-              Create Hold
-            </Button>
-          </Box>
+          <Alert severity="info">
+            Creating or updating legal holds is disabled for the first eDiscovery release.
+            Existing holds can be reviewed here without exposing content queries or source details.
+          </Alert>
 
           {holdsRequest.isLoading && <CippFormSkeleton layout={[1, 1]} />}
           {holdsRequest.isSuccess && (
@@ -147,75 +59,6 @@ const Page = () => {
           )}
         </Stack>
       </Box>
-
-      <Dialog open={createOpen} onClose={() => setCreateOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>
-          <Stack direction="row" alignItems="center" spacing={1}>
-            <Gavel />
-            <span>Create Legal Hold</span>
-          </Stack>
-        </DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ mt: 1 }}>
-            <CippFormComponent
-              type="textField"
-              name="displayName"
-              label="Hold Name"
-              formControl={formHook}
-              validators={{ required: "Hold name is required" }}
-            />
-            <CippFormComponent
-              type="textField"
-              name="description"
-              label="Description"
-              formControl={formHook}
-              multiline
-              rows={2}
-            />
-            <CippFormComponent
-              type="textField"
-              name="userEmails"
-              label="User Mailboxes (comma-separated email addresses)"
-              formControl={formHook}
-              multiline
-              rows={2}
-            />
-            <CippFormComponent
-              type="textField"
-              name="siteUrls"
-              label="SharePoint Site URLs (comma-separated)"
-              formControl={formHook}
-              multiline
-              rows={2}
-            />
-            <CippFormComponent
-              type="textField"
-              name="contentQuery"
-              label="KQL Content Query (optional)"
-              formControl={formHook}
-              placeholder='e.g. subject:"Project Alpha" AND date:2024-01-01..2025-01-01'
-            />
-            {guardedWriteFields.map((field) => (
-              <CippFormComponent
-                key={field.name}
-                {...field}
-                formControl={formHook}
-              />
-            ))}
-            <CippApiResults apiObject={createHoldRequest} />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCreateOpen(false)}>Cancel</Button>
-          <Button
-            variant="contained"
-            onClick={formHook.handleSubmit(handleCreateHold)}
-            disabled={createHoldRequest.isPending}
-          >
-            Create Hold
-          </Button>
-        </DialogActions>
-      </Dialog>
     </HeaderedTabbedLayout>
   );
 };

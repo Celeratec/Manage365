@@ -8,6 +8,7 @@ function Invoke-ExecEdiscoveryCaseSearch {
     [CmdletBinding()]
     param($Request, $TriggerMetadata)
 
+    $null = $TriggerMetadata
     $APIName = $Request.Params.CIPPEndpoint
     $Headers = $Request.Headers
     $TenantFilter = $Request.Body.tenantFilter
@@ -33,6 +34,20 @@ function Invoke-ExecEdiscoveryCaseSearch {
         return [HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::BadRequest
             Body       = [PSCustomObject]@{ Results = "Unknown or unsupported eDiscovery search action: $Action"; Status = 'Failed' }
+        }
+    }
+
+    if ([string]$Action -in @('create', 'update')) {
+        $HasContentQuery = if ($Request.Body -is [System.Collections.IDictionary]) { $Request.Body.Contains('contentQuery') } else { $null -ne $Request.Body.PSObject.Properties['contentQuery'] }
+        $HasDataSourceScopes = if ($Request.Body -is [System.Collections.IDictionary]) { $Request.Body.Contains('dataSourceScopes') } else { $null -ne $Request.Body.PSObject.Properties['dataSourceScopes'] }
+        if ($HasContentQuery -or $HasDataSourceScopes) {
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = [PSCustomObject]@{
+                    Results = 'Free-form contentQuery and dataSourceScopes are not accepted for eDiscovery search create/update. Use ExecEdiscoverySearch for mailbox-only stats estimates.'
+                    Status  = 'Failed'
+                }
+            }
         }
     }
 

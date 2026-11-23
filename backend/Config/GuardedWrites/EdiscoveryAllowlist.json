@@ -77,9 +77,33 @@
     "role": "Security.Ediscovery.ReadWrite",
     "classification": "write"
   },
+  "ListEdiscoveryCustodians": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
   "CreateEdiscoveryUserSource": {
     "method": "POST",
     "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians/{custodianId}/userSources",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ListEdiscoveryUserSources": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians/{custodianId}/userSources",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "ListEdiscoverySearchCustodianSources": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}/custodianSources",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "AddEdiscoverySearchCustodianSource": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}/custodianSources/$ref",
     "role": "Security.Ediscovery.ReadWrite",
     "classification": "write"
   },

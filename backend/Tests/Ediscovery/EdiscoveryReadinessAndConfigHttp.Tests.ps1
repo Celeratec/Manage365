@@ -102,7 +102,11 @@ Describe 'Invoke-ExecEdiscoveryConfig' {
             [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $true; Reason = 'setup'; Caller = 'test' }
         }
         Mock Set-CIPPEdiscoveryTenantConfig { throw 'should not set' }
-        Mock Add-CIPPGuardedWriteAudit { 'audit-1' }
+        $script:CapturedAuditRequest = $null
+        Mock Add-CIPPGuardedWriteAudit {
+            $script:CapturedAuditRequest = $Request
+            'audit-1'
+        }
 
         $Response = Invoke-ExecEdiscoveryConfig -Request @{
             Body = @{
@@ -119,6 +123,54 @@ Describe 'Invoke-ExecEdiscoveryConfig' {
         $Response.StatusCode | Should -Be ([HttpStatusCode]::OK)
         $Response.Body.Status | Should -Be 'DryRun'
         $Response.Body.WhatIfPlan[0].TenantFilter | Should -Be 'contoso.onmicrosoft.com'
+        $script:CapturedAuditRequest.PSObject.Properties.Name | Should -Contain 'CertificateSecretNamePresent'
+        $script:CapturedAuditRequest.PSObject.Properties.Name | Should -Not -Contain 'certificatePasswordSecretName'
+        ($script:CapturedAuditRequest | ConvertTo-Json -Depth 5) | Should -Not -Match 'ediscovery-contoso-cert'
+    }
+
+    It 'validates appId before returning dryRun plan' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $true; Reason = 'setup'; Caller = 'test' }
+        }
+        Mock Add-CIPPGuardedWriteAudit { throw 'must not audit invalid config' }
+
+        $Response = Invoke-ExecEdiscoveryConfig -Request @{
+            Body = @{
+                tenantFilter          = 'contoso.onmicrosoft.com'
+                ticketNumber          = '1234567'
+                reason                = 'setup'
+                appId                 = 'not-a-guid'
+                certificateSecretName = 'ediscovery-contoso-cert'
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryConfig' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'GUID'
+    }
+
+    It 'parses enabled string false as boolean false' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $true; Reason = 'setup'; Caller = 'test' }
+        }
+        Mock Add-CIPPGuardedWriteAudit { 'audit-1' }
+
+        $Response = Invoke-ExecEdiscoveryConfig -Request @{
+            Body = @{
+                tenantFilter          = 'contoso.onmicrosoft.com'
+                ticketNumber          = '1234567'
+                reason                = 'setup'
+                appId                 = '11111111-1111-1111-1111-111111111111'
+                certificateSecretName = 'ediscovery-contoso-cert'
+                enabled               = 'false'
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryConfig' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::OK)
+        $Response.Body.WhatIfPlan[0].Enabled | Should -BeFalse
     }
 
     It 'requires a non-empty reason' {
@@ -179,6 +231,24 @@ Describe 'Invoke-ExecEdiscoveryConfig' {
 
         $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
         $Response.Body.Results | Should -Match 'clientSecret'
+    }
+
+    It 'refuses certificate data keys in body' {
+        $Response = Invoke-ExecEdiscoveryConfig -Request @{
+            Body = @{
+                tenantFilter          = 'contoso.onmicrosoft.com'
+                ticketNumber          = '1234567'
+                reason                = 'setup'
+                appId                 = '11111111-1111-1111-1111-111111111111'
+                certificateSecretName = 'ediscovery-contoso-cert'
+                certData              = 'AAAA'
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryConfig' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'certData'
     }
 
     It 'refuses credential-looking certificateSecretName before dryRun audit' {

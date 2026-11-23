@@ -69,6 +69,27 @@ Describe 'eDiscovery Cases endpoint forbidden actions' {
         $script:Calls | Should -Be 0
     }
 
+    It 'ExecEdiscoveryCaseHold create is disabled for v1 and does not call transport' {
+        $Response = Invoke-ExecEdiscoveryCaseHold -Request @{
+            Body = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action = 'create'
+                caseId = '11111111-1111-1111-1111-111111111111'
+                displayName = 'Hold'
+                contentQuery = 'subject:"Secret Matter"'
+                ticketNumber = '1234567'
+                reason = 'hold add deferred'
+                dryRun = $false
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryCaseHold' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'deferred|disabled|not available'
+        $script:Calls | Should -Be 0
+    }
+
     It 'ExecEdiscoveryCaseSearch delete does not call transport' {
         $Response = Invoke-ExecEdiscoveryCaseSearch -Request @{
             Body = @{ tenantFilter = 'contoso.onmicrosoft.com'; action = 'delete'; caseId = '11111111-1111-1111-1111-111111111111'; searchId = '22222222-2222-2222-2222-222222222222'; ticketNumber = '1234567'; reason = 'nope'; dryRun = $false }
@@ -88,6 +109,28 @@ Describe 'eDiscovery Cases endpoint forbidden actions' {
         }
 
         $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $script:Calls | Should -Be 0
+    }
+
+    It 'ExecEdiscoveryCaseSearch create refuses caller-supplied free-form query without transport' {
+        $Response = Invoke-ExecEdiscoveryCaseSearch -Request @{
+            Body = @{
+                tenantFilter = 'contoso.onmicrosoft.com'
+                action = 'create'
+                caseId = '11111111-1111-1111-1111-111111111111'
+                displayName = 'Unsafe search'
+                contentQuery = 'subject:"Secret Matter"'
+                dataSourceScopes = 'allTenantMailboxes'
+                ticketNumber = '1234567'
+                reason = 'no free-form'
+                dryRun = $false
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryCaseSearch' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'free-form|contentQuery|dataSourceScopes'
         $script:Calls | Should -Be 0
     }
 
@@ -118,7 +161,7 @@ Describe 'eDiscovery Cases endpoint redaction' {
         }
     }
 
-    It 'audits eDiscovery writes without content query or raw sources' {
+    It 'does not audit hold create requests because hold changes are disabled for v1' {
         $Response = Invoke-ExecEdiscoveryCaseHold -Request @{
             Body = @{
                 tenantFilter = 'contoso.onmicrosoft.com'
@@ -135,14 +178,8 @@ Describe 'eDiscovery Cases endpoint redaction' {
             Params = @{ CIPPEndpoint = 'ExecEdiscoveryCaseHold' }
         }
 
-        $Response.StatusCode | Should -Be ([HttpStatusCode]::OK)
-        $script:CapturedAuditRequest.Keys | Should -Not -Contain 'contentQuery'
-        $script:CapturedAuditRequest.Keys | Should -Not -Contain 'userSources'
-        $script:CapturedAuditRequest.Keys | Should -Not -Contain 'siteSources'
-        $script:CapturedAuditRequest.contentQueryHash | Should -Not -BeNullOrEmpty
-        $script:CapturedAuditRequest.userSourcesCount | Should -Be 1
-        $script:CapturedAuditRequest.siteSourcesCount | Should -Be 1
-        ($script:CapturedAuditRequest | ConvertTo-Json -Depth 8) | Should -Not -Match 'Secret Matter|client@example.com|sharepoint.com/sites/secret'
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $script:CapturedAuditRequest | Should -BeNullOrEmpty
     }
 
     It 'returns searches without content query text' {

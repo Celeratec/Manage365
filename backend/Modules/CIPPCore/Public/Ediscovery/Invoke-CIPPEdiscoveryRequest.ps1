@@ -52,6 +52,8 @@ function Invoke-CIPPEdiscoveryRequest {
     }
 
     $Base = 'https://graph.microsoft.com'
+    $RequestAccessToken = $AccessToken
+    $RequestTransport = $Transport
     $RelativePath = $Path
     if ($Path -match '(?i)^https?://') {
         $Absolute = [uri]$Path
@@ -63,6 +65,10 @@ function Invoke-CIPPEdiscoveryRequest {
     $DecodedPath = [uri]::UnescapeDataString($RelativePath)
     if ($RelativePath -notmatch '\A/' -or $RelativePath.Contains('..') -or $DecodedPath.Contains('..') -or $RelativePath -match '(?i)https?://') {
         throw 'eDiscovery Graph path must be a rooted relative path without traversal or scheme.'
+    }
+
+    if ($Method -eq 'DELETE') {
+        throw 'DELETE is not allowed for eDiscovery Graph requests.'
     }
 
     Test-CIPPEdiscoveryForbiddenAction -RawPath $RelativePath | Out-Null
@@ -101,26 +107,77 @@ function Invoke-CIPPEdiscoveryRequest {
         return $Builder.Uri.AbsoluteUri
     }
 
+    $GetHeaderValue = {
+        param($HeadersIn, [string]$Name)
+        if ($null -eq $HeadersIn) { return $null }
+        if ($HeadersIn -is [System.Collections.IDictionary]) {
+            foreach ($Key in @($HeadersIn.Keys)) {
+                if ([string]$Key -ieq $Name) { return [string]$HeadersIn[$Key] }
+            }
+            return $null
+        }
+        foreach ($Prop in @($HeadersIn.PSObject.Properties)) {
+            if ($Prop.Name -ieq $Name) { return [string]$Prop.Value }
+        }
+        return $null
+    }
+
+    $NormalizeResponse = {
+        param($ResponseIn, $HeadersIn, $StatusCodeIn)
+
+        if ($null -ne $ResponseIn) {
+            $HasEnvelopeMember = $false
+            if ($ResponseIn -is [System.Collections.IDictionary]) {
+                $HasEnvelopeMember = $ResponseIn.Contains('Headers') -or $ResponseIn.Contains('StatusCode')
+                if ($HasEnvelopeMember) {
+                    return [pscustomobject]@{
+                        Body       = $(if ($ResponseIn.Contains('Body')) { $ResponseIn['Body'] } else { $null })
+                        Headers    = $(if ($ResponseIn.Contains('Headers')) { $ResponseIn['Headers'] } else { $HeadersIn })
+                        StatusCode = $(if ($ResponseIn.Contains('StatusCode')) { $ResponseIn['StatusCode'] } else { $StatusCodeIn })
+                    }
+                }
+            } elseif ($ResponseIn.PSObject.Properties['Headers'] -or $ResponseIn.PSObject.Properties['StatusCode']) {
+                return [pscustomobject]@{
+                    Body       = $(if ($ResponseIn.PSObject.Properties['Body']) { $ResponseIn.Body } else { $null })
+                    Headers    = $(if ($ResponseIn.PSObject.Properties['Headers']) { $ResponseIn.Headers } else { $HeadersIn })
+                    StatusCode = $(if ($ResponseIn.PSObject.Properties['StatusCode']) { $ResponseIn.StatusCode } else { $StatusCodeIn })
+                }
+            }
+        }
+
+        return [pscustomobject]@{
+            Body       = $ResponseIn
+            Headers    = $HeadersIn
+            StatusCode = $StatusCodeIn
+        }
+    }
+
     $SendOnce = {
         param($MethodIn, $UriIn, $BodyIn)
-        $Headers = @{ Authorization = "Bearer $AccessToken" }
+        $Headers = @{ Authorization = "Bearer $RequestAccessToken" }
         $Attempt = 0
         while ($Attempt -lt 4) {
             $Attempt++
             try {
-                if ($Transport) {
-                    return & $Transport -Method $MethodIn -Uri $UriIn -Headers $Headers -Body $BodyIn
+                if ($RequestTransport) {
+                    $TransportResponse = & $RequestTransport -Method $MethodIn -Uri $UriIn -Headers $Headers -Body $BodyIn
+                    return & $NormalizeResponse $TransportResponse $null $null
                 }
                 $Params = @{
                     Method  = $MethodIn
                     Uri     = $UriIn
                     Headers = $Headers
+                    ResponseHeadersVariable = 'ResponseHeaders'
+                    StatusCodeVariable      = 'StatusCode'
                 }
                 if ($null -ne $BodyIn -and $MethodIn -in @('POST', 'PUT', 'PATCH')) {
                     $Params.Body = if ($BodyIn -is [string]) { $BodyIn } else { $BodyIn | ConvertTo-Json -Depth 12 -Compress }
                     $Params.ContentType = 'application/json'
                 }
-                return Invoke-CIPPRestMethod @Params -ErrorAction Stop
+                $ResponseHeaders = @{}
+                $StatusCode = $null
+                $RestResponse = Invoke-CIPPRestMethod @Params -ErrorAction Stop
+                return & $NormalizeResponse $RestResponse $ResponseHeaders $StatusCode
             } catch {
                 $Msg = [string]$_.Exception.Message
                 $Status = $null
@@ -159,13 +216,21 @@ function Invoke-CIPPEdiscoveryRequest {
             $Uri = & $BuildUri $NextPathOrUri
         }
 
-        $Response = & $SendOnce $Method $Uri $Body
+        $ResponseEnvelope = & $SendOnce $Method $Uri $Body
+        $Response = $ResponseEnvelope.Body
         $LastRaw = $Response
         if ($Classification -eq 'countsOnly' -and (& $ContainsDownloadUrl $Response)) {
             throw 'counts-only eDiscovery response contained downloadUrl.'
         }
 
-        if ($Classification -eq 'write' -and $Response -is [hashtable] -and $Response.ContainsKey('OperationUrl')) {
+        $Location = & $GetHeaderValue $ResponseEnvelope.Headers 'Location'
+        if ($Location) {
+            $LocationUri = [uri]$Location
+            if ($LocationUri.Scheme -ne 'https' -or $LocationUri.Host -ne 'graph.microsoft.com') {
+                throw 'eDiscovery Graph operation host must be graph.microsoft.com.'
+            }
+            $OperationUrl = $LocationUri.AbsoluteUri
+        } elseif ($Classification -eq 'write' -and $Response -is [hashtable] -and $Response.ContainsKey('OperationUrl')) {
             $OperationUrl = [string]$Response.OperationUrl
         } elseif ($Classification -eq 'write' -and $Response.PSObject.Properties['OperationUrl']) {
             $OperationUrl = [string]$Response.OperationUrl
@@ -174,19 +239,23 @@ function Invoke-CIPPEdiscoveryRequest {
         if ($OperationUrl -and $Classification -eq 'write') {
             $Deadline = [datetime]::UtcNow.AddSeconds($PollTimeoutSeconds)
             $Status = $null
+            $FirstPoll = $true
             while ([datetime]::UtcNow -lt $Deadline) {
                 $OpUri = [uri]$OperationUrl
-                if ($OpUri.Host -ne 'graph.microsoft.com') {
+                if ($OpUri.Scheme -ne 'https' -or $OpUri.Host -ne 'graph.microsoft.com') {
                     throw 'eDiscovery Graph operation host must be graph.microsoft.com.'
                 }
-                Start-Sleep -Seconds 2
-                $Op = & $SendOnce 'GET' $OperationUrl $null
+                if (-not $FirstPoll) { Start-Sleep -Seconds 2 }
+                $FirstPoll = $false
+                $OpEnvelope = & $SendOnce 'GET' $OperationUrl $null
+                $Op = $OpEnvelope.Body
                 if ($Classification -eq 'countsOnly' -and (& $ContainsDownloadUrl $Op)) {
                     throw 'counts-only eDiscovery response contained downloadUrl.'
                 }
                 $Status = [string]($Op.status ?? $Op.Status ?? $Op.state)
                 if ($Status -match '(?i)succeeded|complete') {
                     $LastRaw = $Op
+                    $Response = $Op
                     break
                 }
                 if ($Status -match '(?i)failed|canceled|cancelled') {

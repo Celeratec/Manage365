@@ -162,7 +162,7 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         $script:TransportCalls | Should -Be 0
     }
 
-    It 'live-runs case, custodian, mailbox source, search, and one estimate per term' {
+    It 'live-runs case, custodian, mailbox source, source binding, search, and one estimate per term' {
         Mock Test-CIPPGuardedWriteRequest {
             [pscustomobject]@{
                 Ok = $true
@@ -183,13 +183,31 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
             if ($Path -eq '/v1.0/security/cases/ediscoveryCases') {
                 return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '11111111-1111-1111-1111-111111111111' }) }
             }
-            if ($Path -like '*/custodians') {
-                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '22222222-2222-2222-2222-222222222222' }) }
+            if ($Method -eq 'GET' -and $Path -eq '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/custodians') {
+                return [pscustomobject]@{ Results = @() }
             }
-            if ($Path -like '*/userSources') {
-                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '33333333-3333-3333-3333-333333333333' }) }
+            if ($Method -eq 'POST' -and $Path -eq '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/custodians') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '22222222-2222-2222-2222-222222222222'; email = 'custodian@contoso.example' }) }
             }
-            if ($Path -like '*/searches' -and $Path -notlike '*/estimateStatistics') {
+            if ($Method -eq 'GET' -and $Path -eq '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/custodians/22222222-2222-2222-2222-222222222222/userSources') {
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -eq '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/custodians/22222222-2222-2222-2222-222222222222/userSources') {
+                return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '33333333-3333-3333-3333-333333333333'; email = 'custodian@contoso.example' }) }
+            }
+            if ($Method -eq 'GET' -and $Path -eq '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/searches') {
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -like "*/custodianSources/`$ref") {
+                $Body.'@odata.id' | Should -Be 'https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/custodians/22222222-2222-2222-2222-222222222222/userSources/33333333-3333-3333-3333-333333333333'
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Method -eq 'GET' -and $Path -like '*/custodianSources') {
+                return [pscustomobject]@{ Results = @() }
+            }
+            if ($Method -eq 'POST' -and $Path -like '*/searches' -and $Path -notlike '*/estimateStatistics' -and $Path -notlike '*/custodianSources/*') {
+                $Body.dataSourceScopes | Should -Be 'none'
+                $Body.PSObject.Properties.Name | Should -Not -Contain 'custodianSources'
                 return [pscustomobject]@{ Results = @([pscustomobject]@{ id = '44444444-4444-4444-4444-444444444444' }) }
             }
             if ($Path -like '*/estimateStatistics') {
@@ -222,6 +240,8 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
                 caseLabel = 'Example Matter 2026-001'
                 custodianUpn = 'custodian@contoso.example'
                 terms = @('project falcon', 'alpha beta')
+                dateFrom = '2026-01-01'
+                dateTo = '2026-01-31'
             }
             Headers = @{}
             Params = @{ CIPPEndpoint = 'ExecEdiscoverySearch' }
@@ -233,10 +253,17 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         $Response.Body.Results.perTerm[0].term | Should -Be 'project falcon'
         $Response.Body.Results.Note | Should -Match 'overlap'
         @($script:GraphCalls | Where-Object { $_.Path -like '*/estimateStatistics' }).Count | Should -Be 2
+        @($script:GraphCalls | Where-Object { $_.Path -like "*/custodianSources/`$ref" }).Count | Should -Be 2
+        $CreatedSearches = @($script:GraphCalls | Where-Object { $_.Path -like '*/searches' -and $_.Method -eq 'POST' -and $_.Path -notlike '*/estimateStatistics' -and $_.Path -notlike '*/custodianSources/*' })
+        $CreatedSearches.Count | Should -Be 2
+        foreach ($CreatedSearch in $CreatedSearches) {
+            $CreatedSearch.Body.contentQuery | Should -Match 'sent>=2026-01-01 AND sent<=2026-01-31'
+        }
         $script:CapturedAuditRequest.ticket | Should -Be '1234567'
         $script:CapturedAuditRequest.actor | Should -Be 'test'
         $script:CapturedAuditRequest.TermCount | Should -Be 2
-        $script:CapturedAuditRequest.KqlHash | Should -Match '\A[a-f0-9]{64}\z'
+        $ExpectedKql = New-CIPPEdiscoveryKql -Terms @('project falcon', 'alpha beta') -DateFrom ([datetime]'2026-01-01') -DateTo ([datetime]'2026-01-31')
+        $script:CapturedAuditRequest.KqlHash | Should -Be $ExpectedKql.KqlHash
         $script:CapturedAuditRequest.Status | Should -Be 'Success'
         foreach ($BlockedKey in @('Terms', 'Kql', 'contentQuery', 'DisplayName', 'Limits', 'CustodianUpn', 'caseId', 'searchIds')) {
             $script:CapturedAuditRequest.PSObject.Properties.Name | Should -Not -Contain $BlockedKey

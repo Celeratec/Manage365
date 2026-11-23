@@ -150,6 +150,17 @@ Describe 'Invoke-CIPPEdiscoveryRequest' {
             Should -Throw '*graph.microsoft.com*'
     }
 
+    It 'rejects DELETE before transport' {
+        $script:Calls = 0
+        $Transport = { $script:Calls++ }
+
+        { Invoke-CIPPEdiscoveryRequest -AccessToken 'tok' -Method DELETE `
+                -Path '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111' -Classification write -Transport $Transport } |
+            Should -Throw '*DELETE*'
+
+        $script:Calls | Should -Be 0
+    }
+
     It 'refuses path traversal and purgeData before transport' {
         $script:Calls = 0
         $Transport = { $script:Calls++ }
@@ -171,5 +182,39 @@ Describe 'Invoke-CIPPEdiscoveryRequest' {
         { Invoke-CIPPEdiscoveryRequest -AccessToken 'tok' -Method GET `
                 -Path '/v1.0/security/cases/ediscoveryCases' -Classification countsOnly -Transport $Transport } |
             Should -Throw '*downloadUrl*'
+    }
+
+    It 'polls the Graph Location header for accepted write operations' {
+        $script:Uris = [System.Collections.Generic.List[string]]::new()
+        $Transport = {
+            param($Method, $Uri, $Headers, $Body)
+            $script:Uris.Add($Uri) | Out-Null
+            if ($Method -eq 'POST' -and $Uri -like '*/estimateStatistics') {
+                return [pscustomobject]@{
+                    StatusCode = 202
+                    Headers    = @{ Location = 'https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/operations/22222222-2222-2222-2222-222222222222' }
+                    Body       = $null
+                }
+            }
+            if ($Method -eq 'GET' -and $Uri -like '*/operations/22222222-2222-2222-2222-222222222222') {
+                return [pscustomobject]@{
+                    status              = 'succeeded'
+                    indexedItemCount    = 4
+                    indexedItemsSize    = 1024
+                    unindexedItemCount  = 0
+                    mailboxCount        = 1
+                }
+            }
+            throw "Unexpected transport call $Method $Uri"
+        }
+
+        $Result = Invoke-CIPPEdiscoveryRequest -AccessToken 'tok' -Method POST `
+            -Path '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/searches/33333333-3333-3333-3333-333333333333/estimateStatistics' `
+            -Classification write -Transport $Transport -PollTimeoutSeconds 5
+
+        $Result.OperationUrl | Should -Be 'https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/operations/22222222-2222-2222-2222-222222222222'
+        $Result.Raw.status | Should -Be 'succeeded'
+        $Result.Results[0].indexedItemCount | Should -Be 4
+        $script:Uris.Count | Should -Be 2
     }
 }

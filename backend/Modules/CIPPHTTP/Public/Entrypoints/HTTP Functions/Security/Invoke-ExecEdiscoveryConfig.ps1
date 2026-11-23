@@ -11,7 +11,8 @@ function Invoke-ExecEdiscoveryConfig {
     param($Request, $TriggerMetadata)
 
     $null = $TriggerMetadata
-    $ForbiddenKeys = @('pfx', 'privateKey', 'clientSecret', 'certificateBase64')
+    $ForbiddenKeyPattern = '(?i)password|secret|pfx|privatekey|cert.*(base64|data)'
+    $AllowedReferenceKeys = @('certificateSecretName', 'certificatePasswordSecretName')
     $CollectBodyKeys = {
         param($Node, $Keys)
         if ($null -eq $Node) { return }
@@ -36,7 +37,7 @@ function Invoke-ExecEdiscoveryConfig {
     $BodyKeys = [System.Collections.Generic.List[string]]::new()
     & $CollectBodyKeys $Request.Body $BodyKeys
     foreach ($Key in $BodyKeys) {
-        if ([string]$Key -in $ForbiddenKeys) {
+        if ([string]$Key -match $ForbiddenKeyPattern -and [string]$Key -notin $AllowedReferenceKeys) {
             return [HttpResponseContext]@{
                 StatusCode = [HttpStatusCode]::BadRequest
                 Body       = @{ Results = "Body key '$Key' is not allowed. Store credential material in Key Vault and submit secret names only."; Status = 'Failed' }
@@ -77,6 +78,22 @@ function Invoke-ExecEdiscoveryConfig {
 
     $CertificateSecretName = [string]$Request.Body.certificateSecretName
     $CertificatePasswordSecretName = [string]$Request.Body.certificatePasswordSecretName
+    $AppId = [string]$Request.Body.appId
+    $Notes = [string]$Request.Body.notes
+
+    if ($AppId -notmatch '\A[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\z') {
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = @{ Results = 'AppId must be a GUID.'; Status = 'Failed' }
+        }
+    }
+    $Sam = [string]$env:ApplicationID
+    if (-not [string]::IsNullOrWhiteSpace($Sam) -and $AppId -eq $Sam) {
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = @{ Results = 'The CIPP SAM application identity cannot be used for eDiscovery.'; Status = 'Failed' }
+        }
+    }
 
     foreach ($Check in @(
             @{ Name = $CertificateSecretName; Label = 'certificateSecretName' }
@@ -91,9 +108,21 @@ function Invoke-ExecEdiscoveryConfig {
         }
     }
 
-    $AppId = [string]$Request.Body.appId
-    $Enabled = if ($null -eq $Request.Body.enabled) { $true } else { [bool]$Request.Body.enabled }
-    $Notes = [string]$Request.Body.notes
+    $Enabled = $true
+    if ($null -ne $Request.Body.enabled) {
+        if ($Request.Body.enabled -is [bool]) {
+            $Enabled = [bool]$Request.Body.enabled
+        } else {
+            $EnabledRaw = [string]$Request.Body.enabled
+            if ($EnabledRaw -notmatch '(?i)\A(true|false)\z') {
+                return [HttpResponseContext]@{
+                    StatusCode = [HttpStatusCode]::BadRequest
+                    Body       = @{ Results = 'enabled must be true or false.'; Status = 'Failed' }
+                }
+            }
+            $Enabled = $EnabledRaw -imatch '\Atrue\z'
+        }
+    }
 
     $Plan = [pscustomobject]@{
         TenantFilter                         = [string]$Gate.Tenant
@@ -102,9 +131,17 @@ function Invoke-ExecEdiscoveryConfig {
         CertificatePasswordSecretNamePresent = -not [string]::IsNullOrWhiteSpace($CertificatePasswordSecretName)
         Enabled                              = $Enabled
     }
+    $AuditRequest = [pscustomobject]@{
+        TenantFilter                         = [string]$Gate.Tenant
+        AppId                                = $AppId
+        CertificateSecretNamePresent         = -not [string]::IsNullOrWhiteSpace($CertificateSecretName)
+        CertificatePasswordSecretNamePresent = -not [string]::IsNullOrWhiteSpace($CertificatePasswordSecretName)
+        Enabled                              = $Enabled
+        NotesPresent                         = -not [string]::IsNullOrWhiteSpace($Notes)
+    }
 
     if ($Gate.WhatIf) {
-        $AuditId = Add-CIPPGuardedWriteAudit -Endpoint 'ExecEdiscoveryConfig' -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $true -Result 'DryRun'
+        $AuditId = Add-CIPPGuardedWriteAudit -Endpoint 'ExecEdiscoveryConfig' -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -DryRun $true -Result 'DryRun'
         return [HttpResponseContext]@{
             StatusCode = [HttpStatusCode]::OK
             Body       = @{ Results = 'Would upsert eDiscovery tenant config.'; Status = 'DryRun'; AuditId = $AuditId; WhatIfPlan = @($Plan) }
@@ -116,7 +153,7 @@ function Invoke-ExecEdiscoveryConfig {
         $After = Set-CIPPEdiscoveryTenantConfig -TenantFilter $Gate.Tenant -AppId $AppId `
             -CertificateSecretName $CertificateSecretName -CertificatePasswordSecretName $CertificatePasswordSecretName `
             -Enabled $Enabled -Notes $Notes
-        $AuditId = Add-CIPPGuardedWriteAudit -Endpoint 'ExecEdiscoveryConfig' -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -Before $Before -After $After -DryRun $false -Result 'Success'
+        $AuditId = Add-CIPPGuardedWriteAudit -Endpoint 'ExecEdiscoveryConfig' -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $AuditRequest -Before $Before -After $After -DryRun $false -Result 'Success'
         $Safe = [pscustomobject]@{
             TenantFilter          = [string]$After.TenantFilter
             AppId                 = [string]$After.AppId
