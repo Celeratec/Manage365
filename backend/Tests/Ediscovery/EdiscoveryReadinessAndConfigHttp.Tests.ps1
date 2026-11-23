@@ -163,6 +163,46 @@ Describe 'Invoke-ExecEdiscoveryConfig' {
         $Response.Body.Results | Should -Match 'pfx'
     }
 
+    It 'refuses nested forbidden credential keys in body' {
+        $Response = Invoke-ExecEdiscoveryConfig -Request @{
+            Body = @{
+                tenantFilter          = 'contoso.onmicrosoft.com'
+                ticketNumber          = '1234567'
+                reason                = 'setup'
+                appId                 = '11111111-1111-1111-1111-111111111111'
+                certificateSecretName = 'ediscovery-contoso-cert'
+                extras                = @{ clientSecret = 'shh' }
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryConfig' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'clientSecret'
+    }
+
+    It 'refuses credential-looking certificateSecretName before dryRun audit' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $true; Reason = 'setup'; Caller = 'test' }
+        }
+        Mock Add-CIPPGuardedWriteAudit { throw 'must not audit credential material' }
+
+        $Response = Invoke-ExecEdiscoveryConfig -Request @{
+            Body = @{
+                tenantFilter          = 'contoso.onmicrosoft.com'
+                ticketNumber          = '1234567'
+                reason                = 'setup'
+                appId                 = '11111111-1111-1111-1111-111111111111'
+                certificateSecretName = '-----BEGIN CERTIFICATE-----'
+            }
+            Headers = @{}
+            Params = @{ CIPPEndpoint = 'ExecEdiscoveryConfig' }
+        }
+
+        $Response.StatusCode | Should -Be ([HttpStatusCode]::BadRequest)
+        $Response.Body.Results | Should -Match 'Key Vault secret name'
+    }
+
     It 'upserts config and audits a live request' {
         Mock Test-CIPPGuardedWriteRequest {
             [pscustomobject]@{ Ok = $true; Tenant = 'contoso.onmicrosoft.com'; Ticket = '1234567'; WhatIf = $false; Reason = 'setup'; Caller = 'test' }

@@ -11,15 +11,30 @@ function Invoke-ExecEdiscoveryConfig {
     param($Request, $TriggerMetadata)
 
     $null = $TriggerMetadata
-    $GetBodyKeys = {
-        param($Body)
-        if ($null -eq $Body) { return @() }
-        if ($Body -is [System.Collections.IDictionary]) { return @($Body.Keys) }
-        return @($Body.PSObject.Properties.Name)
+    $ForbiddenKeys = @('pfx', 'privateKey', 'clientSecret', 'certificateBase64')
+    $CollectBodyKeys = {
+        param($Node, $Keys)
+        if ($null -eq $Node) { return }
+        if ($Node -is [string]) { return }
+        if ($Node -is [System.Collections.IDictionary]) {
+            foreach ($Key in @($Node.Keys)) {
+                $Keys.Add([string]$Key) | Out-Null
+                & $CollectBodyKeys $Node[$Key] $Keys
+            }
+            return
+        }
+        if ($Node -is [System.Collections.IEnumerable]) {
+            foreach ($Item in $Node) { & $CollectBodyKeys $Item $Keys }
+            return
+        }
+        foreach ($Prop in @($Node.PSObject.Properties)) {
+            $Keys.Add([string]$Prop.Name) | Out-Null
+            & $CollectBodyKeys $Prop.Value $Keys
+        }
     }
 
-    $ForbiddenKeys = @('pfx', 'privateKey', 'clientSecret', 'certificateBase64')
-    $BodyKeys = @(& $GetBodyKeys $Request.Body)
+    $BodyKeys = [System.Collections.Generic.List[string]]::new()
+    & $CollectBodyKeys $Request.Body $BodyKeys
     foreach ($Key in $BodyKeys) {
         if ([string]$Key -in $ForbiddenKeys) {
             return [HttpResponseContext]@{
@@ -42,9 +57,41 @@ function Invoke-ExecEdiscoveryConfig {
         }
     }
 
-    $AppId = [string]$Request.Body.appId
+    $TestKvSecretName = {
+        param([string]$Name, [string]$FieldLabel)
+        if ([string]::IsNullOrWhiteSpace($Name)) { return $null }
+        if ($Name -match '(?i)-----BEGIN|private.?key|\.pfx') {
+            return "$FieldLabel must be a Key Vault secret name, not certificate material."
+        }
+        if ($Name -match '\s') {
+            return "$FieldLabel must be a Key Vault secret name, not embedded credential material."
+        }
+        if ($Name.Length -gt 127) {
+            return "$FieldLabel must be a Key Vault secret name, not embedded credential material."
+        }
+        if ($Name -match '(?i)^[A-Za-z0-9+/]{64,}=*$') {
+            return "$FieldLabel must be a Key Vault secret name, not embedded credential material."
+        }
+        return $null
+    }
+
     $CertificateSecretName = [string]$Request.Body.certificateSecretName
     $CertificatePasswordSecretName = [string]$Request.Body.certificatePasswordSecretName
+
+    foreach ($Check in @(
+            @{ Name = $CertificateSecretName; Label = 'certificateSecretName' }
+            @{ Name = $CertificatePasswordSecretName; Label = 'certificatePasswordSecretName' }
+        )) {
+        $SecretError = & $TestKvSecretName $Check.Name $Check.Label
+        if ($SecretError) {
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{ Results = $SecretError; Status = 'Failed' }
+            }
+        }
+    }
+
+    $AppId = [string]$Request.Body.appId
     $Enabled = if ($null -eq $Request.Body.enabled) { $true } else { [bool]$Request.Body.enabled }
     $Notes = [string]$Request.Body.notes
 
