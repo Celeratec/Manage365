@@ -46,9 +46,9 @@ The Operations list does not return export download URLs. Export content is inte
 
 ## Counts-only guidance
 
-PR1 migrates existing Cases endpoints to the dedicated token, allowlist, guarded writes, and hard refusals. PR2 adds the stats-first `ExecEdiscoverySearch` workflow. Until then, use Cases search estimates only for counts/status. Do not log or return subjects, snippets, message bodies, filenames, download URLs, or item content.
+`ExecEdiscoverySearch` runs the stats-first workflow: create or reuse a case by ticket number, add one custodian mailbox source, create one estimate search per term, and return counts only. Terms are OR-style keyword-list terms in the generated KQL; per-term estimates may overlap. Until the test-tenant spike proves richer keyword reports are safe, this endpoint does not return message subjects, snippets, bodies, filenames, download URLs, item content, or export material.
 
-## Synthetic example
+## Config synthetic example
 
 ```json
 {
@@ -58,5 +58,101 @@ PR1 migrates existing Cases endpoints to the dedicated token, allowlist, guarded
   "dryRun": true,
   "appId": "11111111-1111-1111-1111-111111111111",
   "certificateSecretName": "ediscovery-contoso-cert"
+}
+```
+
+## ExecEdiscoverySearch request
+
+All values below are synthetic. `dryRun` defaults to `true`; send `false` only after readiness is `Ready` and the operator has approval on the ticket.
+
+```json
+{
+  "tenantFilter": "contoso.onmicrosoft.com",
+  "ticketNumber": "1234567",
+  "reason": "Example Matter 2026-001 stats estimate",
+  "dryRun": true,
+  "caseLabel": "Example Matter 2026-001",
+  "custodianUpn": "custodian@contoso.example",
+  "terms": ["project falcon", "quarterly planning"],
+  "dateFrom": "2026-01-01",
+  "dateTo": "2026-03-31"
+}
+```
+
+### Dry-run response
+
+```json
+{
+  "Status": "DryRun",
+  "AuditId": "audit-1234567",
+  "Before": null,
+  "After": {
+    "DisplayName": "1234567 - Example Matter 2026-001",
+    "ExternalId": "1234567",
+    "CustodianUpn": "custodian@contoso.example",
+    "TermCount": 2,
+    "KqlHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "Terms": ["project falcon", "quarterly planning"],
+    "Limits": {
+      "MaxTerms": 25,
+      "MaxDateSpanDays": 1825,
+      "MaxCustodians": 1,
+      "MailboxOnly": true,
+      "StatisticsOptions": "includeQueryStats,includeUnindexedStats"
+    }
+  },
+  "Rollback": "No Graph changes were made.",
+  "Results": {
+    "Note": "DryRun only. Live execution creates/reuses a case, custodian mailbox source, and one estimate per term. Per-term counts may overlap."
+  }
+}
+```
+
+### Live counts-only response
+
+```json
+{
+  "Status": "Success",
+  "AuditId": "audit-1234567",
+  "Before": null,
+  "After": {
+    "DisplayName": "1234567 - Example Matter 2026-001",
+    "ExternalId": "1234567",
+    "CustodianUpn": "custodian@contoso.example",
+    "TermCount": 2,
+    "KqlHash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "Terms": ["project falcon", "quarterly planning"]
+  },
+  "Rollback": "No destructive Graph action was performed. Remove the search/case manually in Purview if policy allows.",
+  "Results": {
+    "indexedItemCount": 42,
+    "indexedItemsSize": 1048576,
+    "mailboxCount": 1,
+    "unindexedItemCount": 0,
+    "perTerm": [
+      {
+        "term": "project falcon",
+        "itemCount": 40,
+        "size": 1000000
+      },
+      {
+        "term": "quarterly planning",
+        "itemCount": 2,
+        "size": 48576
+      }
+    ],
+    "Note": "Per-term counts are estimated independently and may overlap."
+  }
+}
+```
+
+### Bad request response
+
+Validation failures return `400` with a counts-only failure envelope.
+
+```json
+{
+  "Status": "Failed",
+  "Results": "Failed to run eDiscovery stats search: terms must contain 1 to 25 items."
 }
 ```
