@@ -18,7 +18,7 @@ import {
 import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
 import { CippApiResults } from "../../../../../components/CippComponents/CippApiResults";
 import CippFormComponent from "../../../../../components/CippComponents/CippFormComponent";
-import { Add, Delete, Gavel } from "@mui/icons-material";
+import { Add, Gavel } from "@mui/icons-material";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useSettings } from "../../../../../hooks/use-settings";
@@ -74,24 +74,6 @@ const Page = () => {
     });
   };
 
-  const actions = [
-    {
-      label: "Remove Hold",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecEdiscoveryCaseHold",
-      data: {
-        caseId: `!${caseId}`,
-        holdId: "id",
-        action: "!remove",
-      },
-      confirmText:
-        "Are you sure you want to remove this legal hold? Content will no longer be preserved.",
-      relatedQueryKeys: [`ListEdiscoveryCaseHolds-${caseId}`],
-      category: "danger",
-    },
-  ];
-
   const columns = [
     "displayName",
     "status",
@@ -132,7 +114,6 @@ const Page = () => {
               title="Legal Holds"
               data={holdsRequest.data?.Results ?? []}
               simpleColumns={columns}
-              actions={actions}
             />
           )}
           {holdsRequest.isError && (

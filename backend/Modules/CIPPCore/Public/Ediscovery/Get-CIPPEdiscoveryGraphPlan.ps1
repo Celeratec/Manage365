@@ -50,7 +50,7 @@ function Get-CIPPEdiscoveryGraphPlan {
         if ([string]::IsNullOrWhiteSpace($Value)) {
             return [pscustomobject]@{ Allowed = $false; Reason = "$Name is required." }
         }
-        if ($Name -in @('caseId', 'searchId', 'custodianId', 'operationId')) {
+        if ($Name -in @('caseId', 'searchId', 'custodianId', 'operationId', 'holdId')) {
             if ($Value -match '[\x00-\x1F\x7F]' -or $Value.Contains('/') -or $Value.Contains('\') -or $Value.Contains('..') -or $Value.Contains('?') -or $Value.Contains('#') -or $Value -notmatch '\A[a-fA-F0-9\-]{1,64}\z') {
                 return [pscustomobject]@{ Allowed = $false; Reason = "$Name is invalid." }
             }

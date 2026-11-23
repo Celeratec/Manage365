@@ -15,9 +15,50 @@ function Invoke-ExecEdiscoveryCaseSearch {
     $CaseId = $Request.Body.caseId
     $SearchId = $Request.Body.searchId
 
-    $BaseUri = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/searches"
+    try {
+        Test-CIPPEdiscoveryForbiddenAction -Action $Action -Resource 'search' | Out-Null
+    } catch {
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = [PSCustomObject]@{ Results = $_.Exception.Message; Status = 'Failed' }
+        }
+    }
+
+    $ActionMap = @{
+        create             = 'CreateEdiscoverySearch'
+        update             = 'UpdateEdiscoverySearch'
+        estimateStatistics = 'EstimateEdiscoverySearch'
+    }
+    if (-not $ActionMap.ContainsKey([string]$Action)) {
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = [PSCustomObject]@{ Results = "Unknown or unsupported eDiscovery search action: $Action"; Status = 'Failed' }
+        }
+    }
 
     try {
+        $Gate = Test-CIPPGuardedWriteRequest -Request $Request -IsWrite -DefaultDryRun
+        if (-not $Gate.Ok) {
+            $ResponseHeaders = @{}
+            if ($Gate.StatusCode -eq 429) { $ResponseHeaders['Retry-After'] = [string]$Gate.RetryAfter }
+            return [HttpResponseContext]@{ StatusCode = $Gate.StatusCode; Headers = $ResponseHeaders; Body = @{ Results = $Gate.Message; Status = 'Failed' } }
+        }
+        if ([string]::IsNullOrWhiteSpace([string]$Gate.Reason)) {
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{ Results = 'reason is required for eDiscovery search changes.'; Status = 'Failed' }
+            }
+        }
+
+        $GraphAction = $ActionMap[[string]$Action]
+        $Plan = Get-CIPPEdiscoveryGraphPlan -Action $GraphAction -Params @{ caseId = $CaseId; searchId = $SearchId }
+        if (-not $Plan.Allowed) {
+            return [HttpResponseContext]@{
+                StatusCode = [HttpStatusCode]::BadRequest
+                Body       = @{ Results = $Plan.Reason; Status = 'Failed' }
+            }
+        }
+
         switch ($Action) {
             'create' {
                 $SearchBody = @{
@@ -30,39 +71,35 @@ function Invoke-ExecEdiscoveryCaseSearch {
                     $SearchBody.dataSourceScopes = $Request.Body.dataSourceScopes
                 }
 
-                $RequestBody = $SearchBody | ConvertTo-Json -Depth 5 -Compress
-                $Result = New-GraphPostRequest -uri $BaseUri -tenantid $TenantFilter -body $RequestBody -type POST -AsApp $true
+                $RequestBody = $SearchBody
                 $ResponseBody = "Successfully created eDiscovery search '$($Request.Body.displayName)'"
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
             }
             'update' {
                 $UpdateBody = @{}
                 if ($Request.Body.displayName) { $UpdateBody.displayName = $Request.Body.displayName }
                 if ($Request.Body.description) { $UpdateBody.description = $Request.Body.description }
                 if ($null -ne $Request.Body.contentQuery) { $UpdateBody.contentQuery = $Request.Body.contentQuery }
-                $RequestBody = $UpdateBody | ConvertTo-Json -Compress
-
-                New-GraphPostRequest -uri "$BaseUri/$SearchId" -tenantid $TenantFilter -body $RequestBody -type PATCH -AsApp $true
+                $RequestBody = $UpdateBody
                 $ResponseBody = "Successfully updated eDiscovery search '$SearchId'"
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
             }
             'estimateStatistics' {
-                New-GraphPostRequest -uri "$BaseUri/$SearchId/estimateStatistics" -tenantid $TenantFilter -body '{}' -type POST -AsApp $true
+                $RequestBody = @{}
                 $ResponseBody = "Search estimate started for '$SearchId'. This may take several minutes to complete."
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
-            }
-            'delete' {
-                New-GraphPostRequest -uri "$BaseUri/$SearchId" -tenantid $TenantFilter -type DELETE -AsApp $true
-                $ResponseBody = "Successfully deleted eDiscovery search '$SearchId'"
-                Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
-            }
-            default {
-                throw "Unknown action: $Action"
             }
         }
 
-        $StatusCode = [HttpStatusCode]::OK
-        $Body = [PSCustomObject]@{ Results = $ResponseBody }
+        if ($Gate.WhatIf) {
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $true -Result 'DryRun'
+            $StatusCode = [HttpStatusCode]::OK
+            $Body = [PSCustomObject]@{ Results = "Would $Action eDiscovery search."; Status = 'DryRun'; AuditId = $AuditId; WhatIfPlan = @($Plan) }
+        } else {
+            $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
+            $null = Invoke-CIPPEdiscoveryRequest -AccessToken $Token.AccessToken -Method $Plan.Method -Path $Plan.Path -Body $RequestBody -Classification $Plan.Classification
+            $AuditId = Add-CIPPGuardedWriteAudit -Endpoint $APIName -Tenant $Gate.Tenant -Ticket $Gate.Ticket -Caller $Gate.Caller -Request $Request.Body -DryRun $false -Result 'Success'
+            Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
+            $StatusCode = [HttpStatusCode]::OK
+            $Body = [PSCustomObject]@{ Results = $ResponseBody; Status = 'Success'; AuditId = $AuditId }
+        }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
         $Result = "Failed to $Action eDiscovery search: $($ErrorMessage.NormalizedError)"

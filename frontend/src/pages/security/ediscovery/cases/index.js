@@ -7,7 +7,6 @@ import {
   OpenInNew,
   Lock,
   LockOpen,
-  Delete,
   Close,
 } from "@mui/icons-material";
 
@@ -49,20 +48,6 @@ const Page = () => {
       condition: (row) => row.status === "closed",
       category: "edit",
     },
-    {
-      label: "Delete Case",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecEdiscoveryCase",
-      data: {
-        caseId: "id",
-        action: "!delete",
-      },
-      confirmText:
-        "Are you sure you want to delete this case? This action cannot be undone. The case must be closed first.",
-      condition: (row) => row.status === "closed",
-      category: "danger",
-    },
   ];
 
   const offCanvas = {
@@ -89,9 +74,10 @@ const Page = () => {
         }
       >
         <AlertTitle>Tenant Setup Required</AlertTitle>
-        Before using eDiscovery, each client tenant needs a one-time setup: the Manage365 service
-        principal must be assigned the <strong>eDiscovery Administrator</strong> role in the
-        tenant&apos;s Purview portal. Go to{" "}
+        Before using eDiscovery, each client tenant needs a dedicated eDiscovery app registration
+        and certificate configured in Manage365. Do not use the CIPP SAM app for eDiscovery. Check{" "}
+        <strong>ListEdiscoveryReadiness</strong> for the tenant, then add the dedicated app&apos;s
+        service principal to the <strong>eDiscovery Manager</strong> role group in Purview:{" "}
         <Link
           href="https://compliance.microsoft.com/compliancecentersettings/securityandcompliancecenterrolesv2"
           target="_blank"
@@ -99,10 +85,7 @@ const Page = () => {
         >
           Purview &gt; Settings &gt; Roles &amp; Scopes &gt; Permissions
         </Link>
-        , find the <strong>eDiscovery Manager</strong> role group, and add the Manage365 app as an{" "}
-        <strong>eDiscovery Administrator</strong>. You also need to run a{" "}
-        <strong>CPV Refresh</strong> from Manage365 Settings to push the eDiscovery permissions to the
-        tenant.
+        . Case delete, hold removal, purge, exports, and content downloads are refused in Manage365 v1.
       </Alert>
     </Collapse>
   );

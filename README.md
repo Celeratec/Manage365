@@ -536,15 +536,15 @@ Four new health checks (12-15) added to the Cross-Tenant Health endpoint:
 
 End-to-end eDiscovery workflow for managing legal holds, content searches, and evidence exports directly from the portal -- eliminating the need to switch to the Microsoft Purview compliance portal or write PowerShell scripts for each client:
 
-- **Case management** -- create, close, reopen, and delete eDiscovery cases per tenant with status tracking, case metadata, and external ID support for correlating with legal matter numbers
+- **Case management** -- create, close, and reopen eDiscovery cases per tenant with status tracking, case metadata, and external ID support for correlating with legal matter numbers. Case delete is refused by Manage365 policy
 - **Legal holds** -- place litigation holds on specific user mailboxes and SharePoint sites with optional KQL content queries to narrow the scope. Supports multiple content sources per hold and displays hold status with content source counts
-- **Content searches** -- create KQL-based searches across Exchange, SharePoint, Teams, and OneDrive. Run search estimates to preview result counts and data volume before committing to an export. Status polling auto-refreshes while searches are running
-- **Export and production** -- initiate exports from completed searches with configurable export criteria. Export operations track progress percentage and provide download links when complete. Auto-polling updates export status in real time
-- **Async operation tracking** -- long-running operations (search estimates, exports) are handled asynchronously with automatic 5-second polling that stops when the operation completes or fails
-- **Setup guidance** -- a proactive setup banner on the cases page explains the one-time per-tenant prerequisites (CPV refresh for permissions and eDiscovery Administrator role assignment in Purview), plus reactive error classification that detects 403/permission and license errors and renders structured remediation steps
+- **Content searches** -- create KQL-based searches across Exchange, SharePoint, Teams, and OneDrive. Run search estimates to preview result counts and data volume. Search delete and purge are refused
+- **Export and production** -- export creation and content downloads are disabled in Manage365 v1; the portal does not return export download URLs
+- **Async operation tracking** -- long-running search estimates are handled asynchronously with automatic 5-second polling that stops when the operation completes or fails
+- **Setup guidance** -- a proactive setup banner on the cases page points operators to `ListEdiscoveryReadiness`, a dedicated per-tenant eDiscovery app registration and certificate, and Purview `eDiscovery Manager` role group setup
 - **Tier support** -- uses the Microsoft Graph eDiscovery Standard API (September 2025), which works for both E3 and E5 tenants. Phase 2 will add Premium-only features (custodian management, review sets, advanced export options) for E5 tenants
 
-Built on app-only authentication (`eDiscovery.Read.All` and `eDiscovery.ReadWrite.All`) via SAM, consistent with the rest of the CIPP architecture. Located under Security & Compliance > eDiscovery > Cases.
+Built on app-only authentication (`eDiscovery.Read.All` and `eDiscovery.ReadWrite.All`) via a dedicated per-tenant eDiscovery app, not the CIPP SAM identity. Located under Security & Compliance > eDiscovery > Cases.
 
 ### Dynamics 365 Management
 

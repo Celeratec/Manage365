@@ -12,8 +12,11 @@ function Invoke-ListEdiscoveryCaseSearches {
     $CaseId = $Request.Query.caseId
 
     try {
-        $Uri = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/searches"
-        $Searches = New-GraphGetRequest -uri $Uri -tenantid $TenantFilter -AsApp $true
+        $Plan = Get-CIPPEdiscoveryGraphPlan -Action 'ListEdiscoverySearches' -Params @{ caseId = $CaseId }
+        if (-not $Plan.Allowed) { throw $Plan.Reason }
+        $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
+        $SearchesResult = Invoke-CIPPEdiscoveryRequest -AccessToken $Token.AccessToken -Method $Plan.Method -Path $Plan.Path -Classification $Plan.Classification
+        $Searches = @($SearchesResult.Results)
 
         $GraphRequest = foreach ($Search in $Searches) {
             [PSCustomObject]@{

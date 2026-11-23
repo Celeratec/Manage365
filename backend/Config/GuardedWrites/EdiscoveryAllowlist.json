@@ -95,5 +95,12 @@
     "role": "Security.Ediscovery.ReadWrite",
     "classification": "write",
     "requiresApprovalReference": true
+  },
+  "UpdateEdiscoveryHold": {
+    "method": "PATCH",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/legalHolds/{holdId}",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write",
+    "requiresApprovalReference": true
   }
 }

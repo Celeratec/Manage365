@@ -19,9 +19,7 @@ import { CippApiResults } from "../../../../../components/CippComponents/CippApi
 import CippFormComponent from "../../../../../components/CippComponents/CippFormComponent";
 import {
   Add,
-  Delete,
   PlayArrow,
-  Download,
   Search as SearchIcon,
 } from "@mui/icons-material";
 import { useState, useMemo } from "react";
@@ -61,11 +59,6 @@ const Page = () => {
     relatedQueryKeys: [`ListEdiscoveryCaseSearches-${caseId}`],
   });
 
-  const exportRequest = ApiPostCall({
-    urlFromData: true,
-    relatedQueryKeys: [`ListEdiscoveryCaseOperations-${caseId}`],
-  });
-
   const handleCreateSearch = (data) => {
     createSearchRequest.mutate({
       url: "/api/ExecEdiscoveryCaseSearch",
@@ -95,33 +88,6 @@ const Page = () => {
       confirmText: "Run a search estimate? This may take several minutes.",
       relatedQueryKeys: [`ListEdiscoveryCaseSearches-${caseId}`],
       category: "manage",
-    },
-    {
-      label: "Export Results",
-      type: "POST",
-      icon: <Download />,
-      url: "/api/ExecEdiscoveryCaseExport",
-      data: {
-        caseId: `!${caseId}`,
-        searchId: "id",
-      },
-      confirmText: "Start exporting search results? Check the Exports tab for progress.",
-      relatedQueryKeys: [`ListEdiscoveryCaseOperations-${caseId}`],
-      category: "manage",
-    },
-    {
-      label: "Delete Search",
-      type: "POST",
-      icon: <Delete />,
-      url: "/api/ExecEdiscoveryCaseSearch",
-      data: {
-        caseId: `!${caseId}`,
-        searchId: "id",
-        action: "!delete",
-      },
-      confirmText: "Are you sure you want to delete this search?",
-      relatedQueryKeys: [`ListEdiscoveryCaseSearches-${caseId}`],
-      category: "danger",
     },
   ];
 
@@ -165,6 +131,11 @@ const Page = () => {
               One or more searches are running. Results will update automatically.
             </Alert>
           )}
+
+          <Alert severity="info" variant="outlined">
+            Manage365 v1 supports counts-only estimates. Search delete, purge, exports, and content
+            downloads are refused.
+          </Alert>
 
           {searchesRequest.isLoading && <CippFormSkeleton layout={[1, 1]} />}
           {searchesRequest.isSuccess && (

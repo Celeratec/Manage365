@@ -24,6 +24,7 @@ import { CippJobProgress, formatJobProgressText } from './CippJobProgress'
 import { useDialog } from '../../hooks/use-dialog'
 import { mergeRow, useCraftJobEvents } from '../../hooks/use-craft-events'
 import { useQueryClient } from '@tanstack/react-query'
+import { OpenInNew } from '@mui/icons-material'
 
 const extractAllResults = (data, extraIgnoreKeys = []) => {
   const results = [];
@@ -278,12 +279,12 @@ const FormattedResultText = ({ text, severity }) => {
             {isPermission && (
               <>
                 <li>
-                  Run a <strong>CPV Refresh</strong> from Manage365 Settings to push eDiscovery
-                  permissions to this tenant
+                  Run <strong>ListEdiscoveryReadiness</strong> for this tenant and follow its
+                  remediation output
                 </li>
                 <li>
-                  Assign the <strong>eDiscovery Administrator</strong> role to the Manage365 service
-                  principal in the tenant&apos;s{" "}
+                  Assign the dedicated eDiscovery app service principal to the{" "}
+                  <strong>eDiscovery Manager</strong> role group in the tenant&apos;s{" "}
                   <strong>Purview portal &gt; Roles &amp; Scopes &gt; Permissions</strong>
                 </li>
               </>
@@ -295,8 +296,8 @@ const FormattedResultText = ({ text, severity }) => {
               </li>
             )}
             <li>
-              If the issue persists, verify the Manage365 SAM app registration includes{" "}
-              <strong>eDiscovery.ReadWrite.All</strong> application permission
+              If the issue persists, verify the dedicated eDiscovery app registration includes{" "}
+              the required Graph eDiscovery application permission and is not the CIPP SAM app
             </li>
           </ol>
         </Typography>

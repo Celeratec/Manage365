@@ -12,8 +12,11 @@ function Invoke-ListEdiscoveryCaseHolds {
     $CaseId = $Request.Query.caseId
 
     try {
-        $Uri = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/legalHolds"
-        $Holds = New-GraphGetRequest -uri $Uri -tenantid $TenantFilter -AsApp $true
+        $Plan = Get-CIPPEdiscoveryGraphPlan -Action 'ListEdiscoveryHolds' -Params @{ caseId = $CaseId }
+        if (-not $Plan.Allowed) { throw $Plan.Reason }
+        $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
+        $HoldsResult = Invoke-CIPPEdiscoveryRequest -AccessToken $Token.AccessToken -Method $Plan.Method -Path $Plan.Path -Classification $Plan.Classification
+        $Holds = @($HoldsResult.Results)
 
         $GraphRequest = foreach ($Hold in $Holds) {
             $ContentSourcesCount = 0

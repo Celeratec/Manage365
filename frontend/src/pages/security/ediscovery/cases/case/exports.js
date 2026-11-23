@@ -5,9 +5,9 @@ import CippFormSkeleton from "../../../../../components/CippFormPages/CippFormSk
 import { HeaderedTabbedLayout } from "../../../../../layouts/HeaderedTabbedLayout";
 import tabOptions from "./tabOptions.json";
 import { Box, Stack } from "@mui/system";
-import { Alert, Chip, Link, Typography } from "@mui/material";
+import { Alert, Chip, Typography } from "@mui/material";
 import { CippDataTable } from "../../../../../components/CippTable/CippDataTable";
-import { Download, HourglassTop } from "@mui/icons-material";
+import { HourglassTop } from "@mui/icons-material";
 import { useMemo } from "react";
 
 const Page = () => {
@@ -79,30 +79,12 @@ const Page = () => {
               <Typography variant="body2">{row.percentProgress}%</Typography>
             </Stack>
           )}
-          {row.exportUrl && (
-            <Stack direction="row" justifyContent="space-between" alignItems="center">
-              <Typography variant="body2" color="text.secondary">
-                Download
-              </Typography>
-              <Link
-                href={row.exportUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                sx={{ display: "flex", alignItems: "center", gap: 0.5 }}
-              >
-                <Download fontSize="small" />
-                {row.exportFileName || "Download Export"}
-              </Link>
-            </Stack>
-          )}
-          {row.exportFileSize && (
+          {row.exportGuidance && (
             <Stack direction="row" justifyContent="space-between">
               <Typography variant="body2" color="text.secondary">
-                File Size
+                Export
               </Typography>
-              <Typography variant="body2">
-                {(row.exportFileSize / 1024 / 1024).toFixed(2)} MB
-              </Typography>
+              <Typography variant="body2">{row.exportGuidance}</Typography>
             </Stack>
           )}
           {row.resultInfo && (
@@ -134,8 +116,8 @@ const Page = () => {
           )}
 
           <Alert severity="info" variant="outlined">
-            To create an export, go to the Searches tab, run a search estimate, then use the
-            &quot;Export Results&quot; action on a completed search.
+            Export creation and content downloads are disabled in Manage365 v1. Use search estimates
+            for counts-only review data.
           </Alert>
 
           {operationsRequest.isLoading && <CippFormSkeleton layout={[1, 1]} />}
