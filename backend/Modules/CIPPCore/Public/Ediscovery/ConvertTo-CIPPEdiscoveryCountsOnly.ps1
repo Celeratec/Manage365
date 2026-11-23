@@ -37,6 +37,8 @@ function ConvertTo-CIPPEdiscoveryCountsOnly {
 
     if ($null -eq $Value) { return $null }
 
+    $SensitiveKeyPattern = '(?i)subject|sender|preview|snippet|downloadUrl|fileName|content|recipient|body'
+
     if ($Value -is [System.Collections.IDictionary]) {
         $Copy = [ordered]@{}
         foreach ($Key in @($Value.Keys)) {
@@ -59,6 +61,9 @@ function ConvertTo-CIPPEdiscoveryCountsOnly {
                     if ($_ -eq 'downloadurls') {
                         $Copy.downloadUrlsCount = Get-CIPPEdiscoveryEnumerableCount -Value $Child
                     }
+                    continue
+                }
+                { $Name -match $SensitiveKeyPattern } {
                     continue
                 }
                 default {
