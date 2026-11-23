@@ -108,8 +108,7 @@ Describe 'Test-CIPPEdiscoveryForbiddenAction' {
 
 - [ ] **Step 2: Run test to verify it fails**
 
-Run: `pwsh -NoProfile -File ./backend/Scripts/RunPester.ps1 -Path backend/Tests/Ediscovery/EdiscoveryFlagAndForbid.Tests.ps1`  
-(or project’s usual Pester invoker; if no wrapper: `Invoke-Pester -Path backend/Tests/Ediscovery/EdiscoveryFlagAndForbid.Tests.ps1 -CI`)  
+Run: `pwsh -NoProfile -Command "Invoke-Pester -Path backend/Tests/Ediscovery/EdiscoveryFlagAndForbid.Tests.ps1 -Output Detailed"`  
 Expected: FAIL — flag missing / function missing
 
 - [ ] **Step 3: Write allowlist JSON**
