@@ -24905,69 +24905,16 @@
           "Security"
         ],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
                 "properties": {
                   "action": {
-                    "type": "string",
-                    "enum": [
-                      "create",
-                      "update"
-                    ]
-                  },
-                  "caseId": {
                     "type": "string"
-                  },
-                  "contentQuery": {
-                    "type": "string"
-                  },
-                  "description": {
-                    "type": "string"
-                  },
-                  "displayName": {
-                    "type": "string"
-                  },
-                  "holdId": {
-                    "type": "string"
-                  },
-                  "siteSources": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "siteWebUrl": {
-                          "type": "string"
-                        }
-                      }
-                    }
-                  },
-                  "tenantFilter": {
-                    "type": "string"
-                  },
-                  "userSources": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "email": {
-                          "type": "string"
-                        },
-                        "includedSources": {
-                          "type": "string"
-                        }
-                      }
-                    }
                   }
-                },
-                "required": [
-                  "tenantFilter"
-                ],
-                "additionalProperties": true,
-                "x-cipp-passthrough": true,
-                "description": "This endpoint forwards the request body onward rather than reading a fixed set of fields. The properties listed here are the ones it is known to read; others may be accepted."
+                }
               }
             }
           }
@@ -24978,7 +24925,8 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StandardResults"
+                  "type": "object",
+                  "description": "Not described statically: this endpoint returns the upstream response as-is, so its fields are determined by the upstream API rather than by CIPP. Call the endpoint to see the actual shape, or add a response schema in backend/Config/openapi-overrides."
                 }
               }
             }
@@ -24991,9 +24939,6 @@
           },
           "403": {
             "description": "Forbidden - caller lacks the required RBAC role"
-          },
-          "500": {
-            "description": "Internal server error"
           }
         },
         "security": [
