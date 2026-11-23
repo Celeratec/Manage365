@@ -1,9 +1,9 @@
 # Design: Purview eDiscovery content search (stats-first)
 
-**Date:** 2026-11-23  
-**Branch:** `clint/ediscovery-search-design`  
-**Originating client ticket:** Freshdesk #3276171 (attorney litigation-hold search; client work only)  
-**Build ticket:** Dedicated internal ticket to be opened (not #3276171); required for ticket-gated writes once known  
+**Date:** 2026-11-23
+**Branch:** `clint/ediscovery-search-design`
+**Originating client ticket:** Freshdesk #3276171 (attorney litigation-hold search; client work only)
+**Build ticket:** Dedicated internal ticket to be opened (not #3276171); required for ticket-gated writes once known
 **Status:** Design approved by Clint (2026-11-23). Approach 1 (AzureArm twin). Ship through PR2 with `EdiscoverySearch` enabled in production after merge/image cutover.
 
 ## Decisions (section 7)

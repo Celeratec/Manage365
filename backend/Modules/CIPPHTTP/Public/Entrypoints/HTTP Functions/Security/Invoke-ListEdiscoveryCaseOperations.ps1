@@ -12,8 +12,11 @@ function Invoke-ListEdiscoveryCaseOperations {
     $CaseId = $Request.Query.caseId
 
     try {
-        $Uri = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/operations"
-        $Operations = New-GraphGetRequest -uri $Uri -tenantid $TenantFilter -AsApp $true
+        $Plan = Get-CIPPEdiscoveryGraphPlan -Action 'ListEdiscoveryCaseOperations' -Params @{ caseId = $CaseId }
+        if (-not $Plan.Allowed) { throw $Plan.Reason }
+        $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
+        $OperationsResult = Invoke-CIPPEdiscoveryRequest -AccessToken $Token.AccessToken -Method $Plan.Method -Path $Plan.Path -Classification $Plan.Classification
+        $Operations = @($OperationsResult.Results)
 
         $GraphRequest = foreach ($Op in $Operations) {
             [PSCustomObject]@{
@@ -25,10 +28,9 @@ function Invoke-ListEdiscoveryCaseOperations {
                 createdBy       = $Op.createdBy.user.displayName
                 createdDate     = $Op.createdDateTime
                 completedDate   = $Op.completedDateTime
-                resultInfo      = $Op.resultInfo
-                exportUrl       = $Op.exportFileMetadata.downloadUrl
-                exportFileName  = $Op.exportFileMetadata.fileName
-                exportFileSize  = $Op.exportFileMetadata.size
+                resultInfo      = ConvertTo-CIPPEdiscoveryCountsOnly -Value $Op.resultInfo
+                exportAvailable = $false
+                exportGuidance  = 'Export content download is not available in Manage365 v1.'
             }
         }
 

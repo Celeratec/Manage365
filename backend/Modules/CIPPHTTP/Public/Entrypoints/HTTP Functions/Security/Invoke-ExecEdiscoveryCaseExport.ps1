@@ -14,37 +14,24 @@ function Invoke-ExecEdiscoveryCaseExport {
     $CaseId = $Request.Body.caseId
     $SearchId = $Request.Body.searchId
 
-    $Uri = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/searches/$SearchId/exportResult"
-
     try {
-        $ExportBody = @{
-            displayName       = $Request.Body.displayName ?? "Export-$SearchId-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-            exportCriteria    = $Request.Body.exportCriteria ?? 'searchHits'
-            exportLocation    = $Request.Body.exportLocation ?? 'originalLocation'
-        }
-
-        if ($Request.Body.exportFormat) {
-            $ExportBody.exportFormat = $Request.Body.exportFormat
-        }
-
-        $RequestBody = $ExportBody | ConvertTo-Json -Compress
-        New-GraphPostRequest -uri $Uri -tenantid $TenantFilter -body $RequestBody -type POST -AsApp $true
-
-        $ResponseBody = "Export started for search '$SearchId'. Check the Exports tab for progress."
-        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $ResponseBody -Sev 'Info'
-
-        $StatusCode = [HttpStatusCode]::OK
-        $Body = [PSCustomObject]@{ Results = $ResponseBody }
+        Test-CIPPEdiscoveryForbiddenAction -Action 'export' -Resource 'search' | Out-Null
     } catch {
-        $ErrorMessage = Get-CippException -Exception $_
-        $Result = "Failed to export eDiscovery search results: $($ErrorMessage.NormalizedError)"
-        Write-LogMessage -headers $Headers -API $APIName -tenant $TenantFilter -message $Result -Sev 'Error' -LogData $ErrorMessage
-        $StatusCode = [HttpStatusCode]::InternalServerError
-        $Body = [PSCustomObject]@{ Results = $Result }
+        return [HttpResponseContext]@{
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = [PSCustomObject]@{ Results = $_.Exception.Message; Status = 'Failed' }
+        }
     }
 
+    $null = $TenantFilter
+    $null = $CaseId
+    $null = $SearchId
+
+    $Message = 'eDiscovery export and content download are not available in Manage365 v1. Use stats-only search estimates; Manage365 will not create exports or return download URLs.'
+    Write-LogMessage -headers $Headers -API $APIName -tenant $Request.Body.tenantFilter -message $Message -Sev 'Warning'
+
     return ([HttpResponseContext]@{
-            StatusCode = $StatusCode
-            Body       = $Body
+            StatusCode = [HttpStatusCode]::BadRequest
+            Body       = [PSCustomObject]@{ Results = $Message; Status = 'Failed' }
         })
 }

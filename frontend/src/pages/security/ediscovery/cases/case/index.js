@@ -34,6 +34,29 @@ const Page = () => {
       ? "Loading..."
       : "Case Not Found";
 
+  const guardedWriteFields = [
+    {
+      name: "ticketNumber",
+      label: "Ticket Number",
+      type: "textField",
+      required: true,
+      validators: { required: "Ticket number is required" },
+    },
+    {
+      name: "reason",
+      label: "Reason",
+      type: "textField",
+      required: true,
+      validators: { required: "Reason is required" },
+    },
+    {
+      name: "dryRun",
+      label: "Preview only (dry run)",
+      type: "switch",
+      defaultValue: true,
+    },
+  ];
+
   const subtitle = currentCase
     ? [
         {
@@ -60,6 +83,7 @@ const Page = () => {
                   caseId: currentCase.id,
                   action: "close",
                 },
+                fields: guardedWriteFields,
                 confirmText:
                   "Are you sure you want to close this case? Holds will remain active.",
                 relatedQueryKeys: [`ListEdiscoveryCases-${caseId}`],
@@ -77,6 +101,7 @@ const Page = () => {
                   caseId: currentCase.id,
                   action: "reopen",
                 },
+                fields: guardedWriteFields,
                 confirmText: "Are you sure you want to reopen this case?",
                 relatedQueryKeys: [`ListEdiscoveryCases-${caseId}`],
               },

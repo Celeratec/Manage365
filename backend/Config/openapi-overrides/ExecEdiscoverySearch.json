@@ -1,0 +1,229 @@
+{
+  "description": "Runs a guarded, stats-only Purview eDiscovery search estimate using a dedicated per-tenant eDiscovery app. dryRun defaults true. The response never includes subjects, snippets, bodies, filenames, download URLs, or item content.",
+  "requestBody": {
+    "required": true,
+    "content": {
+      "application/json": {
+        "schema": {
+          "type": "object",
+          "required": [
+            "tenantFilter",
+            "ticketNumber",
+            "reason",
+            "custodianUpn",
+            "terms"
+          ],
+          "properties": {
+            "tenantFilter": {
+              "type": "string",
+              "description": "Target tenant default domain or tenant identifier, for example contoso.onmicrosoft.com."
+            },
+            "ticketNumber": {
+              "type": "string",
+              "pattern": "^\\d{6,8}$",
+              "description": "Operator approval ticket number. Also becomes the eDiscovery case externalId."
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable reason for the guarded write audit entry."
+            },
+            "dryRun": {
+              "type": "boolean",
+              "default": true,
+              "description": "When omitted or true, returns the planned counts-only workflow without calling Graph."
+            },
+            "custodianUpn": {
+              "type": "string",
+              "format": "email",
+              "description": "Single mailbox custodian UPN. Multiple custodians are not supported in v1."
+            },
+            "terms": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 25,
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "description": "Synthetic-safe keyword terms. The service builds quoted OR KQL and refuses contentQuery passthrough."
+            },
+            "dateFrom": {
+              "type": "string",
+              "format": "date",
+              "description": "Inclusive sent-date lower bound. Must be supplied with dateTo."
+            },
+            "dateTo": {
+              "type": "string",
+              "format": "date",
+              "description": "Inclusive sent-date upper bound. Must be on or after dateFrom and within the 5-year maximum span."
+            },
+            "caseLabel": {
+              "type": "string",
+              "maxLength": 128,
+              "description": "Optional display label appended to the ticket number. Defaults to stats."
+            }
+          }
+        },
+        "examples": {
+          "dryRun": {
+            "summary": "Synthetic dry run",
+            "value": {
+              "tenantFilter": "contoso.onmicrosoft.com",
+              "ticketNumber": "1234567",
+              "reason": "Example Matter 2026-001 stats estimate",
+              "dryRun": true,
+              "caseLabel": "Example Matter 2026-001",
+              "custodianUpn": "custodian@contoso.example",
+              "terms": [
+                "project falcon",
+                "quarterly planning"
+              ],
+              "dateFrom": "2026-01-01",
+              "dateTo": "2026-03-31"
+            }
+          }
+        }
+      }
+    }
+  },
+  "responses": {
+    "200": {
+      "description": "Counts-only eDiscovery search result or dry-run plan",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "description": null,
+            "properties": {
+              "Status": {
+                "type": "string",
+                "enum": [
+                  "DryRun",
+                  "Success"
+                ]
+              },
+              "AuditId": {
+                "type": "string"
+              },
+              "Before": {
+                "nullable": true
+              },
+              "After": {
+                "type": "object",
+                "properties": {
+                  "DisplayName": {
+                    "type": "string"
+                  },
+                  "ExternalId": {
+                    "type": "string"
+                  },
+                  "CustodianUpn": {
+                    "type": "string"
+                  },
+                  "TermCount": {
+                    "type": "integer"
+                  },
+                  "KqlHash": {
+                    "type": "string"
+                  },
+                  "Terms": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "Limits": {
+                    "type": "object",
+                    "properties": {
+                      "MaxTerms": {
+                        "type": "integer"
+                      },
+                      "MaxDateSpanDays": {
+                        "type": "integer"
+                      },
+                      "MaxCustodians": {
+                        "type": "integer"
+                      },
+                      "MailboxOnly": {
+                        "type": "boolean"
+                      },
+                      "StatisticsOptions": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              },
+              "Rollback": {
+                "type": "string"
+              },
+              "Results": {
+                "type": "object",
+                "properties": {
+                  "indexedItemCount": {
+                    "type": "integer"
+                  },
+                  "indexedItemsSize": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "mailboxCount": {
+                    "type": "integer"
+                  },
+                  "unindexedItemCount": {
+                    "type": "integer"
+                  },
+                  "perTerm": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "term": {
+                          "type": "string"
+                        },
+                        "itemCount": {
+                          "type": "integer"
+                        },
+                        "size": {
+                          "type": "integer",
+                          "format": "int64"
+                        }
+                      }
+                    }
+                  },
+                  "Note": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "400": {
+      "description": "Bad request - missing required field or invalid input",
+      "content": {
+        "application/json": {
+          "schema": {
+            "type": "object",
+            "properties": {
+              "Status": {
+                "type": "string",
+                "enum": [
+                  "Failed"
+                ]
+              },
+              "Results": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "x-cipp-override-reason": "Invoke-ExecEdiscoverySearch passes the full request to Invoke-CIPPEdiscoverySearchAction, so the AST generator cannot see the downstream request and response contract."
+}

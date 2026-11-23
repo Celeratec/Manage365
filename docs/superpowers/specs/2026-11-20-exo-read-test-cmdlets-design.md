@@ -1,7 +1,7 @@
 # Design: ListExoRequest read-only Test-* cmdlets (#3281675 PR1)
 
-**Date:** 2026-11-20  
-**Branch:** `clint/exo-read-test-cmdlets`  
+**Date:** 2026-11-20
+**Branch:** `clint/exo-read-test-cmdlets`
 **Status:** Approved (Clint: “yes”)
 
 ## Goal

@@ -1,0 +1,130 @@
+{
+  "ListEdiscoveryCases": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "GetEdiscoveryCase": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "CreateEdiscoveryCase": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "UpdateEdiscoveryCase": {
+    "method": "PATCH",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "CloseEdiscoveryCase": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/close",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ReopenEdiscoveryCase": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/reopen",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ListEdiscoverySearches": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "CreateEdiscoverySearch": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "UpdateEdiscoverySearch": {
+    "method": "PATCH",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "EstimateEdiscoverySearch": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}/estimateStatistics",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "GetEdiscoveryCaseOperation": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/operations/{operationId}",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "ListEdiscoveryCaseOperations": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/operations",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "CreateEdiscoveryCustodian": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ListEdiscoveryCustodians": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "CreateEdiscoveryUserSource": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians/{custodianId}/userSources",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ListEdiscoveryUserSources": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/custodians/{custodianId}/userSources",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "ListEdiscoverySearchCustodianSources": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}/custodianSources",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "AddEdiscoverySearchCustodianSource": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/searches/{searchId}/custodianSources/$ref",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write"
+  },
+  "ListEdiscoveryHolds": {
+    "method": "GET",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/legalHolds",
+    "role": "Security.Ediscovery.Read",
+    "classification": "read"
+  },
+  "CreateEdiscoveryHold": {
+    "method": "POST",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/legalHolds",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write",
+    "requiresApprovalReference": true
+  },
+  "UpdateEdiscoveryHold": {
+    "method": "PATCH",
+    "pathTemplate": "/v1.0/security/cases/ediscoveryCases/{caseId}/legalHolds/{holdId}",
+    "role": "Security.Ediscovery.ReadWrite",
+    "classification": "write",
+    "requiresApprovalReference": true
+  }
+}
