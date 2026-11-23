@@ -15,9 +15,8 @@ Describe 'New-CIPPEdiscoveryKql' {
         $Result.KqlHash | Should -Match '\A[a-f0-9]{64}\z'
     }
 
-    It 'escapes double quotes inside terms' {
-        $Result = New-CIPPEdiscoveryKql -Terms @('say "hello"')
-        $Result.Kql | Should -Be '("say \"hello\"")'
+    It 'refuses double quotes inside terms' {
+        { New-CIPPEdiscoveryKql -Terms @('say "hello"') } | Should -Throw '*Invalid term*'
     }
 
     It 'appends sent date bounds when both dates are supplied' {

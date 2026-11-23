@@ -22,10 +22,10 @@ function New-CIPPEdiscoveryKql {
         if ($T.Length -gt 128) {
             throw 'Each term must be 128 characters or fewer.'
         }
-        if ($T -match '[;\n\r|]' -or $T -imatch 'contentQuery') {
+        if ($T -match '[;\n\r|"]' -or $T -imatch 'contentQuery') {
             throw 'Invalid term.'
         }
-        $Esc = $T.Replace('\', '\\').Replace('"', '\"')
+        $Esc = $T.Replace('\', '\\')
         '"{0}"' -f $Esc
     }
 

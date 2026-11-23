@@ -217,4 +217,31 @@ Describe 'Invoke-CIPPEdiscoveryRequest' {
         $Result.Results[0].indexedItemCount | Should -Be 4
         $script:Uris.Count | Should -Be 2
     }
+
+    It 'does not poll 201 Location headers for created search resources' {
+        $script:Uris = [System.Collections.Generic.List[string]]::new()
+        $SearchId = '44444444-4444-4444-4444-444444444444'
+        $Transport = {
+            param($Method, $Uri, $Headers, $Body)
+            $script:Uris.Add($Uri) | Out-Null
+            if ($Method -eq 'POST' -and $Uri -like '*/searches') {
+                return [pscustomobject]@{
+                    StatusCode = 201
+                    Headers    = @{
+                        Location = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/searches/$SearchId"
+                    }
+                    Body       = [pscustomobject]@{ id = $SearchId; displayName = 'Stats estimate' }
+                }
+            }
+            throw "Unexpected transport call $Method $Uri"
+        }
+
+        $Result = Invoke-CIPPEdiscoveryRequest -AccessToken 'tok' -Method POST `
+            -Path '/v1.0/security/cases/ediscoveryCases/11111111-1111-1111-1111-111111111111/searches' `
+            -Classification write -Transport $Transport -PollTimeoutSeconds 5
+
+        $Result.OperationUrl | Should -BeNullOrEmpty
+        $Result.Results[0].id | Should -Be $SearchId
+        $script:Uris.Count | Should -Be 1
+    }
 }

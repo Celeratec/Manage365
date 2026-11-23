@@ -223,20 +223,26 @@ function Invoke-CIPPEdiscoveryRequest {
             throw 'counts-only eDiscovery response contained downloadUrl.'
         }
 
+        $PollOperationUrl = $null
         $Location = & $GetHeaderValue $ResponseEnvelope.Headers 'Location'
+        $ResponseStatusCode = $ResponseEnvelope.StatusCode
         if ($Location) {
             $LocationUri = [uri]$Location
             if ($LocationUri.Scheme -ne 'https' -or $LocationUri.Host -ne 'graph.microsoft.com') {
                 throw 'eDiscovery Graph operation host must be graph.microsoft.com.'
             }
-            $OperationUrl = $LocationUri.AbsoluteUri
+            $LocationIsOperation = $LocationUri.AbsolutePath -match '(?i)/operations/'
+            if (($ResponseStatusCode -eq 202) -or $LocationIsOperation) {
+                $PollOperationUrl = $LocationUri.AbsoluteUri
+            }
         } elseif ($Classification -eq 'write' -and $Response -is [hashtable] -and $Response.ContainsKey('OperationUrl')) {
-            $OperationUrl = [string]$Response.OperationUrl
+            $PollOperationUrl = [string]$Response.OperationUrl
         } elseif ($Classification -eq 'write' -and $Response.PSObject.Properties['OperationUrl']) {
-            $OperationUrl = [string]$Response.OperationUrl
+            $PollOperationUrl = [string]$Response.OperationUrl
         }
 
-        if ($OperationUrl -and $Classification -eq 'write') {
+        if ($PollOperationUrl -and $Classification -eq 'write') {
+            $OperationUrl = $PollOperationUrl
             $Deadline = [datetime]::UtcNow.AddSeconds($PollTimeoutSeconds)
             $Status = $null
             $FirstPoll = $true
