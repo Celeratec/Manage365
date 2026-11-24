@@ -381,4 +381,45 @@ Describe 'Invoke-CIPPEdiscoverySearchAction' {
         $script:Audits[0].After.caseId | Should -Be '11111111-1111-1111-1111-111111111111'
         $script:Audits[0].After.searchIds | Should -Contain '44444444-4444-4444-4444-444444444444'
     }
+
+    It 'rejects a second live estimate for the same tenant while the first holds the in-flight lock' {
+        Mock Test-CIPPGuardedWriteRequest {
+            [pscustomobject]@{
+                Ok = $true
+                Tenant = 'contoso.onmicrosoft.com'
+                Ticket = '1234567'
+                WhatIf = $false
+                Reason = 'synthetic test'
+                Caller = 'test'
+            }
+        }
+
+        Initialize-CIPPEdiscoverySearchConcurrency
+        $LockKey = Get-CIPPEdiscoverySearchTenantLockKey -TenantFilter 'contoso.onmicrosoft.com'
+        $Added = [CIPPEdiscoverySearchConcurrency]::TenantInFlight.TryAdd($LockKey, 1)
+        $Added | Should -Be $true
+
+        try {
+            $Response = Invoke-CIPPEdiscoverySearchAction -Request @{
+                Body = @{
+                    tenantFilter = 'contoso.onmicrosoft.com'
+                    ticketNumber = '1234567'
+                    reason = 'synthetic test'
+                    dryRun = $false
+                    caseLabel = 'Example Matter 2026-001'
+                    custodianUpn = 'custodian@contoso.example'
+                    terms = @('project falcon')
+                }
+                Headers = @{}
+                Params = @{ CIPPEndpoint = 'ExecEdiscoverySearch' }
+            }
+
+            $Response.StatusCode | Should -Be ([HttpStatusCode]::Conflict)
+            $Response.Body.Results | Should -Match 'already in flight'
+            $script:TransportCalls | Should -Be 0
+        } finally {
+            $Removed = [byte]0
+            [void][CIPPEdiscoverySearchConcurrency]::TenantInFlight.TryRemove($LockKey, [ref]$Removed)
+        }
+    }
 }
