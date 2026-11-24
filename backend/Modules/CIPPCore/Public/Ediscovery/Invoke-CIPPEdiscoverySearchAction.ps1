@@ -1,3 +1,34 @@
+function Initialize-CIPPEdiscoverySearchConcurrency {
+    [CmdletBinding()]
+    param()
+
+    if ('CIPPEdiscoverySearchConcurrency' -as [type]) {
+        return
+    }
+
+    # Static fields are process-wide (shared across PowerShell runspaces on this worker).
+    # Named OS mutexes are not reliable for this host; ConcurrentDictionary TryAdd is.
+    Add-Type -TypeDefinition @'
+using System.Collections.Concurrent;
+using System.Threading;
+public static class CIPPEdiscoverySearchConcurrency {
+    // Caps concurrent live estimate workflows across tenants on this worker process.
+    public static readonly SemaphoreSlim GlobalSlots = new SemaphoreSlim(2, 2);
+    public static readonly ConcurrentDictionary<string, byte> TenantInFlight = new ConcurrentDictionary<string, byte>();
+}
+'@
+}
+
+function Get-CIPPEdiscoverySearchTenantLockKey {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$TenantFilter
+    )
+
+    return $TenantFilter.Trim().ToLowerInvariant()
+}
+
 function Get-CIPPEdiscoverySearchBodyValue {
     [CmdletBinding()]
     param($Body, [string]$Name)
@@ -183,17 +214,27 @@ function Invoke-CIPPEdiscoverySearchAction {
                 })
         }
 
-        if (-not $script:CIPPEdiscoverySearchActionLocks) {
-            $script:CIPPEdiscoverySearchActionLocks = @{}
+        Initialize-CIPPEdiscoverySearchConcurrency
+        $GlobalSlotHeld = $false
+        $TenantLockHeld = $false
+        $LockKey = Get-CIPPEdiscoverySearchTenantLockKey -TenantFilter ([string]$Gate.Tenant)
+        if (-not [CIPPEdiscoverySearchConcurrency]::GlobalSlots.Wait(0)) {
+            return Get-CIPPEdiscoverySearchHttpResponse -StatusCode ([HttpStatusCode]::TooManyRequests) -Body ([pscustomobject]@{
+                    Results = 'Too many eDiscovery search estimates are already running on this worker. Retry shortly.'
+                    Status  = 'Failed'
+                })
         }
-        $LockKey = ([string]$Gate.Tenant).ToLowerInvariant()
-        if ($script:CIPPEdiscoverySearchActionLocks[$LockKey]) {
+        $GlobalSlotHeld = $true
+
+        if (-not [CIPPEdiscoverySearchConcurrency]::TenantInFlight.TryAdd($LockKey, 1)) {
+            [void][CIPPEdiscoverySearchConcurrency]::GlobalSlots.Release()
+            $GlobalSlotHeld = $false
             return Get-CIPPEdiscoverySearchHttpResponse -StatusCode ([HttpStatusCode]::Conflict) -Body ([pscustomobject]@{
                     Results = 'An eDiscovery search estimate is already in flight for this tenant.'
                     Status  = 'Failed'
                 })
         }
-        $script:CIPPEdiscoverySearchActionLocks[$LockKey] = $true
+        $TenantLockHeld = $true
         $CaseId = $null
         $SearchIds = [System.Collections.Generic.List[string]]::new()
 
@@ -201,7 +242,7 @@ function Invoke-CIPPEdiscoverySearchAction {
             $Token = Get-CIPPEdiscoveryAccessToken -TenantFilter $TenantFilter
             $AccessToken = [string]$Token.AccessToken
 
-            $Cases = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryCases' -Params @{} -PollTimeoutSeconds 300
+            $Cases = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryCases' -Params @{} -PollTimeoutSeconds 60
             $ExistingCase = @($Cases.Results | Where-Object {
                     [string]$_.externalId -eq $SearchPlan.ExternalId -and
                     [string]$_.displayName -eq $SearchPlan.DisplayName -and
@@ -215,7 +256,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                     displayName = $SearchPlan.DisplayName
                     description = 'Manage365 stats-only eDiscovery search.'
                     externalId  = $SearchPlan.ExternalId
-                } -PollTimeoutSeconds 300
+                } -PollTimeoutSeconds 60
                 $Case = @($CaseResponse.Results | Select-Object -First 1)[0]
             }
 
@@ -224,7 +265,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 throw 'eDiscovery case id was not returned by Graph.'
             }
 
-            $Custodians = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryCustodians' -Params @{ caseId = $CaseId } -PollTimeoutSeconds 300
+            $Custodians = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryCustodians' -Params @{ caseId = $CaseId } -PollTimeoutSeconds 60
             $Custodian = @($Custodians.Results | Where-Object {
                     [string]$_.email -ieq $SearchPlan.CustodianUpn -or
                     [string]$_.userPrincipalName -ieq $SearchPlan.CustodianUpn
@@ -234,7 +275,7 @@ function Invoke-CIPPEdiscoverySearchAction {
             } else {
                 $CustodianResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'CreateEdiscoveryCustodian' -Params @{ caseId = $CaseId } -Body @{
                     email = $SearchPlan.CustodianUpn
-                } -PollTimeoutSeconds 300
+                } -PollTimeoutSeconds 60
                 $Custodian = @($CustodianResponse.Results | Select-Object -First 1)[0]
             }
             $CustodianId = [string]$Custodian.id
@@ -242,7 +283,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 throw 'eDiscovery custodian id was not returned by Graph.'
             }
 
-            $UserSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryUserSources' -Params @{ caseId = $CaseId; custodianId = $CustodianId } -PollTimeoutSeconds 300
+            $UserSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoveryUserSources' -Params @{ caseId = $CaseId; custodianId = $CustodianId } -PollTimeoutSeconds 60
             $UserSource = @($UserSources.Results | Where-Object {
                     ([string]$_.email -ieq $SearchPlan.CustodianUpn -or [string]$_.userPrincipalName -ieq $SearchPlan.CustodianUpn) -and
                     ([string]::IsNullOrWhiteSpace([string]$_.includedSources) -or [string]$_.includedSources -match '(?i)mailbox')
@@ -253,7 +294,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 $UserSourceResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'CreateEdiscoveryUserSource' -Params @{ caseId = $CaseId; custodianId = $CustodianId } -Body @{
                     email           = $SearchPlan.CustodianUpn
                     includedSources = 'mailbox'
-                } -PollTimeoutSeconds 300
+                } -PollTimeoutSeconds 60
                 $UserSource = @($UserSourceResponse.Results | Select-Object -First 1)[0]
             }
             $UserSourceId = [string]$UserSource.id
@@ -261,7 +302,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 throw 'eDiscovery user source id was not returned by Graph.'
             }
 
-            $ExistingSearches = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearches' -Params @{ caseId = $CaseId } -PollTimeoutSeconds 300
+            $ExistingSearches = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearches' -Params @{ caseId = $CaseId } -PollTimeoutSeconds 60
             $PerTerm = foreach ($Term in @($SearchPlan.Terms)) {
                 $TermPlanParams = @{
                     TicketNumber = $SearchPlan.ExternalId
@@ -285,7 +326,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                 foreach ($CandidateSearch in $CandidateSearches) {
                     $CandidateSearchId = [string]$CandidateSearch.id
                     if ([string]::IsNullOrWhiteSpace($CandidateSearchId)) { continue }
-                    $CandidateSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $CandidateSearchId } -PollTimeoutSeconds 300
+                    $CandidateSources = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $CandidateSearchId } -PollTimeoutSeconds 60
                     $CandidateSourceIds = @($CandidateSources.Results | ForEach-Object { [string]$_.id } | Where-Object { $_ })
                     if ($CandidateSourceIds.Count -eq 0 -or ($CandidateSourceIds.Count -eq 1 -and $CandidateSourceIds[0] -eq $UserSourceId)) {
                         $Search = $CandidateSearch
@@ -302,7 +343,7 @@ function Invoke-CIPPEdiscoverySearchAction {
                         description      = 'Manage365 stats-only per-term estimate.'
                         contentQuery     = $TermPlan.Kql
                         dataSourceScopes = 'none'
-                    } -PollTimeoutSeconds 300
+                    } -PollTimeoutSeconds 60
                     $Search = @($SearchResponse.Results | Select-Object -First 1)[0]
                 }
                 $SearchId = [string]$Search.id
@@ -311,16 +352,16 @@ function Invoke-CIPPEdiscoverySearchAction {
                 }
                 $SearchIds.Add($SearchId) | Out-Null
 
-                $LinkedSources = if ($SearchLinkedSources) { $SearchLinkedSources } else { Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $SearchId } -PollTimeoutSeconds 300 }
+                $LinkedSources = if ($SearchLinkedSources) { $SearchLinkedSources } else { Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'ListEdiscoverySearchCustodianSources' -Params @{ caseId = $CaseId; searchId = $SearchId } -PollTimeoutSeconds 60 }
                 $SourceAlreadyLinked = @($LinkedSources.Results | Where-Object { [string]$_.id -eq $UserSourceId }).Count -gt 0
                 if (-not $SourceAlreadyLinked) {
                     $SourceUrl = "https://graph.microsoft.com/v1.0/security/cases/ediscoveryCases/$CaseId/custodians/$CustodianId/userSources/$UserSourceId"
                     $null = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'AddEdiscoverySearchCustodianSource' -Params @{ caseId = $CaseId; searchId = $SearchId } -Body @{
                         '@odata.id' = $SourceUrl
-                    } -PollTimeoutSeconds 300
+                    } -PollTimeoutSeconds 60
                 }
 
-                $EstimateResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'EstimateEdiscoverySearch' -Params @{ caseId = $CaseId; searchId = $SearchId } -Body @{} -PollTimeoutSeconds 300
+                $EstimateResponse = Invoke-CIPPEdiscoveryPlannedRequest -AccessToken $AccessToken -Action 'EstimateEdiscoverySearch' -Params @{ caseId = $CaseId; searchId = $SearchId } -Body @{} -PollTimeoutSeconds 180
                 $Metrics = Get-CIPPEdiscoverySearchResultMetric -Response $EstimateResponse
                 [pscustomobject]@{
                     term      = $Term
@@ -359,7 +400,15 @@ function Invoke-CIPPEdiscoverySearchAction {
                     Results  = $Results
                 })
         } finally {
-            $script:CIPPEdiscoverySearchActionLocks.Remove($LockKey)
+            if ($TenantLockHeld) {
+                $Removed = [byte]0
+                [void][CIPPEdiscoverySearchConcurrency]::TenantInFlight.TryRemove($LockKey, [ref]$Removed)
+                $TenantLockHeld = $false
+            }
+            if ($GlobalSlotHeld) {
+                [void][CIPPEdiscoverySearchConcurrency]::GlobalSlots.Release()
+                $GlobalSlotHeld = $false
+            }
         }
     } catch {
         $ErrorMessage = Get-CippException -Exception $_
